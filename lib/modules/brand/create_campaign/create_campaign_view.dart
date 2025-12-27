@@ -29,53 +29,66 @@ class CreateCampaignView extends GetView<CreateCampaignController> {
                     /// progress depends on Rx -> wrap in Obx
                     Obx(() => _progressSection()),
 
-                    18.h.verticalSpace,
+                    14.h.verticalSpace,
 
                     Text(
                       'create_campaign_get_started_title'.tr,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 26.sp,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 19.sp,
+                        fontWeight: FontWeight.w600,
                         color: AppPalette.primary,
                       ),
                     ),
-                    6.h.verticalSpace,
+
+                    5.h.verticalSpace,
+
                     Text(
                       'create_campaign_get_started_subtitle'.tr,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 12.sp,
+                        fontSize: 10.sp,
                         fontWeight: FontWeight.w300,
-                        color: AppPalette.greyText,
+                        color: AppPalette.black,
                       ),
                     ),
 
-                    18.h.verticalSpace,
+                    20.h.verticalSpace,
 
                     CustomTextFormField(
                       title: 'create_campaign_name_label'.tr,
+                      titleTextStyle: TextStyle(
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w600,
+                      color: AppPalette.primary,
+                    ),
                       hintText: 'create_campaign_name_hint'.tr,
+                      textStyle: TextStyle(
+                        fontSize: 10.sp,
+                        fontWeight: FontWeight.w400,
+                        color: AppPalette.greyText,
+                      ),
                       controller: controller.campaignNameCtrl,
                       textInputAction: TextInputAction.next,
                       onChanged: controller.onCampaignNameChanged,
                     ),
 
-                    18.h.verticalSpace,
+                    17.h.verticalSpace,
 
                     Text(
                       'create_campaign_type_label'.tr,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 14.sp,
+                        fontSize: 12.sp,
                         fontWeight: FontWeight.w600,
                         color: AppPalette.primary,
                       ),
                     ),
-                    10.h.verticalSpace,
+
+                    11.h.verticalSpace,
 
                     /// both cards depend on selectedType Rx -> wrap once
                     Obx(() {
@@ -182,8 +195,8 @@ class CreateCampaignView extends GetView<CreateCampaignController> {
         child: Row(
           children: [
             Container(
-              width: 42.w,
-              height: 42.w,
+              width: 46.w,
+              height: 46.w,
               decoration: BoxDecoration(
                 color: AppPalette.defaultFill,
                 borderRadius: BorderRadius.circular(10.r),
@@ -199,8 +212,8 @@ class CreateCampaignView extends GetView<CreateCampaignController> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w500,
                       color: AppPalette.primary,
                     ),
                   ),
@@ -210,8 +223,8 @@ class CreateCampaignView extends GetView<CreateCampaignController> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.w300,
+                      fontSize: 10.sp,
+                      fontWeight: FontWeight.w400,
                       color: AppPalette.greyText,
                     ),
                   ),
