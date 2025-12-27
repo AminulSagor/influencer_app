@@ -93,8 +93,8 @@ class CreateCampaignStep2View extends GetView<CreateCampaignController> {
 
                       return _PaidAdStep2(controller: controller);
                     }),
-
                     24.h.verticalSpace,
+
                   ],
                 ),
               ),
@@ -268,75 +268,95 @@ class _InfluencerPromotionStep2 extends StatelessWidget {
 
         18.h.verticalSpace,
 
-        /// Preferred influencers
-        Text(
-          'create_campaign_preferred_influencers_label'.tr,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 14.sp,
-            fontWeight: FontWeight.w600,
-            color: AppPalette.primary,
-          ),
+        InputNamesWidget(
+          title: 'create_campaign_preferred_influencers_label'.tr,
+          subTitle: 'create_campaign_preferred_influencers_hint'.tr,
+          textController: controller.influencersInputController,
+          names: controller.preferredInputInfluencers,
+          onSubmitted: controller.addPreferredInfluencers,
+          onDeleted: controller.removePreferredInfluencer,
         ),
-        10.h.verticalSpace,
-        CustomTextFormField(
-          hintText: 'create_campaign_preferred_influencers_hint'.tr,
-          controller: controller.preferredInputCtrl,
-          textInputAction: TextInputAction.done,
-          suffixIcon: IconButton(
-            icon: Icon(
-              Icons.add_circle_outline,
-              size: 20.sp,
-              color: AppPalette.primary,
-            ),
-            onPressed: controller.commitPreferredInput,
-          ),
-          onChanged: controller.onPreferredTyping,
-        ),
-        12.h.verticalSpace,
-        Obx(() {
-          final items = controller.preferredInfluencers.toList(); // ✅ IMPORTANT
-          return _ChipBox(items: items, onRemove: controller.removePreferred);
-        }),
 
         18.h.verticalSpace,
 
+        InputNamesWidget(
+          title: 'create_campaign_not_preferred_influencers_label'.tr,
+          subTitle: 'create_campaign_preferred_influencers_hint'.tr,
+          textController: controller.influencersNotInputController,
+          names: controller.preferredExcludedInfluencers,
+          onSubmitted: controller.addExcludedInfluencers,
+          onDeleted: controller.removeExcludedInfluencer,
+        ),
+
+        // /// Preferred influencers
+        // Text(
+        //   'create_campaign_preferred_influencers_label'.tr,
+        //   maxLines: 1,
+        //   overflow: TextOverflow.ellipsis,
+        //   style: TextStyle(
+        //     fontSize: 14.sp,
+        //     fontWeight: FontWeight.w600,
+        //     color: AppPalette.primary,
+        //   ),
+        // ),
+        // 10.h.verticalSpace,
+        // CustomTextFormField(
+        //   hintText: 'create_campaign_preferred_influencers_hint'.tr,
+        //   controller: controller.preferredInputCtrl,
+        //   textInputAction: TextInputAction.done,
+        //   suffixIcon: IconButton(
+        //     icon: Icon(
+        //       Icons.add_circle_outline,
+        //       size: 20.sp,
+        //       color: AppPalette.primary,
+        //     ),
+        //     onPressed: controller.commitPreferredInput,
+        //   ),
+        //   onChanged: controller.onPreferredTyping,
+        // ),
+        // 12.h.verticalSpace,
+        // Obx(() {
+        //   final items = controller.preferredInfluencers.toList(); // ✅ IMPORTANT
+        //   return _ChipBox(items: items, onRemove: controller.removePreferred);
+        // }),
+        //
+        // 18.h.verticalSpace,
+
         /// Not preferred influencers
-        Text(
-          'create_campaign_not_preferred_influencers_label'.tr,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 14.sp,
-            fontWeight: FontWeight.w600,
-            color: AppPalette.primary,
-          ),
-        ),
-        10.h.verticalSpace,
-        CustomTextFormField(
-          hintText: 'create_campaign_not_preferred_influencers_hint'.tr,
-          controller: controller.notPreferredInputCtrl,
-          textInputAction: TextInputAction.done,
-          suffixIcon: IconButton(
-            icon: Icon(
-              Icons.add_circle_outline,
-              size: 20.sp,
-              color: AppPalette.primary,
-            ),
-            onPressed: controller.commitNotPreferredInput,
-          ),
-          onChanged: controller.onNotPreferredTyping,
-        ),
-        12.h.verticalSpace,
-        Obx(() {
-          final items = controller.notPreferredInfluencers
-              .toList(); // ✅ IMPORTANT
-          return _ChipBox(
-            items: items,
-            onRemove: controller.removeNotPreferred,
-          );
-        }),
+        // Text(
+        //   'create_campaign_not_preferred_influencers_label'.tr,
+        //   maxLines: 1,
+        //   overflow: TextOverflow.ellipsis,
+        //   style: TextStyle(
+        //     fontSize: 14.sp,
+        //     fontWeight: FontWeight.w600,
+        //     color: AppPalette.primary,
+        //   ),
+        // ),
+        // 10.h.verticalSpace,
+        // CustomTextFormField(
+        //   hintText: 'create_campaign_not_preferred_influencers_hint'.tr,
+        //   controller: controller.notPreferredInputCtrl,
+        //   textInputAction: TextInputAction.done,
+        //   suffixIcon: IconButton(
+        //     icon: Icon(
+        //       Icons.add_circle_outline,
+        //       size: 20.sp,
+        //       color: AppPalette.primary,
+        //     ),
+        //     onPressed: controller.commitNotPreferredInput,
+        //   ),
+        //   onChanged: controller.onNotPreferredTyping,
+        // ),
+        // 12.h.verticalSpace,
+        // Obx(() {
+        //   final items = controller.notPreferredInfluencers
+        //       .toList(); // ✅ IMPORTANT
+        //   return _ChipBox(
+        //     items: items,
+        //     onRemove: controller.removeNotPreferred,
+        //   );
+        // }),
       ],
     );
   }
@@ -399,79 +419,79 @@ class _PaidAdStep2 extends StatelessWidget {
           );
         }),
 
-        // 18.h.verticalSpace,
+        18.h.verticalSpace,
 
-        /// Recommended agencies
-        // Text(
-        //   'create_campaign_recommended_agencies_label'.tr,
-        //   maxLines: 1,
-        //   overflow: TextOverflow.ellipsis,
-        //   style: TextStyle(
-        //     fontSize: 14.sp,
-        //     fontWeight: FontWeight.w600,
-        //     color: AppPalette.primary,
-        //   ),
-        // ),
-        // 12.h.verticalSpace,
-        // SizedBox(
-        //   height: 145.h,
-        //   child: Obx(() {
-        //     final items = controller.recommendedAgencies
-        //         .toList(); // ✅ IMPORTANT
-        //     final selectedName =
-        //         controller.selectedAgencyName.value; // ✅ reads Rx
-        //     return ListView.separated(
-        //       scrollDirection: Axis.horizontal,
-        //       physics: const BouncingScrollPhysics(),
-        //       itemCount: items.length,
-        //       separatorBuilder: (_, __) => 12.w.horizontalSpace,
-        //       itemBuilder: (_, i) {
-        //         final a = items[i];
-        //         final selected = selectedName == a.name;
-        //         return _AgencySquareCard(
-        //           name: a.name,
-        //           subtitle: a.subtitle,
-        //           selected: selected,
-        //           onTap: () => controller.selectAgency(a.name),
-        //         );
-        //       },
-        //     );
-        //   }),
-        // ),
-        //
-        // 18.h.verticalSpace,
-        //
-        // /// Other agencies (vertical)
-        // Text(
-        //   'create_campaign_other_agencies_label'.tr,
-        //   maxLines: 1,
-        //   overflow: TextOverflow.ellipsis,
-        //   style: TextStyle(
-        //     fontSize: 14.sp,
-        //     fontWeight: FontWeight.w600,
-        //     color: AppPalette.primary,
-        //   ),
-        // ),
-        // 12.h.verticalSpace,
-        // Obx(() {
-        //   final items = controller.otherAgencies.toList(); // ✅ IMPORTANT
-        //   final selectedName =
-        //       controller.selectedAgencyName.value; // ✅ reads Rx
-        //   return Column(
-        //     children: items.map((a) {
-        //       final selected = selectedName == a.name;
-        //       return Padding(
-        //         padding: EdgeInsets.only(bottom: 12.h),
-        //         child: _AgencyWideCard(
-        //           name: a.name,
-        //           subtitle: a.subtitle,
-        //           selected: selected,
-        //           onTap: () => controller.selectAgency(a.name),
-        //         ),
-        //       );
-        //     }).toList(),
-        //   );
-        // }),
+        // Recommended agencies
+        Text(
+          'create_campaign_recommended_agencies_label'.tr,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 14.sp,
+            fontWeight: FontWeight.w600,
+            color: AppPalette.primary,
+          ),
+        ),
+        12.h.verticalSpace,
+        SizedBox(
+          height: 145.h,
+          child: Obx(() {
+            final items = controller.recommendedAgencies
+                .toList(); // ✅ IMPORTANT
+            final selectedName =
+                controller.selectedAgencyName.value; // ✅ reads Rx
+            return ListView.separated(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              itemCount: items.length,
+              separatorBuilder: (_, __) => 12.w.horizontalSpace,
+              itemBuilder: (_, i) {
+                final a = items[i];
+                final selected = selectedName == a.name;
+                return _AgencySquareCard(
+                  name: a.name,
+                  subtitle: a.subtitle,
+                  selected: selected,
+                  onTap: () => controller.selectAgency(a.name),
+                );
+              },
+            );
+          }),
+        ),
+
+        18.h.verticalSpace,
+
+        /// Other agencies (vertical)
+        Text(
+          'create_campaign_other_agencies_label'.tr,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 14.sp,
+            fontWeight: FontWeight.w600,
+            color: AppPalette.primary,
+          ),
+        ),
+        12.h.verticalSpace,
+        Obx(() {
+          final items = controller.otherAgencies.toList(); // ✅ IMPORTANT
+          final selectedName =
+              controller.selectedAgencyName.value; // ✅ reads Rx
+          return Column(
+            children: items.map((a) {
+              final selected = selectedName == a.name;
+              return Padding(
+                padding: EdgeInsets.only(bottom: 12.h),
+                child: _AgencyWideCard(
+                  name: a.name,
+                  subtitle: a.subtitle,
+                  selected: selected,
+                  onTap: () => controller.selectAgency(a.name),
+                ),
+              );
+            }).toList(),
+          );
+        }),
       ],
     );
   }
@@ -784,3 +804,84 @@ class _EmptyState extends StatelessWidget {
     );
   }
 }
+
+
+class InputNamesWidget extends StatelessWidget {
+  final String title;
+  final String subTitle;
+  final TextEditingController textController;
+  final List<String> names;
+  final void Function(String) onSubmitted;
+  final void Function(String) onDeleted;
+
+  const InputNamesWidget({
+    super.key,
+    required this.title,
+    required this.subTitle,
+    required this.textController,
+    required this.names,
+    required this.onSubmitted,
+    required this.onDeleted,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 12.sp, fontWeight: FontWeight.w600, color: AppPalette.primary)),
+
+          5.h.verticalSpace,
+
+          TextField(
+            controller: textController,
+            style: TextStyle(
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w400,
+              color: AppPalette.black,
+            ),
+            decoration: InputDecoration(
+              fillColor: AppPalette.white,
+              filled: true,
+              hintText: subTitle,
+              hintStyle: TextStyle(fontSize: 10.sp, fontWeight: FontWeight.w400, color: AppPalette.greyText,),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(kBorderRadius.r),
+                borderSide: BorderSide.none,
+              ),
+            ),
+            onSubmitted: onSubmitted,
+          ),
+
+          16.h.verticalSpace,
+
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 16),
+            width: MediaQuery.sizeOf(context).width,
+            constraints: const BoxConstraints(minHeight: 120),
+            decoration: BoxDecoration(
+              color: AppPalette.white,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Wrap(
+              spacing: 8, runSpacing: 8,
+              children: names.map((name) => Chip(shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),),
+                label: Text(name),
+                deleteIcon: const Icon(Icons.close,size: 16),
+                onDeleted: () => onDeleted(name),
+              ),
+              ).toList(),
+            ),
+          ),
+        ],
+      );
+    });
+  }
+}
+

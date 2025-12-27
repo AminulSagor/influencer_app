@@ -20,8 +20,41 @@ class CreateCampaignController extends GetxController {
   final selectedType = Rxn<CampaignType>();
 
   /// ---------------- STEP 2 (Influencer Promotion) ----------------
+  final TextEditingController influencersInputController = TextEditingController();
+  final TextEditingController influencersNotInputController = TextEditingController();
+  final RxList<String> preferredInputInfluencers = <String>[].obs;
+  final RxList<String> preferredExcludedInfluencers = <String>[].obs;
+  final RxList<String> influencers = <String>[].obs;
   final selectedProductType = RxnString();
   final selectedNiches = <String>[].obs;
+
+  void addPreferredInfluencers(String input) {
+    final names = input.split(',').map((name) => name.trim())
+        .where((name) => name.isNotEmpty && !preferredInputInfluencers.contains(name))
+        .toList();
+
+    preferredInputInfluencers.addAll(names);
+    influencersInputController.clear();
+  }
+
+  void removePreferredInfluencer(String name) {
+    preferredInputInfluencers.remove(name);
+  }
+
+  void addExcludedInfluencers(String input) {
+    final names = input.split(',').map((name) => name.trim())
+        .where((name) => name.isNotEmpty && !preferredExcludedInfluencers.contains(name))
+        .toList();
+
+    preferredExcludedInfluencers.addAll(names);
+    influencersNotInputController.clear();
+  }
+
+  void removeExcludedInfluencer(String name) {
+    preferredExcludedInfluencers.remove(name);
+  }
+
+
 
   final preferredInputCtrl = TextEditingController();
   final notPreferredInputCtrl = TextEditingController();
@@ -335,9 +368,9 @@ class CreateCampaignController extends GetxController {
   void removeNotPreferred(String name) => notPreferredInfluencers.remove(name);
 
   void _commitCommaSeparated(
-    TextEditingController ctrl,
-    RxList<String> target,
-  ) {
+      TextEditingController ctrl,
+      RxList<String> target,
+      ) {
     final raw = ctrl.text.trim();
     if (raw.isEmpty) return;
 
@@ -876,31 +909,31 @@ class CreateCampaignController extends GetxController {
                       return ElevatedButton(
                         onPressed: canSave
                             ? () {
-                                final name = pickedName.value!;
-                                final bytes = pickedBytes.value!;
-                                final path = pickedPath.value;
+                          final name = pickedName.value!;
+                          final bytes = pickedBytes.value!;
+                          final path = pickedPath.value;
 
-                                final ext = _extUpper(name);
-                                final meta = '$ext – ${_formatBytes(bytes)}';
+                          final ext = _extUpper(name);
+                          final meta = '$ext – ${_formatBytes(bytes)}';
 
-                                // If user doesn't provide title, use filename without extension
-                                final customTitle = _assetTitleCtrl.text.trim();
-                                final fallbackTitle = _filenameNoExt(name);
-                                final title = customTitle.isNotEmpty
-                                    ? customTitle
-                                    : fallbackTitle;
+                          // If user doesn't provide title, use filename without extension
+                          final customTitle = _assetTitleCtrl.text.trim();
+                          final fallbackTitle = _filenameNoExt(name);
+                          final title = customTitle.isNotEmpty
+                              ? customTitle
+                              : fallbackTitle;
 
-                                contentAssets.add(
-                                  JobAsset(
-                                    title: title,
-                                    meta: meta,
-                                    kind: pickedKind.value,
-                                    pathOrUrl: path,
-                                  ),
-                                );
+                          contentAssets.add(
+                            JobAsset(
+                              title: title,
+                              meta: meta,
+                              kind: pickedKind.value,
+                              pathOrUrl: path,
+                            ),
+                          );
 
-                                Get.back();
-                              }
+                          Get.back();
+                        }
                             : null,
                         style: ElevatedButton.styleFrom(
                           minimumSize: Size(double.infinity, 46.h),

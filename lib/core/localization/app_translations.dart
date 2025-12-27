@@ -609,7 +609,8 @@ class AppTranslations extends Translations {
       'create_campaign_niche_label': 'Campaign Niche',
       'create_campaign_niche_hint': 'Select Campaign Niches',
       'create_campaign_preferred_influencers_label': 'Preferred Influencers',
-      'create_campaign_preferred_influencers_hint':
+      'create_campaign_not_preferred_influencers_label': 'Not preferrable Influencers',
+      'create_campaign_preferred_influencers_hint': 'Enter influencers names...(separate each with a comma)'
           'Enter influencer names... (separate with a comma)',
       'create_campaign_not_preferred_influencers_label':
           'Not Preferable Influencers',
@@ -1583,8 +1584,11 @@ class AppTranslations extends Translations {
           'ক্যাম্পেইন প্লেসমেন্ট নিশ্চিত হয়েছে',
       'create_campaign_step6_popup_message':
           'আমরা শীঘ্রই আপনার ক্যাম্পেইনটি পর্যালোচনা করব।\nএতে সাধারণত ৩–৫ কর্মদিবস সময় লাগতে পারে।',
+      'create_campaign_preferred_influencers_hint': 'প্রভাবশালীদের নাম লিখুন...(প্রতিটি নাম কমা দিয়ে আলাদা করুন)',
+      'create_campaign_preferred_influencers_label': 'পছন্দের প্রভাবশালী',
+      'create_campaign_not_preferred_influencers_label': 'পছন্দের নয় এমন প্রভাবশালী',
 
-      'brand_campaign_details_welcome': 'স্বাগতম, User!',
+          'brand_campaign_details_welcome': 'স্বাগতম, User!',
       'brand_campaign_details_campaign_details': 'ক্যাম্পেইন ডিটেইলস',
       'brand_campaign_details_influencers': 'ইনফ্লুয়েন্সার',
       'brand_campaign_details_platforms': 'প্ল্যাটফর্ম',

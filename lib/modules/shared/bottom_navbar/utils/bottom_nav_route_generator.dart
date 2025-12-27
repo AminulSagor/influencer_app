@@ -100,7 +100,7 @@ class BottomNavRouteGenerator {
       case AppRoutes.createCampaignStep2:
         return GetPageRoute(
           settings: settings,
-          page: () => const CreateCampaignStep2View(),
+          page: () => CreateCampaignStep2View(),
         );
       case AppRoutes.createCampaignStep3:
         return GetPageRoute(
