@@ -41,8 +41,8 @@ class CreateCampaignStep2View extends GetView<CreateCampaignController> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 26.sp,
-                              fontWeight: FontWeight.w700,
+                              fontSize: 19.sp,
+                              fontWeight: FontWeight.w600,
                               color: AppPalette.primary,
                             ),
                           ),
@@ -61,19 +61,21 @@ class CreateCampaignStep2View extends GetView<CreateCampaignController> {
                         ),
                       ],
                     ),
-                    6.h.verticalSpace,
+
+                    5.h.verticalSpace,
+
                     Text(
                       'create_campaign_step2_subtitle'.tr,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 12.sp,
+                        fontSize: 10.sp,
                         fontWeight: FontWeight.w300,
-                        color: AppPalette.greyText,
+                        color: AppPalette.black,
                       ),
                     ),
 
-                    18.h.verticalSpace,
+                    20.h.verticalSpace,
 
                     /// ✅ Body switches by type -> Obx required
                     Obx(() {
@@ -352,16 +354,42 @@ class _PaidAdStep2 extends StatelessWidget {
       children: [
         /// Paid Ad Niche (single)
         Text(
-          'create_campaign_niche_label'.tr,
+          'create_campaign_product_type_label'.tr,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            fontSize: 14.sp,
+            fontSize: 12.sp,
             fontWeight: FontWeight.w600,
             color: AppPalette.primary,
           ),
         ),
-        10.h.verticalSpace,
+
+        5.h.verticalSpace,
+
+        Obx(() {
+          final value = controller.selectedPaidAdNiche.value; // ✅ reads Rx
+          return _SelectField(
+            text: value ?? 'create_campaign_product_type_hint'.tr,
+            isPlaceholder: value == null,
+            onTap: controller.openPaidAdNichePicker,
+          );
+        }),
+
+        18.h.verticalSpace,
+
+        Text(
+          'create_campaign_niche_label'.tr,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 12.sp,
+            fontWeight: FontWeight.w600,
+            color: AppPalette.primary,
+          ),
+        ),
+
+        5.h.verticalSpace,
+
         Obx(() {
           final value = controller.selectedPaidAdNiche.value; // ✅ reads Rx
           return _SelectField(
@@ -371,79 +399,79 @@ class _PaidAdStep2 extends StatelessWidget {
           );
         }),
 
-        18.h.verticalSpace,
+        // 18.h.verticalSpace,
 
         /// Recommended agencies
-        Text(
-          'create_campaign_recommended_agencies_label'.tr,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 14.sp,
-            fontWeight: FontWeight.w600,
-            color: AppPalette.primary,
-          ),
-        ),
-        12.h.verticalSpace,
-        SizedBox(
-          height: 145.h,
-          child: Obx(() {
-            final items = controller.recommendedAgencies
-                .toList(); // ✅ IMPORTANT
-            final selectedName =
-                controller.selectedAgencyName.value; // ✅ reads Rx
-            return ListView.separated(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              itemCount: items.length,
-              separatorBuilder: (_, __) => 12.w.horizontalSpace,
-              itemBuilder: (_, i) {
-                final a = items[i];
-                final selected = selectedName == a.name;
-                return _AgencySquareCard(
-                  name: a.name,
-                  subtitle: a.subtitle,
-                  selected: selected,
-                  onTap: () => controller.selectAgency(a.name),
-                );
-              },
-            );
-          }),
-        ),
-
-        18.h.verticalSpace,
-
-        /// Other agencies (vertical)
-        Text(
-          'create_campaign_other_agencies_label'.tr,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 14.sp,
-            fontWeight: FontWeight.w600,
-            color: AppPalette.primary,
-          ),
-        ),
-        12.h.verticalSpace,
-        Obx(() {
-          final items = controller.otherAgencies.toList(); // ✅ IMPORTANT
-          final selectedName =
-              controller.selectedAgencyName.value; // ✅ reads Rx
-          return Column(
-            children: items.map((a) {
-              final selected = selectedName == a.name;
-              return Padding(
-                padding: EdgeInsets.only(bottom: 12.h),
-                child: _AgencyWideCard(
-                  name: a.name,
-                  subtitle: a.subtitle,
-                  selected: selected,
-                  onTap: () => controller.selectAgency(a.name),
-                ),
-              );
-            }).toList(),
-          );
-        }),
+        // Text(
+        //   'create_campaign_recommended_agencies_label'.tr,
+        //   maxLines: 1,
+        //   overflow: TextOverflow.ellipsis,
+        //   style: TextStyle(
+        //     fontSize: 14.sp,
+        //     fontWeight: FontWeight.w600,
+        //     color: AppPalette.primary,
+        //   ),
+        // ),
+        // 12.h.verticalSpace,
+        // SizedBox(
+        //   height: 145.h,
+        //   child: Obx(() {
+        //     final items = controller.recommendedAgencies
+        //         .toList(); // ✅ IMPORTANT
+        //     final selectedName =
+        //         controller.selectedAgencyName.value; // ✅ reads Rx
+        //     return ListView.separated(
+        //       scrollDirection: Axis.horizontal,
+        //       physics: const BouncingScrollPhysics(),
+        //       itemCount: items.length,
+        //       separatorBuilder: (_, __) => 12.w.horizontalSpace,
+        //       itemBuilder: (_, i) {
+        //         final a = items[i];
+        //         final selected = selectedName == a.name;
+        //         return _AgencySquareCard(
+        //           name: a.name,
+        //           subtitle: a.subtitle,
+        //           selected: selected,
+        //           onTap: () => controller.selectAgency(a.name),
+        //         );
+        //       },
+        //     );
+        //   }),
+        // ),
+        //
+        // 18.h.verticalSpace,
+        //
+        // /// Other agencies (vertical)
+        // Text(
+        //   'create_campaign_other_agencies_label'.tr,
+        //   maxLines: 1,
+        //   overflow: TextOverflow.ellipsis,
+        //   style: TextStyle(
+        //     fontSize: 14.sp,
+        //     fontWeight: FontWeight.w600,
+        //     color: AppPalette.primary,
+        //   ),
+        // ),
+        // 12.h.verticalSpace,
+        // Obx(() {
+        //   final items = controller.otherAgencies.toList(); // ✅ IMPORTANT
+        //   final selectedName =
+        //       controller.selectedAgencyName.value; // ✅ reads Rx
+        //   return Column(
+        //     children: items.map((a) {
+        //       final selected = selectedName == a.name;
+        //       return Padding(
+        //         padding: EdgeInsets.only(bottom: 12.h),
+        //         child: _AgencyWideCard(
+        //           name: a.name,
+        //           subtitle: a.subtitle,
+        //           selected: selected,
+        //           onTap: () => controller.selectAgency(a.name),
+        //         ),
+        //       );
+        //     }).toList(),
+        //   );
+        // }),
       ],
     );
   }
@@ -480,14 +508,15 @@ class _SelectField extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 12.sp,
-                  color: isPlaceholder ? AppPalette.subtext : AppPalette.black,
+                  fontSize: 10.sp,
+                  fontWeight: FontWeight.w400,
+                  color: isPlaceholder ? AppPalette.greyText : AppPalette.black,
                 ),
               ),
             ),
             Icon(
               Icons.keyboard_arrow_down_rounded,
-              size: 22.sp,
+              size: 20.sp,
               color: AppPalette.black,
             ),
           ],

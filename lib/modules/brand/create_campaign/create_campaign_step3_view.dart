@@ -33,13 +33,12 @@ class CreateCampaignStep3View extends GetView<CreateCampaignController> {
                       children: [
                         Expanded(
                           child: Text(
-                            'create_campaign_step3_title'
-                                .tr, // "Campaign Details"
+                            'create_campaign_step3_title'.tr, // "Campaign Details"
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 26.sp,
-                              fontWeight: FontWeight.w700,
+                              fontSize: 19.sp,
+                              fontWeight: FontWeight.w600,
                               color: AppPalette.primary,
                             ),
                           ),
