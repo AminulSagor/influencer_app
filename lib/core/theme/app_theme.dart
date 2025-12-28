@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:influencer_app/core/theme/app_palette.dart';
 
 class AppTheme {
@@ -80,6 +81,13 @@ class AppTheme {
   //     ),
   //   ),
   // );
+  static final TextStyle textStyle = TextStyle(
+    fontFamily: 'Poppins',
+    fontSize: 16.sp,
+    fontWeight: FontWeight.w400,
+    color: AppPalette.primary,
+    letterSpacing: -0.04,
+  );
 
   static final ThemeData lightThemeMode = ThemeData(
     useMaterial3: true,
@@ -91,10 +99,13 @@ class AppTheme {
       brightness: Brightness.light,
     ),
 
-    textTheme: const TextTheme(
-      bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w400),
-      bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-      titleMedium: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+    textTheme: TextTheme(
+      bodyMedium: textStyle.copyWith(fontSize: 14, fontWeight: FontWeight.w400),
+      bodyLarge: textStyle.copyWith(fontSize: 16, fontWeight: FontWeight.w500),
+      titleMedium: textStyle.copyWith(
+        fontSize: 18,
+        fontWeight: FontWeight.w600,
+      ),
     ),
   );
 }

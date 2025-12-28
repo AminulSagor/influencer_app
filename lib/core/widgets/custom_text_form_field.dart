@@ -5,6 +5,8 @@ import '../theme/app_palette.dart';
 import '../utils/constants.dart';
 
 class CustomTextFormField extends StatelessWidget {
+  final String? title;
+  final TextStyle? titleTextStyle;
   final String? initialValue;
   final String hintText;
   final TextStyle? textStyle;
@@ -16,6 +18,11 @@ class CustomTextFormField extends StatelessWidget {
   final TextAlign? textAlign;
   final FormFieldValidator<String>? validator;
   final Function(String)? onChanged;
+  final TextInputType? keyboardType;
+  final bool obscureText;
+  final Widget? prefixIcon;
+  final Widget? suffixIcon;
+  final TextInputAction? textInputAction;
   const CustomTextFormField({
     super.key,
     required this.hintText,
@@ -29,6 +36,13 @@ class CustomTextFormField extends StatelessWidget {
     this.initialValue,
     this.validator,
     this.onChanged,
+    this.keyboardType,
+    this.obscureText = false,
+    this.prefixIcon,
+    this.suffixIcon,
+    this.textInputAction,
+    this.title,
+    this.titleTextStyle,
   });
 
   @override
@@ -44,15 +58,18 @@ class CustomTextFormField extends StatelessWidget {
       ),
     );
 
-    return TextFormField(
+    final textFormField = TextFormField(
       initialValue: initialValue,
       controller: controller,
-      maxLines: maxLines,
+      maxLines: obscureText ? 1 : maxLines,
       enabled: enabled,
       style: style,
       textAlign: textAlign ?? TextAlign.start,
       validator: validator,
       onChanged: onChanged,
+      keyboardType: keyboardType,
+      obscureText: obscureText,
+      textInputAction: textInputAction,
       decoration: InputDecoration(
         hintText: hintText,
         hintStyle: style.copyWith(color: AppPalette.subtext),
@@ -63,10 +80,33 @@ class CustomTextFormField extends StatelessWidget {
         filled: fillColor != null ? true : false,
         border: border,
         enabledBorder: border,
+        prefixIcon: prefixIcon,
+        suffixIcon: suffixIcon,
         contentPadding:
             contentPadding ??
             EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
       ),
     );
+
+    if (title != null) {
+      return Column(
+        crossAxisAlignment: .start,
+        children: [
+          Text(
+            title!,
+            style:
+                titleTextStyle ??
+                TextStyle(
+                  fontWeight: FontWeight.w500,
+                  fontSize: 12.sp,
+                  color: AppPalette.secondary,
+                ),
+          ),
+          5.h.verticalSpace,
+          textFormField,
+        ],
+      );
+    }
+    return textFormField;
   }
 }

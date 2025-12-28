@@ -21,6 +21,7 @@ class AppPalette {
   static const neutralGrey = Color(0xFF8E8E8E);
   static const subtext = Color(0xFF989898);
   static const greyText = Color(0xFFA4A4A4);
+  static const greyFill = Color(0xFFD9D9D9);
   static const starDark = Color(0xFFDFB300);
   static const backgroundDark = Color(0xFFDFB300);
 

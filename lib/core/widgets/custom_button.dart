@@ -16,6 +16,8 @@ class CustomButton extends StatelessWidget {
   final bool? showBorder;
   final double? borderWidth;
   final TextStyle? textStyle;
+  final bool isLoading;
+  final bool isDisabled;
 
   final List<double>? dashPattern;
 
@@ -35,6 +37,8 @@ class CustomButton extends StatelessWidget {
     this.borderWidth,
     this.textStyle,
     this.dashPattern,
+    this.isLoading = false,
+    this.isDisabled = false,
   }) : _isDotted = false;
 
   const CustomButton.dotted({
@@ -51,6 +55,8 @@ class CustomButton extends StatelessWidget {
     this.borderWidth,
     this.textStyle,
     this.dashPattern,
+    this.isLoading = false,
+    this.isDisabled = false,
   }) : _isDotted = true;
 
   @override
@@ -74,11 +80,11 @@ class CustomButton extends StatelessWidget {
             ),
           ),
         ),
-        onPressed: onTap,
+        onPressed: isDisabled ? null : onTap,
         child: FittedBox(
           fit: BoxFit.scaleDown,
           child: Text(
-            btnText,
+            isLoading ? 'Loading..' : btnText,
             style:
                 textStyle ??
                 TextStyle(

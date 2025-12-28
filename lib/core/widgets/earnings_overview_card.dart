@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:get/get.dart';
 
 import '../theme/app_palette.dart';
 import '../utils/currency_formatter.dart';
@@ -39,7 +40,7 @@ class EarningsOverviewCard extends StatelessWidget {
               ),
               SizedBox(width: 8.w),
               Text(
-                'Earnings Overview',
+                'home_earnings_overview'.tr,
                 style: TextStyle(
                   color: AppPalette.white,
                   fontSize: 18.sp,
@@ -50,12 +51,12 @@ class EarningsOverviewCard extends StatelessWidget {
           ),
           SizedBox(height: 20.h),
           Row(
-            mainAxisAlignment: .spaceBetween,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
                 child: _earningsItem(
                   iconPath: 'assets/icons/goal.png',
-                  label: 'Lifetime Earnings',
+                  label: 'home_lifetime_earnings'.tr,
                   amount: formatCurrencyByLocale(lifetimeEarnings),
                 ),
               ),
@@ -63,7 +64,7 @@ class EarningsOverviewCard extends StatelessWidget {
               Expanded(
                 child: _earningsItem(
                   iconPath: 'assets/icons/sand_watch.png',
-                  label: 'Pending Earnings',
+                  label: 'home_pending_earnings'.tr,
                   amount: formatCurrencyByLocale(pendingEarnings),
                 ),
               ),
@@ -83,7 +84,6 @@ class EarningsOverviewCard extends StatelessWidget {
       fit: BoxFit.scaleDown,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             children: [
@@ -91,16 +91,16 @@ class EarningsOverviewCard extends StatelessWidget {
                 iconPath,
                 width: 15.w,
                 height: 15.h,
-                fit: .cover,
+                fit: BoxFit.cover,
                 color: AppPalette.white,
               ),
-              6.w.horizontalSpace,
+              SizedBox(width: 6.w),
               Text(
                 label,
                 style: TextStyle(
                   color: AppPalette.white,
                   fontSize: 12.sp,
-                  fontWeight: .w300,
+                  fontWeight: FontWeight.w300,
                 ),
               ),
             ],
@@ -108,7 +108,6 @@ class EarningsOverviewCard extends StatelessWidget {
           SizedBox(height: 2.h),
           Text(
             amount,
-            textAlign: TextAlign.right,
             style: TextStyle(
               color: AppPalette.white,
               fontSize: 22.sp,

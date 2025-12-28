@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:get/get.dart';
 import 'package:influencer_app/core/models/job_item.dart';
+import 'package:influencer_app/core/services/account_type_service.dart';
 import 'package:influencer_app/core/widgets/custom_button.dart';
 
 import '../theme/app_palette.dart';
 import '../utils/constants.dart';
 import '../utils/currency_formatter.dart';
+import '../utils/label_localizers.dart';
+import '../utils/number_formatter.dart';
 
 class JobOfferCard extends StatelessWidget {
   final JobItem job;
@@ -13,6 +17,7 @@ class JobOfferCard extends StatelessWidget {
   final VoidCallback? onView;
   final VoidCallback? onDecline;
   final VoidCallback? onAccept;
+
   const JobOfferCard({
     super.key,
     required this.job,
@@ -29,6 +34,10 @@ class JobOfferCard extends StatelessWidget {
     final isComplete = type == 'complete';
     final isPending = type == 'pending';
     final isDeclined = type == 'declined';
+
+    final accountTypeService = Get.find<AccountTypeService>();
+    final isAdAgency = accountTypeService.isAdAgency;
+
     return Container(
       padding: EdgeInsets.all(12.w),
       decoration: BoxDecoration(
@@ -39,7 +48,7 @@ class JobOfferCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // title + due
+          // title + due/view
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -59,7 +68,9 @@ class JobOfferCard extends StatelessWidget {
                     ),
                     SizedBox(height: 4.h),
                     Text(
-                      '${job.sharePercent}% ',
+                      !isAdAgency
+                          ? formatCurrencyByLocale(job.budget)
+                          : '${formatNumberByLocale(job.sharePercent)}%',
                       style: TextStyle(
                         fontSize: 18.sp,
                         color: isDeclined
@@ -73,11 +84,12 @@ class JobOfferCard extends StatelessWidget {
                   ],
                 ),
               ),
+
               if (isNew || isComplete || isPending)
                 GestureDetector(
                   onTap: onView,
                   child: Text(
-                    'View >',
+                    '${'common_view'.tr} >',
                     style: TextStyle(
                       fontSize: 10.sp,
                       color: AppPalette.black,
@@ -85,6 +97,7 @@ class JobOfferCard extends StatelessWidget {
                     ),
                   ),
                 ),
+
               if (isActive)
                 Container(
                   padding: EdgeInsets.symmetric(
@@ -93,14 +106,14 @@ class JobOfferCard extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: AppPalette.complemetaryFill,
-                    borderRadius: BorderRadius.circular(kBorderRadius2.r),
+                    borderRadius: BorderRadius.circular(kBorderRadiusSmall.r),
                     border: Border.all(
                       color: AppPalette.complemetary,
                       width: kBorderWeight1,
                     ),
                   ),
                   child: Text(
-                    job.dueLabel ?? '',
+                    localizeDueLabel(job.dueLabel),
                     style: TextStyle(
                       color: AppPalette.complemetary,
                       fontSize: 10.sp,
@@ -110,7 +123,9 @@ class JobOfferCard extends StatelessWidget {
                 ),
             ],
           ),
+
           SizedBox(height: 8.h),
+
           Row(
             children: [
               Icon(
@@ -137,7 +152,9 @@ class JobOfferCard extends StatelessWidget {
               ],
             ],
           ),
+
           SizedBox(height: 4.h),
+
           Row(
             children: [
               Icon(
@@ -158,19 +175,21 @@ class JobOfferCard extends StatelessWidget {
                   fontWeight: FontWeight.w400,
                 ),
               ),
-              Spacer(),
-              Text(
-                'Budget: ${formatCurrencyByLocale(job.budget)}',
-                style: TextStyle(
-                  fontSize: 12.sp,
-                  color: isDeclined
-                      ? AppPalette.defaultStroke
-                      : AppPalette.secondary,
-                  fontWeight: FontWeight.w400,
+              const Spacer(),
+              if (isAdAgency)
+                Text(
+                  '${'common_budget'.tr}: ${formatCurrencyByLocale(job.budget)}',
+                  style: TextStyle(
+                    fontSize: 12.sp,
+                    color: isDeclined
+                        ? AppPalette.defaultStroke
+                        : AppPalette.secondary,
+                    fontWeight: FontWeight.w400,
+                  ),
                 ),
-              ),
             ],
           ),
+
           if (isNew) ...[
             SizedBox(height: 12.h),
             Row(
@@ -178,7 +197,7 @@ class JobOfferCard extends StatelessWidget {
                 Expanded(
                   child: CustomButton(
                     onTap: onAccept,
-                    btnText: 'Accept',
+                    btnText: 'common_accept'.tr,
                     textColor: AppPalette.white,
                   ),
                 ),
@@ -186,13 +205,14 @@ class JobOfferCard extends StatelessWidget {
                 Expanded(
                   child: CustomButton(
                     onTap: onDecline,
-                    btnText: 'Decline',
+                    btnText: 'common_decline'.tr,
                     btnColor: AppPalette.defaultFill,
                   ),
                 ),
               ],
             ),
           ],
+
           if (isActive) ...[
             SizedBox(height: 12.h),
             LinearProgressIndicator(
@@ -200,13 +220,15 @@ class JobOfferCard extends StatelessWidget {
               minHeight: 6.h,
               backgroundColor: AppPalette.secondary.withAlpha(77),
               color: AppPalette.secondary,
-              borderRadius: BorderRadius.circular(kBorderRadius2.r),
+              borderRadius: BorderRadius.circular(kBorderRadiusSmall.r),
             ),
             SizedBox(height: 4.h),
             Row(
               children: [
                 Text(
-                  '${job.progressPercent}% Complete',
+                  'home_progress_complete_line'.trParams({
+                    'percent': formatNumberByLocale(job.progressPercent ?? 0),
+                  }),
                   style: TextStyle(
                     fontSize: 12.sp,
                     color: AppPalette.complemetary,
@@ -217,7 +239,7 @@ class JobOfferCard extends StatelessWidget {
                 GestureDetector(
                   onTap: onView,
                   child: Text(
-                    'View >',
+                    '${'common_view'.tr} >',
                     style: TextStyle(
                       fontSize: 10.sp,
                       color: AppPalette.black,
