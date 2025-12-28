@@ -15,4 +15,7 @@ class AppAssets {
   static const String play = 'assets/icons/play.png';
   static const String love = 'assets/icons/love.png';
   static const String bubble = 'assets/icons/bubble.png';
+  static const String download = 'assets/icons/download.png';
+  static const String upload = 'assets/icons/upload.png';
+  static const String product = 'assets/icons/product.png';
 }

@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:influencer_app/core/theme/app_palette.dart';
+import 'package:influencer_app/core/utils/app_assets.dart';
+import 'package:influencer_app/modules/brand/create_campaign/create_campaign_step5_view/widgets/dashed_button.dart';
 
-import '../../../core/models/job_item.dart';
-import 'create_campaign_controller.dart';
+import '../../../../core/models/job_item.dart';
+import '../create_campaign_controller.dart';
+import 'widgets/asset_tile.dart';
+import 'widgets/brand_asset_tile.dart';
+import 'widgets/draft_button.dart';
+import 'widgets/section_card.dart';
 
 class CreateCampaignStep5View extends GetView<CreateCampaignController> {
   const CreateCampaignStep5View({super.key});
@@ -33,6 +40,7 @@ class CreateCampaignStep5View extends GetView<CreateCampaignController> {
                     Obx(() {
                       return Row(
                         children: [
+
                           Expanded(
                             child: Text(
                               c.stepText,
@@ -42,6 +50,7 @@ class CreateCampaignStep5View extends GetView<CreateCampaignController> {
                               ),
                             ),
                           ),
+
                           Text(
                             c.progressPercentText,
                             style: TextStyle(
@@ -52,7 +61,9 @@ class CreateCampaignStep5View extends GetView<CreateCampaignController> {
                         ],
                       );
                     }),
+
                     10.h.verticalSpace,
+
                     Obx(() {
                       return ClipRRect(
                         borderRadius: BorderRadius.circular(99.r),
@@ -70,39 +81,42 @@ class CreateCampaignStep5View extends GetView<CreateCampaignController> {
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+
                         Expanded(
                           child: Text(
                             'create_campaign_step5_title'.tr,
                             style: TextStyle(
-                              fontSize: 26.sp,
-                              fontWeight: FontWeight.w800,
-                              color: _primary,
+                              fontSize: 19.sp,
+                              fontWeight: FontWeight.w600,
+                              color: AppPalette.primary,
                             ),
                           ),
                         ),
                         10.w.horizontalSpace,
-                        _DraftButton(onTap: c.saveAsDraft),
+                        DraftButton(onTap: c.saveAsDraft),
                       ],
                     ),
+
                     6.h.verticalSpace,
+
                     Text(
                       'create_campaign_step5_subtitle'.tr,
-                      style: TextStyle(fontSize: 13.sp, color: Colors.black54),
+                      style: TextStyle(fontSize: 10.sp,fontWeight: FontWeight.w300, color: AppPalette.black),
                     ),
 
-                    18.h.verticalSpace,
+                    35.h.verticalSpace,
 
-                    _SectionCard(
+                    SectionCard(
                       title: 'create_campaign_content_assets'.tr,
-                      icon: Icons.download_outlined,
+                      icon: AppAssets.download,
                       child: Obx(() {
                         return Column(
                           children: [
                             ...List.generate(c.contentAssets.length, (i) {
                               final a = c.contentAssets[i];
                               return Padding(
-                                padding: EdgeInsets.only(bottom: 12.h),
-                                child: _AssetTile(
+                                padding: EdgeInsets.only(bottom: 10.h),
+                                child: AssetTile(
                                   icon: c.iconForAsset(a.kind),
                                   title: a.title,
                                   subtitle: a.meta,
@@ -110,7 +124,7 @@ class CreateCampaignStep5View extends GetView<CreateCampaignController> {
                                 ),
                               );
                             }),
-                            _DashedButton(
+                            DashedButton(
                               text: 'create_campaign_upload_another_asset'.tr,
                               icon: Icons.upload_outlined,
                               onTap: c.openAddContentAssetDialog,
@@ -124,14 +138,13 @@ class CreateCampaignStep5View extends GetView<CreateCampaignController> {
 
                     // influencerPromotion -> sample section
                     Obx(() {
-                      final isInfluencer =
-                          c.selectedType.value ==
+                      final isInfluencer = c.selectedType.value ==
                           CampaignType.influencerPromotion;
                       if (!isInfluencer) return const SizedBox.shrink();
 
-                      return _SectionCard(
+                      return SectionCard(
                         title: 'create_campaign_need_sample_title'.tr,
-                        icon: Icons.inventory_2_outlined,
+                        icon: AppAssets.product,
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -139,15 +152,15 @@ class CreateCampaignStep5View extends GetView<CreateCampaignController> {
                               'create_campaign_need_sample_label'.tr,
                               style: TextStyle(
                                 fontSize: 14.sp,
-                                fontWeight: FontWeight.w600,
-                                color: _primary,
+                                fontWeight: FontWeight.w500,
+                                color: AppPalette.secondary,
                               ),
                             ),
                             Obx(() {
                               return Switch(
                                 value: c.needToSendSample.value,
                                 activeColor: Colors.white,
-                                activeTrackColor: _primary.withOpacity(.65),
+                                activeTrackColor: AppPalette.primary.withOpacity(.65),
                                 onChanged: c.toggleNeedSample,
                               );
                             }),
@@ -165,9 +178,9 @@ class CreateCampaignStep5View extends GetView<CreateCampaignController> {
                       return Column(
                         children: [
                           14.h.verticalSpace,
-                          _SectionCard(
+                          SectionCard(
                             title: 'create_campaign_brand_assets'.tr,
-                            icon: Icons.download_outlined,
+                            icon: AppAssets.download,
                             child: Obx(() {
                               return Column(
                                 children: [
@@ -175,7 +188,7 @@ class CreateCampaignStep5View extends GetView<CreateCampaignController> {
                                     final b = c.brandAssets[i];
                                     return Padding(
                                       padding: EdgeInsets.only(bottom: 12.h),
-                                      child: _BrandAssetTile(
+                                      child: BrandAssetTile(
                                         title: b.title,
                                         subtitle: b.value?.isNotEmpty == true
                                             ? b.value!
@@ -186,7 +199,7 @@ class CreateCampaignStep5View extends GetView<CreateCampaignController> {
                                       ),
                                     );
                                   }),
-                                  _DashedButton(
+                                  DashedButton(
                                     text: 'create_campaign_add_brand_asset'.tr,
                                     icon: Icons.add,
                                     onTap: c.openAddBrandAssetDialog,
@@ -232,14 +245,27 @@ class CreateCampaignStep5View extends GetView<CreateCampaignController> {
                                   : null,
                             ),
                             Expanded(
-                              child: Text(
-                                'create_campaign_confirm_sample_guidelines'.tr,
-                                style: TextStyle(
-                                  fontSize: 12.5.sp,
-                                  color: enabled
-                                      ? Colors.black54
-                                      : Colors.black26,
-                                ),
+                              child: Row(
+                                spacing : 2,
+                                children: [
+                                  Text(
+                                    'create_campaign_confirm_sample_guidelines'.tr,
+                                    style: TextStyle(
+                                      fontSize: 12.sp,
+                                        fontWeight: FontWeight.w500,
+                                      color: AppPalette.black
+                                    ),
+                                  ),
+
+                                  Text(
+                                    'create_campaign_confirm_sample_guidelines1'.tr,
+                                    style: TextStyle(
+                                        fontSize: 12.sp,
+                                        fontWeight: FontWeight.w500,
+                                        color: AppPalette.secondary
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -287,282 +313,6 @@ class CreateCampaignStep5View extends GetView<CreateCampaignController> {
                 ),
               );
             }),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DraftButton extends StatelessWidget {
-  final VoidCallback onTap;
-  const _DraftButton({required this.onTap});
-
-  static const _primary = Color(0xFF2F4F1F);
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(24.r),
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
-        decoration: BoxDecoration(
-          color: _primary.withOpacity(.7),
-          borderRadius: BorderRadius.circular(999.r),
-        ),
-        child: Text(
-          'create_campaign_save_draft'.tr,
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 12.5.sp,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SectionCard extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final Widget child;
-
-  const _SectionCard({
-    required this.title,
-    required this.icon,
-    required this.child,
-  });
-
-  static const _primary = Color(0xFF2F4F1F);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: Colors.black12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: _primary, size: 22.sp),
-              10.w.horizontalSpace,
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w800,
-                  color: _primary,
-                ),
-              ),
-            ],
-          ),
-          14.h.verticalSpace,
-          child,
-        ],
-      ),
-    );
-  }
-}
-
-class _AssetTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onRemove;
-
-  const _AssetTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onRemove,
-  });
-
-  static const _primary = Color(0xFF2F4F1F);
-  static const _softBorder = Color(0xFFBFD7A5);
-  static const _softBg = Color(0xFFF7FAF3);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
-      decoration: BoxDecoration(
-        color: _softBg,
-        borderRadius: BorderRadius.circular(14.r),
-        border: Border.all(color: _softBorder),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: _primary.withOpacity(.75), size: 26.sp),
-          12.w.horizontalSpace,
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w800,
-                    color: _primary.withOpacity(.75),
-                  ),
-                ),
-                2.h.verticalSpace,
-                Text(
-                  subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12.sp,
-                    color: _primary.withOpacity(.5),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          10.w.horizontalSpace,
-          InkWell(
-            onTap: onRemove,
-            child: Icon(
-              Icons.close,
-              color: _primary.withOpacity(.55),
-              size: 22.sp,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _BrandAssetTile extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  const _BrandAssetTile({
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  static const _primary = Color(0xFF2F4F1F);
-  static const _softBorder = Color(0xFFBFD7A5);
-  static const _softBg = Color(0xFFF7FAF3);
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(14.r),
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
-        decoration: BoxDecoration(
-          color: _softBg,
-          borderRadius: BorderRadius.circular(14.r),
-          border: Border.all(color: _softBorder),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 36.w,
-              height: 36.w,
-              decoration: BoxDecoration(
-                color: _primary.withOpacity(.18),
-                shape: BoxShape.circle,
-              ),
-              alignment: Alignment.center,
-              child: Icon(
-                Icons.facebook,
-                size: 18.sp,
-                color: _primary.withOpacity(.75),
-              ),
-            ),
-            12.w.horizontalSpace,
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w800,
-                      color: _primary.withOpacity(.75),
-                    ),
-                  ),
-                  2.h.verticalSpace,
-                  Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12.sp,
-                      color: _primary.withOpacity(.5),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.keyboard_arrow_down, color: _primary.withOpacity(.55)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DashedButton extends StatelessWidget {
-  final String text;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _DashedButton({
-    required this.text,
-    required this.icon,
-    required this.onTap,
-  });
-
-  static const _softBorder = Color(0xFFBFD7A5);
-  static const _primary = Color(0xFF2F4F1F);
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(14.r),
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: EdgeInsets.symmetric(vertical: 16.h),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14.r),
-          border: Border.all(color: _softBorder, style: BorderStyle.solid),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 20.sp, color: _primary.withOpacity(.6)),
-            10.w.horizontalSpace,
-            Text(
-              text,
-              style: TextStyle(
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w700,
-                color: _primary.withOpacity(.6),
-              ),
-            ),
           ],
         ),
       ),

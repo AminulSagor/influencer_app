@@ -700,8 +700,8 @@ class AppTranslations extends Translations {
 
       "create_campaign_need_sample_title": "Do You Need To Send Sample?",
       "create_campaign_need_sample_label": "Need To Send Sample",
-      "create_campaign_confirm_sample_guidelines":
-          "Confirm you've read Sample Sending Guidelines",
+      "create_campaign_confirm_sample_guidelines": "Confirm you've read ",
+      "create_campaign_confirm_sample_guidelines1": " Sample Sending Guidelines",
 
       "create_campaign_brand_assets": "Brand Assets",
       "create_campaign_add_brand_asset": "Add Another Brand Asset",
