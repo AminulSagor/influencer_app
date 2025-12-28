@@ -11,8 +11,8 @@ import 'package:influencer_app/modules/shared/language/language_view.dart';
 
 import '../../../../core/services/account_type_service.dart';
 import '../../../../routes/app_routes.dart';
-import '../../../brand/create_campaign/create_campaign_step3_view.dart';
-import '../../../brand/create_campaign/create_campaign_step4_view.dart';
+import '../../../brand/create_campaign/create_campaign_step3_view/create_campaign_step3_view.dart';
+import '../../../brand/create_campaign/create_campaign_step4_view/create_campaign_step4_view.dart';
 import '../../../brand/create_campaign/create_campaign_step5_view.dart';
 import '../../../brand/create_campaign/create_campaign_step6_view.dart';
 import '../../campaign_details/campaign_details_controller.dart';

@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 
-import '../../../core/theme/app_palette.dart';
-import '../../../core/utils/constants.dart';
-import '../../../core/widgets/custom_button.dart';
-import '../../../core/widgets/custom_text_form_field.dart';
-import 'create_campaign_controller.dart';
+import '../../../../core/theme/app_palette.dart';
+import '../../../../core/utils/constants.dart';
+import '../../../../core/widgets/custom_button.dart';
+import '../../../../core/widgets/custom_text_form_field.dart';
+import '../create_campaign_controller.dart';
 
 class CreateCampaignStep4View extends GetView<CreateCampaignController> {
   const CreateCampaignStep4View({super.key});
@@ -38,8 +38,8 @@ class CreateCampaignStep4View extends GetView<CreateCampaignController> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 26.sp,
-                              fontWeight: FontWeight.w700,
+                              fontSize: 19.sp,
+                              fontWeight: FontWeight.w600,
                               color: AppPalette.primary,
                             ),
                           ),
@@ -58,29 +58,33 @@ class CreateCampaignStep4View extends GetView<CreateCampaignController> {
                         ),
                       ],
                     ),
+
                     6.h.verticalSpace,
+
                     Text(
                       'create_campaign_step4_subtitle'.tr,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 12.sp,
+                        fontSize: 10.sp,
                         fontWeight: FontWeight.w300,
-                        color: AppPalette.greyText,
+                        color: AppPalette.black,
                       ),
                     ),
 
-                    18.h.verticalSpace,
+                    17.h.verticalSpace,
 
                     Text(
                       'create_campaign_step4_suggestions'.tr,
                       style: TextStyle(
-                        fontSize: 14.sp,
+                        fontSize: 16.sp,
                         fontWeight: FontWeight.w600,
                         color: AppPalette.primary,
                       ),
                     ),
-                    10.h.verticalSpace,
+
+                    11.h.verticalSpace,
+
                     SizedBox(
                       height: 38.h,
                       child: ListView.separated(
@@ -98,17 +102,19 @@ class CreateCampaignStep4View extends GetView<CreateCampaignController> {
                       ),
                     ),
 
-                    18.h.verticalSpace,
+                    17.h.verticalSpace,
 
                     Text(
                       'create_campaign_step4_enter_budget'.tr,
                       style: TextStyle(
-                        fontSize: 14.sp,
+                        fontSize: 16.sp,
                         fontWeight: FontWeight.w600,
                         color: AppPalette.primary,
                       ),
                     ),
-                    10.h.verticalSpace,
+
+                    5.h.verticalSpace,
+
                     _BudgetInputCard(controller: controller),
 
                     18.h.verticalSpace,
@@ -116,12 +122,14 @@ class CreateCampaignStep4View extends GetView<CreateCampaignController> {
                     Text(
                       'create_campaign_step4_quote'.tr,
                       style: TextStyle(
-                        fontSize: 14.sp,
+                        fontSize: 16.sp,
                         fontWeight: FontWeight.w600,
                         color: AppPalette.primary,
                       ),
                     ),
-                    10.h.verticalSpace,
+
+                    7.h.verticalSpace,
+
                     Obx(() {
                       return _QuoteCard(
                         base: controller.baseBudgetText,
@@ -282,7 +290,7 @@ class _BudgetInputCard extends StatelessWidget {
       padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
       decoration: BoxDecoration(
         color: AppPalette.white,
-        borderRadius: BorderRadius.circular(16.r),
+        borderRadius: BorderRadius.circular(kBorderRadius.r),
         border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
       ),
       child: Column(
@@ -317,7 +325,9 @@ class _BudgetInputCard extends StatelessWidget {
               ),
             ],
           ),
+
           6.h.verticalSpace,
+
           Align(
             alignment: Alignment.centerRight,
             child: Text(
@@ -347,16 +357,19 @@ class _QuoteCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.all(14.w),
+      padding: EdgeInsets.all(11.w),
       decoration: BoxDecoration(
         color: AppPalette.defaultFill.withAlpha(140),
-        borderRadius: BorderRadius.circular(14.r),
+        borderRadius: BorderRadius.circular(kBorderRadius.r),
         border: Border.all(color: AppPalette.primary.withAlpha(90), width: 1),
       ),
       child: Column(
         children: [
+
           _quoteRow('create_campaign_step4_base'.tr, '৳$base'),
+
           8.h.verticalSpace,
+
           _quoteRow(
             'create_campaign_step4_vat'.tr.replaceAll('{p}', '$vatPercent'),
             '৳$vat',
@@ -364,30 +377,31 @@ class _QuoteCard extends StatelessWidget {
           10.h.verticalSpace,
           Divider(color: AppPalette.primary.withAlpha(90), height: 1),
           10.h.verticalSpace,
-          _quoteRow('create_campaign_step4_total'.tr, '৳$total', bold: true),
+          _quoteRow('create_campaign_step4_total'.tr, '৳$total',),
         ],
       ),
     );
   }
 
-  Widget _quoteRow(String left, String right, {bool bold = false}) {
+  Widget _quoteRow(String left, String right) {
     return Row(
       children: [
         Expanded(
           child: Text(
             left,
             style: TextStyle(
-              fontSize: 13.sp,
-              fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
-              color: AppPalette.primary,
+              fontSize: 15.sp,
+              fontWeight: FontWeight.w300,
+              color: AppPalette.black,
             ),
           ),
         ),
+
         Text(
           right,
           style: TextStyle(
-            fontSize: 13.sp,
-            fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
+            fontSize: 15.sp,
+            fontWeight: FontWeight.w500,
             color: AppPalette.primary,
           ),
         ),

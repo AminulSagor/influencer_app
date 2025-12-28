@@ -3,11 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:influencer_app/core/utils/app_assets.dart';
+import 'package:influencer_app/modules/brand/create_campaign/create_campaign_step3_view/widgets/title_header_icons.dart';
 
-import '../../../core/theme/app_palette.dart';
-import '../../../core/utils/constants.dart';
-import '../../../core/widgets/custom_button.dart';
-import 'create_campaign_controller.dart';
+import '../../../../core/theme/app_palette.dart';
+import '../../../../core/utils/constants.dart';
+import '../../../../core/widgets/custom_button.dart';
+import '../create_campaign_controller.dart';
 
 class CreateCampaignStep3View extends GetView<CreateCampaignController> {
   const CreateCampaignStep3View({super.key});
@@ -621,52 +622,6 @@ class _TermsSection extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class TitleHeaderIcons extends StatelessWidget {
-  final String text;
-  final String icon;
-  final String? extraIcon;
-
-  const TitleHeaderIcons({
-    super.key,
-    required this.text,
-    required this.icon,
-    this.extraIcon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      spacing: 8,
-      children: [
-        Image.asset(
-          icon,
-          height: 20,
-          width: 20,
-          color: AppPalette.primary,
-        ),
-
-        if (extraIcon != null && extraIcon!.isNotEmpty) ...[
-          Image.asset(
-            extraIcon!,
-            height: 20,
-            width: 20,
-            color: AppPalette.primary,
-          ),
-        ],
-
-        Text(
-          text,
-          style: TextStyle(
-            fontSize: 16.sp,
-            fontWeight: FontWeight.w600,
-            color: AppPalette.primary,
-          ),
-        ),
-      ],
     );
   }
 }
