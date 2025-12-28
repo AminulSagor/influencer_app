@@ -7,4 +7,12 @@ class AppAssets {
   static const String presentation = 'assets/icons/presentation.png';
   static const String copyright = 'assets/icons/copyright.png';
   static const String clock = 'assets/icons/clock.png';
+  static const String mission = 'assets/icons/mission.png';
+  static const String done = 'assets/icons/done.png';
+  static const String close = 'assets/icons/close.png';
+  static const String increase = 'assets/icons/increase.png';
+  static const String eye = 'assets/icons/eye.png';
+  static const String play = 'assets/icons/play.png';
+  static const String love = 'assets/icons/love.png';
+  static const String bubble = 'assets/icons/bubble.png';
 }

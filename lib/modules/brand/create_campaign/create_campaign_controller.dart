@@ -1375,9 +1375,19 @@ class _SimplePickerSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+
     return SafeArea(
+      top: false,
       child: Container(
-        padding: const EdgeInsets.only(top: 12),
+        constraints: BoxConstraints(
+          // prevents the sheet from trying to grow beyond screen
+          maxHeight: media.size.height * 0.80,
+        ),
+        padding: EdgeInsets.only(
+          top: 12,
+          bottom: 12 + media.padding.bottom,
+        ),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(18.r)),
@@ -1390,21 +1400,77 @@ class _SimplePickerSheet extends StatelessWidget {
               style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w600),
             ),
             12.h.verticalSpace,
-            ...options.map((e) {
-              final active = e == selected;
-              return ListTile(
-                title: Text(e, maxLines: 1, overflow: TextOverflow.ellipsis),
-                trailing: active ? Icon(Icons.check_circle, size: 20.sp) : null,
-                onTap: () => onSelect(e),
-              );
-            }),
-            8.h.verticalSpace,
+
+            Flexible(
+              child: ListView.builder(
+                itemCount: options.length,
+                shrinkWrap: true,
+                itemBuilder: (_, i) {
+                  final e = options[i];
+                  final active = e == selected;
+
+                  return ListTile(
+                    title: Text(e, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    trailing: active
+                        ? Icon(Icons.check_circle, size: 20.sp)
+                        : null,
+                    onTap: () => onSelect(e),
+                  );
+                },
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 }
+
+// class _SimplePickerSheet extends StatelessWidget {
+//   final String title;
+//   final List<String> options;
+//   final String? selected;
+//   final void Function(String) onSelect;
+//
+//   const _SimplePickerSheet({
+//     required this.title,
+//     required this.options,
+//     required this.selected,
+//     required this.onSelect,
+//   });
+//
+//   @override
+//   Widget build(BuildContext context) {
+//     return SafeArea(
+//       child: Container(
+//         padding: const EdgeInsets.only(top: 12),
+//         decoration: BoxDecoration(
+//           color: Colors.white,
+//           borderRadius: BorderRadius.vertical(top: Radius.circular(18.r)),
+//         ),
+//         child: Column(
+//           mainAxisSize: MainAxisSize.min,
+//           children: [
+//             Text(
+//               title,
+//               style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w600),
+//             ),
+//             12.h.verticalSpace,
+//             ...options.map((e) {
+//               final active = e == selected;
+//               return ListTile(
+//                 title: Text(e, maxLines: 1, overflow: TextOverflow.ellipsis),
+//                 trailing: active ? Icon(Icons.check_circle, size: 20.sp) : null,
+//                 onTap: () => onSelect(e),
+//               );
+//             }),
+//             8.h.verticalSpace,
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+// }
 
 class _MultiPickerSheet extends StatelessWidget {
   final String title;
