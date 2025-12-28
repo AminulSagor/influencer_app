@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:influencer_app/core/utils/app_assets.dart';
 
 import '../../../core/theme/app_palette.dart';
 import '../../../core/utils/constants.dart';
@@ -57,60 +58,84 @@ class CreateCampaignStep3View extends GetView<CreateCampaignController> {
                         ),
                       ],
                     ),
-                    6.h.verticalSpace,
+                    5.h.verticalSpace,
                     Text(
                       'create_campaign_step3_subtitle'.tr,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 12.sp,
+                        fontSize: 10.sp,
                         fontWeight: FontWeight.w300,
-                        color: AppPalette.greyText,
+                        color: AppPalette.black,
                       ),
                     ),
 
                     18.h.verticalSpace,
 
-                    _SectionTitle(
-                      icon: Icons.gps_fixed_rounded,
-                      title: 'create_campaign_goals_label'.tr,
+                    TitleHeaderIcons(
+                        text: 'create_campaign_goals_label'.tr,
+                        icon: AppAssets.campaignGoals,
                     ),
-                    10.h.verticalSpace,
+
+                    6.h.verticalSpace,
+
                     _MultilineBox(
                       controller: controller.campaignGoalsCtrl,
                       hint: 'create_campaign_goals_hint'.tr,
                       onChanged: controller.onCampaignGoalsChanged,
                     ),
 
-                    16.h.verticalSpace,
+                    14.h.verticalSpace,
 
-                    _SectionTitle(
-                      icon: Icons.emoji_objects_rounded,
-                      title: 'create_campaign_product_service_label'.tr,
-                    ),
-                    10.h.verticalSpace,
+                    TitleHeaderIcons(text: 'create_campaign_product_service_label'.tr, icon: AppAssets.campaignGoals),
+
+                    6.h.verticalSpace,
+
                     _MultilineBox(
                       controller: controller.productServiceCtrl,
                       hint: 'create_campaign_product_service_hint'.tr,
                       onChanged: controller.onProductServiceChanged,
                     ),
 
-                    16.h.verticalSpace,
+                    15.h.verticalSpace,
 
-                    _DosDontSection(controller: controller),
+                    TitleHeaderIcons(
+                      text: 'campaign_dos_donts'.tr,
+                      icon: AppAssets.checkMark,
+                      extraIcon: AppAssets.cancelOutline,
+                    ),
 
-                    16.h.verticalSpace,
+                    6.h.verticalSpace,
+
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(kBorderRadius.r),
+                        color: AppPalette.white,
+                      ),
+                      child: _DosDontSection(controller: controller),
+                    ),
+
+                    17.h.verticalSpace,
+
+                    TitleHeaderIcons(
+                      text: 'create_campaign_terms_label'.tr,
+                      icon: AppAssets.termsCondition,
+                    ),
+
+                    6.h.verticalSpace,
 
                     _TermsSection(controller: controller),
 
-                    18.h.verticalSpace,
+                    21.h.verticalSpace,
 
-                    _SectionTitle(
-                      icon: Icons.access_time_rounded,
-                      title: 'create_campaign_start_date_label'.tr,
-                      iconColor: Colors.deepOrange,
+                    TitleHeaderIcons(
+                      text: 'create_campaign_start_date_label'.tr,
+                      icon: AppAssets.clock,
                     ),
-                    10.h.verticalSpace,
+
+                    6.h.verticalSpace,
+
                     Obx(() {
                       final text = controller.startDateText;
                       final isPlaceholder = controller.startDate.value == null;
@@ -122,14 +147,15 @@ class CreateCampaignStep3View extends GetView<CreateCampaignController> {
                       );
                     }),
 
-                    16.h.verticalSpace,
+                    18.h.verticalSpace,
 
-                    _SectionTitle(
-                      icon: Icons.access_time_filled_rounded,
-                      title: 'create_campaign_duration_label'.tr,
-                      iconColor: Colors.deepOrange,
+                    TitleHeaderIcons(
+                      text: 'create_campaign_duration_label'.tr,
+                      icon: AppAssets.clock,
                     ),
-                    10.h.verticalSpace,
+
+                    6.h.verticalSpace,
+
                     _SingleLineBox(
                       controller: controller.durationCtrl,
                       hint: 'create_campaign_duration_hint'.tr, // "5 Days"
@@ -291,16 +317,16 @@ class _MultilineBox extends StatelessWidget {
         borderRadius: BorderRadius.circular(kBorderRadius.r),
         border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
       ),
-      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
+      padding: EdgeInsets.symmetric(horizontal: 17.w, vertical: 10.h),
       child: TextFormField(
         controller: controller,
         onChanged: onChanged,
         maxLines: 4,
-        style: TextStyle(fontSize: 12.sp, color: AppPalette.black),
+        style: TextStyle(fontSize: 12.sp, color: AppPalette.greyText, fontWeight: FontWeight.w400),
         decoration: InputDecoration(
           border: InputBorder.none,
           hintText: hint,
-          hintStyle: TextStyle(fontSize: 12.sp, color: AppPalette.subtext),
+          hintStyle: TextStyle(fontSize: 12.sp, color: AppPalette.subtext, fontWeight: FontWeight.w400),
         ),
       ),
     );
@@ -400,7 +426,7 @@ class _DosDontSection extends StatelessWidget {
       children: [
         _GuidelineCard(
           title: 'create_campaign_dos_label'.tr,
-          icon: Icons.check_circle_rounded,
+          icon: AppAssets.checkMark,
           tint: const Color(0xFFEFFAF3),
           border: const Color(0xFFBFE9CB),
           titleColor: const Color(0xFF1B7F3A),
@@ -411,7 +437,7 @@ class _DosDontSection extends StatelessWidget {
         12.h.verticalSpace,
         _GuidelineCard(
           title: 'create_campaign_donts_label'.tr,
-          icon: Icons.cancel_rounded,
+          icon: AppAssets.cancelOutline,
           tint: const Color(0xFFFFF0F0),
           border: const Color(0xFFFFC5C5),
           titleColor: const Color(0xFFB32020),
@@ -426,7 +452,7 @@ class _DosDontSection extends StatelessWidget {
 
 class _GuidelineCard extends StatelessWidget {
   final String title;
-  final IconData icon;
+  final String icon;
   final Color tint;
   final Color border;
   final Color titleColor;
@@ -452,7 +478,7 @@ class _GuidelineCard extends StatelessWidget {
       padding: EdgeInsets.all(14.w),
       decoration: BoxDecoration(
         color: tint,
-        borderRadius: BorderRadius.circular(14.r),
+        borderRadius: BorderRadius.circular(kBorderRadius.r),
         border: Border.all(color: border, width: 1),
       ),
       child: Column(
@@ -461,8 +487,10 @@ class _GuidelineCard extends StatelessWidget {
           // Header like screenshot (icon + title)
           Row(
             children: [
-              Icon(icon, size: 18.sp, color: titleColor),
+              Image.asset(icon, height: 18.sp,width: 18.sp, color: titleColor),
+              // Icon(icon, size: 18.sp, color: titleColor),
               10.w.horizontalSpace,
+
               Expanded(
                 child: Text(
                   title,
@@ -484,8 +512,8 @@ class _GuidelineCard extends StatelessWidget {
           Container(
             padding: EdgeInsets.all(12.w),
             decoration: BoxDecoration(
-              color: tint.withOpacity(.55),
-              borderRadius: BorderRadius.circular(12.r),
+              color: AppPalette.white,
+              borderRadius: BorderRadius.circular(kBorderRadius.r),
               border: Border.all(color: border, width: 1),
             ),
             child: Column(
@@ -528,77 +556,114 @@ class _TermsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _SectionTitle(
-          icon: Icons.description_rounded,
-          title: 'create_campaign_terms_label'.tr,
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 19, vertical: 22),
+      decoration: BoxDecoration(
+        color: AppPalette.white,
+        borderRadius: BorderRadius.circular(kBorderRadius.r),
+        border: Border.all(
+          color: AppPalette.border1,
+          width: kBorderWidth0_5,
         ),
-        10.h.verticalSpace,
-        Container(
-          padding: EdgeInsets.all(14.w),
-          decoration: BoxDecoration(
-            color: AppPalette.white,
-            borderRadius: BorderRadius.circular(kBorderRadius.r),
-            border: Border.all(
-              color: AppPalette.border1,
-              width: kBorderWidth0_5,
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            spacing: 10,
             children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.assignment_turned_in_rounded,
-                    size: 16.sp,
-                    color: AppPalette.primary,
-                  ),
-                  10.w.horizontalSpace,
-                  Text(
-                    'create_campaign_reporting_requirements_label'.tr,
-                    style: TextStyle(
-                      fontSize: 13.sp,
-                      fontWeight: FontWeight.w700,
-                      color: AppPalette.primary,
-                    ),
-                  ),
-                ],
-              ),
-              10.h.verticalSpace,
-              _MultilineBox(
-                controller: controller.reportingReqCtrl,
-                hint: 'create_campaign_reporting_requirements_hint'.tr,
-                onChanged: controller.onReportingReqChanged,
-              ),
-              14.h.verticalSpace,
-              Row(
-                children: [
-                  Icon(
-                    Icons.copyright_rounded,
-                    size: 16.sp,
-                    color: AppPalette.primary,
-                  ),
-                  10.w.horizontalSpace,
-                  Text(
-                    'create_campaign_usage_rights_label'.tr,
-                    style: TextStyle(
-                      fontSize: 13.sp,
-                      fontWeight: FontWeight.w700,
-                      color: AppPalette.primary,
-                    ),
-                  ),
-                ],
-              ),
-              10.h.verticalSpace,
-              _MultilineBox(
-                controller: controller.usageRightsCtrl,
-                hint: 'create_campaign_usage_rights_hint'.tr,
-                onChanged: controller.onUsageRightsChanged,
+              
+              Image.asset(AppAssets.presentation, height: 20, width: 20,color: AppPalette.primary),
+
+              Text(
+                'create_campaign_reporting_requirements_label'.tr,
+                style: TextStyle(
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w500,
+                  color: AppPalette.primary,
+                ),
               ),
             ],
+          ),
+
+          10.h.verticalSpace,
+
+          _MultilineBox(
+            controller: controller.reportingReqCtrl,
+            hint: 'create_campaign_reporting_requirements_hint'.tr,
+            onChanged: controller.onReportingReqChanged,
+          ),
+
+          14.h.verticalSpace,
+
+          Row(
+            spacing: 10,
+            children: [
+              Image.asset(AppAssets.copyright, height: 20, width: 20,color: AppPalette.primary),
+
+              Text(
+                'create_campaign_usage_rights_label'.tr,
+                style: TextStyle(
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w500,
+                  color: AppPalette.primary,
+                ),
+              ),
+            ],
+          ),
+
+          6.h.verticalSpace,
+
+          _MultilineBox(
+            controller: controller.usageRightsCtrl,
+            hint: 'create_campaign_usage_rights_hint'.tr,
+            onChanged: controller.onUsageRightsChanged,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class TitleHeaderIcons extends StatelessWidget {
+  final String text;
+  final String icon;
+  final String? extraIcon;
+
+  const TitleHeaderIcons({
+    super.key,
+    required this.text,
+    required this.icon,
+    this.extraIcon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      spacing: 8,
+      children: [
+        Image.asset(
+          icon,
+          height: 20,
+          width: 20,
+          color: AppPalette.primary,
+        ),
+
+        if (extraIcon != null && extraIcon!.isNotEmpty) ...[
+          Image.asset(
+            extraIcon!,
+            height: 20,
+            width: 20,
+            color: AppPalette.primary,
+          ),
+        ],
+
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: 16.sp,
+            fontWeight: FontWeight.w600,
+            color: AppPalette.primary,
           ),
         ),
       ],
