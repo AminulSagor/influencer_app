@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:influencer_app/core/theme/app_palette.dart';
 
 class AccordionCard extends StatelessWidget {
-  final IconData icon;
+  final String icon;
   final String title;
   final bool initiallyExpanded;
   final Widget child;
@@ -20,8 +21,8 @@ class AccordionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16.r),
+        color: AppPalette.white,
+        borderRadius: BorderRadius.circular(10.r),
         border: Border.all(color: Colors.black12),
       ),
       child: Theme(
@@ -29,22 +30,25 @@ class AccordionCard extends StatelessWidget {
         child: ExpansionTile(
           initiallyExpanded: initiallyExpanded,
           tilePadding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 6.h),
-          childrenPadding: EdgeInsets.fromLTRB(14.w, 0, 14.w, 14.h),
+          childrenPadding: EdgeInsets.fromLTRB(23.w, 0, 14.w, 14.h),
           iconColor: _primary,
           collapsedIconColor: _primary,
           title: Row(
             children: [
-              Icon(icon, color: _primary, size: 20.sp),
-              10.w.horizontalSpace,
+
+              Image.asset(icon, height: 25, width: 25),
+
+              7.w.horizontalSpace,
+
               Expanded(
                 child: Text(
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 15.sp,
-                    fontWeight: FontWeight.w800,
-                    color: _primary,
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w600,
+                    color: AppPalette.primary,
                   ),
                 ),
               ),

@@ -24,4 +24,5 @@ class AppAssets {
   static const String tikTok = 'assets/icons/tikTok.png';
   static const String instagram = 'assets/icons/instagram.png';
   static const String facebook = 'assets/icons/facebook.png';
+  static const String requirement = 'assets/icons/requirement.png';
 }

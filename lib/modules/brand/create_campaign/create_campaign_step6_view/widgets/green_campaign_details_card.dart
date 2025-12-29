@@ -33,9 +33,15 @@ class GreenCampaignDetailsCard extends StatelessWidget {
       width: double.infinity,
       padding: EdgeInsets.symmetric(horizontal: 23, vertical: 25),
       decoration: BoxDecoration(
-        color: AppPalette.primary.withOpacity(.85),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppPalette.primary,
+            AppPalette.secondary,
+          ],
+        ),
         borderRadius: BorderRadius.circular(10.r),
-        border: Border.all(color: Colors.black12),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -164,7 +170,14 @@ class GreenCampaignDetailsCard extends StatelessWidget {
             width: double.infinity,
             padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(.12),
+              gradient: const LinearGradient(
+                begin: Alignment.bottomRight,
+                end: Alignment.topLeft,
+                colors: [
+                  AppPalette.primary,
+                  AppPalette.secondary,
+                ],
+              ),
               borderRadius: BorderRadius.circular(10.r),
               border: Border.all(color: Colors.white.withOpacity(.22)),
             ),
