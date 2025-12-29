@@ -1081,7 +1081,9 @@ class CreateCampaignController extends GetxController {
               hintText: 'create_campaign_brand_asset_name_hint'.tr,
             ),
           ),
+
           10.h.verticalSpace,
+
           TextField(
             controller: _brandValueCtrl,
             decoration: InputDecoration(
@@ -1091,6 +1093,7 @@ class CreateCampaignController extends GetxController {
         ],
       ),
       textConfirm: 'common_done'.tr,
+
       textCancel: 'common_cancel'.tr,
       onConfirm: () {
         final t = _brandTitleCtrl.text.trim();

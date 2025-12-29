@@ -835,8 +835,8 @@ class AppTranslations extends Translations {
       'brand_campaign_pay_now': 'Pay Now',
       'brand_campaign_payment': 'Payment',
       'brand_campaign_payment_success': 'Payment initiated.',
-      'brand_campaign_payment_invalid':
-          'Amount must be between minimum and total due.',
+      'brand_campaign_payment_invalid': 'Amount must be between minimum and total due.',
+      'common_cancel': "Common Cancel"
     },
 
     // Bangla
@@ -1673,8 +1673,8 @@ class AppTranslations extends Translations {
       'brand_campaign_pay_now': 'এখন পেমেন্ট করুন',
       'brand_campaign_payment': 'পেমেন্ট',
       'brand_campaign_payment_success': 'পেমেন্ট শুরু করা হয়েছে।',
-      'brand_campaign_payment_invalid':
-          'পরিমাণটি সর্বনিম্ন এবং মোট বকেয়ার মধ্যে হতে হবে।',
+      'brand_campaign_payment_invalid': 'পরিমাণটি সর্বনিম্ন এবং মোট বকেয়ার মধ্যে হতে হবে।',
+      'common_cancel': 'সাধারণ বাতিল',
     },
   };
 }

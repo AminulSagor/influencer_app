@@ -5,12 +5,12 @@ import 'package:influencer_app/core/utils/app_assets.dart';
 
 class DashedButton extends StatelessWidget {
   final String text;
-  final IconData icon;
+  // final IconData icon;
   final VoidCallback onTap;
 
   const DashedButton({super.key,
     required this.text,
-    required this.icon,
+    // required this.icon,
     required this.onTap,
   });
 

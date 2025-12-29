@@ -126,7 +126,7 @@ class CreateCampaignStep5View extends GetView<CreateCampaignController> {
                             }),
                             DashedButton(
                               text: 'create_campaign_upload_another_asset'.tr,
-                              icon: Icons.upload_outlined,
+                              // icon: Icons.upload_outlined,
                               onTap: c.openAddContentAssetDialog,
                             ),
                           ],
@@ -190,18 +190,15 @@ class CreateCampaignStep5View extends GetView<CreateCampaignController> {
                                       padding: EdgeInsets.only(bottom: 12.h),
                                       child: BrandAssetTile(
                                         title: b.title,
-                                        subtitle: b.value?.isNotEmpty == true
-                                            ? b.value!
-                                            : 'create_campaign_brand_asset_value_hint'
-                                                  .tr,
-                                        onTap: () =>
-                                            c.openEditBrandAssetDialog(i),
+                                        subtitle: b.value?.isNotEmpty == true ? b.value!
+                                            : 'create_campaign_brand_asset_value_hint'.tr,
+                                        onTap: () => c.openEditBrandAssetDialog(i),
                                       ),
                                     );
                                   }),
                                   DashedButton(
                                     text: 'create_campaign_add_brand_asset'.tr,
-                                    icon: Icons.add,
+                                    // icon: Icons.add,
                                     onTap: c.openAddBrandAssetDialog,
                                   ),
                                 ],
@@ -271,7 +268,9 @@ class CreateCampaignStep5View extends GetView<CreateCampaignController> {
                           ],
                         );
                       }),
+
                     10.h.verticalSpace,
+
                     Row(
                       children: [
                         Expanded(
@@ -287,7 +286,9 @@ class CreateCampaignStep5View extends GetView<CreateCampaignController> {
                             child: Text('common_previous'.tr),
                           ),
                         ),
+
                         12.w.horizontalSpace,
+
                         Expanded(
                           child: Obx(() {
                             final ok = c.canGoNext;
@@ -303,7 +304,7 @@ class CreateCampaignStep5View extends GetView<CreateCampaignController> {
                                 ),
                                 elevation: 0,
                               ),
-                              child: Text('common_next'.tr),
+                              child: Text('common_next'.tr,style: TextStyle(fontSize: 10, fontWeight: FontWeight.w400, color: AppPalette.white),),
                             );
                           }),
                         ),
