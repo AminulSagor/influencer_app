@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:influencer_app/modules/brand/create_campaign/create_campaign_step2_view/widgets/input_names_widget.dart';
 import 'package:influencer_app/modules/brand/create_campaign/create_campaign_step2_view/widgets/paidAd_step2.dart';
 import 'package:influencer_app/modules/brand/create_campaign/create_campaign_step2_view/widgets/select_field.dart';
 
@@ -10,6 +11,7 @@ import '../../../../core/theme/app_palette.dart';
 import '../../../../core/utils/constants.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../create_campaign_controller.dart';
+import 'widgets/empty_state.dart';
 
 class CreateCampaignStep2View extends GetView<CreateCampaignController> {
   const CreateCampaignStep2View({super.key});
@@ -85,7 +87,7 @@ class CreateCampaignStep2View extends GetView<CreateCampaignController> {
                       final type = controller.selectedType.value;
 
                       if (type == null) {
-                        return _EmptyState(onBack: controller.onPrevious);
+                        return EmptyState(onBack: controller.onPrevious);
                       }
 
                       if (type == CampaignType.influencerPromotion) {
@@ -363,187 +365,6 @@ class _InfluencerPromotionStep2 extends StatelessWidget {
         // }),
       ],
     );
-  }
-}
-
-class _ChipBox extends StatelessWidget {
-  final List<String> items;
-  final void Function(String) onRemove;
-
-  const _ChipBox({required this.items, required this.onRemove});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(12.w),
-      decoration: BoxDecoration(
-        color: AppPalette.white,
-        borderRadius: BorderRadius.circular(kBorderRadius.r),
-        border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
-      ),
-      child: items.isEmpty
-          ? Text(
-              'create_campaign_chip_empty'.tr,
-              style: TextStyle(fontSize: 12.sp, color: AppPalette.subtext),
-            )
-          : Wrap(
-              spacing: 10.w,
-              runSpacing: 10.h,
-              children: items.map((name) {
-                return Container(
-                  constraints: BoxConstraints(maxWidth: 160.w),
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 12.w,
-                    vertical: 8.h,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppPalette.defaultFill,
-                    borderRadius: BorderRadius.circular(999.r),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 12.sp,
-                            color: AppPalette.primary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                      8.w.horizontalSpace,
-                      GestureDetector(
-                        onTap: () => onRemove(name),
-                        child: Icon(
-                          Icons.close_rounded,
-                          size: 16.sp,
-                          color: AppPalette.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  final VoidCallback onBack;
-  const _EmptyState({required this.onBack});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.all(24.w),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'create_campaign_step2_missing_type'.tr,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14.sp, color: AppPalette.black),
-            ),
-            14.h.verticalSpace,
-            CustomButton(
-              btnText: 'common_previous'.tr,
-              onTap: onBack,
-              btnColor: AppPalette.secondary,
-              borderColor: Colors.transparent,
-              showBorder: false,
-              textColor: AppPalette.white,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-
-class InputNamesWidget extends StatelessWidget {
-  final String title;
-  final String subTitle;
-  final TextEditingController textController;
-  final List<String> names;
-  final void Function(String) onSubmitted;
-  final void Function(String) onDeleted;
-
-  const InputNamesWidget({
-    super.key,
-    required this.title,
-    required this.subTitle,
-    required this.textController,
-    required this.names,
-    required this.onSubmitted,
-    required this.onDeleted,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Obx(() {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 12.sp, fontWeight: FontWeight.w600, color: AppPalette.primary)),
-
-          5.h.verticalSpace,
-
-          TextField(
-            controller: textController,
-            style: TextStyle(
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w400,
-              color: AppPalette.black,
-            ),
-            decoration: InputDecoration(
-              fillColor: AppPalette.white,
-              filled: true,
-              hintText: subTitle,
-              hintStyle: TextStyle(fontSize: 10.sp, fontWeight: FontWeight.w400, color: AppPalette.greyText,),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(kBorderRadius.r),
-                borderSide: BorderSide.none,
-              ),
-            ),
-            onSubmitted: onSubmitted,
-          ),
-
-          16.h.verticalSpace,
-
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 16),
-            width: MediaQuery.sizeOf(context).width,
-            constraints: const BoxConstraints(minHeight: 120),
-            decoration: BoxDecoration(
-              color: AppPalette.white,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Wrap(
-              spacing: 8, runSpacing: 8,
-              children: names.map((name) => Chip(shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),),
-                label: Text(name),
-                deleteIcon: const Icon(Icons.close,size: 16),
-                onDeleted: () => onDeleted(name),
-              ),
-              ).toList(),
-            ),
-          ),
-        ],
-      );
-    });
   }
 }
 
