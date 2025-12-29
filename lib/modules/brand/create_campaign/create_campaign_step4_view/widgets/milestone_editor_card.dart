@@ -7,7 +7,7 @@ import 'package:influencer_app/modules/brand/create_campaign/create_campaign_ste
 
 import '../../../../../core/theme/app_palette.dart';
 import '../../../../../core/widgets/custom_text_form_field.dart';
-import '../../create_campaign_controller.dart';
+import '../../create_campaign_controller/create_campaign_controller.dart';
 import 'mini_metric_field.dart';
 
 class MilestoneEditorCard extends StatelessWidget {

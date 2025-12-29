@@ -3,12 +3,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:influencer_app/core/utils/app_assets.dart';
+import 'package:influencer_app/modules/brand/create_campaign/create_campaign_step3_view/widgets/dos_dont_section.dart';
+import 'package:influencer_app/modules/brand/create_campaign/create_campaign_step3_view/widgets/multiline_box.dart';
+import 'package:influencer_app/modules/brand/create_campaign/create_campaign_step3_view/widgets/select_like_field.dart';
+import 'package:influencer_app/modules/brand/create_campaign/create_campaign_step3_view/widgets/single_line_box.dart';
+import 'package:influencer_app/modules/brand/create_campaign/create_campaign_step3_view/widgets/terms_section.dart';
 import 'package:influencer_app/modules/brand/create_campaign/create_campaign_step3_view/widgets/title_header_icons.dart';
 
 import '../../../../core/theme/app_palette.dart';
 import '../../../../core/utils/constants.dart';
 import '../../../../core/widgets/custom_button.dart';
-import '../create_campaign_controller.dart';
+import '../create_campaign_controller/create_campaign_controller.dart';
 
 class CreateCampaignStep3View extends GetView<CreateCampaignController> {
   const CreateCampaignStep3View({super.key});
@@ -59,7 +64,9 @@ class CreateCampaignStep3View extends GetView<CreateCampaignController> {
                         ),
                       ],
                     ),
+
                     5.h.verticalSpace,
+
                     Text(
                       'create_campaign_step3_subtitle'.tr,
                       maxLines: 2,
@@ -74,13 +81,14 @@ class CreateCampaignStep3View extends GetView<CreateCampaignController> {
                     18.h.verticalSpace,
 
                     TitleHeaderIcons(
-                        text: 'create_campaign_goals_label'.tr,
-                        icon: AppAssets.campaignGoals,
+                      text: 'create_campaign_goals_label'.tr,
+                      icon: AppAssets.campaignGoals,
+                      textColor: AppPalette.primary,
                     ),
 
                     6.h.verticalSpace,
 
-                    _MultilineBox(
+                    MultilineBox(
                       controller: controller.campaignGoalsCtrl,
                       hint: 'create_campaign_goals_hint'.tr,
                       onChanged: controller.onCampaignGoalsChanged,
@@ -88,11 +96,15 @@ class CreateCampaignStep3View extends GetView<CreateCampaignController> {
 
                     14.h.verticalSpace,
 
-                    TitleHeaderIcons(text: 'create_campaign_product_service_label'.tr, icon: AppAssets.campaignGoals),
+                    TitleHeaderIcons(
+                      text: 'create_campaign_product_service_label'.tr,
+                      icon: AppAssets.campaignGoals,
+                      textColor: AppPalette.primary,
+                    ),
 
                     6.h.verticalSpace,
 
-                    _MultilineBox(
+                    MultilineBox(
                       controller: controller.productServiceCtrl,
                       hint: 'create_campaign_product_service_hint'.tr,
                       onChanged: controller.onProductServiceChanged,
@@ -104,6 +116,7 @@ class CreateCampaignStep3View extends GetView<CreateCampaignController> {
                       text: 'campaign_dos_donts'.tr,
                       icon: AppAssets.checkMark,
                       extraIcon: AppAssets.cancelOutline,
+                      textColor: AppPalette.primary,
                     ),
 
                     6.h.verticalSpace,
@@ -114,7 +127,7 @@ class CreateCampaignStep3View extends GetView<CreateCampaignController> {
                         borderRadius: BorderRadius.circular(kBorderRadius.r),
                         color: AppPalette.white,
                       ),
-                      child: _DosDontSection(controller: controller),
+                      child: DosDontSection(controller: controller),
                     ),
 
                     17.h.verticalSpace,
@@ -122,17 +135,19 @@ class CreateCampaignStep3View extends GetView<CreateCampaignController> {
                     TitleHeaderIcons(
                       text: 'create_campaign_terms_label'.tr,
                       icon: AppAssets.termsCondition,
+                      textColor: AppPalette.primary,
                     ),
 
                     6.h.verticalSpace,
 
-                    _TermsSection(controller: controller),
+                    TermsSection(controller: controller),
 
                     21.h.verticalSpace,
 
                     TitleHeaderIcons(
                       text: 'create_campaign_start_date_label'.tr,
                       icon: AppAssets.clock,
+                      textColor: AppPalette.complemetary,
                     ),
 
                     6.h.verticalSpace,
@@ -140,7 +155,7 @@ class CreateCampaignStep3View extends GetView<CreateCampaignController> {
                     Obx(() {
                       final text = controller.startDateText;
                       final isPlaceholder = controller.startDate.value == null;
-                      return _SelectLikeField(
+                      return SelectLikeField(
                         text: text,
                         isPlaceholder: isPlaceholder,
                         trailing: Icons.calendar_month_rounded,
@@ -153,13 +168,14 @@ class CreateCampaignStep3View extends GetView<CreateCampaignController> {
                     TitleHeaderIcons(
                       text: 'create_campaign_duration_label'.tr,
                       icon: AppAssets.clock,
+                      textColor: AppPalette.complemetary,
                     ),
 
                     6.h.verticalSpace,
 
-                    _SingleLineBox(
+                    SingleLineBox(
                       controller: controller.durationCtrl,
-                      hint: 'create_campaign_duration_hint'.tr, // "5 Days"
+                      hint: 'create_campaign_duration_hint'.tr,
                       keyboardType: TextInputType.text,
                       onChanged: controller.onDurationChanged,
                     ),
@@ -258,367 +274,6 @@ class CreateCampaignStep3View extends GetView<CreateCampaignController> {
               isDisabled: disabled,
               onTap: controller.onNext,
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SectionTitle extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final Color? iconColor;
-
-  const _SectionTitle({
-    required this.icon,
-    required this.title,
-    this.iconColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 18.sp, color: iconColor ?? AppPalette.primary),
-        10.w.horizontalSpace,
-        Expanded(
-          child: Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w700,
-              color: AppPalette.primary,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _MultilineBox extends StatelessWidget {
-  final TextEditingController controller;
-  final String hint;
-  final void Function(String) onChanged;
-
-  const _MultilineBox({
-    required this.controller,
-    required this.hint,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppPalette.white,
-        borderRadius: BorderRadius.circular(kBorderRadius.r),
-        border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
-      ),
-      padding: EdgeInsets.symmetric(horizontal: 17.w, vertical: 10.h),
-      child: TextFormField(
-        controller: controller,
-        onChanged: onChanged,
-        maxLines: 4,
-        style: TextStyle(fontSize: 12.sp, color: AppPalette.greyText, fontWeight: FontWeight.w400),
-        decoration: InputDecoration(
-          border: InputBorder.none,
-          hintText: hint,
-          hintStyle: TextStyle(fontSize: 12.sp, color: AppPalette.subtext, fontWeight: FontWeight.w400),
-        ),
-      ),
-    );
-  }
-}
-
-class _SingleLineBox extends StatelessWidget {
-  final TextEditingController controller;
-  final String hint;
-  final TextInputType keyboardType;
-  final void Function(String) onChanged;
-
-  const _SingleLineBox({
-    required this.controller,
-    required this.hint,
-    required this.keyboardType,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppPalette.white,
-        borderRadius: BorderRadius.circular(kBorderRadius.r),
-        border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
-      ),
-      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 2.h),
-      child: TextFormField(
-        controller: controller,
-        onChanged: onChanged,
-        keyboardType: keyboardType,
-        style: TextStyle(fontSize: 12.sp, color: AppPalette.black),
-        decoration: InputDecoration(
-          border: InputBorder.none,
-          hintText: hint,
-          hintStyle: TextStyle(fontSize: 12.sp, color: AppPalette.subtext),
-        ),
-      ),
-    );
-  }
-}
-
-class _SelectLikeField extends StatelessWidget {
-  final String text;
-  final bool isPlaceholder;
-  final IconData trailing;
-  final VoidCallback onTap;
-
-  const _SelectLikeField({
-    required this.text,
-    required this.isPlaceholder,
-    required this.trailing,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 14.h),
-        decoration: BoxDecoration(
-          color: AppPalette.white,
-          borderRadius: BorderRadius.circular(kBorderRadius.r),
-          border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                text,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12.sp,
-                  color: isPlaceholder ? AppPalette.subtext : AppPalette.black,
-                ),
-              ),
-            ),
-            Icon(trailing, size: 20.sp, color: AppPalette.black),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DosDontSection extends StatelessWidget {
-  final CreateCampaignController controller;
-  const _DosDontSection({required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        _GuidelineCard(
-          title: 'create_campaign_dos_label'.tr,
-          icon: AppAssets.checkMark,
-          tint: const Color(0xFFEFFAF3),
-          border: const Color(0xFFBFE9CB),
-          titleColor: const Color(0xFF1B7F3A),
-          controller: controller.dosCtrl,
-          onChanged: controller.onDosChanged,
-          exampleHint: 'create_campaign_dos_hint'.tr,
-        ),
-        12.h.verticalSpace,
-        _GuidelineCard(
-          title: 'create_campaign_donts_label'.tr,
-          icon: AppAssets.cancelOutline,
-          tint: const Color(0xFFFFF0F0),
-          border: const Color(0xFFFFC5C5),
-          titleColor: const Color(0xFFB32020),
-          controller: controller.dontsCtrl,
-          onChanged: controller.onDontsChanged,
-          exampleHint: 'create_campaign_donts_hint'.tr,
-        ),
-      ],
-    );
-  }
-}
-
-class _GuidelineCard extends StatelessWidget {
-  final String title;
-  final String icon;
-  final Color tint;
-  final Color border;
-  final Color titleColor;
-
-  final TextEditingController controller;
-  final void Function(String) onChanged;
-  final String exampleHint;
-
-  const _GuidelineCard({
-    required this.title,
-    required this.icon,
-    required this.tint,
-    required this.border,
-    required this.titleColor,
-    required this.controller,
-    required this.onChanged,
-    required this.exampleHint,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.all(14.w),
-      decoration: BoxDecoration(
-        color: tint,
-        borderRadius: BorderRadius.circular(kBorderRadius.r),
-        border: Border.all(color: border, width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header like screenshot (icon + title)
-          Row(
-            children: [
-              Image.asset(icon, height: 18.sp,width: 18.sp, color: titleColor),
-              // Icon(icon, size: 18.sp, color: titleColor),
-              10.w.horizontalSpace,
-
-              Expanded(
-                child: Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 15.sp,
-                    fontWeight: FontWeight.w800,
-                    color: titleColor,
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          12.h.verticalSpace,
-
-          // Inner bordered field box
-          Container(
-            padding: EdgeInsets.all(12.w),
-            decoration: BoxDecoration(
-              color: AppPalette.white,
-              borderRadius: BorderRadius.circular(kBorderRadius.r),
-              border: Border.all(color: border, width: 1),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextFormField(
-                  controller: controller,
-                  onChanged: onChanged,
-                  maxLines: 5,
-                  style: TextStyle(
-                    fontSize: 13.sp,
-                    fontWeight: FontWeight.w600,
-                    color: titleColor.withOpacity(.78),
-                    height: 1.35,
-                  ),
-                  decoration: InputDecoration(
-                    isDense: true,
-                    border: InputBorder.none,
-                    hintText: exampleHint, // multi-line bullet hint
-                    hintStyle: TextStyle(
-                      fontSize: 13.sp,
-                      fontWeight: FontWeight.w500,
-                      height: 1.35,
-                      color: titleColor.withOpacity(.35),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TermsSection extends StatelessWidget {
-  final CreateCampaignController controller;
-  const _TermsSection({required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 19, vertical: 22),
-      decoration: BoxDecoration(
-        color: AppPalette.white,
-        borderRadius: BorderRadius.circular(kBorderRadius.r),
-        border: Border.all(
-          color: AppPalette.border1,
-          width: kBorderWidth0_5,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            spacing: 10,
-            children: [
-              
-              Image.asset(AppAssets.presentation, height: 20, width: 20,color: AppPalette.primary),
-
-              Text(
-                'create_campaign_reporting_requirements_label'.tr,
-                style: TextStyle(
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w500,
-                  color: AppPalette.primary,
-                ),
-              ),
-            ],
-          ),
-
-          10.h.verticalSpace,
-
-          _MultilineBox(
-            controller: controller.reportingReqCtrl,
-            hint: 'create_campaign_reporting_requirements_hint'.tr,
-            onChanged: controller.onReportingReqChanged,
-          ),
-
-          14.h.verticalSpace,
-
-          Row(
-            spacing: 10,
-            children: [
-              Image.asset(AppAssets.copyright, height: 20, width: 20,color: AppPalette.primary),
-
-              Text(
-                'create_campaign_usage_rights_label'.tr,
-                style: TextStyle(
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w500,
-                  color: AppPalette.primary,
-                ),
-              ),
-            ],
-          ),
-
-          6.h.verticalSpace,
-
-          _MultilineBox(
-            controller: controller.usageRightsCtrl,
-            hint: 'create_campaign_usage_rights_hint'.tr,
-            onChanged: controller.onUsageRightsChanged,
           ),
         ],
       ),

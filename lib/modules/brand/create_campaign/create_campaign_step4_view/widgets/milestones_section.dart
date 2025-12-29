@@ -5,7 +5,7 @@ import 'package:influencer_app/core/theme/app_palette.dart';
 import 'package:influencer_app/core/utils/constants.dart';
 
 import '../../../../../core/utils/app_assets.dart';
-import '../../create_campaign_controller.dart';
+import '../../create_campaign_controller/create_campaign_controller.dart';
 import 'add_another_milestone_button.dart';
 import 'milestone_card.dart';
 import 'milestone_editor_card.dart';

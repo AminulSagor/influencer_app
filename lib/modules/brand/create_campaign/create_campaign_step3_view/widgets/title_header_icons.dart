@@ -6,12 +6,13 @@ class TitleHeaderIcons extends StatelessWidget {
   final String text;
   final String icon;
   final String? extraIcon;
+  final Color textColor;
 
   const TitleHeaderIcons({
     super.key,
     required this.text,
     required this.icon,
-    this.extraIcon,
+    this.extraIcon, required this.textColor,
   });
 
   @override
@@ -19,11 +20,11 @@ class TitleHeaderIcons extends StatelessWidget {
     return Row(
       spacing: 8,
       children: [
+
         Image.asset(
           icon,
           height: 20,
           width: 20,
-          color: AppPalette.primary,
         ),
 
         if (extraIcon != null && extraIcon!.isNotEmpty) ...[
@@ -40,7 +41,7 @@ class TitleHeaderIcons extends StatelessWidget {
           style: TextStyle(
             fontSize: 16.sp,
             fontWeight: FontWeight.w600,
-            color: AppPalette.primary,
+            color: textColor
           ),
         ),
       ],

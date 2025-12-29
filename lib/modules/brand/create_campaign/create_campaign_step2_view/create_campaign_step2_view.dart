@@ -10,7 +10,7 @@ import '../../../../core/models/job_item.dart';
 import '../../../../core/theme/app_palette.dart';
 import '../../../../core/utils/constants.dart';
 import '../../../../core/widgets/custom_button.dart';
-import '../create_campaign_controller.dart';
+import '../create_campaign_controller/create_campaign_controller.dart';
 import 'widgets/empty_state.dart';
 
 class CreateCampaignStep2View extends GetView<CreateCampaignController> {

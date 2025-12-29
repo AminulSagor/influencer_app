@@ -4,7 +4,7 @@ import 'package:get/get_state_manager/src/rx_flutter/rx_obx_widget.dart';
 import 'package:get/get_utils/src/extensions/internacionalization.dart';
 
 import '../../../../../core/theme/app_palette.dart';
-import '../../create_campaign_controller.dart';
+import '../../create_campaign_controller/create_campaign_controller.dart';
 import '../../create_campaign_step4_view/widgets/select_field.dart';
 import 'agency_square_card.dart';
 import 'agency_wide_card.dart';

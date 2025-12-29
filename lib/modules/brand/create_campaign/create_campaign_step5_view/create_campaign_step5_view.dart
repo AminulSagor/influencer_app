@@ -6,7 +6,7 @@ import 'package:influencer_app/core/utils/app_assets.dart';
 import 'package:influencer_app/modules/brand/create_campaign/create_campaign_step5_view/widgets/dashed_button.dart';
 
 import '../../../../core/models/job_item.dart';
-import '../create_campaign_controller.dart';
+import '../create_campaign_controller/create_campaign_controller.dart';
 import 'widgets/asset_tile.dart';
 import 'widgets/brand_asset_tile.dart';
 import 'widgets/draft_button.dart';

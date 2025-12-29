@@ -5,7 +5,7 @@ import 'package:file_picker/file_picker.dart';
 
 import '../../../core/models/job_item.dart';
 import '../../../core/utils/currency_formatter.dart';
-import '../create_campaign/create_campaign_controller.dart';
+import '../create_campaign/create_campaign_controller/create_campaign_controller.dart';
 
 enum CampaignProgressStep { submitted, quoted, paid, promoting, completed }
 

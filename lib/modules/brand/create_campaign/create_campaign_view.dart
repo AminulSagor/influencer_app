@@ -7,7 +7,7 @@ import '../../../core/theme/app_palette.dart';
 import '../../../core/utils/constants.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../../core/widgets/custom_text_form_field.dart';
-import 'create_campaign_controller.dart';
+import 'create_campaign_controller/create_campaign_controller.dart';
 
 class CreateCampaignView extends GetView<CreateCampaignController> {
   const CreateCampaignView({super.key});

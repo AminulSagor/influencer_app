@@ -5,7 +5,7 @@ import 'package:get/get.dart';
 import 'package:influencer_app/routes/app_routes.dart';
 import 'package:file_picker/file_picker.dart';
 
-import '../../../core/models/job_item.dart';
+import '../../../../core/models/job_item.dart';
 
 class AdAgencyUiModel {
   final String name;

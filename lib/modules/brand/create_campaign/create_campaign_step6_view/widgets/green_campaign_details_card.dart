@@ -4,7 +4,7 @@ import 'package:get/get_utils/src/extensions/internacionalization.dart';
 import 'package:influencer_app/core/theme/app_palette.dart';
 import 'package:influencer_app/core/utils/app_assets.dart';
 
-import '../../create_campaign_controller.dart';
+import '../../create_campaign_controller/create_campaign_controller.dart';
 
 class GreenCampaignDetailsCard extends StatelessWidget {
   final CreateCampaignController controller;

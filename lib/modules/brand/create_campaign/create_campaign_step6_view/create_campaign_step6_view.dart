@@ -5,7 +5,7 @@ import 'package:influencer_app/core/theme/app_palette.dart';
 import 'package:influencer_app/modules/brand/create_campaign/create_campaign_step6_view/widgets/accordion_card.dart';
 
 import '../../../../core/models/job_item.dart';
-import '../create_campaign_controller.dart' hide CampaignType;
+import '../create_campaign_controller/create_campaign_controller.dart' hide CampaignType;
 import 'widgets/green_campaign_details_card.dart';
 
 class CreateCampaignStep6View extends GetView<CreateCampaignController> {

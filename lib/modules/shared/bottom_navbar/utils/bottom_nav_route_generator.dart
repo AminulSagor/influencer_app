@@ -4,7 +4,7 @@ import 'package:influencer_app/modules/brand/brand_campaign_details/brand_campai
 import 'package:influencer_app/modules/brand/brand_campaign_details/brand_campaign_details_view.dart';
 import 'package:influencer_app/modules/brand/brand_milestone_details/brand_milestone_details_controller.dart';
 import 'package:influencer_app/modules/brand/brand_milestone_details/brand_milestone_details_view.dart';
-import 'package:influencer_app/modules/brand/create_campaign/create_campaign_controller.dart';
+import 'package:influencer_app/modules/brand/create_campaign/create_campaign_controller/create_campaign_controller.dart';
 import 'package:influencer_app/modules/brand/create_campaign/create_campaign_step2_view/create_campaign_step2_view.dart';
 import 'package:influencer_app/modules/brand/create_campaign/create_campaign_view.dart';
 import 'package:influencer_app/modules/shared/language/language_view.dart';

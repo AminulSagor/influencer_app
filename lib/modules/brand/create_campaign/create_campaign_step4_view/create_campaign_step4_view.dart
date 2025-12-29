@@ -8,7 +8,7 @@ import 'package:influencer_app/modules/brand/create_campaign/create_campaign_ste
 import '../../../../core/theme/app_palette.dart';
 import '../../../../core/utils/constants.dart';
 import '../../../../core/widgets/custom_button.dart';
-import '../create_campaign_controller.dart';
+import '../create_campaign_controller/create_campaign_controller.dart';
 import 'widgets/milestones_section.dart';
 
 class CreateCampaignStep4View extends GetView<CreateCampaignController> {
