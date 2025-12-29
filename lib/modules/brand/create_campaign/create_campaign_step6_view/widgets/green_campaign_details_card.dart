@@ -165,7 +165,7 @@ class GreenCampaignDetailsCard extends StatelessWidget {
             padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(.12),
-              borderRadius: BorderRadius.circular(14.r),
+              borderRadius: BorderRadius.circular(10.r),
               border: Border.all(color: Colors.white.withOpacity(.22)),
             ),
             child: Column(

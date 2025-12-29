@@ -437,7 +437,7 @@ class _DoDontBox extends StatelessWidget {
       padding: EdgeInsets.all(12.w),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(14.r),
+        borderRadius: BorderRadius.circular(10.r),
         border: Border.all(color: border),
       ),
       child: Column(

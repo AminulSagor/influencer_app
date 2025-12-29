@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:influencer_app/core/theme/app_palette.dart';
+import 'package:influencer_app/core/utils/app_assets.dart';
 import 'package:influencer_app/routes/app_routes.dart';
 import 'package:file_picker/file_picker.dart';
 
@@ -1544,9 +1546,6 @@ class _MultiPickerSheet extends StatelessWidget {
 class _CampaignPlacementConfirmedDialog extends StatelessWidget {
   final CreateCampaignController controller;
   const _CampaignPlacementConfirmedDialog({required this.controller});
-
-  static const _primary = Color(0xFF2F4F1F);
-  static const _softBorder = Color(0xFFBFD7A5);
   static const _bg = Color(0xFFF6F7F7);
 
   String _safeTitle() {
@@ -1566,115 +1565,95 @@ class _CampaignPlacementConfirmedDialog extends StatelessWidget {
       onWillPop: () async => false,
       child: Dialog(
         backgroundColor: Colors.transparent,
-        insetPadding: EdgeInsets.symmetric(horizontal: 18.w),
+        insetPadding: EdgeInsets.symmetric(horizontal: 20.w),
         child: Container(
-          padding: EdgeInsets.all(16.w),
+          padding: EdgeInsets.symmetric(horizontal: 23, vertical: 25),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18.r),
-            border: Border.all(color: Colors.black12),
+            color: AppPalette.white,
+            borderRadius: BorderRadius.circular(10.r),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               // top row (close)
-              Row(
-                children: [
-                  const Spacer(),
-                  InkWell(
-                    borderRadius: BorderRadius.circular(999.r),
-                    onTap: controller.finishFlowAndReset,
-                    child: Padding(
-                      padding: EdgeInsets.all(6.w),
-                      child: Icon(
-                        Icons.close,
-                        size: 22.sp,
-                        color: _primary.withOpacity(.65),
-                      ),
-                    ),
-                  ),
-                ],
+
+              Align(
+                alignment: Alignment.centerRight,
+                child: GestureDetector(
+                  onTap: controller.finishFlowAndReset,
+                  child: Image.asset(AppAssets.close, height: 18, width: 18)),
               ),
 
-              6.h.verticalSpace,
-
-              // check icon
-              Container(
-                width: 72.w,
-                height: 72.w,
-                decoration: BoxDecoration(
-                  color: _primary.withOpacity(.60),
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: Icon(Icons.check, size: 44.sp, color: Colors.white),
-              ),
+            Image.asset(AppAssets.checkmarkFilled, height: 68.w, width: 68.w),
 
               14.h.verticalSpace,
 
               Text(
-                'create_campaign_step6_popup_title'
-                    .tr, // "Campaign Placement Confirmed"
+                'create_campaign_step6_popup_title'.tr, // "Campaign Placement Confirmed"
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 18.sp,
-                  fontWeight: FontWeight.w900,
-                  color: _primary,
+                  fontWeight: FontWeight.w700,
+                  color: AppPalette.primary,
                 ),
               ),
 
-              8.h.verticalSpace,
+              9.h.verticalSpace,
 
               Text(
-                'create_campaign_step6_popup_message'
-                    .tr, // "We will review... 3–5 business days"
+                'create_campaign_step6_popup_message'.tr, // "We will review... 3–5 business days"
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 13.sp,
-                  height: 1.35,
-                  color: _primary.withOpacity(.85),
-                  fontWeight: FontWeight.w500,
+                  fontSize: 12.sp,
+                  color: AppPalette.primary,
+                  fontWeight: FontWeight.w300,
                 ),
               ),
 
-              16.h.verticalSpace,
+              17.h.verticalSpace,
 
               // green summary card (like screenshot)
               Container(
                 width: double.infinity,
-                padding: EdgeInsets.all(14.w),
+                padding: EdgeInsets.symmetric(horizontal: 11.w, vertical: 15.w),
                 decoration: BoxDecoration(
-                  color: _primary.withOpacity(.70),
-                  borderRadius: BorderRadius.circular(16.r),
-                  border: Border.all(color: Colors.black12),
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppPalette.primary,
+                      AppPalette.secondary,
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(10.r),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Icon(
-                          Icons.campaign_outlined,
-                          color: Colors.white,
-                          size: 22.sp,
-                        ),
-                        10.w.horizontalSpace,
+
+                        Image.asset(AppAssets.onlineAds, height: 30, width: 30),
+
+                        16.w.horizontalSpace,
+
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                title,
+                              Text("create_campaign_step6_summer_fashion_campaign".tr,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 15.sp,
-                                  fontWeight: FontWeight.w600,
+                                  color: AppPalette.white,
+                                  fontSize: 16.sp,
+                                  fontWeight: FontWeight.w300,
                                 ),
                               ),
-                              6.h.verticalSpace,
+
+                              // 6.h.verticalSpace,
+
                               Row(
                                 children: [
                                   Text(
@@ -1685,7 +1664,9 @@ class _CampaignPlacementConfirmedDialog extends StatelessWidget {
                                       fontWeight: FontWeight.w800,
                                     ),
                                   ),
+
                                   6.w.horizontalSpace,
+
                                   Expanded(
                                     child: FittedBox(
                                       fit: BoxFit.scaleDown,
@@ -1693,9 +1674,9 @@ class _CampaignPlacementConfirmedDialog extends StatelessWidget {
                                       child: Text(
                                         amount,
                                         style: TextStyle(
-                                          color: const Color(0xFFDCE8CB),
-                                          fontSize: 28.sp,
-                                          fontWeight: FontWeight.w900,
+                                          color: AppPalette.thirdColor,
+                                          fontSize: 24.sp,
+                                          fontWeight: FontWeight.w600,
                                         ),
                                       ),
                                     ),
@@ -1709,7 +1690,9 @@ class _CampaignPlacementConfirmedDialog extends StatelessWidget {
                     ),
 
                     10.h.verticalSpace,
+
                     Divider(color: Colors.white.withOpacity(.35), height: 1),
+
                     10.h.verticalSpace,
 
                     Row(
@@ -1717,17 +1700,23 @@ class _CampaignPlacementConfirmedDialog extends StatelessWidget {
                         Text(
                           'common_platforms'.tr,
                           style: TextStyle(
-                            color: const Color(0xFFDCE8CB),
+                            color: AppPalette.white,
                             fontSize: 12.sp,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                        10.w.horizontalSpace,
-                        _MiniPlatform(icon: Icons.camera_alt_outlined),
-                        8.w.horizontalSpace,
-                        _MiniPlatform(icon: Icons.play_circle_outline),
-                        8.w.horizontalSpace,
-                        _MiniPlatform(icon: Icons.music_note_outlined),
+
+                        11.w.horizontalSpace,
+
+                        Image.asset(AppAssets.instagram, height: 25, width: 25),
+
+                        5.w.horizontalSpace,
+
+                        Image.asset(AppAssets.youTube, height: 25, width: 25),
+
+                        5.w.horizontalSpace,
+
+                        Image.asset(AppAssets.tikTok, height: 25, width: 25),
                       ],
                     ),
                   ],
