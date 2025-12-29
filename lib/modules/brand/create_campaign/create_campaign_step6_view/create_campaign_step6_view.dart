@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:influencer_app/core/theme/app_palette.dart';
+import 'package:influencer_app/modules/brand/create_campaign/create_campaign_step6_view/widgets/accordion_card.dart';
 
-import '../../../core/models/job_item.dart';
-import 'create_campaign_controller.dart' hide CampaignType;
+import '../../../../core/models/job_item.dart';
+import '../create_campaign_controller.dart' hide CampaignType;
+import 'widgets/green_campaign_details_card.dart';
 
 class CreateCampaignStep6View extends GetView<CreateCampaignController> {
   const CreateCampaignStep6View({super.key});
 
   static const _bg = Color(0xFFF6F7F7);
   static const _primary = Color(0xFF2F4F1F);
-  static const _softBorder = Color(0xFFBFD7A5);
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +56,9 @@ class CreateCampaignStep6View extends GetView<CreateCampaignController> {
                         ],
                       );
                     }),
+
                     10.h.verticalSpace,
+
                     Obx(() {
                       return ClipRRect(
                         borderRadius: BorderRadius.circular(99.r),
@@ -62,7 +66,7 @@ class CreateCampaignStep6View extends GetView<CreateCampaignController> {
                           value: c.progress,
                           minHeight: 10.h,
                           backgroundColor: const Color(0xFFD7E0CC),
-                          valueColor: const AlwaysStoppedAnimation(_primary),
+                          valueColor: const AlwaysStoppedAnimation(AppPalette.primary),
                         ),
                       );
                     }),
@@ -78,9 +82,9 @@ class CreateCampaignStep6View extends GetView<CreateCampaignController> {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 26.sp,
-                              fontWeight: FontWeight.w800,
-                              color: _primary,
+                              fontSize: 19.sp,
+                              fontWeight: FontWeight.w600,
+                              color: AppPalette.primary,
                             ),
                           ),
                         ),
@@ -88,21 +92,23 @@ class CreateCampaignStep6View extends GetView<CreateCampaignController> {
                         _DraftButton(onTap: c.saveAsDraft),
                       ],
                     ),
+
                     6.h.verticalSpace,
+
                     Text(
                       'create_campaign_step6_subtitle'.tr,
-                      style: TextStyle(fontSize: 13.sp, color: Colors.black54),
+                      style: TextStyle(fontSize: 10.sp, color: AppPalette.black,fontWeight: FontWeight.w300,),
                     ),
 
                     16.h.verticalSpace,
 
                     // green campaign details card (matching your screenshots)
-                    _GreenCampaignDetailsCard(controller: c),
+                    GreenCampaignDetailsCard(controller: c),
 
-                    14.h.verticalSpace,
+                    13.h.verticalSpace,
 
                     // Campaign Brief
-                    _AccordionCard(
+                    AccordionCard(
                       icon: Icons.description_outlined,
                       title: 'create_campaign_step6_campaign_brief'.tr,
                       initiallyExpanded: true,
@@ -112,7 +118,7 @@ class CreateCampaignStep6View extends GetView<CreateCampaignController> {
                     14.h.verticalSpace,
 
                     // Campaign Milestones
-                    _AccordionCard(
+                    AccordionCard(
                       icon: Icons.flag_outlined,
                       title: 'create_campaign_step6_campaign_milestones'.tr,
                       initiallyExpanded: false,
@@ -122,7 +128,7 @@ class CreateCampaignStep6View extends GetView<CreateCampaignController> {
                     14.h.verticalSpace,
 
                     // Content Assets
-                    _AccordionCard(
+                    AccordionCard(
                       icon: Icons.download_outlined,
                       title: 'create_campaign_step6_content_assets'.tr,
                       initiallyExpanded: false,
@@ -132,7 +138,7 @@ class CreateCampaignStep6View extends GetView<CreateCampaignController> {
                     14.h.verticalSpace,
 
                     // Terms & Conditions
-                    _AccordionCard(
+                    AccordionCard(
                       icon: Icons.list_alt_outlined,
                       title: 'create_campaign_step6_terms_conditions'.tr,
                       initiallyExpanded: false,
@@ -148,7 +154,7 @@ class CreateCampaignStep6View extends GetView<CreateCampaignController> {
                       return Column(
                         children: [
                           14.h.verticalSpace,
-                          _AccordionCard(
+                          AccordionCard(
                             icon: Icons.download_outlined,
                             title: 'create_campaign_step6_brand_assets'.tr,
                             initiallyExpanded: false,
@@ -242,261 +248,6 @@ class _DraftButton extends StatelessWidget {
             fontSize: 12.5.sp,
             fontWeight: FontWeight.w600,
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _GreenCampaignDetailsCard extends StatelessWidget {
-  final CreateCampaignController controller;
-  const _GreenCampaignDetailsCard({required this.controller});
-
-  static const _primary = Color(0xFF2F4F1F);
-
-  String _safeTitle(CreateCampaignController c) {
-    final t = c.campaignName.value.trim();
-    if (t.isNotEmpty) return t;
-    return c.campaignNameCtrl.text.trim().isNotEmpty
-        ? c.campaignNameCtrl.text.trim()
-        : 'create_campaign_step6_campaign_title_fallback'.tr;
-  }
-
-  String _deadlineText(CreateCampaignController c) {
-    return c.deadlineLabelForStep6;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final c = controller;
-
-    final totalBudget = c.totalBudgetText;
-    final vatLabel = '${(c.vatPercent * 100).round()}%';
-
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
-        color: _primary.withOpacity(.70),
-        borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: Colors.black12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'create_campaign_step6_campaign_details'.tr,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          12.h.verticalSpace,
-
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(Icons.campaign_outlined, color: Colors.white, size: 22.sp),
-              10.w.horizontalSpace,
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _safeTitle(c),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 15.sp,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    6.h.verticalSpace,
-                    Row(
-                      children: [
-                        FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            '৳',
-                            style: TextStyle(
-                              color: const Color(0xFFDCE8CB),
-                              fontSize: 22.sp,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        6.w.horizontalSpace,
-                        Expanded(
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              totalBudget,
-                              style: TextStyle(
-                                color: const Color(0xFFDCE8CB),
-                                fontSize: 26.sp,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-
-          10.h.verticalSpace,
-          Divider(color: Colors.white.withOpacity(.35), height: 1),
-          10.h.verticalSpace,
-
-          Row(
-            children: [
-              Text(
-                'common_platforms'.tr,
-                style: TextStyle(
-                  color: const Color(0xFFDCE8CB),
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              10.w.horizontalSpace,
-              _PlatformPill(icon: Icons.camera_alt_outlined),
-              8.w.horizontalSpace,
-              _PlatformPill(icon: Icons.play_circle_outline),
-              8.w.horizontalSpace,
-              _PlatformPill(icon: Icons.music_note_outlined),
-              const Spacer(),
-              Text(
-                'create_campaign_step6_including_vat'.trParams({
-                  'vat': vatLabel,
-                }),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: const Color(0xFFDCE8CB),
-                  fontSize: 11.5.sp,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-
-          14.h.verticalSpace,
-
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(.12),
-              borderRadius: BorderRadius.circular(14.r),
-              border: Border.all(color: Colors.white.withOpacity(.22)),
-            ),
-            child: Column(
-              children: [
-                Text(
-                  'create_campaign_step6_deadline'.tr,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                8.h.verticalSpace,
-                Text(
-                  _deadlineText(c),
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18.sp,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PlatformPill extends StatelessWidget {
-  final IconData icon;
-  const _PlatformPill({required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 26.w,
-      height: 26.w,
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(.15),
-        borderRadius: BorderRadius.circular(7.r),
-        border: Border.all(color: Colors.white.withOpacity(.20)),
-      ),
-      alignment: Alignment.center,
-      child: Icon(icon, size: 16.sp, color: Colors.white),
-    );
-  }
-}
-
-class _AccordionCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final bool initiallyExpanded;
-  final Widget child;
-
-  const _AccordionCard({
-    required this.icon,
-    required this.title,
-    required this.initiallyExpanded,
-    required this.child,
-  });
-
-  static const _primary = Color(0xFF2F4F1F);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: Colors.black12),
-      ),
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          initiallyExpanded: initiallyExpanded,
-          tilePadding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 6.h),
-          childrenPadding: EdgeInsets.fromLTRB(14.w, 0, 14.w, 14.h),
-          iconColor: _primary,
-          collapsedIconColor: _primary,
-          title: Row(
-            children: [
-              Icon(icon, color: _primary, size: 20.sp),
-              10.w.horizontalSpace,
-              Expanded(
-                child: Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 15.sp,
-                    fontWeight: FontWeight.w800,
-                    color: _primary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          children: [child],
         ),
       ),
     );

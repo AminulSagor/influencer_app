@@ -722,6 +722,7 @@ class AppTranslations extends Translations {
       "create_campaign_step6_subtitle":
           "Get a quick recap for your promotional campaign",
       "create_campaign_step6_campaign_details": "Campaign Details",
+      "create_campaign_step6_summer_fashion_campaign": "Summer Fashion Campaign",
       "create_campaign_step6_campaign_title_fallback": "Untitled Campaign",
       "create_campaign_step6_deadline": "Deadline",
       "create_campaign_step6_including_vat": "Including VAT/Tax ({vat})",
@@ -748,12 +749,10 @@ class AppTranslations extends Translations {
 
       "create_campaign_step6_get_quote": "Get Quote",
       "create_campaign_step6_submit_title": "Submitted",
-      "create_campaign_step6_submit_msg":
-          "Your campaign has been submitted successfully.",
+      "create_campaign_step6_submit_msg": "Your campaign has been submitted successfully.",
 
       'create_campaign_step6_popup_title': 'Campaign Placement Confirmed',
-      'create_campaign_step6_popup_message':
-          'We will review your campaign soon.\nIt may take up to 3–5 business days.',
+      'create_campaign_step6_popup_message': 'We will review your campaign soon.\nIt may take up to 3–5 business days.',
 
       'brand_campaign_details_welcome': 'Welcome, User!',
       'brand_campaign_details_campaign_details': 'Campaign Details',
@@ -1550,6 +1549,7 @@ class AppTranslations extends Translations {
       "create_campaign_step6_subtitle":
           "আপনার প্রোমোশনাল ক্যাম্পেইনের সংক্ষিপ্ত রিক্যাপ দেখুন",
       "create_campaign_step6_campaign_details": "ক্যাম্পেইন বিস্তারিত",
+      "create_campaign_step6_summer_fashion_campaign": "সামার ফ্যাশন ক্যাম্পেইন",
       "create_campaign_step6_campaign_title_fallback": "শিরোনামহীন ক্যাম্পেইন",
       "create_campaign_step6_deadline": "সময়সীমা",
       "create_campaign_step6_including_vat": "ভ্যাট/ট্যাক্সসহ ({vat})",

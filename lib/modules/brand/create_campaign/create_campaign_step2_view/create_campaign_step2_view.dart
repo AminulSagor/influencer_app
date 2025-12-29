@@ -2,13 +2,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:influencer_app/modules/brand/create_campaign/create_campaign_step2_view/widgets/paidAd_step2.dart';
+import 'package:influencer_app/modules/brand/create_campaign/create_campaign_step2_view/widgets/select_field.dart';
 
-import '../../../core/models/job_item.dart';
-import '../../../core/theme/app_palette.dart';
-import '../../../core/utils/constants.dart';
-import '../../../core/widgets/custom_button.dart';
-import '../../../core/widgets/custom_text_form_field.dart';
-import 'create_campaign_controller.dart';
+import '../../../../core/models/job_item.dart';
+import '../../../../core/theme/app_palette.dart';
+import '../../../../core/utils/constants.dart';
+import '../../../../core/widgets/custom_button.dart';
+import '../create_campaign_controller.dart';
 
 class CreateCampaignStep2View extends GetView<CreateCampaignController> {
   const CreateCampaignStep2View({super.key});
@@ -47,7 +48,9 @@ class CreateCampaignStep2View extends GetView<CreateCampaignController> {
                             ),
                           ),
                         ),
+
                         12.w.horizontalSpace,
+
                         CustomButton(
                           height: 34.h,
                           width: 132.w,
@@ -91,8 +94,9 @@ class CreateCampaignStep2View extends GetView<CreateCampaignController> {
                         );
                       }
 
-                      return _PaidAdStep2(controller: controller);
+                      return PaidAdStep2(controller: controller);
                     }),
+
                     24.h.verticalSpace,
 
                   ],
@@ -233,7 +237,7 @@ class _InfluencerPromotionStep2 extends StatelessWidget {
         10.h.verticalSpace,
         Obx(() {
           final value = controller.selectedProductType.value; // ✅ reads Rx
-          return _SelectField(
+          return SelectField(
             text: value ?? 'create_campaign_product_type_hint'.tr,
             isPlaceholder: value == null,
             onTap: controller.openProductTypePicker,
@@ -259,7 +263,7 @@ class _InfluencerPromotionStep2 extends StatelessWidget {
           final text = selected.isEmpty
               ? 'create_campaign_niche_hint'.tr
               : selected.join(', ');
-          return _SelectField(
+          return SelectField(
             text: text,
             isPlaceholder: selected.isEmpty,
             onTap: controller.openNichePicker,
@@ -362,190 +366,6 @@ class _InfluencerPromotionStep2 extends StatelessWidget {
   }
 }
 
-class _PaidAdStep2 extends StatelessWidget {
-  final CreateCampaignController controller;
-
-  const _PaidAdStep2({required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        /// Paid Ad Niche (single)
-        Text(
-          'create_campaign_product_type_label'.tr,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 12.sp,
-            fontWeight: FontWeight.w600,
-            color: AppPalette.primary,
-          ),
-        ),
-
-        5.h.verticalSpace,
-
-        Obx(() {
-          final value = controller.selectedPaidAdNiche.value; // ✅ reads Rx
-          return _SelectField(
-            text: value ?? 'create_campaign_product_type_hint'.tr,
-            isPlaceholder: value == null,
-            onTap: controller.openPaidAdNichePicker,
-          );
-        }),
-
-        18.h.verticalSpace,
-
-        Text(
-          'create_campaign_niche_label'.tr,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 12.sp,
-            fontWeight: FontWeight.w600,
-            color: AppPalette.primary,
-          ),
-        ),
-
-        5.h.verticalSpace,
-
-        Obx(() {
-          final value = controller.selectedPaidAdNiche.value; // ✅ reads Rx
-          return _SelectField(
-            text: value ?? 'create_campaign_niche_hint'.tr,
-            isPlaceholder: value == null,
-            onTap: controller.openPaidAdNichePicker,
-          );
-        }),
-
-        18.h.verticalSpace,
-
-        // Recommended agencies
-        Text(
-          'create_campaign_recommended_agencies_label'.tr,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 14.sp,
-            fontWeight: FontWeight.w600,
-            color: AppPalette.primary,
-          ),
-        ),
-        12.h.verticalSpace,
-        SizedBox(
-          height: 145.h,
-          child: Obx(() {
-            final items = controller.recommendedAgencies
-                .toList(); // ✅ IMPORTANT
-            final selectedName =
-                controller.selectedAgencyName.value; // ✅ reads Rx
-            return ListView.separated(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              itemCount: items.length,
-              separatorBuilder: (_, __) => 12.w.horizontalSpace,
-              itemBuilder: (_, i) {
-                final a = items[i];
-                final selected = selectedName == a.name;
-                return _AgencySquareCard(
-                  name: a.name,
-                  subtitle: a.subtitle,
-                  selected: selected,
-                  onTap: () => controller.selectAgency(a.name),
-                );
-              },
-            );
-          }),
-        ),
-
-        18.h.verticalSpace,
-
-        /// Other agencies (vertical)
-        Text(
-          'create_campaign_other_agencies_label'.tr,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 14.sp,
-            fontWeight: FontWeight.w600,
-            color: AppPalette.primary,
-          ),
-        ),
-        12.h.verticalSpace,
-        Obx(() {
-          final items = controller.otherAgencies.toList(); // ✅ IMPORTANT
-          final selectedName =
-              controller.selectedAgencyName.value; // ✅ reads Rx
-          return Column(
-            children: items.map((a) {
-              final selected = selectedName == a.name;
-              return Padding(
-                padding: EdgeInsets.only(bottom: 12.h),
-                child: _AgencyWideCard(
-                  name: a.name,
-                  subtitle: a.subtitle,
-                  selected: selected,
-                  onTap: () => controller.selectAgency(a.name),
-                ),
-              );
-            }).toList(),
-          );
-        }),
-      ],
-    );
-  }
-}
-
-class _SelectField extends StatelessWidget {
-  final String text;
-  final bool isPlaceholder;
-  final VoidCallback onTap;
-
-  const _SelectField({
-    required this.text,
-    required this.isPlaceholder,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 14.h),
-        decoration: BoxDecoration(
-          color: AppPalette.white,
-          borderRadius: BorderRadius.circular(kBorderRadius.r),
-          border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                text,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 10.sp,
-                  fontWeight: FontWeight.w400,
-                  color: isPlaceholder ? AppPalette.greyText : AppPalette.black,
-                ),
-              ),
-            ),
-            Icon(
-              Icons.keyboard_arrow_down_rounded,
-              size: 20.sp,
-              color: AppPalette.black,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _ChipBox extends StatelessWidget {
   final List<String> items;
   final void Function(String) onRemove;
@@ -610,164 +430,6 @@ class _ChipBox extends StatelessWidget {
                 );
               }).toList(),
             ),
-    );
-  }
-}
-
-class _AgencySquareCard extends StatelessWidget {
-  final String name;
-  final String subtitle;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _AgencySquareCard({
-    required this.name,
-    required this.subtitle,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final bg = selected
-        ? AppPalette.primary
-        : AppPalette.primary.withAlpha(210);
-
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: Container(
-        width: 140.w,
-        height: 145.h,
-        padding: EdgeInsets.all(14.w),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(16.r),
-          border: Border.all(
-            color: selected ? AppPalette.secondary : Colors.transparent,
-            width: 1,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Align(
-              alignment: Alignment.topRight,
-              child: Container(
-                width: 54.w,
-                height: 54.w,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppPalette.defaultFill.withAlpha(220),
-                ),
-              ),
-            ),
-            const Spacer(),
-            Text(
-              name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 18.sp,
-                fontWeight: FontWeight.w700,
-                color: AppPalette.white,
-                letterSpacing: -0.2,
-              ),
-            ),
-            2.h.verticalSpace,
-            Text(
-              subtitle,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w300,
-                color: AppPalette.white.withAlpha(220),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _AgencyWideCard extends StatelessWidget {
-  final String name;
-  final String subtitle;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _AgencyWideCard({
-    required this.name,
-    required this.subtitle,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final bg = selected
-        ? AppPalette.primary
-        : AppPalette.primary.withAlpha(210);
-
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(16.r),
-          border: Border.all(
-            color: selected ? AppPalette.secondary : Colors.transparent,
-            width: 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 58.w,
-              height: 58.w,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppPalette.defaultFill.withAlpha(220),
-              ),
-            ),
-            14.w.horizontalSpace,
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 18.sp,
-                      fontWeight: FontWeight.w700,
-                      color: AppPalette.white,
-                      letterSpacing: -0.2,
-                    ),
-                  ),
-                  2.h.verticalSpace,
-                  Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.w300,
-                      color: AppPalette.white.withAlpha(220),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

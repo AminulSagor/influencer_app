@@ -105,7 +105,7 @@ class ForgotPasswordController extends GetxController {
       contactValue.value = args['contact'] as String;
     }
 
-    // focus first OTP box slightly later so the widget tree is ready
+    // focus first OTP box slightly later so the widgets tree is ready
     Future.microtask(() {
       if (otpFocusNodes.isNotEmpty) {
         otpFocusNodes.first.requestFocus();

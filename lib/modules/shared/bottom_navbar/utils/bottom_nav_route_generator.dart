@@ -5,7 +5,7 @@ import 'package:influencer_app/modules/brand/brand_campaign_details/brand_campai
 import 'package:influencer_app/modules/brand/brand_milestone_details/brand_milestone_details_controller.dart';
 import 'package:influencer_app/modules/brand/brand_milestone_details/brand_milestone_details_view.dart';
 import 'package:influencer_app/modules/brand/create_campaign/create_campaign_controller.dart';
-import 'package:influencer_app/modules/brand/create_campaign/create_campaign_step2_view.dart';
+import 'package:influencer_app/modules/brand/create_campaign/create_campaign_step2_view/create_campaign_step2_view.dart';
 import 'package:influencer_app/modules/brand/create_campaign/create_campaign_view.dart';
 import 'package:influencer_app/modules/shared/language/language_view.dart';
 
@@ -14,7 +14,7 @@ import '../../../../routes/app_routes.dart';
 import '../../../brand/create_campaign/create_campaign_step3_view/create_campaign_step3_view.dart';
 import '../../../brand/create_campaign/create_campaign_step4_view/create_campaign_step4_view.dart';
 import '../../../brand/create_campaign/create_campaign_step5_view/create_campaign_step5_view.dart';
-import '../../../brand/create_campaign/create_campaign_step6_view.dart';
+import '../../../brand/create_campaign/create_campaign_step6_view/create_campaign_step6_view.dart';
 import '../../campaign_details/campaign_details_controller.dart';
 import '../../campaign_details/campaign_details_view.dart';
 import '../../earnings/earnings_view.dart';

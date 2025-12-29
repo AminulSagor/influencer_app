@@ -18,4 +18,8 @@ class AppAssets {
   static const String download = 'assets/icons/download.png';
   static const String upload = 'assets/icons/upload.png';
   static const String product = 'assets/icons/product.png';
+  static const String onlineAds = 'assets/icons/online_ads.png';
+  static const String youTube = 'assets/icons/youTube.png';
+  static const String tikTok = 'assets/icons/tikTok.png';
+  static const String instagram = 'assets/icons/instagram.png';
 }
