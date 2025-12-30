@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get_state_manager/src/rx_flutter/rx_obx_widget.dart';
 import 'package:get/get_utils/src/extensions/internacionalization.dart';
+import 'package:influencer_app/core/theme/app_palette.dart';
 
 import '../../create_campaign_controller/create_campaign_controller.dart';
 import 'milestone_tile.dart';
@@ -42,22 +43,24 @@ class MilestonesBlock extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 12.sp,
-                          color: Colors.black54,
-                          fontWeight: FontWeight.w600,
+                          color: AppPalette.black,
+                          fontWeight: FontWeight.w300,
                         ),
                       ),
-                      6.h.verticalSpace,
+
                       Row(
                         children: [
                           Text(
                             '৳',
                             style: TextStyle(
                               fontSize: 18.sp,
-                              fontWeight: FontWeight.w800,
-                              color: _primary,
+                              fontWeight: FontWeight.w600,
+                              color: AppPalette.primary,
                             ),
                           ),
+
                           6.w.horizontalSpace,
+
                           Expanded(
                             child: FittedBox(
                               fit: BoxFit.scaleDown,
@@ -65,16 +68,15 @@ class MilestonesBlock extends StatelessWidget {
                               child: Text(
                                 c.totalBudgetText,
                                 style: TextStyle(
-                                  fontSize: 22.sp,
-                                  fontWeight: FontWeight.w900,
-                                  color: _primary,
+                                  fontSize: 28.sp,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppPalette.primary,
                                 ),
                               ),
                             ),
                           ),
                         ],
                       ),
-                      4.h.verticalSpace,
                       Text(
                         'create_campaign_step6_budget_including_vat'.trParams({
                           'vat': '${(c.vatPercent * 100).round()}%',
@@ -82,21 +84,23 @@ class MilestonesBlock extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 11.5.sp,
-                          color: Colors.black54,
+                          fontSize: 12.sp,
+                          color: AppPalette.black,
+                          fontWeight: FontWeight.w300,
                         ),
                       ),
                     ],
                   ),
                 ),
+
                 10.w.horizontalSpace,
+
                 Container(
-                  width: 46.w,
-                  height: 46.w,
+                  width: 56.w,
+                  height: 56.w,
                   decoration: BoxDecoration(
-                    color: _primary.withOpacity(.10),
                     shape: BoxShape.circle,
-                    border: Border.all(color: _softBorder),
+                    border: Border.all(color: AppPalette.secondary),
                   ),
                   alignment: Alignment.center,
                   child: Text(
@@ -104,13 +108,14 @@ class MilestonesBlock extends StatelessWidget {
                     style: TextStyle(
                       color: _primary.withOpacity(.8),
                       fontSize: 18.sp,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
               ],
             ),
           ),
+
           12.h.verticalSpace,
 
           if (ms.isEmpty)

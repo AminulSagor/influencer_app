@@ -118,7 +118,7 @@ class CreateCampaignStep6View extends GetView<CreateCampaignController> {
 
                     // Campaign Brief
                     AccordionCard(
-                      icon: AppAssets.mission,
+                      icon: AppAssets.termsCondition,
                       title: 'create_campaign_step6_campaign_brief'.tr,
                       initiallyExpanded: true,
                       child: CampaignBriefBlock(controller: c),
@@ -128,7 +128,7 @@ class CreateCampaignStep6View extends GetView<CreateCampaignController> {
 
                     // Campaign Milestones
                     AccordionCard(
-                      icon: AppAssets.download,
+                      icon: AppAssets.mission,
                       title: 'create_campaign_step6_campaign_milestones'.tr,
                       initiallyExpanded: false,
                       child: MilestonesBlock(controller: c),
@@ -138,7 +138,7 @@ class CreateCampaignStep6View extends GetView<CreateCampaignController> {
 
                     // Content Assets
                     AccordionCard(
-                      icon: AppAssets.termsCondition,
+                      icon: AppAssets.download,
                       title: 'create_campaign_step6_content_assets'.tr,
                       initiallyExpanded: false,
                       child: ContentAssetsBlock(controller: c),
@@ -148,7 +148,7 @@ class CreateCampaignStep6View extends GetView<CreateCampaignController> {
 
                     // Terms & Conditions
                     AccordionCard(
-                      icon: AppAssets.presentation,
+                      icon: AppAssets.termsCondition,
                       title: 'create_campaign_step6_terms_conditions'.tr,
                       initiallyExpanded: false,
                       child: TermsBlock(controller: c),
@@ -164,7 +164,7 @@ class CreateCampaignStep6View extends GetView<CreateCampaignController> {
                         children: [
                           14.h.verticalSpace,
                           AccordionCard(
-                            icon: AppAssets.copyright,
+                            icon: AppAssets.download,
                             title: 'create_campaign_step6_brand_assets'.tr,
                             initiallyExpanded: false,
                             child: BrandAssetsBlock(controller: c),
@@ -219,7 +219,7 @@ class CreateCampaignStep6View extends GetView<CreateCampaignController> {
                       ),
                       child: FittedBox(
                         fit: BoxFit.scaleDown,
-                        child: Text('create_campaign_step6_get_quote'.tr),
+                        child: Text('create_campaign_step6_get_quote'.tr, style: TextStyle(fontWeight: FontWeight.w400, fontSize: 10, color: AppPalette.white),),
                       ),
                     ),
                   ),

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get_state_manager/src/rx_flutter/rx_obx_widget.dart';
 import 'package:get/get_utils/src/extensions/internacionalization.dart';
+import 'package:influencer_app/core/theme/app_palette.dart';
+import 'package:influencer_app/core/utils/app_assets.dart';
 
 import '../../create_campaign_controller/create_campaign_controller.dart';
 
@@ -51,20 +53,9 @@ class BrandAssetsBlock extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    Container(
-                      width: 36.w,
-                      height: 36.w,
-                      decoration: BoxDecoration(
-                        color: _primary.withOpacity(.18),
-                        shape: BoxShape.circle,
-                      ),
-                      alignment: Alignment.center,
-                      child: Icon(
-                        Icons.facebook,
-                        size: 18.sp,
-                        color: _primary.withOpacity(.75),
-                      ),
-                    ),
+
+                    Image.asset(AppAssets.facebook,height: 30, width: 30 ),
+
                     12.w.horizontalSpace,
                     Expanded(
                       child: Column(
@@ -75,37 +66,37 @@ class BrandAssetsBlock extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 13.5.sp,
-                              fontWeight: FontWeight.w800,
-                              color: _primary.withOpacity(.80),
+                              fontSize: 12.sp,
+                              fontWeight: FontWeight.w500,
+                              color: AppPalette.secondary,
                             ),
                           ),
+
                           2.h.verticalSpace,
+
                           Text(
                             subtitle,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 11.5.sp,
+                              fontSize: 12.sp,
                               color: _primary.withOpacity(.55),
-                              fontWeight: FontWeight.w700,
+                              fontWeight: FontWeight.w400,
                             ),
                           ),
                         ],
                       ),
                     ),
+                    
                     10.w.horizontalSpace,
+                    
                     InkWell(
                       onTap: () {
                         if (i >= 0 && i < c.brandAssets.length) {
                           c.brandAssets.removeAt(i);
                         }
                       },
-                      child: Icon(
-                        Icons.close,
-                        color: _primary.withOpacity(.55),
-                        size: 22.sp,
-                      ),
+                      child: Image.asset(AppAssets.close, height: 18, width: 18),
                     ),
                   ],
                 ),

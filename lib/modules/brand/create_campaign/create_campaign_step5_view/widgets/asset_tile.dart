@@ -5,7 +5,7 @@ import 'package:influencer_app/core/theme/app_palette.dart';
 import '../../../../../core/utils/app_assets.dart';
 
 class AssetTile extends StatelessWidget {
-  final IconData icon;
+  final String icon;
   final String title;
   final String subtitle;
   final VoidCallback onRemove;
@@ -32,7 +32,9 @@ class AssetTile extends StatelessWidget {
       child: Row(
         children: [
 
-          Icon(icon, color: AppPalette.primary.withOpacity(.75), size: 26.sp),
+          Image.asset(icon, height: 25, width: 25),
+
+          // Icon(icon, color: AppPalette.primary.withOpacity(.75), size: 26.sp),
 
           15.w.horizontalSpace,
 

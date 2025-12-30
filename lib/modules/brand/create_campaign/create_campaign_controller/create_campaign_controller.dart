@@ -656,16 +656,16 @@ class CreateCampaignController extends GetxController {
   String get totalBudgetText => _formatCurrencyInt(totalBudgetIncTax.round());
 
   /// ---------------- Step 5 actions ----------------
-  IconData iconForAsset(JobAssetKind kind) {
+  String iconForAsset(JobAssetKind kind) {
     switch (kind) {
       case JobAssetKind.image:
-        return Icons.image_outlined;
+        return AppAssets.image;
       case JobAssetKind.video:
-        return Icons.play_circle_outline;
+        return AppAssets.video;
       case JobAssetKind.document:
-        return Icons.description_outlined;
+        return AppAssets.document;
       case JobAssetKind.other:
-        return Icons.insert_drive_file_outlined;
+        return AppAssets.document;
     }
   }
 
@@ -849,10 +849,7 @@ class CreateCampaignController extends GetxController {
                   ),
                   child: Row(
                     children: [
-                      Icon(
-                        iconForAsset(pickedKind.value),
-                        color: primary.withOpacity(.7),
-                      ),
+                      Image.asset(iconForAsset(pickedKind.value), height: 25, width: 25),
                       10.w.horizontalSpace,
                       Expanded(
                         child: Column(

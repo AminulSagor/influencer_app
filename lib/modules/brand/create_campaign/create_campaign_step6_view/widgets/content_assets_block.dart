@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get_state_manager/src/rx_flutter/rx_obx_widget.dart';
 
+import '../../../../../core/theme/app_palette.dart';
+import '../../../../../core/utils/app_assets.dart';
 import '../../create_campaign_controller/create_campaign_controller.dart';
 
 class ContentAssetsBlock extends StatelessWidget {
@@ -37,17 +39,21 @@ class ContentAssetsBlock extends StatelessWidget {
               padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
               decoration: BoxDecoration(
                 color: _softBg,
-                borderRadius: BorderRadius.circular(14.r),
+                borderRadius: BorderRadius.circular(10.r),
                 border: Border.all(color: _softBorder),
               ),
               child: Row(
                 children: [
-                  Icon(
-                    c.iconForAsset(a.kind),
-                    color: _primary.withOpacity(.75),
-                    size: 24.sp,
-                  ),
+
+                  Image.asset(c.iconForAsset(a.kind), height: 25, width: 25),
+                  // Icon(
+                  //   c.iconForAsset(a.kind),
+                  //   color: _primary.withOpacity(.75),
+                  //   size: 24.sp,
+                  // ),
+
                   12.w.horizontalSpace,
+
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -57,31 +63,31 @@ class ContentAssetsBlock extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 13.5.sp,
-                            fontWeight: FontWeight.w800,
-                            color: _primary.withOpacity(.80),
+                            fontSize: 12.sp,
+                            fontWeight: FontWeight.w500,
+                            color: AppPalette.secondary,
                           ),
                         ),
+
                         2.h.verticalSpace,
+
                         Text(
                           a.meta,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 11.5.sp,
-                            color: _primary.withOpacity(.55),
-                            fontWeight: FontWeight.w700,
+                            fontSize: 12.sp,
+                            color: AppPalette.primary.withOpacity(.55),
+                            fontWeight: FontWeight.w400,
                           ),
                         ),
                       ],
                     ),
                   ),
+
                   10.w.horizontalSpace,
-                  Icon(
-                    Icons.file_download_outlined,
-                    color: _primary.withOpacity(.55),
-                    size: 22.sp,
-                  ),
+
+                  Image.asset(AppAssets.download, color: AppPalette.secondary, height: 23, width: 23),
                 ],
               ),
             ),

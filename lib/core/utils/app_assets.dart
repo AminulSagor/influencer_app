@@ -25,4 +25,7 @@ class AppAssets {
   static const String instagram = 'assets/icons/instagram.png';
   static const String facebook = 'assets/icons/facebook.png';
   static const String requirement = 'assets/icons/requirement.png';
+  static const String image = 'assets/icons/image.png';
+  static const String video = 'assets/icons/video.png';
+  static const String document = 'assets/icons/document.png';
 }
