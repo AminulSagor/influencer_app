@@ -2,13 +2,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:influencer_app/modules/brand/create_campaign/create_campaign_step4_view/widgets/quote_card.dart';
+import 'package:influencer_app/core/models/job_item.dart';
+import 'package:influencer_app/modules/brand/create_campaign/create_campaign_step4_view/widgets/campaign_quote_section.dart';
 import 'package:influencer_app/modules/brand/create_campaign/create_campaign_step4_view/widgets/suggestion_chip.dart';
 
 import '../../../../core/theme/app_palette.dart';
 import '../../../../core/utils/constants.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../create_campaign_controller/create_campaign_controller.dart';
+import '../create_campaign_step2_view/widgets/empty_state.dart';
 import 'widgets/milestones_section.dart';
 
 class CreateCampaignStep4View extends GetView<CreateCampaignController> {
@@ -46,7 +48,9 @@ class CreateCampaignStep4View extends GetView<CreateCampaignController> {
                             ),
                           ),
                         ),
+
                         12.w.horizontalSpace,
+
                         CustomButton(
                           height: 34.h,
                           width: 132.w,
@@ -121,25 +125,41 @@ class CreateCampaignStep4View extends GetView<CreateCampaignController> {
 
                     18.h.verticalSpace,
 
-                    Text(
-                      'create_campaign_step4_quote'.tr,
-                      style: TextStyle(
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w600,
-                        color: AppPalette.primary,
-                      ),
-                    ),
-
-                    7.h.verticalSpace,
-
                     Obx(() {
-                      return QuoteCard(
-                        base: controller.baseBudgetText,
-                        vat: controller.vatAmountText,
-                        total: controller.totalBudgetText,
-                        vatPercent: (controller.vatPercent * 100).round(),
-                      );
+                      final type = controller.selectedType.value;
+
+                      if (type == null) {
+                        return EmptyState(onBack: controller.onPrevious);
+                      }
+
+                      if (type == CampaignType.influencerPromotion) {
+                        return CampaignQuoteSection(
+                          controller: controller,
+                        );
+                      }
+
+                      return CampaignQuoteAgencySection(controller: controller);
                     }),
+
+                    // Text(
+                    //   'create_campaign_step4_quote'.tr,
+                    //   style: TextStyle(
+                    //     fontSize: 16.sp,
+                    //     fontWeight: FontWeight.w600,
+                    //     color: AppPalette.primary,
+                    //   ),
+                    // ),
+                    //
+                    // 7.h.verticalSpace,
+                    //
+                    // Obx(() {
+                    //   return QuoteCard(
+                    //     base: controller.baseBudgetText,
+                    //     vat: controller.vatAmountText,
+                    //     total: controller.totalBudgetText,
+                    //     vatPercent: (controller.vatPercent * 100).round(),
+                    //   );
+                    // }),
 
                     18.h.verticalSpace,
 
@@ -164,7 +184,19 @@ class CreateCampaignStep4View extends GetView<CreateCampaignController> {
                     }),
 
                     18.h.verticalSpace,
-
+                    // Obx(() {
+                    //   final type = controller.selectedType.value;
+                    //
+                    //   if (type == null) {
+                    //     return EmptyState(onBack: controller.onPrevious);
+                    //   }
+                    //
+                    //   if (type == CampaignType.influencerPromotion) {
+                    //     return MilestonesSection(controller: controller);
+                    //   }
+                    //
+                    //   return MilestonesSection(controller: controller);
+                    // }),
                     MilestonesSection(controller: controller),
 
                     24.h.verticalSpace,
@@ -352,4 +384,125 @@ String _fmtInt(int v) {
     if (posFromEnd > 1 && posFromEnd % 3 == 1) b.write(',');
   }
   return b.toString();
+}
+
+class CampaignQuoteAgencySection extends StatelessWidget {
+  final CreateCampaignController controller;
+
+  const CampaignQuoteAgencySection({super.key, required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        CampaignQuoteSection(controller: controller),
+
+        12.h.verticalSpace,
+
+        CampaignBudgetBreakdownCard(controller: controller),
+      ],
+    );
+  }
+}
+
+
+class CampaignBudgetBreakdownCard extends StatelessWidget {
+  final CreateCampaignController controller;
+
+  const CampaignBudgetBreakdownCard({super.key, required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    const minFeePercent = 0.05;
+    const maxFeePercent = 0.15;
+
+    return Obx(() {
+      final base = controller.baseBudget.value;
+      final rate = controller.exchangeRate.value;
+
+      final minFee = base * minFeePercent;
+      final maxFee = base * maxFeePercent;
+
+      final minNet = base - maxFee;
+      final maxNet = base - minFee;
+
+      final minUSD = minNet / rate;
+      final maxUSD = maxNet / rate;
+
+      return Container(
+        padding: EdgeInsets.all(11.w),
+        decoration: BoxDecoration(
+          color: AppPalette.defaultFill.withAlpha(140),
+          borderRadius: BorderRadius.circular(kBorderRadius.r),
+          border: Border.all(color: AppPalette.primary.withAlpha(90), width: 1),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          spacing: 8,
+          children: [
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'create_campaign_step6_agency_fee'.tr,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontWeight: FontWeight.w400, fontSize: 15.sp, color: AppPalette.primary),
+                ),
+
+                Text('৳${minFee.toStringAsFixed(0)} – ৳${maxFee.toStringAsFixed(0)}',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontWeight: FontWeight.w500, fontSize: 15.sp, color: AppPalette.secondary)),
+              ],
+            ),
+
+            Divider(color: AppPalette.primary.withAlpha(90), height: 1),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'create_campaign_step6_campaign_budget_excluding_agency_fee'.tr,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontWeight: FontWeight.w300, fontSize: 10.sp, color: AppPalette.black),
+                ),
+                Text('৳${minNet.toStringAsFixed(0)} – ৳${maxNet.toStringAsFixed(0)}',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12.sp, color: AppPalette.secondary)),
+              ],
+            ),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'In Dollars ( Based 0n Avg. ${rate.toStringAsFixed(2)} BDT/\$)',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 10.sp, color: AppPalette.primary, fontWeight: FontWeight.w500),
+                ),
+
+                Text('\$${minUSD.toStringAsFixed(2)} – \$${maxUSD.toStringAsFixed(2)}',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 12.sp, color: AppPalette.secondary, fontWeight: FontWeight.w600)),
+              ],
+            ),
+
+            Text(
+              'create_campaign_step6_campaign_dollar_rate_may_change_based_on_market_rate_and_agency_type'.tr,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 10.sp, color: AppPalette.greyText,fontWeight: FontWeight.w400),
+            ),
+          ],
+        ),
+      );
+    });
+  }
 }

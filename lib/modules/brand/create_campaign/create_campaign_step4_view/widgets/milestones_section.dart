@@ -3,12 +3,15 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:influencer_app/core/theme/app_palette.dart';
 import 'package:influencer_app/core/utils/constants.dart';
+import 'package:influencer_app/modules/brand/create_campaign/create_campaign_step2_view/widgets/empty_state.dart';
 
+import '../../../../../core/models/job_item.dart';
 import '../../../../../core/utils/app_assets.dart';
 import '../../create_campaign_controller/create_campaign_controller.dart';
 import 'add_another_milestone_button.dart';
 import 'milestone_card.dart';
 import 'milestone_editor_card.dart';
+import 'milestone_editor_promotion_card.dart';
 
 class MilestonesSection extends StatelessWidget {
   final CreateCampaignController controller;
@@ -84,7 +87,21 @@ class MilestonesSection extends StatelessWidget {
                     onTap: controller.startAddMilestone,
                   );
                 }
-                return MilestoneEditorCard(controller: controller);
+
+                return Obx(() {
+                  final type = controller.selectedType.value;
+
+                  if (type == null) {
+                    return EmptyState(onBack: controller.onPrevious);
+                  }
+
+                  if (type == CampaignType.influencerPromotion) {
+                    return MilestoneEditorCard(controller: controller);
+                  }
+
+                  return MilestoneEditorPromotionCard(controller: controller);
+                });
+                // return MilestoneEditorCard(controller: controller);
               }),
             ],
           ],

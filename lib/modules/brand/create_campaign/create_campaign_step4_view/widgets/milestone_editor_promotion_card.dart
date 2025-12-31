@@ -3,16 +3,19 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get_state_manager/src/rx_flutter/rx_obx_widget.dart';
 import 'package:get/get_utils/src/extensions/internacionalization.dart';
 import 'package:influencer_app/core/utils/app_assets.dart';
+import 'package:influencer_app/modules/brand/create_campaign/create_campaign_step3_view/widgets/multiline_box.dart';
 import 'package:influencer_app/modules/brand/create_campaign/create_campaign_step4_view/widgets/select_field.dart';
 
 import '../../../../../core/theme/app_palette.dart';
+import '../../../../../core/utils/constants.dart';
 import '../../../../../core/widgets/custom_text_form_field.dart';
 import '../../create_campaign_controller/create_campaign_controller.dart';
 import 'mini_metric_field.dart';
+import 'mini_metric_promotion_field.dart';
 
-class MilestoneEditorCard extends StatelessWidget {
+class MilestoneEditorPromotionCard extends StatelessWidget {
   final CreateCampaignController controller;
-  const MilestoneEditorCard({super.key, required this.controller});
+  const MilestoneEditorPromotionCard({super.key, required this.controller});
 
   @override
   Widget build(BuildContext context) {
@@ -48,13 +51,13 @@ class MilestoneEditorCard extends StatelessWidget {
               ),
               const Spacer(),
               IconButton(
-                splashRadius: 20.r,
-                onPressed: controller.saveMilestone,
-                icon: Image.asset(AppAssets.done, height: 16, width: 16, color: AppPalette.primary)
+                  splashRadius: 20.r,
+                  onPressed: controller.saveMilestone,
+                  icon: Image.asset(AppAssets.done, height: 16, width: 16, color: AppPalette.primary)
               ),
               IconButton(
-                splashRadius: 20.r,
-                onPressed: controller.closeMilestoneEditor,
+                  splashRadius: 20.r,
+                  onPressed: controller.closeMilestoneEditor,
                   icon: Image.asset(AppAssets.close, height: 18, width: 18, color: AppPalette.primary)
               ),
             ],
@@ -103,7 +106,7 @@ class MilestoneEditorCard extends StatelessWidget {
 
           Row(
             children: [
-              
+
               Image.asset(AppAssets.increase, height: 20, width: 20,color: AppPalette.black),
 
               8.w.horizontalSpace,
@@ -121,52 +124,58 @@ class MilestoneEditorCard extends StatelessWidget {
 
           16.h.verticalSpace,
 
-          Row(
-            children: [
-
-              Expanded(
-                child: MiniMetricField(
-                  label: 'create_campaign_step4_reach'.tr,
-                  controller: controller.reachCtrl,
-                  icon: AppAssets.eye,
-                ),
-              ),
-
-              12.w.horizontalSpace,
-
-              Expanded(
-                child: MiniMetricField(
-                  label: 'create_campaign_step4_views'.tr,
-                  controller: controller.viewsCtrl,
-                  icon: AppAssets.play,
-                ),
-              ),
-            ],
+          MiniMetricPromotionField(
+            label: 'create_campaign_step6_campaign_target_title'.tr,
+            controller: controller.reachCtrl, hint: 'Reach',
           ),
 
           12.h.verticalSpace,
 
+          MiniMetricPromotionField(
+            label: 'create_campaign_step6_campaign_target_amount'.tr,
+            controller: controller.viewsCtrl, hint: '2.5M',
+          ),
+
+          8.h.verticalSpace,
+
           Row(
             children: [
-              Expanded(
-                child: MiniMetricField(
-                  icon: AppAssets.love,
-                  label: 'create_campaign_step4_likes'.tr,
-                  controller: controller.likesCtrl,
-                ),
-              ),
 
-              12.w.horizontalSpace,
+              Image.asset(AppAssets.increase, height: 20, width: 20,color: AppPalette.black),
 
-              Expanded(
-                child: MiniMetricField(
-                  icon: AppAssets.bubble,
-                  label: 'create_campaign_step4_comments'.tr,
-                  controller: controller.commentsCtrl,
+              8.w.horizontalSpace,
+
+              Text(
+                'create_campaign_step6_campaign_promotion_goal'.tr,
+                style: TextStyle(
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w500,
+                  color: AppPalette.primary,
                 ),
               ),
             ],
           ),
+
+          8.w.horizontalSpace,
+
+          Container(
+            decoration: BoxDecoration(
+              color: AppPalette.white,
+              borderRadius: BorderRadius.circular(kBorderRadius.r),
+              border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
+            ),
+            padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 7.h),
+            child: TextFormField(
+              maxLines: 4,
+              style: TextStyle(fontSize: 12.sp, color: AppPalette.greyText, fontWeight: FontWeight.w400),
+              decoration: InputDecoration(
+                border: InputBorder.none,
+                hintText: 'create_campaign_step6_campaign_describe_your_campaign_goal'.tr,
+                hintStyle: TextStyle(fontSize: 12.sp, color: AppPalette.subtext, fontWeight: FontWeight.w400),
+              ),
+            ),
+          )
+
         ],
       ),
     );

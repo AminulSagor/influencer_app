@@ -219,7 +219,7 @@ class CreateCampaignStep6View extends GetView<CreateCampaignController> {
                       ),
                       child: FittedBox(
                         fit: BoxFit.scaleDown,
-                        child: Text('create_campaign_step6_get_quote'.tr, style: TextStyle(fontWeight: FontWeight.w400, fontSize: 10, color: AppPalette.white),),
+                        child: Text('create_campaign_step6_get_quote'.tr, style: TextStyle(fontWeight: FontWeight.w400, fontSize: 10, color: AppPalette.white)),
                       ),
                     ),
                   ),

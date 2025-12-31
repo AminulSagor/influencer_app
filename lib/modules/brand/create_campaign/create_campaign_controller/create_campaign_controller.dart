@@ -107,6 +107,7 @@ class CreateCampaignController extends GetxController {
 
   final budgetTextCtrl = TextEditingController();
   final baseBudget = 0.0.obs;
+  final exchangeRate = 122.37.obs;
 
   final budgetSuggestions = const [30000, 50000, 80000, 100000];
 

@@ -753,6 +753,14 @@ class AppTranslations extends Translations {
 
       'create_campaign_step6_popup_title': 'Campaign Placement Confirmed',
       'create_campaign_step6_popup_message': 'We will review your campaign soon.\nIt may take up to 3–5 business days.',
+      'create_campaign_step6_agency_fee': 'Agency Fee (5 - 15%)',
+      'create_campaign_step6_campaign_budget_excluding_agency_fee': 'Campaign Budget Excluding Agency Fee',
+      'create_campaign_step6_campaign_in_dollars': 'In Dollars',
+      'create_campaign_step6_campaign_dollar_rate_may_change_based_on_market_rate_and_agency_type': 'Dollar Rate may change based on market rate and agency Type.',
+      'create_campaign_step6_campaign_target_title': 'Target Title (Ex: Reach, Like, Follow, Comments)',
+      'create_campaign_step6_campaign_target_amount': 'Target Amount (Ex: 300k, 2.5M)',
+      'create_campaign_step6_campaign_promotion_goal': 'Promotion Goal',
+      'create_campaign_step6_campaign_describe_your_campaign_goal': 'Describe your milestone goal here, what you want yo achieve specifically',
 
       'brand_campaign_details_welcome': 'Welcome, User!',
       'brand_campaign_details_campaign_details': 'Campaign Details',
@@ -836,7 +844,7 @@ class AppTranslations extends Translations {
       'brand_campaign_payment': 'Payment',
       'brand_campaign_payment_success': 'Payment initiated.',
       'brand_campaign_payment_invalid': 'Amount must be between minimum and total due.',
-      'common_cancel': "Common Cancel"
+      'common_cancel': "Cancel"
     },
 
     // Bangla
@@ -1587,8 +1595,17 @@ class AppTranslations extends Translations {
       'create_campaign_preferred_influencers_hint': 'প্রভাবশালীদের নাম লিখুন...(প্রতিটি নাম কমা দিয়ে আলাদা করুন)',
       'create_campaign_preferred_influencers_label': 'পছন্দের প্রভাবশালী',
       'create_campaign_not_preferred_influencers_label': 'পছন্দের নয় এমন প্রভাবশালী',
+      'create_campaign_step6_agency_fee': 'এজেন্সি ফি (৫ - ১৫%)',
+      'create_campaign_step6_campaign_budget_excluding_agency_fee': 'এজেন্সি ফি বাদে প্রচারণার বাজেট',
+      'create_campaign_step6_campaign_in_dollars': 'ডলারে',
+      'create_campaign_step6_campaign_dollar_rate_may_change_based_on_market_rate_and_agency_type': 'বাজার দর এবং এজেন্সির ধরণের উপর ভিত্তি করে ডলারের দর পরিবর্তিত হতে পারে।',
+      'create_campaign_step6_campaign_target_title': 'লক্ষ্য শিরোনাম (যেমন: পৌঁছানো, লাইক করা, অনুসরণ করা, মন্তব্য করা)',
+      'create_campaign_step6_campaign_target_amount': 'লক্ষ্য পরিমাণ (যেমন: ৩০০, ২.৫ মিলিয়ন)',
+      'create_campaign_step6_campaign_promotion_goal': 'প্রচারের লক্ষ্য',
+      'create_campaign_step6_campaign_describe_your_campaign_goal': 'এখানে আপনার মাইলফলক লক্ষ্য বর্ণনা করুন, আপনি বিশেষভাবে কী অর্জন করতে চান',
 
-          'brand_campaign_details_welcome': 'স্বাগতম, User!',
+
+      'brand_campaign_details_welcome': 'স্বাগতম, User!',
       'brand_campaign_details_campaign_details': 'ক্যাম্পেইন ডিটেইলস',
       'brand_campaign_details_influencers': 'ইনফ্লুয়েন্সার',
       'brand_campaign_details_platforms': 'প্ল্যাটফর্ম',
@@ -1674,7 +1691,7 @@ class AppTranslations extends Translations {
       'brand_campaign_payment': 'পেমেন্ট',
       'brand_campaign_payment_success': 'পেমেন্ট শুরু করা হয়েছে।',
       'brand_campaign_payment_invalid': 'পরিমাণটি সর্বনিম্ন এবং মোট বকেয়ার মধ্যে হতে হবে।',
-      'common_cancel': 'সাধারণ বাতিল',
+      'common_cancel': 'বাতিল',
     },
   };
 }
