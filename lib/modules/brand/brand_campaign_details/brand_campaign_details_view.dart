@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:influencer_app/core/utils/app_assets.dart';
+import 'package:influencer_app/modules/brand/brand_campaign_details/widgets/auote_details_card.dart';
+import 'package:influencer_app/modules/brand/brand_campaign_details/widgets/campaign_progress_card.dart' show CampaignProgressCard;
+import 'package:influencer_app/modules/brand/brand_campaign_details/widgets/card_title.dart';
+import 'package:influencer_app/modules/brand/brand_campaign_details/widgets/milestones_card.dart';
 
 import '../../../core/theme/app_palette.dart';
 import '../../../core/utils/constants.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../../core/models/job_item.dart';
 import 'brand_campaign_details_controller.dart';
+import 'widgets/campaign_details_card.dart';
+import 'widgets/card_shell.dart';
+import 'widgets/rating_card.dart';
 
 class BrandCampaignDetailsView extends GetView<BrandCampaignDetailsController> {
   const BrandCampaignDetailsView({super.key});
@@ -23,7 +31,8 @@ class BrandCampaignDetailsView extends GetView<BrandCampaignDetailsController> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _CampaignDetailsCard(),
+                CampaignDetailsCard(),
+
                 12.h.verticalSpace,
 
                 // ✅ PaidAd gets tab layout like screenshot
@@ -33,15 +42,15 @@ class BrandCampaignDetailsView extends GetView<BrandCampaignDetailsController> {
                   if (!isPaidAd) {
                     return Column(
                       children: [
-                        _CampaignProgressCard(),
-                        12.h.verticalSpace,
-                        _QuoteDetailsCard(),
-                        12.h.verticalSpace,
-                        _MilestonesCard(),
+                        CampaignProgressCard(),
+                        // 12.h.verticalSpace,
+                        // QuoteDetailsCard(),
+                        23.h.verticalSpace,
+                        MilestonesCard(),
                         14.h.verticalSpace,
-                        _RatingCard(),
+                        RatingCard(),
                         12.h.verticalSpace,
-                        _BriefCard(),
+                        BriefCard(),
                         12.h.verticalSpace,
                         _ContentAssetsCard(),
                         12.h.verticalSpace,
@@ -65,15 +74,15 @@ class BrandCampaignDetailsView extends GetView<BrandCampaignDetailsController> {
                         // 1 = Campaign details (screenshot 1)
                         return Column(
                           children: [
-                            _CampaignProgressCard(),
+                            CampaignProgressCard(),
                             12.h.verticalSpace,
-                            _QuoteDetailsCard(),
+                            QuoteDetailsCard(),
                             12.h.verticalSpace,
-                            _MilestonesCard(),
+                            MilestonesCard(),
                             14.h.verticalSpace,
-                            _RatingCard(),
+                            RatingCard(),
                             12.h.verticalSpace,
-                            _BriefCard(),
+                            BriefCard(),
                             12.h.verticalSpace,
                             _ContentAssetsCard(),
                             12.h.verticalSpace,
@@ -95,905 +104,13 @@ class BrandCampaignDetailsView extends GetView<BrandCampaignDetailsController> {
   }
 }
 
-/// ---------------- COMMON CARD ----------------
 
-class _CardShell extends StatelessWidget {
-  final Widget child;
-  final EdgeInsets? padding;
-  const _CardShell({required this.child, this.padding});
+class BriefCard extends GetView<BrandCampaignDetailsController> {
+  const BriefCard({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: padding ?? EdgeInsets.all(14.w),
-      decoration: BoxDecoration(
-        color: AppPalette.white,
-        borderRadius: BorderRadius.circular(14.r),
-        border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
-      ),
-      child: child,
-    );
-  }
-}
-
-/// ---------------- CAMPAIGN DETAILS CARD ----------------
-
-class _CampaignDetailsCard extends GetView<BrandCampaignDetailsController> {
-  @override
-  Widget build(BuildContext context) {
-    final green = AppPalette.primary;
-
-    return Container(
-      padding: EdgeInsets.all(14.w),
-      decoration: BoxDecoration(
-        color: green.withOpacity(.85),
-        borderRadius: BorderRadius.circular(14.r),
-        border: Border.all(color: Colors.black12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Title row
-          Row(
-            children: [
-              Icon(Icons.campaign_outlined, color: Colors.white, size: 20.sp),
-              10.w.horizontalSpace,
-              Expanded(
-                child: Text(
-                  'brand_campaign_details_campaign_details'.tr,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(.9),
-                    fontSize: 13.sp,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          10.h.verticalSpace,
-
-          // Campaign name + amount
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Obx(() {
-                  return Text(
-                    controller.campaignTitle.value,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 15.sp,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  );
-                }),
-              ),
-              10.w.horizontalSpace,
-              Obx(() {
-                return FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    controller.budgetText.value,
-                    style: TextStyle(
-                      color: const Color(0xFFDCE8CB),
-                      fontSize: 22.sp,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                );
-              }),
-            ],
-          ),
-          10.h.verticalSpace,
-
-          // ✅ PaidAd: Targeting row | other: Influencers row
-          Obx(() {
-            controller.campaignType.value;
-            final isPaidAd = controller.isPaidAd;
-            if (isPaidAd) {
-              return Row(
-                children: [
-                  Text(
-                    'brand_campaign_details_targeting'.tr,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(.85),
-                      fontSize: 11.sp,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  10.w.horizontalSpace,
-                  _Chip(
-                    text: controller.targetingText.value.trim().isEmpty
-                        ? 'Crowd'
-                        : controller.targetingText.value,
-                  ),
-                ],
-              );
-            }
-
-            return Row(
-              children: [
-                Text(
-                  'brand_campaign_details_influencers'.tr,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(.85),
-                    fontSize: 11.sp,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                10.w.horizontalSpace,
-                Expanded(
-                  child: Obx(() {
-                    final list = controller.influencers.toList(growable: false);
-                    return SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: list
-                            .map((name) => _Chip(text: name))
-                            .toList(),
-                      ),
-                    );
-                  }),
-                ),
-              ],
-            );
-          }),
-
-          10.h.verticalSpace,
-          Divider(color: Colors.white.withOpacity(.25), height: 1),
-          10.h.verticalSpace,
-
-          // Platforms
-          Row(
-            children: [
-              Text(
-                'brand_campaign_details_platforms'.tr,
-                style: TextStyle(
-                  color: Colors.white.withOpacity(.85),
-                  fontSize: 11.sp,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              10.w.horizontalSpace,
-              Obx(() {
-                return Row(
-                  children: controller.platforms
-                      .map(
-                        (ic) => Padding(
-                          padding: EdgeInsets.only(right: 8.w),
-                          child: _MiniPlatform(icon: ic),
-                        ),
-                      )
-                      .toList(),
-                );
-              }),
-            ],
-          ),
-          12.h.verticalSpace,
-
-          // Deadline box
-          Obx(() {
-            return Container(
-              width: double.infinity,
-              padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(.12),
-                borderRadius: BorderRadius.circular(12.r),
-                border: Border.all(color: Colors.white.withOpacity(.25)),
-              ),
-              child: Column(
-                children: [
-                  Text(
-                    'brand_campaign_details_deadline'.tr,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(.85),
-                      fontSize: 11.sp,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  6.h.verticalSpace,
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      '${controller.daysRemaining.value} ${'brand_campaign_details_days_remaining'.tr}',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18.sp,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                  4.h.verticalSpace,
-                  Text(
-                    controller.deadlineDateText.value,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(.85),
-                      fontSize: 11.sp,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
-
-          10.h.verticalSpace,
-          Align(
-            alignment: Alignment.center,
-            child: Obx(() {
-              return Container(
-                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(.18),
-                  borderRadius: BorderRadius.circular(999.r),
-                  border: Border.all(color: Colors.white.withOpacity(.22)),
-                ),
-                child: Text(
-                  controller.budgetStatusText.value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(.92),
-                    fontSize: 11.sp,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              );
-            }),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Chip extends StatelessWidget {
-  final String text;
-  const _Chip({required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: EdgeInsets.only(right: 8.w),
-      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(.18),
-        borderRadius: BorderRadius.circular(999.r),
-        border: Border.all(color: Colors.white.withOpacity(.22)),
-      ),
-      child: Text(
-        text,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: 11.sp,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-}
-
-class _MiniPlatform extends StatelessWidget {
-  final IconData icon;
-  const _MiniPlatform({required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 28.w,
-      height: 28.w,
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(.15),
-        borderRadius: BorderRadius.circular(7.r),
-        border: Border.all(color: Colors.white.withOpacity(.22)),
-      ),
-      alignment: Alignment.center,
-      child: Icon(icon, size: 16.sp, color: Colors.white),
-    );
-  }
-}
-
-/// ---------------- CAMPAIGN PROGRESS ----------------
-
-class _CampaignProgressCard extends GetView<BrandCampaignDetailsController> {
-  @override
-  Widget build(BuildContext context) {
-    return _CardShell(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _CardTitle(
-            icon: Icons.timelapse_rounded,
-            title: 'brand_campaign_details_campaign_progress'.tr,
-          ),
-          12.h.verticalSpace,
-          Obx(() {
-            final current = controller.progressStep.value;
-
-            bool isActive(CampaignProgressStep step) {
-              // submitted always true in UI
-              if (step == CampaignProgressStep.submitted) return true;
-              return current.index >= step.index;
-            }
-
-            return Column(
-              children: [
-                _ProgressRow(
-                  icon: Icons.check_circle_rounded,
-                  title: 'brand_campaign_details_submitted'.tr,
-                  subtitle: 'brand_campaign_details_submitted_sub'.tr,
-                  active: isActive(CampaignProgressStep.submitted),
-                ),
-                _ProgressRow(
-                  icon: Icons.format_quote_rounded,
-                  title: 'brand_campaign_details_quoted'.tr,
-                  subtitle: 'brand_campaign_details_quoted_sub'.tr,
-                  active: isActive(CampaignProgressStep.quoted),
-                ),
-                _ProgressRow(
-                  icon: Icons.payments_rounded,
-                  title: 'brand_campaign_details_paid'.tr,
-                  subtitle: 'brand_campaign_details_paid_sub'.tr,
-                  active: isActive(CampaignProgressStep.paid),
-                ),
-                _ProgressRow(
-                  icon: Icons.campaign_rounded,
-                  title: 'brand_campaign_details_promoting'.tr,
-                  subtitle: 'brand_campaign_details_promoting_sub'.tr,
-                  active: isActive(CampaignProgressStep.promoting),
-                ),
-                _ProgressRow(
-                  icon: Icons.task_alt_rounded,
-                  title: 'brand_campaign_details_completed'.tr,
-                  subtitle: 'brand_campaign_details_completed_sub'.tr,
-                  active: isActive(CampaignProgressStep.completed),
-                ),
-              ],
-            );
-          }),
-        ],
-      ),
-    );
-  }
-}
-
-class _ProgressRow extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final bool active;
-
-  const _ProgressRow({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.active,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final titleColor = active ? AppPalette.primary : AppPalette.greyText;
-    final subColor = active
-        ? AppPalette.greyText
-        : AppPalette.greyText.withOpacity(.75);
-
-    return Padding(
-      padding: EdgeInsets.only(bottom: 10.h),
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            color: active ? AppPalette.primary : AppPalette.border1,
-            size: 18.sp,
-          ),
-          10.w.horizontalSpace,
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w800,
-                    color: titleColor,
-                  ),
-                ),
-                2.h.verticalSpace,
-                Text(
-                  subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 11.sp,
-                    fontWeight: FontWeight.w500,
-                    color: subColor,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// ---------------- QUOTE DETAILS ----------------
-/// (unchanged – kept your existing UI)
-
-class _QuoteDetailsCard extends GetView<BrandCampaignDetailsController> {
-  @override
-  Widget build(BuildContext context) {
-    return _CardShell(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: _CardTitle(
-                  icon: Icons.receipt_long_rounded,
-                  title: 'brand_campaign_details_quote_details'.tr,
-                ),
-              ),
-              Icon(
-                Icons.currency_exchange_rounded,
-                size: 18.sp,
-                color: AppPalette.secondary,
-              ),
-            ],
-          ),
-          12.h.verticalSpace,
-          Obx(() {
-            return Column(
-              children: [
-                _KVRow(
-                  k: 'brand_campaign_details_base_campaign_budget'.tr,
-                  v: '৳${controller.baseBudget.value}',
-                ),
-                6.h.verticalSpace,
-                _KVRow(
-                  k: 'brand_campaign_details_vat_tax'.tr,
-                  v: '৳${controller.vatAmount.value}',
-                ),
-                10.h.verticalSpace,
-                Divider(color: AppPalette.border1, height: 1),
-                10.h.verticalSpace,
-                _KVRow(
-                  k: 'brand_campaign_details_total_campaign_cost'.tr,
-                  v: '৳${controller.totalCost}',
-                  strong: true,
-                ),
-              ],
-            );
-          }),
-          12.h.verticalSpace,
-          Row(
-            children: [
-              Expanded(
-                child: CustomButton(
-                  btnText: 'brand_campaign_details_requote'.tr,
-                  btnColor: AppPalette.white,
-                  borderColor: AppPalette.border1,
-                  textColor: AppPalette.black,
-                  onTap: controller.onRequestQuote,
-                ),
-              ),
-              12.w.horizontalSpace,
-              Expanded(
-                child: CustomButton(
-                  btnText: 'brand_campaign_details_accept_quote'.tr,
-                  btnColor: AppPalette.primary,
-                  borderColor: Colors.transparent,
-                  showBorder: false,
-                  textColor: AppPalette.white,
-                  onTap: controller.onAcceptQuote,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _KVRow extends StatelessWidget {
-  final String k;
-  final String v;
-  final bool strong;
-  const _KVRow({required this.k, required this.v, this.strong = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            k,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: strong ? 12.5.sp : 12.sp,
-              fontWeight: strong ? FontWeight.w900 : FontWeight.w600,
-              color: AppPalette.primary,
-            ),
-          ),
-        ),
-        10.w.horizontalSpace,
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text(
-            v,
-            style: TextStyle(
-              fontSize: strong ? 14.sp : 12.5.sp,
-              fontWeight: strong ? FontWeight.w900 : FontWeight.w800,
-              color: AppPalette.secondary,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// ---------------- MILESTONES ----------------
-
-class _MilestonesCard extends GetView<BrandCampaignDetailsController> {
-  @override
-  Widget build(BuildContext context) {
-    return _CardShell(
-      child: Column(
-        children: [
-          InkWell(
-            onTap: controller.toggleMilestones,
-            child: Row(
-              children: [
-                Expanded(
-                  child: _CardTitle(
-                    icon: Icons.flag_rounded,
-                    title: 'brand_campaign_details_campaign_milestones'.tr,
-                  ),
-                ),
-                Obx(() {
-                  return Icon(
-                    controller.milestonesExpanded.value
-                        ? Icons.expand_less_rounded
-                        : Icons.expand_more_rounded,
-                    color: AppPalette.greyText,
-                  );
-                }),
-              ],
-            ),
-          ),
-          10.h.verticalSpace,
-          Obx(() {
-            if (!controller.milestonesExpanded.value)
-              return const SizedBox.shrink();
-
-            final list = controller.milestones.toList(growable: false);
-
-            final completedCount = list
-                .where((m) => m.isApproved || m.isPaid)
-                .length;
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _DropdownPill(text: controller.milestoneStatusLabel.value),
-                10.h.verticalSpace,
-                Row(
-                  children: [
-                    Text(
-                      'brand_campaign_details_progress'.tr,
-                      style: TextStyle(
-                        fontSize: 11.sp,
-                        fontWeight: FontWeight.w700,
-                        color: AppPalette.greyText,
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      '$completedCount ${'brand_campaign_details_of'.tr} ${list.length} ${'brand_campaign_details_completed_small'.tr}',
-                      style: TextStyle(
-                        fontSize: 11.sp,
-                        fontWeight: FontWeight.w700,
-                        color: AppPalette.greyText,
-                      ),
-                    ),
-                  ],
-                ),
-                10.h.verticalSpace,
-                ...list.map((m) => _MilestoneTile(m: m)).toList(),
-              ],
-            );
-          }),
-        ],
-      ),
-    );
-  }
-}
-
-class _DropdownPill extends StatelessWidget {
-  final String text;
-  const _DropdownPill({required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
-      decoration: BoxDecoration(
-        color: AppPalette.defaultFill,
-        borderRadius: BorderRadius.circular(10.r),
-        border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              text,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 11.5.sp,
-                fontWeight: FontWeight.w700,
-                color: AppPalette.greyText,
-              ),
-            ),
-          ),
-          Icon(Icons.keyboard_arrow_down_rounded, color: AppPalette.greyText),
-        ],
-      ),
-    );
-  }
-}
-
-class _MilestoneTile extends StatelessWidget {
-  final Milestone m;
-  const _MilestoneTile({required this.m});
-
-  String _statusText(MilestoneStatus s) {
-    switch (s) {
-      case MilestoneStatus.todo:
-        return 'brand_campaign_details_pending'.tr;
-      case MilestoneStatus.inReview:
-        return 'brand_campaign_details_in_review'.tr;
-      case MilestoneStatus.paid:
-      case MilestoneStatus.approved:
-      case MilestoneStatus.partialPaid:
-        return 'brand_campaign_details_completed'.tr;
-      case MilestoneStatus.declined:
-        return 'brand_campaign_details_declined'.tr;
-    }
-  }
-
-  ({
-    Color bg,
-    Color border,
-    Color pillBg,
-    Color pillBorder,
-    Color pillText,
-    Color titleColor,
-  })
-  _style(MilestoneStatus s) {
-    switch (s) {
-      case MilestoneStatus.approved:
-      case MilestoneStatus.paid:
-      case MilestoneStatus.partialPaid:
-        return (
-          bg: const Color(0xFFEFF8E8),
-          border: const Color(0xFFBFD7A5),
-          pillBg: const Color(0xFFBFD7A5),
-          pillBorder: const Color(0xFFBFD7A5),
-          pillText: AppPalette.primary,
-          titleColor: AppPalette.primary,
-        );
-
-      case MilestoneStatus.inReview:
-        return (
-          bg: const Color(0xFFFFF4E6),
-          border: const Color(0xFFF3C68C),
-          pillBg: const Color(0xFFFFE7C6),
-          pillBorder: const Color(0xFFF3C68C),
-          pillText: const Color(0xFFB36B00),
-          titleColor: const Color(0xFFB36B00),
-        );
-
-      case MilestoneStatus.declined:
-        return (
-          bg: const Color(0xFFFFEBEB),
-          border: const Color(0xFFFFB9B9),
-          pillBg: const Color(0xFFFFD6D6),
-          pillBorder: const Color(0xFFFFB9B9),
-          pillText: const Color(0xFFB32020),
-          titleColor: const Color(0xFFB32020),
-        );
-
-      case MilestoneStatus.todo:
-        return (
-          bg: AppPalette.white,
-          border: AppPalette.border1,
-          pillBg: AppPalette.defaultFill,
-          pillBorder: AppPalette.border1,
-          pillText: AppPalette.greyText,
-          titleColor: AppPalette.primary,
-        );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final statusText = _statusText(m.status);
-    return Container(
-      margin: EdgeInsets.only(bottom: 10.h),
-      padding: EdgeInsets.all(12.w),
-      decoration: BoxDecoration(
-        color: _style(m.status).bg,
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 26.w,
-            height: 26.w,
-            decoration: BoxDecoration(
-              color: AppPalette.defaultFill,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: AppPalette.border1,
-                width: kBorderWidth0_5,
-              ),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              m.stepLabel,
-              style: TextStyle(
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w900,
-                color: AppPalette.greyText,
-              ),
-            ),
-          ),
-          10.w.horizontalSpace,
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  m.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w900,
-                    color: AppPalette.primary,
-                  ),
-                ),
-                2.h.verticalSpace,
-                Text(
-                  m.subtitle ?? '',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 11.sp,
-                    fontWeight: FontWeight.w600,
-                    color: AppPalette.greyText,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          10.w.horizontalSpace,
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              _StatusPill(text: statusText),
-              6.h.verticalSpace,
-              Text(
-                m.dayLabel ?? '',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 10.5.sp,
-                  fontWeight: FontWeight.w800,
-                  color: AppPalette.greyText,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatusPill extends StatelessWidget {
-  final String text;
-  const _StatusPill({required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
-      decoration: BoxDecoration(
-        color: AppPalette.defaultFill,
-        borderRadius: BorderRadius.circular(999.r),
-        border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 10.5.sp,
-          fontWeight: FontWeight.w800,
-          color: AppPalette.greyText,
-        ),
-      ),
-    );
-  }
-}
-
-/// ---------------- RATING / BRIEF / CONTENT ASSETS / TERMS ----------------
-/// (kept your existing widgets unchanged)
-
-class _RatingCard extends GetView<BrandCampaignDetailsController> {
-  @override
-  Widget build(BuildContext context) {
-    return _CardShell(
-      child: Column(
-        children: [
-          Obx(() {
-            final r = controller.rating.value;
-            return Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(5, (i) {
-                final idx = i + 1;
-                final filled = idx <= r;
-                return InkWell(
-                  onTap: () => controller.setRating(idx),
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 4.w),
-                    child: Icon(
-                      filled ? Icons.star_rounded : Icons.star_border_rounded,
-                      size: 24.sp,
-                      color: filled ? AppPalette.secondary : AppPalette.border1,
-                    ),
-                  ),
-                );
-              }),
-            );
-          }),
-          10.h.verticalSpace,
-          Text(
-            'brand_campaign_details_provide_rating'.tr,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 11.5.sp,
-              fontWeight: FontWeight.w700,
-              color: AppPalette.greyText,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _BriefCard extends GetView<BrandCampaignDetailsController> {
-  @override
-  Widget build(BuildContext context) {
-    return _CardShell(
+    return CardShell(
       child: Column(
         children: [
           InkWell(
@@ -1001,8 +118,8 @@ class _BriefCard extends GetView<BrandCampaignDetailsController> {
             child: Row(
               children: [
                 Expanded(
-                  child: _CardTitle(
-                    icon: Icons.article_rounded,
+                  child: CardTitle(
+                    icon: AppAssets.termsCondition,
                     title: 'brand_campaign_details_campaign_brief'.tr,
                   ),
                 ),
@@ -1266,7 +383,7 @@ class _DoDontBox extends StatelessWidget {
 class _ContentAssetsCard extends GetView<BrandCampaignDetailsController> {
   @override
   Widget build(BuildContext context) {
-    return _CardShell(
+    return CardShell(
       child: Column(
         children: [
           InkWell(
@@ -1274,8 +391,8 @@ class _ContentAssetsCard extends GetView<BrandCampaignDetailsController> {
             child: Row(
               children: [
                 Expanded(
-                  child: _CardTitle(
-                    icon: Icons.folder_open_rounded,
+                  child: CardTitle(
+                    icon: AppAssets.tergetGoal,
                     title: 'brand_campaign_details_content_assets'.tr,
                   ),
                 ),
@@ -1413,7 +530,7 @@ class _AssetTile extends StatelessWidget {
 class _TermsCard extends GetView<BrandCampaignDetailsController> {
   @override
   Widget build(BuildContext context) {
-    return _CardShell(
+    return CardShell(
       child: Column(
         children: [
           InkWell(
@@ -1421,8 +538,8 @@ class _TermsCard extends GetView<BrandCampaignDetailsController> {
             child: Row(
               children: [
                 Expanded(
-                  child: _CardTitle(
-                    icon: Icons.gavel_rounded,
+                  child: CardTitle(
+                    icon: AppAssets.tergetGoal,
                     title: 'brand_campaign_details_terms_conditions'.tr,
                   ),
                 ),
@@ -1525,12 +642,12 @@ class _TermBlock extends StatelessWidget {
 class _BrandAssetsCard extends GetView<BrandCampaignDetailsController> {
   @override
   Widget build(BuildContext context) {
-    return _CardShell(
+    return CardShell(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _CardTitle(
-            icon: Icons.inventory_2_outlined,
+          CardTitle(
+            icon: AppAssets.tergetGoal,
             title: 'brand_campaign_details_brand_assets'.tr,
           ),
           12.h.verticalSpace,
@@ -1653,34 +770,6 @@ class _BrandAssetTile extends StatelessWidget {
   }
 }
 
-class _CardTitle extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  const _CardTitle({required this.icon, required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 18.sp, color: AppPalette.primary),
-        10.w.horizontalSpace,
-        Expanded(
-          child: Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 13.5.sp,
-              fontWeight: FontWeight.w900,
-              color: AppPalette.primary,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _PaidAdTabPills extends GetView<BrandCampaignDetailsController> {
   @override
   Widget build(BuildContext context) {
@@ -1744,7 +833,7 @@ class _AgencyBidsTab extends GetView<BrandCampaignDetailsController> {
 
   @override
   Widget build(BuildContext context) {
-    return _CardShell(
+    return CardShell(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

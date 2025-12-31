@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:influencer_app/core/theme/app_palette.dart';
 
 import '../../../../../core/models/job_item.dart';
 
@@ -14,83 +15,103 @@ class MilestoneTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+      margin: EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14.r),
         border: Border.all(color: _softBorder),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 24.w,
-            height: 24.w,
-            decoration: BoxDecoration(
-              color: _primary.withOpacity(.15),
-              shape: BoxShape.circle,
-            ),
-            alignment: Alignment.center,
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                m.stepLabel,
+          Row(
+            spacing: 10,
+            children: [
+              Container(
+                width: 24.w,
+                height: 24.w,
+                decoration: BoxDecoration(
+                  color: Color(0xFF8E8E8E),
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    m.stepLabel,
+                    style: TextStyle(
+                      color: AppPalette.thirdColor,
+                      fontSize: 10.sp,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+
+              Text(
+                m.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: _primary.withOpacity(.85),
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w900,
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF595959),
                 ),
               ),
-            ),
-          ),
-          10.w.horizontalSpace,
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  m.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 13.5.sp,
-                    fontWeight: FontWeight.w800,
-                    color: _primary.withOpacity(.85),
-                  ),
+
+              Spacer(),
+
+              Container(
+                height: 20,
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppPalette.primary.withOpacity(.15),
+                  borderRadius: BorderRadius.circular(10)
                 ),
-                2.h.verticalSpace,
-                Text(
-                  m.subtitle ?? m.deliverable ?? '-',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 11.5.sp,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black54,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          10.w.horizontalSpace,
-          if ((m.dayLabel ?? '').isNotEmpty)
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
-              decoration: BoxDecoration(
-                color: _primary.withOpacity(.07),
-                borderRadius: BorderRadius.circular(999.r),
-                border: Border.all(color: _softBorder),
-              ),
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
+                alignment: Alignment.center,
                 child: Text(
-                  m.dayLabel!,
+                  'Pending',
                   style: TextStyle(
-                    fontSize: 10.5.sp,
-                    fontWeight: FontWeight.w800,
-                    color: _primary.withOpacity(.75),
+                    color: AppPalette.white,
+                    fontSize: 10.sp,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
-            ),
+            ],
+          ),
+
+          6.h.verticalSpace,
+
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                m.subtitle ?? m.deliverable ?? '-',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10.sp,
+                  fontWeight: FontWeight.w400,
+                  color: Colors.black54,
+                ),
+              ),
+
+              if ((m.dayLabel ?? '').isNotEmpty)
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    m.dayLabel!,
+                    style: TextStyle(
+                      fontSize: 10.sp,
+                      fontWeight: FontWeight.w400,
+                      color: AppPalette.greyText,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+
         ],
       ),
     );

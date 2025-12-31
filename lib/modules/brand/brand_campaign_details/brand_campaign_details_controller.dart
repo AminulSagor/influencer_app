@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:influencer_app/core/utils/app_assets.dart';
 
 import '../../../core/models/job_item.dart';
 import '../../../core/utils/currency_formatter.dart';
@@ -67,7 +68,7 @@ class BrandCampaignDetailsController extends GetxController {
 
   // Optional: for other types
   final influencers = <String>[].obs;
-  final platforms = <IconData>[].obs;
+  final platforms = <String>[].obs;
 
   final daysRemaining = 0.obs;
   final deadlineDateText = ''.obs;
@@ -83,8 +84,7 @@ class BrandCampaignDetailsController extends GetxController {
 
   // Milestones
   final milestones = <Milestone>[].obs;
-  final milestoneStatusLabel =
-      'brand_campaign_details_campaign_not_started'.tr.obs;
+  final milestoneStatusLabel = 'brand_campaign_details_campaign_not_started'.tr.obs;
 
   // Rating
   final rating = 0.obs;
@@ -412,13 +412,12 @@ class BrandCampaignDetailsController extends GetxController {
 
     targetingText.value = 'Crowd';
 
-    influencers.assignAll(['Influencer A', 'Influencer B']);
+    influencers.assignAll(['Influencer A', 'Influencer B', 'Influencer c']);
 
-    platforms.assignAll(const <IconData>[
-      Icons.facebook,
-      Icons.camera_alt_outlined,
-      Icons.play_circle_outline,
-      Icons.music_note_outlined,
+    platforms.assignAll(const <String>[
+      AppAssets.instagram,
+      AppAssets.youTube,
+      AppAssets.tikTok,
     ]);
 
     daysRemaining.value = 8;
@@ -523,11 +522,10 @@ class BrandCampaignDetailsController extends GetxController {
       influencers.assignAll(['Influencer A', 'Influencer B']);
     }
     if (platforms.isEmpty) {
-      platforms.assignAll(const <IconData>[
-        Icons.facebook,
-        Icons.camera_alt_outlined,
-        Icons.play_circle_outline,
-        Icons.music_note_outlined,
+      platforms.assignAll(const <String>[
+        AppAssets.instagram,
+        AppAssets.youTube,
+        AppAssets.tikTok,
       ]);
     }
 

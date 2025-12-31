@@ -156,7 +156,7 @@ class MilestoneEditorPromotionCard extends StatelessWidget {
             ],
           ),
 
-          8.w.horizontalSpace,
+          7.h.verticalSpace,
 
           Container(
             decoration: BoxDecoration(

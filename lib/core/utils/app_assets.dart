@@ -28,4 +28,8 @@ class AppAssets {
   static const String image = 'assets/icons/image.png';
   static const String video = 'assets/icons/video.png';
   static const String document = 'assets/icons/document.png';
+  static const String tergetGoal = 'assets/icons/terget_goal.png';
+  static const String paidBill = 'assets/icons/paid_bill.png';
+  static const String taskCompleted = 'assets/icons/task_completed.png';
+  static const String onlineAdsShade = 'assets/icons/online_ads_shade.png';
 }
