@@ -32,6 +32,15 @@ class AppPalette {
   static const color2stroke = Color(0xFFFECACA);
   static const color2text = Color(0xFFB91C1C);
 
+  static const reportFlaggedActive = Color(0xFFC62828);
+  static const reportFlaggedInactive = Color(0xFFFFEBEE);
+
+  static const reportPendingActive = Color(0xFFFF6600);
+  static const reportPendingInactive = thirdColor;
+
+  static const reportResolvedActive = secondary;
+  static const reportResolvedInactive = Color(0xFFF4FFF8);
+
   static const white = Color(0xFFFFFFFF);
   static const black = Color(0xFF000000);
 }

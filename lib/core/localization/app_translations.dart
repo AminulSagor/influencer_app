@@ -128,9 +128,13 @@ class AppTranslations extends Translations {
       'influ_social_add_another': '+ Add Another',
 
       'influ_kyc_title': 'Unlock Payout!',
+      'brand_kyc_title': 'Build Brand Trust',
       'influ_kyc_subtitle': "Let\'s get you ready to earn!",
+      'brand_kyc_subtitle': "Let's get you ready to grow!",
       'influ_kyc_body':
           'This is a onetime security check to ensure payments are sent to the correct person. Your data is safe with us.',
+      'brand_kyc_body':
+          'Just a quick check to make sure you\'re the real you! This ensures your money goes to the right place. We keep your info 100% private.',
       'influ_kyc_info':
           'We use this to prevent fraud and secure your account. For more information, please see our Privacy Policy.',
       'influ_kyc_section_title': 'Provide Your NID',
@@ -433,6 +437,7 @@ class AppTranslations extends Translations {
 
       // Sort / Search
       'jobs_sort_low_to_high': 'Low To High',
+      'jobs_sort_high_to_low': 'High To Low',
 
       // Due / Remaining
       'label_due_days': 'Due: @days Days',
@@ -837,6 +842,141 @@ class AppTranslations extends Translations {
       'brand_campaign_payment_success': 'Payment initiated.',
       'brand_campaign_payment_invalid':
           'Amount must be between minimum and total due.',
+
+      'brand_email': 'Email',
+      'brand_contact': 'Contact',
+      'brand_website': 'Website',
+
+      'brand_assets_title': 'Brand Assets',
+      'brand_assets_website_label': 'Website',
+      'brand_assets_website_hint': 'Enter website',
+      'brand_assets_social_handles': 'Social Handles',
+      'brand_assets_choose_handle': 'Choose Handle',
+      'brand_assets_choose_handle_hint': 'Select platform',
+      'brand_assets_enter_link': 'Enter the links',
+      'brand_assets_link_hint': 'Enter the links',
+      'brand_assets_add_another': 'Add Another Brand Asset',
+      'brand_assets_save': 'Save Update',
+      'brand_assets_saved': 'Brand assets saved successfully.',
+      'success_title': 'Success',
+
+      'brand_platform_facebook': 'Facebook Page',
+      'brand_platform_instagram': 'Instagram',
+      'brand_platform_tiktok': 'TikTok',
+      'brand_platform_youtube': 'YouTube',
+      'brand_platform_linkedin': 'LinkedIn',
+      'brand_platform_x': 'X (Twitter)',
+      'brand_platform_website': 'Website',
+
+      'skills_title': 'Skills',
+      'skills_add_another': 'Add Another Skills',
+      'verified_by_admin': 'Verified By Admin',
+      'skills_add_dialog_title': 'Add Skill',
+      'skills_add_hint': 'Type a skill',
+      'skills_cancel': 'Cancel',
+      'skills_add_btn': 'Add',
+
+      'explore_title': 'Explore',
+      'explore_subtitle': 'Know your Influencers, Agencies and more',
+      'explore_tab_influencers': 'Influencers',
+      'explore_tab_ad_agencies': 'Ad Agencies',
+      'explore_search_hint': 'Search Client',
+      'explore_showing': 'Showing @showing Of @total Results',
+      'explore_empty': 'No results found',
+      'explore_page': 'Page',
+      'explore_of': 'Of',
+      'explore_next': 'Next',
+
+      'locations_title': 'Your Locations',
+      'locations_add_new': 'Add New Address',
+      'locations_give_name': 'Give A Name',
+      'locations_give_name_hint': 'Give A Name To The Address',
+      'locations_thana': 'Thana *',
+      'locations_select_thana': 'Select Thana',
+      'locations_zilla': 'Zilla *',
+      'locations_select_zilla': 'Select Zilla',
+      'locations_full_address': 'Full Address *',
+      'locations_full_address_hint': 'Enter Full Address',
+      'locations_add_another': 'Add Another Address',
+      'locations_save': 'Save',
+
+      "analytics_tab_analytics": "Analytics",
+      "analytics_tab_transactions": "Transactions",
+
+      "analytics_top_campaign": "Top Campaign",
+      "analytics_top_influencer": "Top Influencer",
+
+      "analytics_influencers": "Influencers",
+      "analytics_platforms": "Platforms",
+      "analytics_recent_transactions": "Recent Transactions",
+
+      "analytics_sort_low_to_high": "Low To High",
+      "analytics_search_client": "Search Client",
+      "analytics_search_transactions": "Search By Campaign Name, Client Name",
+
+      "analytics_col_influencer": "Influencer",
+      "analytics_col_campaign_done": "Campaign Done",
+
+      "analytics_jobs_completed": "Jobs Completed",
+      "analytics_view_campaign_details": "View Campaign Details",
+
+      "analytics_page": "Page",
+      "analytics_of": "Of",
+      "analytics_next": "Next",
+
+      "analytics_empty": "No item to show",
+      "analytics_showing_count": "Showing @showing Of @total Results",
+
+      'analytics_search_campaign_client':
+          'Search By Campaign Name, Client Name',
+
+      'analytics_section_influencers': 'Influencers',
+      'analytics_section_platforms': 'Platforms',
+      'analytics_section_recent_transactions': 'Recent Transactions',
+
+      'analytics_table_influencer': 'Influencer',
+      'analytics_table_campaign_done': 'Campaign Done',
+
+      'analytics_loading': 'Loading..',
+
+      'analytics_showing_results': 'Showing @count Of @total Results',
+
+      'brand_submission_details': 'Submission Details',
+      'brand_submission_title_with_index': 'Submission @i',
+      'brand_submission_description': 'Description / Update',
+      'brand_submission_performance_metrics': 'Performance Metrics',
+      'brand_submission_average_performance': 'Average Performance',
+      'brand_submission_attached_proofs': 'Attached Proofs',
+      'brand_submission_platform_1': 'Platform 1',
+      'brand_submission_in_review': 'In Review',
+      'brand_submission_target_hit_75': 'Target Hit 75%',
+      'brand_metric_reach': 'Reach',
+      'brand_metric_likes': 'Likes',
+      'brand_metric_views': 'Views',
+      'brand_metric_comments': 'Comments',
+
+      'brand_decline_selected': 'Decline Selected',
+      'brand_approve_selected': 'Approve Selected',
+
+      'brand_decline_reason_title': 'Write Declined Reason',
+      'brand_decline_reason_hint':
+          'Write why you are declining this submission...',
+      'brand_decline_submit': 'Submit',
+
+      'brand_declined_reason_label': 'Declined Reason',
+
+      'brand_submission_completed': 'Completed',
+      'brand_submission_declined': 'Declined',
+
+      'report_admin_btn': 'Report Admin',
+      'write_report_title': 'Write Report',
+      'write_report_hint': 'Write your reasons...',
+      'submit_report_btn': 'Submit Report',
+      'reported_to_admin_title': 'Reported To Admin',
+      'report_again_on': 'Report again on',
+      'view_submitted_report': 'View Submitted Report',
+      'submitted_report_title': 'Submitted Report',
+      'no_reports_yet': 'No reports yet',
     },
 
     // Bangla
@@ -954,6 +1094,10 @@ class AppTranslations extends Translations {
       'influ_social_add_another': '+ আর যুক্ত করুন',
 
       'influ_kyc_title': 'পেমেন্ট আনলক করুন!',
+      'brand_kyc_title': 'ব্র্যান্ডের আস্থা তৈরি করুন!',
+      'brand_kyc_subtitle': "চলুন আপনার প্রবৃদ্ধির যাত্রা শুরু করি!",
+      'brand_kyc_body':
+          'সঠিক মানুষকে পেমেন্ট পৌঁছানো নিশ্চিত করতে এটি একটি সিকিউরিটি চেক। আপনার তথ্য আমাদের কাছে সম্পূর্ণ নিরাপদ।',
       'influ_kyc_subtitle': 'উপার্জন শুরু করুন!',
       'influ_kyc_body':
           'সঠিক মানুষকে পেমেন্ট পৌঁছানো নিশ্চিত করতে এটি একটি সিকিউরিটি চেক। আপনার তথ্য আমাদের কাছে সম্পূর্ণ নিরাপদ।',
@@ -1259,6 +1403,7 @@ class AppTranslations extends Translations {
 
       // Sort / Search
       'jobs_sort_low_to_high': 'কম থেকে বেশি',
+      'jobs_sort_high_to_low': 'বেশি থেকে কম',
 
       // Due / Remaining
       'label_due_days': 'বাকি: @days দিন',
@@ -1671,6 +1816,142 @@ class AppTranslations extends Translations {
       'brand_campaign_payment_success': 'পেমেন্ট শুরু করা হয়েছে।',
       'brand_campaign_payment_invalid':
           'পরিমাণটি সর্বনিম্ন এবং মোট বকেয়ার মধ্যে হতে হবে।',
+
+      'brand_email': 'ইমেইল',
+      'brand_contact': 'কন্টাক্ট',
+      'brand_website': 'ওয়েবসাইট',
+
+      'brand_assets_title': 'ব্র্যান্ড ফাইলসমূহ',
+      'brand_assets_website_label': 'Website',
+      'brand_assets_website_hint': 'ওয়েবসাইট লিখুন',
+      'brand_assets_social_handles': 'সোশ্যাল হ্যান্ডেল',
+      'brand_assets_choose_handle': 'হ্যান্ডেল নির্বাচন করুন',
+      'brand_assets_choose_handle_hint': 'প্ল্যাটফর্ম নির্বাচন করুন',
+      'brand_assets_enter_link': 'Enter the links',
+      'brand_assets_link_hint': 'Enter the links',
+      'brand_assets_add_another': 'আরও ব্র্যান্ড ফাইল যুক্ত করুন',
+      'brand_assets_save': 'সেভ করুন',
+      'brand_assets_saved': 'ব্র্যান্ড ফাইল সফলভাবে সেভ হয়েছে।',
+      'success_title': 'সফল',
+
+      'brand_platform_facebook': 'Facebook Page',
+      'brand_platform_instagram': 'Instagram',
+      'brand_platform_tiktok': 'TikTok',
+      'brand_platform_youtube': 'YouTube',
+      'brand_platform_linkedin': 'LinkedIn',
+      'brand_platform_x': 'X (Twitter)',
+      'brand_platform_website': 'Website',
+
+      'skills_title': 'দক্ষতা',
+      'skills_add_another': 'আরও দক্ষতা যোগ করুন',
+      'verified_by_admin': 'অ্যাডমিন দ্বারা যাচাইকৃত',
+      'skills_add_dialog_title': 'দক্ষতা যোগ করুন',
+      'skills_add_hint': 'দক্ষতার নাম লিখুন',
+      'skills_cancel': 'বাতিল',
+      'skills_add_btn': 'যোগ করুন',
+
+      'explore_title': 'এক্সপ্লোর করুন',
+      'explore_subtitle':
+          'চিনুন আপনার ইনফ্লুয়েন্সার, এড এজেন্সি এবং আরও অনেককে',
+      'explore_tab_influencers': 'ইনফ্লুয়েন্সার',
+      'explore_tab_ad_agencies': 'এড এজেন্সি',
+      'explore_search_hint': 'ক্লায়েন্ট খুঁজুন',
+      'explore_showing': 'Showing @showing Of @total Results',
+      'explore_empty': 'কোন ফলাফল পাওয়া যায়নি',
+      'explore_page': 'পাতা',
+      'explore_of': 'Of',
+      'explore_next': 'পরবর্তী',
+
+      'locations_title': 'আপনার ঠিকানা',
+      'locations_add_new': 'নতুন ঠিকানা যোগ করুন',
+      'locations_give_name': 'একটি নাম দিন',
+      'locations_give_name_hint': 'আপনার ঠিকানার জন্য একটি নাম দিন',
+      'locations_thana': 'থানা *',
+      'locations_select_thana': 'থানা নির্বাচন করুন',
+      'locations_zilla': 'জেলা *',
+      'locations_select_zilla': 'জেলা নির্বাচন করুন',
+      'locations_full_address': 'পূর্ণ ঠিকানা *',
+      'locations_full_address_hint': 'পূর্ণ ঠিকানা লিখুন',
+      'locations_add_another': 'আরও একটি ঠিকানা যোগ করুন',
+      'locations_save': 'সংরক্ষণ করুন',
+
+      "analytics_tab_analytics": "অ্যানালিটিক্স",
+      "analytics_tab_transactions": "লেনদেন",
+
+      "analytics_top_campaign": "সেরা ক্যাম্পেইন",
+      "analytics_top_influencer": "সেরা ইনফ্লুয়েন্সার পার্টনার",
+
+      "analytics_influencers": "ইনফ্লুয়েন্সার",
+      "analytics_platforms": "প্ল্যাটফর্ম",
+      "analytics_recent_transactions": "সাম্প্রতিক লেনদেন",
+
+      "analytics_sort_low_to_high": "Low To High",
+      "analytics_search_client": "ক্লায়েন্ট খুঁজুন",
+      "analytics_search_transactions":
+          "ক্যাম্পেইন নাম বা ক্লায়েন্ট নাম দিয়ে খুঁজুন",
+
+      "analytics_col_influencer": "ইনফ্লুয়েন্সার",
+      "analytics_col_campaign_done": "ক্যাম্পেইন সম্পন্ন",
+
+      "analytics_jobs_completed": "কাজ সম্পন্ন",
+      "analytics_view_campaign_details": "ক্যাম্পেইনের বিস্তারিত দেখুন",
+
+      "analytics_page": "পেইজ",
+      "analytics_of": "Of",
+      "analytics_next": "পরবর্তী",
+
+      "analytics_empty": "দেখানোর মতো কোনো আইটেম নেই",
+      "analytics_showing_count": "Showing @showing Of @total Results",
+
+      'analytics_search_campaign_client':
+          'ক্যাম্পেইন নাম বা ক্লায়েন্ট নাম দিয়ে খুঁজুন',
+
+      'analytics_section_influencers': 'ইনফ্লুয়েন্সার',
+      'analytics_section_platforms': 'প্ল্যাটফর্ম',
+      'analytics_section_recent_transactions': 'সাম্প্রতিক লেনদেন',
+
+      'analytics_table_influencer': 'ইনফ্লুয়েন্সার',
+      'analytics_table_campaign_done': 'ক্যাম্পেইন সম্পন্ন',
+
+      'analytics_loading': 'Loading..',
+
+      'analytics_showing_results': 'Showing @count Of @total Results',
+
+      'brand_submission_details': 'জমাকৃত কাজের আপডেট',
+      'brand_submission_title_with_index': 'Submission @i',
+      'brand_submission_description': 'বিবরণ / আপডেট',
+      'brand_submission_performance_metrics': 'পারফরম্যান্স মেট্রিক্স',
+      'brand_submission_average_performance': 'Average Performance',
+      'brand_submission_attached_proofs': 'সংযুক্ত প্রমাণ',
+      'brand_submission_platform_1': 'প্ল্যাটফর্ম ১',
+      'brand_submission_in_review': 'In Review',
+      'brand_submission_target_hit_75': 'Target Hit 75%',
+      'brand_metric_reach': 'Reach',
+      'brand_metric_likes': 'Likes',
+      'brand_metric_views': 'Views',
+      'brand_metric_comments': 'Comments',
+
+      'brand_decline_selected': 'সিলেক্টেডটি বাতিল করুন',
+      'brand_approve_selected': 'সিলেক্টেডটি অনুমোদন করুন',
+
+      'brand_decline_reason_title': 'বাতিলের কারণ লিখুন',
+      'brand_decline_reason_hint': 'কেন এই সাবমিশনটি বাতিল করছেন লিখুন...',
+      'brand_decline_submit': 'সাবমিট করুন',
+
+      'brand_declined_reason_label': 'বাতিলের কারণ',
+
+      'brand_submission_completed': 'সম্পন্ন',
+      'brand_submission_declined': 'বাতিল',
+
+      'report_admin_btn': 'রিপোর্ট দিন',
+      'write_report_title': 'রিপোর্ট লিখুন',
+      'write_report_hint': 'আপনার কারণ লিখুন..',
+      'submit_report_btn': 'রিপোর্ট জমা দিন',
+      'reported_to_admin_title': 'অ্যাডমিনকে রিপোর্ট করা হয়েছে',
+      'report_again_on': 'পুনরায় রিপোর্ট করুন',
+      'view_submitted_report': 'জমা দেওয়া রিপোর্ট দেখুন',
+      'submitted_report_title': 'জমা দেওয়া রিপোর্ট',
+      'no_reports_yet': 'এখনও কোনো রিপোর্ট নেই',
     },
   };
 }

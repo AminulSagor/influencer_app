@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:influencer_app/core/services/account_type_service.dart';
 import 'package:influencer_app/routes/app_routes.dart';
 
 import '../../../core/enums/account_type.dart';
@@ -16,6 +17,7 @@ class SignupInfluencerController extends GetxController {
   final lastNameController = TextEditingController();
   final emailController = TextEditingController();
   final phoneController = TextEditingController();
+  final accountTypeService = Get.find<AccountTypeService>();
 
   void onStep1Continue() {
     // if (formKey.currentState?.validate() != true) return;
@@ -142,10 +144,14 @@ class SignupInfluencerController extends GetxController {
 
   void onKycSubmit() {
     // if (nidFormKey.currentState?.validate() != true) return;
-    Get.toNamed(
-      AppRoutes.signupSuccess,
-      arguments: {'accountType': AccountType.influencer},
-    );
+    if (accountTypeService.isInfluencer) {
+      Get.toNamed(
+        AppRoutes.signupSuccess,
+        arguments: {'accountType': AccountType.influencer},
+      );
+    } else if (accountTypeService.isBrand) {
+      Get.toNamed(AppRoutes.signupBrandTradeLicense);
+    }
   }
 
   // ----------------- Navigation helpers -----------------

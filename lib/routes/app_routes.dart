@@ -63,4 +63,7 @@ class AppRoutes {
 
   static const brandCampaignDetails = '/brand-campaign-details';
   static const brandMilestoneDetails = '/brand-milestone-details';
+
+  static const explore = '/explore';
+  static const analytics = '/analytics';
 }

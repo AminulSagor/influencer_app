@@ -1,17 +1,20 @@
-// report_log_controller.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../core/services/account_type_service.dart';
 import 'models/report_model.dart';
 
 class ReportLogController extends GetxController {
+  final accountTypeService = Get.find<AccountTypeService>();
+
+  bool get isBrand => accountTypeService.isBrand;
+
   // Search Text Controller
   final searchController = TextEditingController();
 
   // Observables
   var searchQuery = ''.obs;
-  var selectedFilter =
-      Rxn<ReportStatus>(); // Null means "All", otherwise specific status
+  var selectedFilter = Rxn<ReportStatus>(); // null = All
 
   // Dummy Data
   final List<ReportModel> _allReports = [
@@ -20,7 +23,7 @@ class ReportLogController extends GetxController {
       campaignName: 'Summer Fashion Campaign',
       milestone: '1',
       timeAgo: '2',
-      message: 'audio_issue', // Key for translation
+      message: 'audio_issue',
       companyName: 'StyleCo',
       date: 'Dec 15, 2025',
       status: ReportStatus.flagged,
@@ -57,25 +60,38 @@ class ReportLogController extends GetxController {
     ),
   ];
 
-  // Counts
-  int get flaggedCount =>
-      _allReports.where((e) => e.status == ReportStatus.flagged).length;
+  /// Only show these tabs in UI
+  List<ReportStatus> get availableStatuses {
+    if (isBrand) return [ReportStatus.pending, ReportStatus.resolved];
+    return [ReportStatus.flagged, ReportStatus.pending, ReportStatus.resolved];
+  }
+
+  // Counts (Brand users don't need flagged count)
+  int get flaggedCount => isBrand
+      ? 0
+      : _allReports.where((e) => e.status == ReportStatus.flagged).length;
+
   int get pendingCount =>
       _allReports.where((e) => e.status == ReportStatus.pending).length;
+
   int get resolvedCount =>
       _allReports.where((e) => e.status == ReportStatus.resolved).length;
 
   // Filtered List
   List<ReportModel> get displayedReports {
     return _allReports.where((report) {
-      // 1. Check Search
-      bool matchesSearch = report.campaignName.toLowerCase().contains(
+      final matchesSearch = report.campaignName.toLowerCase().contains(
         searchQuery.value.toLowerCase(),
       );
 
-      // 2. Check Filter
-      bool matchesFilter =
-          selectedFilter.value == null || report.status == selectedFilter.value;
+      // If brand, never allow flagged filter (even if some old state exists)
+      final activeFilter =
+          (isBrand && selectedFilter.value == ReportStatus.flagged)
+          ? null
+          : selectedFilter.value;
+
+      final matchesFilter =
+          activeFilter == null || report.status == activeFilter;
 
       return matchesSearch && matchesFilter;
     }).toList();
@@ -86,8 +102,11 @@ class ReportLogController extends GetxController {
   }
 
   void toggleFilter(ReportStatus status) {
+    // Brand can't select flagged
+    if (isBrand && status == ReportStatus.flagged) return;
+
     if (selectedFilter.value == status) {
-      selectedFilter.value = null; // Deselect if clicked again (Show All)
+      selectedFilter.value = null; // toggle off
     } else {
       selectedFilter.value = status;
     }

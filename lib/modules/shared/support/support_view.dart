@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:influencer_app/core/utils/constants.dart';
 
 import '../../../core/theme/app_palette.dart';
 import 'support_controller.dart';
@@ -12,9 +13,9 @@ class SupportView extends GetView<SupportController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F5F7),
+      backgroundColor: AppPalette.background,
       body: SafeArea(
-        top: false, // top bar already provided by BottomNavView
+        top: false,
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
           padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 24.h),
@@ -61,17 +62,17 @@ class _SupportHeader extends StatelessWidget {
           ),
         ),
         SizedBox(width: 10.w),
-        Icon(Icons.headset_mic_rounded, size: 26.sp, color: AppPalette.primary),
+        Icon(Icons.headset_mic_rounded, size: 20.sp, color: AppPalette.primary),
         SizedBox(width: 8.w),
         Expanded(
           child: FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
             child: Text(
-              'support_contact_title'.tr, // "Contact Support" / "সাপোর্ট টিম"
+              'support_contact_title'.tr,
               style: TextStyle(
-                fontSize: 20.sp,
-                fontWeight: FontWeight.w700,
+                fontSize: 16.sp,
+                fontWeight: FontWeight.w600,
                 color: AppPalette.primary,
               ),
             ),
@@ -96,26 +97,16 @@ class _HelplineCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppPalette.white,
-        borderRadius: BorderRadius.circular(18.r),
+        borderRadius: BorderRadius.circular(kBorderRadius.r),
+        border: Border.all(color: AppPalette.border1),
       ),
-      padding: EdgeInsets.symmetric(horizontal: 18.w, vertical: 18.h),
+      padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 18.h),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Container(
-                padding: EdgeInsets.all(8.w),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE7F3D9),
-                  borderRadius: BorderRadius.circular(999.r),
-                ),
-                child: Icon(
-                  Icons.call_rounded,
-                  size: 22.sp,
-                  color: AppPalette.primary,
-                ),
-              ),
+              Icon(Icons.call_rounded, size: 20.sp, color: AppPalette.primary),
               SizedBox(width: 10.w),
               Expanded(
                 child: FittedBox(
@@ -123,10 +114,9 @@ class _HelplineCard extends StatelessWidget {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     'support_helpline_section_title'.tr,
-                    // "Helpline Numbers" / "হেল্পলাইন নম্বরসমূহ"
                     style: TextStyle(
-                      fontSize: 18.sp,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w600,
                       color: AppPalette.primary,
                     ),
                   ),
@@ -134,10 +124,10 @@ class _HelplineCard extends StatelessWidget {
               ),
             ],
           ),
-          SizedBox(height: 16.h),
+          SizedBox(height: 14.h),
           ...controller.helplines.map(
             (item) => Padding(
-              padding: EdgeInsets.only(bottom: 12.h),
+              padding: EdgeInsets.only(bottom: 10.h),
               child: _HelplineTile(
                 label: item.labelKey.tr, // "Help Line 1"
                 phone: item.phone,
@@ -170,8 +160,8 @@ class _HelplineTile extends StatelessWidget {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
       decoration: BoxDecoration(
-        color: const Color(0xFFFDFDFD),
-        borderRadius: BorderRadius.circular(18.r),
+        borderRadius: BorderRadius.circular(kBorderRadius.r),
+        border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
       ),
       child: Row(
         children: [
@@ -187,8 +177,8 @@ class _HelplineTile extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 18.sp,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w500,
                       color: AppPalette.primary,
                     ),
                   ),
@@ -199,9 +189,9 @@ class _HelplineTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFFE28328),
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w400,
+                    color: AppPalette.complemetary,
                   ),
                 ),
                 SizedBox(height: 4.h),
@@ -210,8 +200,8 @@ class _HelplineTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 12.sp,
-                    color: const Color(0xFF6B7280),
+                    fontSize: 10.sp,
+                    color: AppPalette.secondary,
                   ),
                 ),
               ],
@@ -225,7 +215,7 @@ class _HelplineTile extends StatelessWidget {
               padding: EdgeInsets.all(6.w),
               child: Icon(
                 Icons.phone_in_talk_rounded,
-                size: 26.sp,
+                size: 20.sp,
                 color: AppPalette.primary,
               ),
             ),
@@ -250,26 +240,15 @@ class _EmailCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppPalette.white,
-        borderRadius: BorderRadius.circular(18.r),
+        borderRadius: BorderRadius.circular(kBorderRadius.r),
       ),
-      padding: EdgeInsets.symmetric(horizontal: 18.w, vertical: 18.h),
+      padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 18.h),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Container(
-                padding: EdgeInsets.all(8.w),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE7F3D9),
-                  borderRadius: BorderRadius.circular(999.r),
-                ),
-                child: Icon(
-                  Icons.email_rounded,
-                  size: 22.sp,
-                  color: AppPalette.primary,
-                ),
-              ),
+              Icon(Icons.email_rounded, size: 20.sp, color: AppPalette.primary),
               SizedBox(width: 10.w),
               Expanded(
                 child: FittedBox(
@@ -277,10 +256,9 @@ class _EmailCard extends StatelessWidget {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     'support_email_section_title'.tr,
-                    // "Email Us" / "ইমেইল করুন"
                     style: TextStyle(
-                      fontSize: 18.sp,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w500,
                       color: AppPalette.primary,
                     ),
                   ),
@@ -313,13 +291,13 @@ class _EmailTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      borderRadius: BorderRadius.circular(18.r),
+      borderRadius: BorderRadius.circular(kBorderRadius.r),
       onTap: onTap,
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
+        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
         decoration: BoxDecoration(
-          color: const Color(0xFFF9FAFB),
-          borderRadius: BorderRadius.circular(18.r),
+          borderRadius: BorderRadius.circular(kBorderRadius.r),
+          border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
         ),
         child: Row(
           children: [
@@ -329,9 +307,9 @@ class _EmailTile extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 16.sp,
+                  fontSize: 14.sp,
                   fontWeight: FontWeight.w500,
-                  color: AppPalette.primary,
+                  color: AppPalette.secondary,
                 ),
               ),
             ),

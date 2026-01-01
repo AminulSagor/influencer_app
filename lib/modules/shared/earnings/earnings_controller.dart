@@ -1,6 +1,6 @@
 import 'package:get/get.dart';
 
-enum TransactionType { inbound, outbound }
+import '../../../core/models/transaction_model.dart';
 
 class EarningsChartPoint {
   final String label; // e.g. "7/11"
@@ -25,34 +25,6 @@ class PlatformItem {
     required this.name,
     required this.jobsCompleted,
     required this.iconKey,
-  });
-}
-
-class TransactionItem {
-  /// Localized UI title
-  final String titleKey; // e.g. 'earnings_payment_for'
-  final Map<String, String> titleParams; // e.g. {'name': 'Summer Sale'}
-
-  /// Subtitle is usually date/time from API (keep raw)
-  final String subtitle;
-
-  final int amount;
-  final TransactionType type;
-
-  /// Localized UI details label
-  final String detailsKey; // e.g. 'earnings_view_campaign_details'
-
-  /// Used for searching (campaign name / keywords)
-  final String searchText;
-
-  const TransactionItem({
-    required this.titleKey,
-    this.titleParams = const {},
-    required this.subtitle,
-    required this.amount,
-    required this.type,
-    required this.detailsKey,
-    required this.searchText,
   });
 }
 
@@ -93,12 +65,12 @@ class EarningsController extends GetxController {
   final transactionCurrentPage = 1.obs;
   final transactionTotalPages = 1.obs;
   final transactionTotalItems = 0.obs;
-  final transactionItems = <TransactionItem>[].obs;
+  final transactionItems = <TransactionModel>[].obs;
 
   // ------------ Internal mock data ------------
   late final List<ClientItem> _allClients;
   late final List<PlatformItem> _allPlatforms;
-  late final List<TransactionItem> _allTransactions;
+  late final List<TransactionModel> _allTransactions;
 
   final int _clientsPageSize = 4;
   final int _transactionsPageSize = 4;
@@ -183,7 +155,7 @@ class EarningsController extends GetxController {
     ];
 
     _allTransactions = [
-      const TransactionItem(
+      const TransactionModel(
         titleKey: 'earnings_payment_for',
         titleParams: {'name': 'Summer Sale'},
         subtitle: 'Today, 2:30 PM',
@@ -192,46 +164,13 @@ class EarningsController extends GetxController {
         detailsKey: 'earnings_view_campaign_details',
         searchText: 'payment summer sale',
       ),
-      const TransactionItem(
+      const TransactionModel(
         titleKey: 'earnings_withdrawal_request',
         subtitle: '3 Dec 2025, 2:30 PM',
         amount: 20000,
         type: TransactionType.outbound,
         detailsKey: 'earnings_view_campaign_details',
         searchText: 'withdrawal request',
-      ),
-      const TransactionItem(
-        titleKey: 'earnings_payment_for',
-        titleParams: {'name': 'Nike Air Max'},
-        subtitle: 'Today, 2:30 PM',
-        amount: 20000,
-        type: TransactionType.inbound,
-        detailsKey: 'earnings_view_campaign_details',
-        searchText: 'payment nike air max',
-      ),
-      const TransactionItem(
-        titleKey: 'earnings_withdrawal_request',
-        subtitle: '3 Dec 2025, 2:30 PM',
-        amount: 20000,
-        type: TransactionType.outbound,
-        detailsKey: 'earnings_view_campaign_details',
-        searchText: 'withdrawal request',
-      ),
-      ...List.generate(
-        60,
-        (i) => TransactionItem(
-          titleKey: i.isEven
-              ? 'earnings_payment_for'
-              : 'earnings_withdrawal_request',
-          titleParams: i.isEven ? {'name': 'Campaign #${i + 5}'} : const {},
-          subtitle: '${i + 4} Dec 2025, 2:${30 + (i % 20)} PM',
-          amount: 15000 + (i % 6) * 1000,
-          type: i.isEven ? TransactionType.inbound : TransactionType.outbound,
-          detailsKey: 'earnings_view_campaign_details',
-          searchText: i.isEven
-              ? 'payment campaign ${i + 5}'
-              : 'withdrawal request',
-        ),
       ),
     ];
   }
@@ -328,5 +267,17 @@ class EarningsController extends GetxController {
 
     transactionItems.assignAll(pageItems);
     transactionIsLoading.value = false;
+  }
+
+  bool get hasPrevClientPage => clientCurrentPage.value > 1;
+  bool get hasPrevTransactionPage => transactionCurrentPage.value > 1;
+
+  Future<void> goToPrevClientPage() async {
+    if (hasPrevClientPage) await fetchClientPage(clientCurrentPage.value - 1);
+  }
+
+  Future<void> goToPrevTransactionPage() async {
+    if (hasPrevTransactionPage)
+      await fetchTransactionPage(transactionCurrentPage.value - 1);
   }
 }

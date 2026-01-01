@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:influencer_app/routes/app_routes.dart';
 
 import '../../../core/theme/app_palette.dart';
 import '../../../core/utils/constants.dart';
@@ -834,85 +835,95 @@ class _MilestoneTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusText = _statusText(m.status);
-    return Container(
-      margin: EdgeInsets.only(bottom: 10.h),
-      padding: EdgeInsets.all(12.w),
-      decoration: BoxDecoration(
-        color: _style(m.status).bg,
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 26.w,
-            height: 26.w,
-            decoration: BoxDecoration(
-              color: AppPalette.defaultFill,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: AppPalette.border1,
-                width: kBorderWidth0_5,
-              ),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              m.stepLabel,
-              style: TextStyle(
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w900,
-                color: AppPalette.greyText,
-              ),
-            ),
-          ),
-          10.w.horizontalSpace,
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  m.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w900,
-                    color: AppPalette.primary,
-                  ),
+    final campaignController = Get.find<BrandCampaignDetailsController>();
+    return InkWell(
+      onTap: () {
+        Get.toNamed(
+          AppRoutes.milestoneDetails,
+          arguments: {'milestone': m, 'job': campaignController.job},
+          id: 1,
+        );
+      },
+      child: Container(
+        margin: EdgeInsets.only(bottom: 10.h),
+        padding: EdgeInsets.all(12.w),
+        decoration: BoxDecoration(
+          color: _style(m.status).bg,
+          borderRadius: BorderRadius.circular(12.r),
+          border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 26.w,
+              height: 26.w,
+              decoration: BoxDecoration(
+                color: AppPalette.defaultFill,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: AppPalette.border1,
+                  width: kBorderWidth0_5,
                 ),
-                2.h.verticalSpace,
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                m.stepLabel,
+                style: TextStyle(
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w900,
+                  color: AppPalette.greyText,
+                ),
+              ),
+            ),
+            10.w.horizontalSpace,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    m.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w900,
+                      color: AppPalette.primary,
+                    ),
+                  ),
+                  2.h.verticalSpace,
+                  Text(
+                    m.subtitle ?? '',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11.sp,
+                      fontWeight: FontWeight.w600,
+                      color: AppPalette.greyText,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            10.w.horizontalSpace,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                _StatusPill(text: statusText),
+                6.h.verticalSpace,
                 Text(
-                  m.subtitle ?? '',
+                  m.dayLabel ?? '',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 11.sp,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 10.5.sp,
+                    fontWeight: FontWeight.w800,
                     color: AppPalette.greyText,
                   ),
                 ),
               ],
             ),
-          ),
-          10.w.horizontalSpace,
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              _StatusPill(text: statusText),
-              6.h.verticalSpace,
-              Text(
-                m.dayLabel ?? '',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 10.5.sp,
-                  fontWeight: FontWeight.w800,
-                  color: AppPalette.greyText,
-                ),
-              ),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

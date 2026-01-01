@@ -8,7 +8,7 @@ class CustomTextFormField extends StatelessWidget {
   final String? title;
   final TextStyle? titleTextStyle;
   final String? initialValue;
-  final String hintText;
+  final String? hintText;
   final TextStyle? textStyle;
   final TextEditingController? controller;
   final bool? enabled;
@@ -23,9 +23,11 @@ class CustomTextFormField extends StatelessWidget {
   final Widget? prefixIcon;
   final Widget? suffixIcon;
   final TextInputAction? textInputAction;
+  final Color? borderColor;
+  final double? borderRadius;
   const CustomTextFormField({
     super.key,
-    required this.hintText,
+    this.hintText,
     this.textStyle,
     this.controller,
     this.enabled,
@@ -43,6 +45,8 @@ class CustomTextFormField extends StatelessWidget {
     this.textInputAction,
     this.title,
     this.titleTextStyle,
+    this.borderColor,
+    this.borderRadius,
   });
 
   @override
@@ -51,9 +55,9 @@ class CustomTextFormField extends StatelessWidget {
         textStyle ?? TextStyle(fontSize: 12.sp, color: AppPalette.black);
 
     final border = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(kBorderRadius.r),
-      borderSide: const BorderSide(
-        color: AppPalette.border1,
+      borderRadius: BorderRadius.circular(borderRadius ?? kBorderRadius.r),
+      borderSide: BorderSide(
+        color: borderColor ?? AppPalette.border1,
         width: kBorderWidth0_5,
       ),
     );
@@ -71,7 +75,7 @@ class CustomTextFormField extends StatelessWidget {
       obscureText: obscureText,
       textInputAction: textInputAction,
       decoration: InputDecoration(
-        hintText: hintText,
+        hintText: hintText ?? (title != null ? 'Enter $title' : ''),
         hintStyle: style.copyWith(color: AppPalette.subtext),
         isDense: true,
         labelStyle: style,

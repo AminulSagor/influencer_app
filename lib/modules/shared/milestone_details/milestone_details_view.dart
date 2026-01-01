@@ -4,11 +4,16 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:influencer_app/core/services/account_type_service.dart';
 import 'package:influencer_app/core/theme/app_palette.dart';
+import 'package:influencer_app/core/theme/app_theme.dart';
 import 'package:influencer_app/core/utils/constants.dart';
+import 'package:influencer_app/core/widgets/custom_button.dart';
 
 import '../../../core/models/job_item.dart';
-import '../../../core/widgets/custom_text_field.dart';
 import 'milestone_details_controller.dart';
+import 'widgets/brand_submission_card.dart';
+import 'widgets/milestone_header_card.dart';
+import 'widgets/status_summary_card.dart';
+import 'widgets/submission_card.dart';
 
 class MilestoneDetailsView extends GetView<MilestoneDetailsController> {
   const MilestoneDetailsView({super.key});
@@ -20,1016 +25,480 @@ class MilestoneDetailsView extends GetView<MilestoneDetailsController> {
     final accountTypeService = Get.find<AccountTypeService>();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppPalette.background,
+      bottomNavigationBar: accountTypeService.isBrand
+          ? Obx(() {
+              final isPaidAd = job.campaignType == CampaignType.paidAd;
+              final selected = controller.selectedBrandSubmission;
+
+              if (selected == null) return const SizedBox.shrink();
+
+              // hide if already completed (optional)
+              if (selected.status.value == BrandSubmissionStatus.completed) {
+                return const SizedBox.shrink();
+              }
+
+              return _AcceptDeclineSection(
+                isPaidAd: isPaidAd,
+                onAccept: controller.approveSelectedBrandSubmission,
+                onDecline: () => _showDeclineSheet(
+                  context: context,
+                  onSubmit: (reason) {
+                    controller.declineSelectedBrandSubmission(reason);
+                  },
+                ),
+              );
+            })
+          : null,
+
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
-        padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 24.h),
+        // padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 24.h),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // HEADER CARD
-            Obx(
-              () => _MilestoneHeaderCard(
-                job: job,
-                milestone: milestone,
-                isExpanded: controller.headerExpanded.value,
-                onToggle: controller.toggleHeader,
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16.w),
+              child: Obx(
+                () => MilestoneHeaderCard(
+                  job: job,
+                  milestone: milestone,
+                  isExpanded: controller.headerExpanded.value,
+                  onToggle: controller.toggleHeader,
+                ),
               ),
             ),
-            SizedBox(height: 20.h),
+            SizedBox(height: 14.h),
+
+            if (accountTypeService.isBrand) ...[
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16.w),
+                child: Obx(() {
+                  final reported = controller.hasReportedToAdmin.value;
+
+                  if (!reported) {
+                    // IMAGE 1/2: open write report dialog
+                    return CustomButton(
+                      onTap: () => _showWriteReportDialog(
+                        context: context,
+                        onSubmit: (reason) =>
+                            controller.submitAdminReport(reason),
+                      ),
+                      btnText: 'report_admin_btn'.tr, // "Report Admin"
+                      width: double.infinity,
+                      gradient: LinearGradient(
+                        colors: [AppPalette.secondary, AppPalette.primary],
+                      ),
+                      textStyle: AppTheme.textStyle.copyWith(
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.w500,
+                        color: AppPalette.white,
+                      ),
+                      height: 50.h,
+                    );
+                  }
+
+                  // IMAGE 3/4: after submit show banner + view button
+                  final againAt = controller.reportAgainAt.value;
+                  final againText = againAt == null
+                      ? ''
+                      : '${'report_again_on'.tr} ${controller.formatReportDateTime(againAt)}';
+
+                  return Column(
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 18.w,
+                          vertical: 16.h,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppPalette.secondary,
+                          borderRadius: BorderRadius.circular(12.r),
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              'reported_to_admin_title'
+                                  .tr, // "Reported To Admin"
+                              style: TextStyle(
+                                fontSize: 16.sp,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                            ),
+                            if (againText.isNotEmpty) ...[
+                              SizedBox(height: 6.h),
+                              Text(
+                                againText,
+                                style: TextStyle(
+                                  fontSize: 11.sp,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.white.withOpacity(0.9),
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      SizedBox(height: 12.h),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50.h,
+                        child: OutlinedButton(
+                          onPressed: () =>
+                              _showSubmittedReportsDialog(context: context),
+                          style: OutlinedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            side: BorderSide(color: AppPalette.border1),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12.r),
+                            ),
+                          ),
+                          child: Text(
+                            'view_submitted_report'
+                                .tr, // "View Submitted Report"
+                            style: TextStyle(
+                              fontSize: 15.sp,
+                              fontWeight: FontWeight.w700,
+                              color: AppPalette.primary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                }),
+              ),
+              SizedBox(height: 14.h),
+            ],
+            SizedBox(height: 14.h),
 
             // STATUS
-            Obx(
-              () => _StatusSummaryCard(
-                statusText: controller.statusChipText,
-                statusColor: controller.statusChipColor,
-                statusBgColor: controller.statusBgColor,
-                statusChipTextColor: controller.statusChipTextColor,
-                statusTextColor: controller.statusTextColor,
-                dateLabel: controller.job.dateLabel,
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16.w),
+              child: Obx(
+                () => StatusSummaryCard(
+                  statusText: controller.statusChipText,
+                  statusColor: controller.statusChipColor,
+                  statusBgColor: controller.statusBgColor,
+                  statusChipTextColor: controller.statusChipTextColor,
+                  statusTextColor: controller.statusTextColor,
+                  dateLabel: controller.job.dateLabel,
+                ),
               ),
             ),
             SizedBox(height: 16.h),
 
             // PARTIAL PAYMENT PROGRESS
-            Obx(
-              () =>
-                  controller.showPaymentProgress &&
-                      accountTypeService.isAdAgency
-                  ? _PaymentProgressSection(
-                      leftLabel: controller.progressLeftLabel,
-                      rightLabel: controller.progressRightLabel,
-                      progress: controller.paymentProgressValue,
-                    )
-                  : const SizedBox.shrink(),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16.w),
+              child: Obx(
+                () =>
+                    controller.showPaymentProgress &&
+                        accountTypeService.isAdAgency
+                    ? Padding(
+                        padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 24.h),
+                        child: _PaymentProgressSection(
+                          leftLabel: controller.progressLeftLabel,
+                          rightLabel: controller.progressRightLabel,
+                          progress: controller.paymentProgressValue,
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
             ),
             SizedBox(height: 12.h),
+
+            if (accountTypeService.isBrand) ...[
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16.w),
+                child: Obx(() {
+                  final isPaidAd = job.campaignType == CampaignType.paidAd;
+                  return Column(
+                    children: [
+                      for (final s in controller.brandSubmissions) ...[
+                        BrandSubmissionCard(
+                          submission: s,
+                          isPaidAd: isPaidAd,
+                          onToggle: isPaidAd
+                              ? () => controller.toggleBrandSubmissionExpanded(
+                                  s.index,
+                                )
+                              : null,
+                        ),
+                        SizedBox(height: 12.h),
+                      ],
+                    ],
+                  );
+                }),
+              ),
+              SizedBox(height: 10.h),
+            ],
 
             // SUBMISSIONS
-            Obx(
-              () => Column(
-                children: [
-                  for (int i = 0; i < controller.submissions.length; i++)
-                    Padding(
-                      padding: EdgeInsets.only(bottom: 16.h),
-                      child: _SubmissionCard(
-                        index: i,
-                        submission: controller.submissions[i],
-                        onPickFiles: () => controller.pickProofFor(i),
-                        onRemoveProof: (pi) => controller.removeProof(i, pi),
-                        onEditDeclined: () => controller.enableEditForDeclined(
-                          controller.submissions[i],
+            if (!accountTypeService.isBrand)
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16.w),
+                child: Obx(
+                  () => Column(
+                    children: [
+                      for (int i = 0; i < controller.submissions.length; i++)
+                        Padding(
+                          padding: EdgeInsets.only(bottom: 16.h),
+                          child: SubmissionCard(
+                            index: i,
+                            submission: controller.submissions[i],
+                            onPickFiles: () => controller.pickProofFor(i),
+                            onRemoveProof: (pi) =>
+                                controller.removeProof(i, pi),
+                            onEditDeclined: () =>
+                                controller.enableEditForDeclined(
+                                  controller.submissions[i],
+                                ),
+                            accountTypeService: accountTypeService,
+                          ),
                         ),
-                        accountTypeService: accountTypeService,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            SizedBox(height: 8.h),
-            _AddAnotherSubmissionButton(onTap: controller.addSubmission),
-            SizedBox(height: 24.h),
-
-            // BOTTOM AGREEMENT + SUBMIT
-            Obx(
-              () => _MilestoneBottomSection(
-                confirmOwnership: controller.confirmOwnership.value,
-                acceptLicense: controller.acceptLicense.value,
-                onToggleOwnership: controller.toggleOwnership,
-                onToggleLicense: controller.toggleLicense,
-                onSubmit: controller.submitForReview,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// HEADER CARD   (Milestone Details gradient card)
-// ---------------------------------------------------------------------------
-
-class _MilestoneHeaderCard extends StatelessWidget {
-  final JobItem job;
-  final Milestone milestone;
-  final bool isExpanded;
-  final VoidCallback onToggle;
-
-  const _MilestoneHeaderCard({
-    required this.job,
-    required this.milestone,
-    required this.isExpanded,
-    required this.onToggle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isAgency = Get.find<AccountTypeService>().isAdAgency;
-    return Container(
-      padding: EdgeInsets.all(18.w),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(kBorderRadius.r),
-        gradient: const LinearGradient(
-          colors: [AppPalette.gradient1, AppPalette.secondary],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // TOP ROW
-          Row(
-            children: [
-              GestureDetector(
-                onTap: () => Get.back(),
-                child: Icon(
-                  Icons.arrow_back,
-                  size: 16.sp,
-                  color: AppPalette.thirdColor,
-                ),
-              ),
-              SizedBox(width: 6.w),
-              Text(
-                'Milestone Details',
-                style: TextStyle(
-                  color: AppPalette.thirdColor,
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const Spacer(),
-              GestureDetector(
-                onTap: onToggle,
-                child: Icon(
-                  isExpanded
-                      ? Icons.keyboard_arrow_up_rounded
-                      : Icons.keyboard_arrow_down_rounded,
-                  size: 32.sp,
-                  color: AppPalette.thirdColor,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 14.h),
-
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Image.asset(
-                'assets/icons/mission.png',
-                width: 29.w,
-                height: 29.w,
-                fit: BoxFit.cover,
-                color: AppPalette.thirdColor,
-              ),
-              SizedBox(width: 10.w),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'For Milestone ${milestone.stepLabel}',
-                    style: TextStyle(
-                      color: AppPalette.thirdColor,
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.w300,
-                    ),
+                    ],
                   ),
-                  Text(
-                    milestone.title,
-                    style: TextStyle(
-                      color: AppPalette.thirdColor,
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-
-          // COLLAPSED: stop here
-          if (isExpanded) ...[
-            SizedBox(height: 16.h),
-
-            // CAMPAIGN NAME
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Image.asset(
-                  'assets/icons/online_ads.png',
-                  width: 29.w,
-                  height: 29.w,
-                  fit: BoxFit.cover,
-                  color: AppPalette.thirdColor,
-                ),
-                SizedBox(width: 10.w),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Campaign',
-                      style: TextStyle(
-                        color: AppPalette.thirdColor,
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.w300,
-                      ),
-                    ),
-                    SizedBox(height: 4.h),
-                    Text(
-                      job.title,
-                      style: TextStyle(
-                        color: AppPalette.thirdColor,
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            SizedBox(height: 12.h),
-            Divider(color: AppPalette.border1, height: 1),
-            SizedBox(height: 12.h),
-
-            // CONTENT REQUIREMENTS
-            _HeaderSectionTitle(
-              iconPath: 'assets/icons/requirement.png',
-              title: 'Content Requirements',
-              subTitle:
-                  '• ${milestone.subtitle ?? 'Final Report + 2 Instagram Stories'}',
-            ),
-            SizedBox(height: 14.h),
-            Divider(color: AppPalette.border1, height: 1),
-            SizedBox(height: 14.h),
-
-            // PROMOTION TARGET or Milestone Target
-            _HeaderSectionTitle(
-              iconPath: 'assets/icons/goal.png',
-              title: isAgency ? 'Promotion Target' : 'Milestone Target',
-            ),
-            SizedBox(height: 6.h),
-            if (isAgency) ...[
-              Text(
-                'Facebook',
-                style: TextStyle(
-                  color: AppPalette.thirdColor,
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w500,
                 ),
               ),
+
+            if (!accountTypeService.isBrand) ...[
               SizedBox(height: 8.h),
-              _TargetCard(title: 'Reach', value: '300K'),
-
-              SizedBox(height: 18.h),
-
-              // PROMOTION GOAL
-              _HeaderSectionTitle(
-                iconPath:
-                    'assets/icons/goal.png', // or Icons.adjust_rounded etc.
-                title: 'Promotion Goal',
-                subTitle: 'Gain Page Like As Much As Possible',
-              ),
-            ],
-            if (!isAgency)
-              Center(
-                child: Wrap(
-                  alignment: WrapAlignment.center,
-                  crossAxisAlignment: .center,
-                  spacing: 16.w,
-                  runSpacing: 10.h,
-                  children: [
-                    _TargetCard(
-                      title: 'Reach',
-                      value: '300K',
-                      width: 115.w,
-                      trailingIcon: Icons.remove_red_eye_rounded,
-                    ),
-                    _TargetCard(
-                      title: 'Views',
-                      value: '300K',
-                      width: 115.w,
-                      trailingIcon: Icons.play_arrow_rounded,
-                    ),
-                    _TargetCard(
-                      title: 'Reaction',
-                      value: '300K',
-                      width: 115.w,
-                      trailingIcon: Icons.favorite_rounded,
-                    ),
-                    _TargetCard(
-                      title: 'Comment',
-                      value: '300K',
-                      width: 115.w,
-                      trailingIcon: Icons.chat_bubble_rounded,
-                    ),
-                  ],
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16.w),
+                child: _AddAnotherSubmissionButton(
+                  onTap: controller.addSubmission,
                 ),
               ),
-            SizedBox(height: 25.h),
-            Row(
-              children: [
-                Spacer(),
-                Text(
-                  'Client: ${job.clientName}',
-                  style: TextStyle(
-                    color: AppPalette.thirdColor,
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 4.h),
-            Divider(color: Colors.white.withOpacity(0.4), height: 1),
-            SizedBox(height: 12.h),
+              SizedBox(height: 24.h),
 
-            // CLIENT + PAYOUT
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Payout On Approval',
-                    style: TextStyle(
-                      color: AppPalette.thirdColor,
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                Text(
-                  milestone.amountLabel,
-                  style: TextStyle(
-                    color: AppPalette.thirdColor,
-                    fontSize: 24.sp,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _TargetCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData? trailingIcon;
-  final double? width;
-
-  const _TargetCard({
-    required this.title,
-    required this.value,
-    this.trailingIcon,
-    this.width,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: width ?? double.infinity,
-      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(kBorderRadius.r),
-        border: Border.all(color: AppPalette.thirdColor, width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: .spaceBetween,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  color: AppPalette.thirdColor,
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              if (trailingIcon != null)
-                Icon(trailingIcon, size: 15.sp, color: AppPalette.thirdColor),
-            ],
-          ),
-          SizedBox(height: 4.h),
-          Text(
-            value,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 22.sp,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HeaderSectionTitle extends StatelessWidget {
-  final String iconPath;
-  final String title;
-  final String? subTitle;
-
-  const _HeaderSectionTitle({
-    required this.iconPath,
-    required this.title,
-    this.subTitle = '',
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Image.asset(
-          iconPath,
-          width: 29.w,
-          height: 29.w,
-          fit: BoxFit.cover,
-          color: AppPalette.thirdColor,
-          filterQuality: FilterQuality.high,
-        ),
-        SizedBox(width: 6.w),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: TextStyle(
-                color: AppPalette.thirdColor,
-                fontSize: 16.sp,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            if (subTitle!.isNotEmpty) ...[
-              3.h.verticalSpace,
-
-              Text(
-                subTitle!,
-                style: TextStyle(
-                  color: AppPalette.thirdColor,
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w400,
+              // BOTTOM AGREEMENT + SUBMIT
+              Obx(
+                () => _MilestoneBottomSection(
+                  confirmOwnership: controller.confirmOwnership.value,
+                  acceptLicense: controller.acceptLicense.value,
+                  onToggleOwnership: controller.toggleOwnership,
+                  onToggleLicense: controller.toggleLicense,
+                  onSubmit: controller.submitForReview,
                 ),
               ),
             ],
+
+            // if (accountTypeService.isBrand) ...[
+            //   Obx(() {
+            //     controller.selectedBrandSubmission?.status.value;
+            //     final isPaidAd = job.campaignType == CampaignType.paidAd;
+            //     return _AcceptDeclineSection(
+            //       isPaidAd: isPaidAd,
+            //       onAccept: controller.approveSelectedBrandSubmission,
+            //       onDecline: () => _showDeclineSheet(
+            //         context: context,
+            //         onSubmit: (reason) {
+            //           controller.declineSelectedBrandSubmission(reason);
+            //         },
+            //       ),
+            //     );
+            //   }),
+            // ],
           ],
         ),
-      ],
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// STATUS SUMMARY CARD
-// ---------------------------------------------------------------------------
-
-class _StatusSummaryCard extends StatelessWidget {
-  final String statusText;
-  final Color statusColor;
-  final Color statusTextColor;
-  final Color statusChipTextColor;
-  final Color statusBgColor;
-  final String dateLabel;
-
-  const _StatusSummaryCard({
-    required this.statusText,
-    required this.statusColor,
-    required this.statusTextColor,
-    required this.dateLabel,
-    required this.statusChipTextColor,
-    required this.statusBgColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(colors: [AppPalette.white, statusBgColor]),
-        borderRadius: BorderRadius.circular(kBorderRadius.r),
-        border: Border.all(color: statusTextColor, width: kBorderWidth0_5),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Title
-          Text(
-            'Status',
-            style: TextStyle(
-              fontSize: 12.sp,
-              fontWeight: FontWeight.w500,
-              color: statusTextColor,
-            ),
-          ),
-          SizedBox(height: 10.h),
-
-          // Center pill with current status
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 4.h),
-            decoration: BoxDecoration(
-              color: statusColor,
-              borderRadius: BorderRadius.circular(999.r),
-            ),
-            child: Text(
-              statusText,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 20.sp,
-                fontWeight: FontWeight.w500,
-                color: statusChipTextColor,
-              ),
-            ),
-          ),
-          SizedBox(height: 10.h),
-
-          // Date row
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.access_time_filled,
-                size: 12.sp,
-                color: statusTextColor,
-              ),
-              SizedBox(width: 6.w),
-              Text(
-                dateLabel,
-                style: TextStyle(fontSize: 12.sp, color: statusTextColor),
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }
 }
 
-// ---------------------------------------------------------------------------
-// SUBMISSION CARD
-// ---------------------------------------------------------------------------
+class _AcceptDeclineSection extends StatelessWidget {
+  final bool isPaidAd;
+  final VoidCallback onAccept;
+  final VoidCallback onDecline;
 
-class _SubmissionCard extends StatelessWidget {
-  final int index;
-  final SubmissionUiModel submission;
-  final VoidCallback onPickFiles;
-  final Function(int proofIndex) onRemoveProof;
-  final VoidCallback onEditDeclined;
-  final AccountTypeService accountTypeService;
-
-  const _SubmissionCard({
-    required this.index,
-    required this.submission,
-    required this.onPickFiles,
-    required this.onRemoveProof,
-    required this.onEditDeclined,
-    required this.accountTypeService,
+  const _AcceptDeclineSection({
+    required this.isPaidAd,
+    required this.onAccept,
+    required this.onDecline,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Obx(() {
-      // chip style
-      String chipText;
-      Color chipBg;
-      Color chipTextColor;
+    final declineText = isPaidAd
+        ? 'brand_decline_selected'.tr
+        : 'common_decline'.tr;
 
-      if (!submission.isSubmitted.value) {
-        chipText = 'Draft';
-        chipBg = AppPalette.neutralGrey;
-        chipTextColor = AppPalette.white;
-      } else {
-        switch (submission.status.value) {
-          case SubmissionStatus.inReview:
-            chipText = 'In Review';
-            chipBg = AppPalette.complemetaryFill;
-            chipTextColor = AppPalette.complemetary;
-            break;
-          case SubmissionStatus.approved:
-            chipText = 'Approved';
-            chipBg = AppPalette.secondary;
-            chipTextColor = AppPalette.white;
-            break;
-          case SubmissionStatus.declined:
-            chipText = 'Declined';
-            chipBg = AppPalette.color2text;
-            chipTextColor = AppPalette.white;
-            break;
-        }
-      }
+    final approveText = isPaidAd
+        ? 'brand_approve_selected'.tr
+        : 'common_accept'.tr;
 
-      final isEditable = submission.isEditable;
-
-      final textStyle = TextStyle(fontSize: 12.sp, fontWeight: FontWeight.w400);
-
-      final isAdAgency = accountTypeService.isAdAgency;
-
-      return Container(
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 16.h),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(kBorderRadius.r),
-          border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(kBorderRadius),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
+            ),
+          ],
         ),
-        child: Column(
+        child: Row(
           children: [
-            // header row
-            InkWell(
-              borderRadius: BorderRadius.circular(kBorderRadius.r),
-              onTap: () => submission.isExpanded.toggle(),
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 18.w, vertical: 20.h),
-                child: Row(
-                  children: [
-                    Text(
-                      isAdAgency
-                          ? 'Submission ${submission.index}'
-                          : 'Your Submission',
-                      style: TextStyle(
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w600,
-                        color: AppPalette.black,
-                      ),
+            Expanded(
+              child: SizedBox(
+                height: 42.h,
+                child: OutlinedButton(
+                  onPressed: onDecline,
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: AppPalette.border1),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10.r),
                     ),
-                    SizedBox(width: 8.w),
-                    if (isAdAgency)
-                      Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 10.w,
-                          vertical: 3.h,
-                        ),
-                        decoration: BoxDecoration(
-                          color: chipBg,
-                          borderRadius: BorderRadius.circular(999.r),
-                        ),
-                        child: Text(
-                          chipText,
-                          style: TextStyle(
-                            fontSize: 10.sp,
-                            fontWeight: FontWeight.w500,
-                            color: chipTextColor,
-                          ),
-                        ),
-                      ),
-                    const Spacer(),
-                    Text(
-                      submission.amountController.text.isEmpty
-                          ? ''
-                          : submission.amountController.text,
-                      style: TextStyle(
-                        fontSize: 13.sp,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF315719),
-                      ),
+                    backgroundColor: Colors.white,
+                  ),
+                  child: Text(
+                    declineText,
+                    style: TextStyle(
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w600,
+                      color: AppPalette.black,
                     ),
-                    if (submission.isSubmitted.value &&
-                        submission.status.value ==
-                            SubmissionStatus.declined) ...[
-                      SizedBox(width: 8.w),
-                      GestureDetector(
-                        onTap: onEditDeclined,
-                        child: Icon(
-                          Icons.edit_square,
-                          size: 18.sp,
-                          color: AppPalette.secondary,
-                        ),
-                      ),
-                    ],
-                    SizedBox(width: 6.w),
-                    Icon(
-                      submission.isExpanded.value
-                          ? Icons.keyboard_arrow_up_rounded
-                          : Icons.keyboard_arrow_down_rounded,
-                      size: 20.sp,
-                      color: Colors.grey[800],
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
-
-            // body
-            if (submission.isExpanded.value)
-              Padding(
-                padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 16.h),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(height: 8.h),
-                    _IconTitle(
-                      iconPath: 'assets/icons/about_me.png',
-                      title: 'Description / Update (Optional)',
+            SizedBox(width: 12.w),
+            Expanded(
+              child: SizedBox(
+                height: 42.h,
+                child: ElevatedButton(
+                  onPressed: onAccept,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF7BB23B),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10.r),
                     ),
-                    SizedBox(height: 12.h),
-                    CustomTextField(
-                      hintText: 'Write description...',
-                      textStyle: textStyle,
-                      controller: submission.descriptionController,
-                      enabled: isEditable,
-                      maxLines: 4,
+                    elevation: 0,
+                  ),
+                  child: Text(
+                    approveText,
+                    style: TextStyle(
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
                     ),
-                    SizedBox(height: 16.h),
-
-                    if (isAdAgency) ...[
-                      _IconTitle(
-                        iconPath: 'assets/icons/online_payment.png',
-                        title: 'Request Payment Amount',
-                      ),
-                      SizedBox(height: 6.h),
-                      CustomTextField(
-                        hintText: '৳3,000',
-                        textStyle: textStyle.copyWith(fontSize: 14.sp),
-                        controller: submission.amountController,
-                        enabled: isEditable,
-                        textAlign: TextAlign.center,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 12.w,
-                          vertical: 14.h,
-                        ),
-                      ),
-                      SizedBox(height: 16.h),
-                    ],
-
-                    Container(
-                      padding: EdgeInsets.all(16.w),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(kBorderRadius),
-                        border: Border.all(
-                          color: AppPalette.border1,
-                          width: kBorderWidth0_5,
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          _IconTitle(
-                            iconPath: 'assets/icons/webpage_click.png',
-                            title: 'Add Live Links',
-                            trailing: GestureDetector(
-                              onTap: isEditable
-                                  ? () {
-                                      submission.linkController.clear();
-                                    }
-                                  : null,
-                              child: Image.asset(
-                                'assets/icons/trash_can.png',
-                                width: 20.w,
-                                height: 20.w,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          ),
-                          SizedBox(height: 4.h),
-                          CustomTextField(
-                            hintText: 'https://instagram.com/...',
-                            textStyle: textStyle,
-                            controller: submission.linkController,
-                            enabled: isEditable,
-                          ),
-                          SizedBox(height: 16.h),
-
-                          _IconTitle(
-                            iconPath: 'assets/icons/increase.png',
-                            title: 'Performance Metrics',
-                          ),
-                          SizedBox(height: 8.h),
-                          if (isAdAgency)
-                            Row(
-                              children: [
-                                Expanded(
-                                  flex: 2,
-                                  child: CustomTextField(
-                                    hintText: 'Reach',
-                                    textStyle: textStyle,
-                                    controller:
-                                        submission.metricLabelController,
-                                    enabled: isEditable,
-                                    fillColor: AppPalette.gradient3,
-                                  ),
-                                ),
-                                SizedBox(width: 10.w),
-                                Expanded(
-                                  flex: 3,
-                                  child: CustomTextField(
-                                    hintText: '2.5M',
-                                    textStyle: textStyle,
-                                    controller:
-                                        submission.metricValueController,
-                                    enabled: isEditable,
-                                  ),
-                                ),
-                              ],
-                            ),
-
-                          if (!isAdAgency) ...[
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    children: [
-                                      CustomTextField(
-                                        hintText: 'Reach',
-                                        textStyle: textStyle,
-                                        controller:
-                                            submission.metricLabelController,
-                                        enabled: isEditable,
-                                        fillColor: AppPalette.gradient3,
-                                      ),
-                                      SizedBox(width: 10.w),
-                                      CustomTextField(
-                                        hintText: '2.5M',
-                                        textStyle: textStyle,
-                                        controller:
-                                            submission.metricValueController,
-                                        enabled: isEditable,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Expanded(
-                                  child: Column(
-                                    children: [
-                                      CustomTextField(
-                                        hintText: 'Reach',
-                                        textStyle: textStyle,
-                                        controller:
-                                            submission.metricLabelController,
-                                        enabled: isEditable,
-                                        fillColor: AppPalette.gradient3,
-                                      ),
-                                      SizedBox(width: 10.w),
-                                      CustomTextField(
-                                        hintText: '2.5M',
-                                        textStyle: textStyle,
-                                        controller:
-                                            submission.metricValueController,
-                                        enabled: isEditable,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                          SizedBox(height: 16.h),
-
-                          _IconTitle(
-                            iconPath:
-                                'assets/icons/checked_identification_documents.png',
-                            title: 'Attach Proof (Screenshots, Videos)',
-                          ),
-                          SizedBox(height: 8.h),
-                          GestureDetector(
-                            onTap: isEditable ? onPickFiles : null,
-                            child: Container(
-                              height: 140.h,
-                              width: double.infinity,
-                              decoration: BoxDecoration(
-                                color: AppPalette.defaultFill,
-                                borderRadius: BorderRadius.circular(
-                                  kBorderRadius.r,
-                                ),
-                                border: Border.all(
-                                  color: AppPalette.border1,
-                                  width: 1,
-                                ),
-                              ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.file_upload_outlined,
-                                    size: 26.sp,
-                                    color: isEditable
-                                        ? Colors.grey[700]
-                                        : Colors.grey[400],
-                                  ),
-                                  SizedBox(height: 8.h),
-                                  Text(
-                                    'Tap to Upload Files',
-                                    style: TextStyle(
-                                      fontSize: 14.sp,
-                                      fontWeight: FontWeight.w500,
-                                      color: AppPalette.greyText,
-                                    ),
-                                  ),
-                                  SizedBox(height: 4.h),
-                                  Text(
-                                    'Screenshots, Videos or other proof',
-                                    style: TextStyle(
-                                      fontSize: 12.sp,
-                                      color: AppPalette.greyText,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          SizedBox(height: 8.h),
-
-                          Obx(
-                            () => Wrap(
-                              spacing: 6.w,
-                              runSpacing: 4.h,
-                              children: [
-                                for (
-                                  int i = 0;
-                                  i < submission.proofs.length;
-                                  i++
-                                )
-                                  Chip(
-                                    label: Text(
-                                      submission.proofs[i].name,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    onDeleted: isEditable
-                                        ? () => onRemoveProof(i)
-                                        : null,
-                                  ),
-                              ],
-                            ),
-                          ),
-
-                          SizedBox(height: 12.h),
-                          if (isEditable)
-                            _AddAnotherProofButton(onTap: onPickFiles),
-                        ],
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
+            ),
           ],
-        ),
-      );
-    });
-  }
-}
-
-class _IconTitle extends StatelessWidget {
-  final String iconPath;
-  final String title;
-  final Widget? trailing;
-  const _IconTitle({
-    required this.iconPath,
-    required this.title,
-    this.trailing,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Image.asset(iconPath, width: 20.w, height: 20.w, fit: BoxFit.cover),
-        4.w.horizontalSpace,
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 14.sp,
-            fontWeight: FontWeight.w500,
-            color: AppPalette.black,
-          ),
-        ),
-        if (trailing != null) ...[Spacer(), trailing!],
-      ],
-    );
-  }
-}
-
-class _AddAnotherProofButton extends StatelessWidget {
-  final VoidCallback onTap;
-
-  const _AddAnotherProofButton({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 72,
-      child: OutlinedButton(
-        onPressed: onTap,
-        style: OutlinedButton.styleFrom(
-          padding: EdgeInsets.symmetric(vertical: 10.h),
-          side: const BorderSide(color: Color(0xFFD1D5DB)),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(kBorderRadius.r),
-          ),
-        ),
-        child: Text(
-          '+ Add Another Proof',
-          style: TextStyle(
-            fontSize: 12.sp,
-            fontWeight: FontWeight.w500,
-            color: const Color(0xFF315719),
-          ),
         ),
       ),
     );
   }
+}
+
+void _showDeclineSheet({
+  required BuildContext context,
+  required void Function(String reason) onSubmit,
+}) {
+  final tc = TextEditingController();
+
+  Get.bottomSheet(
+    SafeArea(
+      child: Container(
+        padding: EdgeInsets.fromLTRB(16.w, 14.h, 16.w, 16.h),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16.r)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                InkWell(
+                  onTap: () => Get.back(),
+                  borderRadius: BorderRadius.circular(999.r),
+                  child: Container(
+                    width: 28.w,
+                    height: 28.w,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Color(0xFFD32F2F),
+                    ),
+                    child: Icon(Icons.close, size: 18.sp, color: Colors.white),
+                  ),
+                ),
+                SizedBox(width: 10.w),
+                Text(
+                  'brand_decline_reason_title'.tr, // ✅ BN/EN
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFFD32F2F),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 12.h),
+
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10.r),
+                border: Border.all(color: const Color(0xFFD32F2F), width: 1),
+              ),
+              child: TextField(
+                controller: tc,
+                maxLines: 5,
+                decoration: InputDecoration(
+                  hintText: 'brand_decline_reason_hint'.tr,
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.all(12.w),
+                ),
+              ),
+            ),
+            SizedBox(height: 14.h),
+
+            SizedBox(
+              width: double.infinity,
+              height: 44.h,
+              child: ElevatedButton(
+                onPressed: () {
+                  onSubmit(tc.text);
+                  Get.back();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFD32F2F),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10.r),
+                  ),
+                  elevation: 0,
+                ),
+                child: Text(
+                  'brand_decline_submit'.tr,
+                  style: TextStyle(
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+    isScrollControlled: true,
+  );
 }
 
 class _AddAnotherSubmissionButton extends StatelessWidget {
@@ -1268,4 +737,241 @@ class _PaymentProgressSection extends StatelessWidget {
       ],
     );
   }
+}
+
+void _showWriteReportDialog({
+  required BuildContext context,
+  required void Function(String reason) onSubmit,
+}) {
+  final tc = TextEditingController();
+
+  Get.dialog(
+    Dialog(
+      insetPadding: EdgeInsets.symmetric(horizontal: 18.w),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14.r)),
+      child: Container(
+        padding: EdgeInsets.all(16.w),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14.r),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.flag_rounded,
+                  color: AppPalette.secondary,
+                  size: 20.sp,
+                ),
+                SizedBox(width: 8.w),
+                Text(
+                  'write_report_title'.tr, // "Write Report"
+                  style: TextStyle(
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w800,
+                    color: AppPalette.secondary,
+                  ),
+                ),
+                const Spacer(),
+                InkWell(
+                  onTap: () => Get.back(),
+                  child: Icon(
+                    Icons.close,
+                    size: 20.sp,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 12.h),
+
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12.r),
+                border: Border.all(
+                  color: AppPalette.secondary.withOpacity(0.6),
+                ),
+              ),
+              child: TextField(
+                controller: tc,
+                maxLines: 6,
+                decoration: InputDecoration(
+                  hintText: 'write_report_hint'.tr, // "Write your reasons..."
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.all(12.w),
+                ),
+              ),
+            ),
+
+            SizedBox(height: 14.h),
+            SizedBox(
+              width: double.infinity,
+              height: 46.h,
+              child: ElevatedButton(
+                onPressed: () {
+                  onSubmit(tc.text);
+                  Get.back();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppPalette.secondary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                  elevation: 0,
+                ),
+                child: Text(
+                  'submit_report_btn'.tr, // "Submit Report"
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+    barrierDismissible: true,
+  );
+}
+
+void _showSubmittedReportsDialog({required BuildContext context}) {
+  final c = Get.find<MilestoneDetailsController>();
+
+  Get.dialog(
+    Dialog(
+      insetPadding: EdgeInsets.symmetric(horizontal: 18.w),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14.r)),
+      child: Container(
+        height: 520.h,
+        padding: EdgeInsets.all(16.w),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14.r),
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.flag_rounded,
+                  color: AppPalette.secondary,
+                  size: 20.sp,
+                ),
+                SizedBox(width: 8.w),
+                Text(
+                  'submitted_report_title'.tr, // "Submitted Report"
+                  style: TextStyle(
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w800,
+                    color: AppPalette.secondary,
+                  ),
+                ),
+                const Spacer(),
+                InkWell(
+                  onTap: () => Get.back(),
+                  child: Icon(
+                    Icons.close,
+                    size: 20.sp,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 12.h),
+
+            Expanded(
+              child: Obx(() {
+                final list = c.submittedReports;
+
+                if (list.isEmpty) {
+                  return Center(
+                    child: Text(
+                      'no_reports_yet'.tr,
+                      style: TextStyle(
+                        fontSize: 13.sp,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  );
+                }
+
+                return ListView.separated(
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: list.length,
+                  separatorBuilder: (_, __) => SizedBox(height: 12.h),
+                  itemBuilder: (_, i) {
+                    final item = list[i];
+                    final idx =
+                        list.length - i; // so top looks like "Report 1/2" style
+                    return Column(
+                      children: [
+                        Container(
+                          width: double.infinity,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 14.w,
+                            vertical: 10.h,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppPalette.gradient3,
+                            borderRadius: BorderRadius.circular(12.r),
+                          ),
+                          child: Row(
+                            children: [
+                              Text(
+                                'Report $idx',
+                                style: TextStyle(
+                                  fontSize: 12.sp,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppPalette.primary,
+                                ),
+                              ),
+                              const Spacer(),
+                              Text(
+                                c.formatReportDateTime(item.createdAt),
+                                style: TextStyle(
+                                  fontSize: 11.sp,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppPalette.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        SizedBox(height: 8.h),
+                        Container(
+                          width: double.infinity,
+                          padding: EdgeInsets.all(12.w),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12.r),
+                            border: Border.all(
+                              color: AppPalette.secondary.withOpacity(0.4),
+                            ),
+                          ),
+                          child: Text(
+                            item.reason,
+                            style: TextStyle(
+                              fontSize: 12.sp,
+                              color: Colors.grey[800],
+                              height: 1.45,
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                );
+              }),
+            ),
+          ],
+        ),
+      ),
+    ),
+    barrierDismissible: true,
+  );
 }

@@ -18,6 +18,7 @@ class SignupInfluencerKycView extends GetView<SignupInfluencerController> {
 
   @override
   Widget build(BuildContext context) {
+    final accountType = controller.accountTypeService;
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -38,7 +39,9 @@ class SignupInfluencerKycView extends GetView<SignupInfluencerController> {
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    'influ_kyc_title'.tr,
+                    accountType.isBrand
+                        ? 'brand_kyc_title'.tr
+                        : 'influ_kyc_title'.tr,
                     style: TextStyle(
                       fontSize: 40.sp,
                       fontWeight: FontWeight.w500,
@@ -50,7 +53,9 @@ class SignupInfluencerKycView extends GetView<SignupInfluencerController> {
 
                 // Subtitle
                 Text(
-                  'influ_kyc_subtitle'.tr,
+                  accountType.isBrand
+                      ? 'brand_kyc_subtitle'.tr
+                      : 'influ_kyc_subtitle'.tr,
                   style: TextStyle(
                     fontSize: 18.sp,
                     fontWeight: FontWeight.w500,
@@ -61,7 +66,9 @@ class SignupInfluencerKycView extends GetView<SignupInfluencerController> {
 
                 // Body
                 Text(
-                  'influ_kyc_body'.tr,
+                  accountType.isBrand
+                      ? 'brand_kyc_body'.tr
+                      : 'influ_kyc_body'.tr,
                   style: TextStyle(
                     fontSize: 13.sp,
                     height: 1.5,
@@ -155,26 +162,29 @@ class SignupInfluencerKycView extends GetView<SignupInfluencerController> {
                 SizedBox(height: 32.h),
 
                 // Skip + Submit
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: controller.onKycSkip,
-                    child: Text(
-                      'influ_kyc_skip'.tr,
-                      style: TextStyle(
-                        fontSize: 20.sp,
-                        fontWeight: FontWeight.w500,
-                        color: AppPalette.secondary,
+                if (!accountType.isBrand)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: controller.onKycSkip,
+                      child: Text(
+                        'influ_kyc_skip'.tr,
+                        style: TextStyle(
+                          fontSize: 20.sp,
+                          fontWeight: FontWeight.w500,
+                          color: AppPalette.secondary,
+                        ),
                       ),
                     ),
                   ),
-                ),
 
                 SizedBox(height: 8.h),
 
                 CustomButton(
                   onTap: controller.onKycSubmit,
-                  btnText: 'influ_kyc_submit'.tr,
+                  btnText: accountType.isBrand
+                      ? 'btn_continue'.tr
+                      : 'influ_kyc_submit'.tr,
                   height: 64.h,
                   width: double.infinity,
                   textStyle: TextStyle(

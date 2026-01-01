@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../core/models/job_item.dart';
+import '../../../core/services/account_type_service.dart';
 import '../../../core/theme/app_palette.dart';
+import 'widgets/brand_submission_card.dart';
 
 /// Local status used for the big status card
 enum MilestoneLocalStatus {
@@ -14,6 +16,14 @@ enum MilestoneLocalStatus {
   approved,
   partialPaid,
   declined,
+  completed,
+}
+
+class AdminReportModel {
+  final String reason;
+  final DateTime createdAt;
+
+  AdminReportModel({required this.reason, required this.createdAt});
 }
 
 class SubmissionUiModel {
@@ -67,6 +77,8 @@ class MilestoneDetailsController extends GetxController {
 
   // submissions (UI wrappers)
   final RxList<SubmissionUiModel> submissions = <SubmissionUiModel>[].obs;
+  final RxList<BrandSubmissionUiModel> brandSubmissions =
+      <BrandSubmissionUiModel>[].obs;
 
   // bottom checkboxes
   final RxBool confirmOwnership = false.obs;
@@ -103,6 +115,109 @@ class MilestoneDetailsController extends GetxController {
       submissions.add(SubmissionUiModel(index: 1));
     }
 
+    final accountTypeService = Get.find<AccountTypeService>();
+    final isBrand = accountTypeService.isBrand;
+    final isPaidAd = job.campaignType == CampaignType.paidAd;
+
+    if (isBrand) {
+      if (isPaidAd) {
+        brandSubmissions.assignAll([
+          BrandSubmissionUiModel(
+            index: 1,
+            description: 'Description of the proof will be visible here',
+            platformTitleKey: 'brand_submission_platform_1',
+            platformLink: 'facebook.com/hania/live',
+            avgPercent: 65.4,
+            metrics: [
+              BrandSubmissionMetric(
+                labelKey: 'brand_metric_reach',
+                leftValue: '200k',
+                rightValue: '300k',
+                progress: 200 / 300,
+                targetKey: 'brand_submission_target_hit_75',
+              ),
+            ],
+            expanded: true,
+          ),
+          BrandSubmissionUiModel(
+            index: 2,
+            description: 'Description of the proof will be visible here',
+            platformTitleKey: 'brand_submission_platform_1',
+            platformLink: 'facebook.com/hania/live',
+            avgPercent: 65.4,
+            metrics: [
+              BrandSubmissionMetric(
+                labelKey: 'brand_metric_reach',
+                leftValue: '200k',
+                rightValue: '300k',
+                progress: 200 / 300,
+                targetKey: 'brand_submission_target_hit_75',
+              ),
+            ],
+            expanded: false,
+          ),
+          BrandSubmissionUiModel(
+            index: 3,
+            description: 'Description of the proof will be visible here',
+            platformTitleKey: 'brand_submission_platform_1',
+            platformLink: 'facebook.com/hania/live',
+            avgPercent: 65.4,
+            metrics: [
+              BrandSubmissionMetric(
+                labelKey: 'brand_metric_reach',
+                leftValue: '200k',
+                rightValue: '300k',
+                progress: 200 / 300,
+                targetKey: 'brand_submission_target_hit_75',
+              ),
+            ],
+            expanded: false,
+          ),
+        ]);
+      } else {
+        brandSubmissions.assignAll([
+          BrandSubmissionUiModel(
+            index: 1,
+            description: 'Description of the proof will be visible here',
+            platformTitleKey: 'brand_submission_platform_1',
+            platformLink: 'facebook.com/hania/live',
+            avgPercent: 65.4,
+            metrics: [
+              BrandSubmissionMetric(
+                labelKey: 'brand_metric_reach',
+                leftValue: '200k',
+                rightValue: '300k',
+                progress: 200 / 300,
+                targetKey: 'brand_submission_target_hit_75',
+              ),
+              BrandSubmissionMetric(
+                labelKey: 'brand_metric_likes',
+                leftValue: '50K',
+                rightValue: '50K',
+                progress: 1,
+                targetKey: 'brand_submission_target_hit_75',
+              ),
+              BrandSubmissionMetric(
+                labelKey: 'brand_metric_views',
+                leftValue: '250K',
+                rightValue: '250K',
+                progress: 1,
+                targetKey: 'brand_submission_target_hit_75',
+              ),
+              BrandSubmissionMetric(
+                labelKey: 'brand_metric_comments',
+                leftValue: '3K',
+                rightValue: '3K',
+                progress: 1,
+                targetKey: 'brand_submission_target_hit_75',
+              ),
+            ],
+            expanded: true,
+          ),
+        ]);
+      }
+    }
+
     _syncLocalStatusFromModel();
   }
 
@@ -114,6 +229,56 @@ class MilestoneDetailsController extends GetxController {
       s.dispose();
     }
     super.onClose();
+  }
+
+  // --- Report Admin state ---
+  final RxBool hasReportedToAdmin = false.obs;
+  final Rxn<DateTime> reportAgainAt = Rxn<DateTime>();
+  final RxList<AdminReportModel> submittedReports = <AdminReportModel>[].obs;
+
+  // helper (no intl needed)
+  String formatReportDateTime(DateTime dt) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    final day = dt.day.toString().padLeft(2, '0');
+    final mon = months[dt.month - 1];
+    final year = dt.year;
+
+    int hour = dt.hour % 12;
+    if (hour == 0) hour = 12;
+    final minute = dt.minute.toString().padLeft(2, '0');
+    final ampm = dt.hour >= 12 ? 'PM' : 'AM';
+
+    return '$day $mon $year, $hour:$minute $ampm';
+  }
+
+  void submitAdminReport(String reason) {
+    final r = reason.trim();
+    if (r.isEmpty) {
+      Get.snackbar('Required', 'Please write your reason.');
+      return;
+    }
+
+    submittedReports.insert(
+      0,
+      AdminReportModel(reason: r, createdAt: DateTime.now()),
+    );
+
+    hasReportedToAdmin.value = true;
+    // cooldown (you can change duration)
+    reportAgainAt.value = DateTime.now().add(const Duration(days: 1));
   }
 
   // ---------- helpers ----------
@@ -160,15 +325,17 @@ class MilestoneDetailsController extends GetxController {
         return 'Partial Paid';
       case MilestoneLocalStatus.declined:
         return '$declinedSubmissionCount Declined';
+      case MilestoneLocalStatus.completed:
+        return 'Completed'; // ✅
     }
   }
 
   Color get statusChipColor {
     switch (milestoneStatus.value) {
+      case MilestoneLocalStatus.completed:
+        return AppPalette.secondary;
       case MilestoneLocalStatus.paid:
-        return AppPalette.secondary;
       case MilestoneLocalStatus.approved:
-        return AppPalette.secondary;
       case MilestoneLocalStatus.partialPaid:
         return AppPalette.secondary;
       case MilestoneLocalStatus.inReview:
@@ -182,10 +349,10 @@ class MilestoneDetailsController extends GetxController {
 
   Color get statusTextColor {
     switch (milestoneStatus.value) {
+      case MilestoneLocalStatus.completed:
+        return AppPalette.secondary;
       case MilestoneLocalStatus.paid:
-        return AppPalette.secondary;
       case MilestoneLocalStatus.approved:
-        return AppPalette.secondary;
       case MilestoneLocalStatus.partialPaid:
         return AppPalette.secondary;
       case MilestoneLocalStatus.inReview:
@@ -208,10 +375,10 @@ class MilestoneDetailsController extends GetxController {
 
   Color get statusBgColor {
     switch (milestoneStatus.value) {
+      case MilestoneLocalStatus.completed:
+        return AppPalette.thirdColor;
       case MilestoneLocalStatus.paid:
-        return AppPalette.thirdColor;
       case MilestoneLocalStatus.approved:
-        return AppPalette.thirdColor;
       case MilestoneLocalStatus.partialPaid:
         return AppPalette.thirdColor;
       case MilestoneLocalStatus.inReview:
@@ -334,5 +501,69 @@ class MilestoneDetailsController extends GetxController {
     Get.snackbar('Submitted', 'Milestone sent for admin review');
     // If you want to refresh parent:
     // Get.back(result: milestone);
+  }
+
+  BrandSubmissionUiModel? get selectedBrandSubmission {
+    for (final s in brandSubmissions) {
+      if (s.isExpanded.value) return s;
+    }
+    return brandSubmissions.isNotEmpty ? brandSubmissions.first : null;
+  }
+
+  void toggleBrandSubmissionExpanded(int index) {
+    if (job.campaignType != CampaignType.paidAd) return;
+
+    for (final s in brandSubmissions) {
+      if (s.index == index) {
+        // toggle selected; but collapse others always
+        final next = !s.isExpanded.value;
+        s.isExpanded.value = next;
+      } else {
+        s.isExpanded.value = false;
+      }
+    }
+  }
+
+  void approveSelectedBrandSubmission() {
+    final isPaidAd = job.campaignType == CampaignType.paidAd;
+    final target = selectedBrandSubmission;
+
+    if (target == null) {
+      Get.snackbar('No submission', 'Please expand a submission first.');
+      return;
+    }
+
+    target.status.value = BrandSubmissionStatus.completed;
+    target.declinedReason.value = null;
+
+    // ✅ non-paidAd: only one submission -> overall milestone becomes Completed
+    if (!isPaidAd) {
+      milestoneStatus.value = MilestoneLocalStatus.completed;
+      return;
+    }
+
+    // ✅ paidAd: mark expanded as completed; if all completed -> milestone completed
+    final allDone = brandSubmissions.every(
+      (s) => s.status.value == BrandSubmissionStatus.completed,
+    );
+    if (allDone) milestoneStatus.value = MilestoneLocalStatus.completed;
+  }
+
+  void declineSelectedBrandSubmission(String reason) {
+    final target = selectedBrandSubmission;
+
+    if (target == null) {
+      Get.snackbar('No submission', 'Please expand a submission first.');
+      return;
+    }
+
+    final r = reason.trim();
+    if (r.isEmpty) {
+      Get.snackbar('Required', 'Please write a reason.');
+      return;
+    }
+
+    target.status.value = BrandSubmissionStatus.declined;
+    target.declinedReason.value = r;
   }
 }

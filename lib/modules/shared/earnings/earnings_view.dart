@@ -9,8 +9,10 @@ import 'package:influencer_app/core/utils/constants.dart';
 import 'package:influencer_app/core/utils/currency_formatter.dart';
 import 'package:influencer_app/core/widgets/custom_button.dart';
 
+import '../../../core/widgets/app_pagination_row.dart';
 import '../../../core/widgets/earnings_overview_card.dart';
 import '../../../core/widgets/search_field.dart';
+import '../../../core/widgets/transaction_card.dart';
 import 'earnings_controller.dart';
 
 class EarningsView extends GetView<EarningsController> {
@@ -712,14 +714,15 @@ class _ClientListSection extends StatelessWidget {
           ),
         ),
         SizedBox(height: 16.h),
-        Obx(
-          () => _PaginationFooter(
-            currentPage: controller.clientCurrentPage.value,
-            totalPages: controller.clientTotalPages.value,
-            onNext: controller.hasNextClientPage
-                ? controller.goToNextClientPage
-                : null,
-          ),
+        AppPaginationRow(
+          page: controller.clientCurrentPage,
+          totalPages: controller.clientTotalPages,
+          isLoading: controller.clientIsLoading,
+          onPrev: () => controller.goToPrevClientPage(),
+          onNext: () => controller.goToNextClientPage(),
+          pageLabel: 'common_page'.tr,
+          ofLabel: 'common_of'.tr,
+          nextLabel: 'common_next'.tr,
         ),
       ],
     );
@@ -1046,140 +1049,24 @@ class _TransactionsSection extends StatelessWidget {
               children: controller.transactionItems.map((item) {
                 return Padding(
                   padding: EdgeInsets.only(bottom: 12.h),
-                  child: _TransactionCard(item: item),
+                  child: TransactionCard(item: item),
                 );
               }).toList(),
             );
           }),
           SizedBox(height: 16.h),
           Obx(
-            () => _PaginationFooter(
-              currentPage: controller.transactionCurrentPage.value,
-              totalPages: controller.transactionTotalPages.value,
-              onNext: controller.hasNextTransactionPage
-                  ? controller.goToNextTransactionPage
-                  : null,
+            () => AppPaginationRow(
+              page: controller.transactionCurrentPage,
+              totalPages: controller.transactionTotalPages,
+              isLoading: controller.transactionIsLoading,
+              onPrev: () => controller.goToPrevTransactionPage(),
+              onNext: () => controller.goToNextTransactionPage(),
+              pageLabel: 'common_page'.tr,
+              ofLabel: 'common_of'.tr,
+              nextLabel: 'common_next'.tr,
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TransactionCard extends StatelessWidget {
-  final TransactionItem item;
-
-  const _TransactionCard({required this.item});
-
-  @override
-  Widget build(BuildContext context) {
-    final isInbound = item.type == TransactionType.inbound;
-    final bgColor = isInbound ? AppPalette.thirdColor : AppPalette.gradient2;
-    final txtColor = isInbound ? AppPalette.primary : AppPalette.complemetary;
-    final accentColor = isInbound
-        ? AppPalette.secondary
-        : AppPalette.complemetary;
-
-    return Container(
-      padding: EdgeInsets.all(12.w),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppPalette.white, bgColor],
-          begin: Alignment.bottomLeft,
-          end: Alignment.topRight,
-        ),
-        borderRadius: BorderRadius.circular(20.r),
-        border: Border.all(color: accentColor, width: kBorderWidth0_5),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 45.w,
-            height: 45.w,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: accentColor.withOpacity(0.4)),
-              gradient: LinearGradient(
-                colors: [bgColor, AppPalette.white],
-                begin: Alignment.bottomLeft,
-                end: Alignment.topRight,
-              ),
-            ),
-            child: Icon(
-              isInbound
-                  ? Icons.arrow_downward_rounded
-                  : Icons.arrow_upward_rounded,
-              color: accentColor,
-              size: 20.sp,
-            ),
-          ),
-          SizedBox(width: 16.w),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    item.titleKey.trParams(item.titleParams),
-                    style: TextStyle(
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.w400,
-                      color: txtColor,
-                    ),
-                  ),
-                ),
-                SizedBox(height: 2.h),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    item.subtitle,
-                    style: TextStyle(
-                      fontSize: 10.sp,
-                      color: AppPalette.greyText,
-                    ),
-                  ),
-                ),
-                SizedBox(height: 6.h),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        formatCurrencyByLocale(item.amount),
-                        style: TextStyle(
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.w600,
-                          color: txtColor,
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            '${item.detailsKey.tr} >',
-                            textAlign: TextAlign.right,
-                            style: TextStyle(
-                              fontSize: 10.sp,
-                              fontWeight: FontWeight.w400,
-                              color: txtColor,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          SizedBox(width: 12.w),
         ],
       ),
     );

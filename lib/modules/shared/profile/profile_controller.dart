@@ -3,7 +3,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:influencer_app/core/services/account_type_service.dart';
 import 'package:influencer_app/core/theme/app_palette.dart';
+
+import 'models/brand_asset.dart';
+import 'models/user_location.dart';
 
 enum ProfileStatus { unverified, verified }
 
@@ -81,6 +85,7 @@ class PayoutMethod {
 }
 
 class ProfileController extends GetxController {
+  final accountTypeService = Get.find<AccountTypeService>();
   // ---------------------------------------------------------------------------
   // BASIC PROFILE STATE
   // ---------------------------------------------------------------------------
@@ -89,6 +94,7 @@ class ProfileController extends GetxController {
 
   final profileName = 'Grow Big'.obs;
   final profileLocation = 'Dhaka, Bangladesh'.obs;
+  final brandName = 'StyleCo.'.obs;
   final profileRating = 4.5.obs;
   final profileRatingCount = 32.obs;
 
@@ -124,7 +130,8 @@ class ProfileController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _loadMockDataForUnverified(); // change this to _loadMockDataForVerified() to see the other state
+    profileName.value = accountTypeService.isBrand ? 'Salman Khan' : 'Grow Big';
+    _loadMockDataForUnverified();
   }
 
   @override
@@ -140,6 +147,17 @@ class ProfileController extends GetxController {
     bKashNoController.dispose();
     bKashHolderNameController.dispose();
     bKashAccountTypeController.dispose();
+
+    brandWebsiteController.dispose();
+    brandNewLinkController.dispose();
+    for (final item in brandAssets) {
+      item.controller.dispose();
+    }
+    newSkillController.dispose();
+
+    locationNameController.dispose();
+    locationFullAddressController.dispose();
+
     super.onClose();
   }
 
@@ -293,6 +311,10 @@ class ProfileController extends GetxController {
   // ---------------------------------------------------------------------------
 
   void _loadMockDataForUnverified() {
+    final isBrand = accountTypeService.isBrand;
+    final isAdAgency = accountTypeService.isAdAgency;
+    final isInfluencer = accountTypeService.isInfluencer;
+
     profileStatus.value = ProfileStatus.unverified;
     profileCompletion.value = 0.35;
     bioText.value = '';
@@ -321,13 +343,14 @@ class ProfileController extends GetxController {
 
     niches.assignAll(const ['Lifestyle', 'Fashion', 'Tech & Gadgets']);
 
-    profileFields.assignAll(const [
-      ProfileField(
-        label: 'Agency Name',
-        hintText: 'Enter Agency Name',
-        value: '',
-        isRequired: true,
-      ),
+    profileFields.assignAll([
+      if (isAdAgency)
+        ProfileField(
+          label: 'Agency Name',
+          hintText: 'Enter Agency Name',
+          value: '',
+          isRequired: true,
+        ),
       ProfileField(
         label: 'First Name',
         hintText: 'Enter First Name',
@@ -340,12 +363,20 @@ class ProfileController extends GetxController {
         value: '',
         isRequired: true,
       ),
-      ProfileField(
-        label: 'Full Address',
-        hintText: 'Enter Full Address',
-        value: '',
-        isRequired: true,
-      ),
+      if (isBrand)
+        ProfileField(
+          label: 'Company Name',
+          hintText: 'Enter Company Name',
+          value: '',
+          isRequired: true,
+        ),
+      if (!isInfluencer)
+        ProfileField(
+          label: 'Full Address',
+          hintText: 'Enter Full Address',
+          value: '',
+          isRequired: true,
+        ),
       ProfileField(
         label: 'Email Address',
         hintText: 'Enter Email Address',
@@ -423,6 +454,39 @@ class ProfileController extends GetxController {
         isApproved: false,
       ),
     ]);
+
+    brandWebsiteController.text = 'styleco.com';
+    brandAssets.assignAll([
+      BrandAssetItem(
+        platform: BrandHandlePlatform.facebook,
+        controller: TextEditingController(text: 'fb.com/growbig'),
+      ),
+    ]);
+
+    if (isInfluencer) {
+      skills.assignAll(const [
+        'Public Speaking',
+        'Voiceovers',
+        'Podcasting',
+        'Product Photography',
+        'Conversion Optimization',
+      ]);
+    } else {
+      skills.clear();
+    }
+
+    if (isInfluencer) {
+      locations.assignAll(const [
+        UserLocation(
+          name: 'House',
+          thana: 'Banani',
+          zilla: 'Dhaka',
+          fullAddress: 'House 61, Road 8, Block F, Banani, Dhaka 1213',
+        ),
+      ]);
+    } else {
+      locations.clear();
+    }
   }
 
   void _loadMockDataForVerified() {
@@ -562,6 +626,31 @@ class ProfileController extends GetxController {
         isApproved: false,
       ),
     ]);
+
+    if (accountTypeService.isInfluencer) {
+      skills.assignAll(const [
+        'Public Speaking',
+        'Voiceovers',
+        'Podcasting',
+        'Product Photography',
+        'Conversion Optimization',
+      ]);
+    } else {
+      skills.clear();
+    }
+
+    if (accountTypeService.isInfluencer) {
+      locations.assignAll(const [
+        UserLocation(
+          name: 'House',
+          thana: 'Banani',
+          zilla: 'Dhaka',
+          fullAddress: 'House 61, Road 8, Block F, Banani, Dhaka 1213',
+        ),
+      ]);
+    } else {
+      locations.clear();
+    }
   }
 
   // You can expose this to switch state from outside if needed.
@@ -571,6 +660,197 @@ class ProfileController extends GetxController {
     } else {
       _loadMockDataForUnverified();
     }
+  }
+
+  // -------------------- BRAND ASSETS (Brand only) --------------------
+  final brandWebsiteController = TextEditingController();
+
+  final Rx<BrandHandlePlatform?> selectedBrandPlatform =
+      Rx<BrandHandlePlatform?>(BrandHandlePlatform.instagram);
+
+  final brandNewLinkController = TextEditingController();
+
+  final brandAssets = <BrandAssetItem>[].obs;
+
+  List<BrandHandlePlatform> get brandPlatforms => const [
+    BrandHandlePlatform.facebook,
+    BrandHandlePlatform.instagram,
+    BrandHandlePlatform.tiktok,
+    BrandHandlePlatform.youtube,
+    BrandHandlePlatform.linkedin,
+    BrandHandlePlatform.x,
+  ];
+
+  void addBrandAsset() {
+    final p = selectedBrandPlatform.value;
+    final link = brandNewLinkController.text.trim();
+
+    if (p == null || link.isEmpty) return;
+
+    brandAssets.add(
+      BrandAssetItem(
+        platform: p,
+        controller: TextEditingController(text: link),
+      ),
+    );
+
+    brandNewLinkController.clear();
+  }
+
+  void removeBrandAsset(int index) {
+    if (index < 0 || index >= brandAssets.length) return;
+    brandAssets[index].controller.dispose();
+    brandAssets.removeAt(index);
+  }
+
+  Future<void> saveBrandAssets() async {
+    // hook your API here
+    // Example payload:
+    final website = brandWebsiteController.text.trim();
+    final handles = brandAssets
+        .map(
+          (e) => {
+            'platform': e.platform.name,
+            'link': e.controller.text.trim(),
+          },
+        )
+        .toList();
+
+    debugPrint('SAVE BRAND ASSETS => website: $website, handles: $handles');
+
+    Get.snackbar(
+      'success_title'.tr,
+      'brand_assets_saved'.tr,
+      snackPosition: SnackPosition.BOTTOM,
+    );
+  }
+
+  // -------------------- SKILLS (Influencer only) --------------------
+  final skillsExpanded = true.obs;
+  final skills = <String>[].obs;
+
+  final TextEditingController newSkillController = TextEditingController();
+
+  void toggleSkills() => skillsExpanded.toggle();
+
+  void showAddSkillDialog() {
+    newSkillController.clear();
+
+    Get.dialog(
+      AlertDialog(
+        title: Text('skills_add_dialog_title'.tr),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // uses your CustomTextFormField style if you want:
+            // CustomTextFormField(hintText: 'skills_add_hint'.tr, controller: newSkillController),
+            TextField(
+              controller: newSkillController,
+              decoration: InputDecoration(hintText: 'skills_add_hint'.tr),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: Text('skills_cancel'.tr),
+          ),
+          TextButton(
+            onPressed: () {
+              final v = newSkillController.text.trim();
+              if (v.isEmpty) return;
+
+              if (!skills.contains(v)) {
+                skills.add(v);
+              }
+              Get.back();
+            },
+            child: Text('skills_add_btn'.tr),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // -------------------- LOCATIONS (Influencer only) --------------------
+  final locationsExpanded = true.obs;
+  final locations = <UserLocation>[].obs;
+
+  final RxBool showNewLocationForm = false.obs;
+  final RxnInt editingLocationIndex = RxnInt();
+
+  final TextEditingController locationNameController = TextEditingController();
+  final TextEditingController locationFullAddressController =
+      TextEditingController();
+
+  final selectedLocationThana = Rx<String?>(null);
+  final selectedLocationZilla = Rx<String?>(null);
+
+  void toggleLocations() => locationsExpanded.toggle();
+
+  void setLocationThana(String? v) => selectedLocationThana.value = v;
+  void setLocationZilla(String? v) => selectedLocationZilla.value = v;
+
+  void startAddLocation() {
+    editingLocationIndex.value = null;
+    locationNameController.clear();
+    locationFullAddressController.clear();
+    selectedLocationThana.value = null;
+    selectedLocationZilla.value = null;
+    showNewLocationForm.value = true;
+    locationsExpanded.value = true;
+  }
+
+  void startEditLocation(int index) {
+    if (index < 0 || index >= locations.length) return;
+    final loc = locations[index];
+
+    editingLocationIndex.value = index;
+    locationNameController.text = loc.name;
+    locationFullAddressController.text = loc.fullAddress;
+    selectedLocationThana.value = loc.thana;
+    selectedLocationZilla.value = loc.zilla;
+
+    showNewLocationForm.value = true;
+    locationsExpanded.value = true;
+  }
+
+  void cancelLocationForm() {
+    showNewLocationForm.value = false;
+    editingLocationIndex.value = null;
+  }
+
+  void saveLocationForm() {
+    final name = locationNameController.text.trim();
+    final thana = selectedLocationThana.value?.trim() ?? '';
+    final zilla = selectedLocationZilla.value?.trim() ?? '';
+    final full = locationFullAddressController.text.trim();
+
+    if (name.isEmpty || thana.isEmpty || zilla.isEmpty || full.isEmpty) {
+      // keep it simple ("required")
+      Get.snackbar(
+        'error'.tr,
+        'locations_required_error'.tr,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
+    final newLoc = UserLocation(
+      name: name,
+      thana: thana,
+      zilla: zilla,
+      fullAddress: full,
+    );
+
+    final editIndex = editingLocationIndex.value;
+    if (editIndex != null && editIndex >= 0 && editIndex < locations.length) {
+      locations[editIndex] = newLoc;
+    } else {
+      locations.add(newLoc);
+    }
+
+    cancelLocationForm();
   }
 
   // ---------------------------------------------------------------------------

@@ -1,4 +1,3 @@
-// report_log_view.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -12,67 +11,70 @@ class ReportLogView extends GetView<ReportLogController> {
 
   @override
   Widget build(BuildContext context) {
-    Get.put(ReportLogController()); // Inject Controller
-
     return Scaffold(
-      backgroundColor: Colors.white, // Or AppPalette.scaffoldBackground
+      backgroundColor: Colors.white,
       body: Padding(
         padding: EdgeInsets.symmetric(horizontal: 20.w),
         child: Column(
           children: [
             20.h.verticalSpace,
             // 1. Top Filters Row
-            Obx(
-              () => Row(
+            Obx(() {
+              final isBrand = controller.isBrand;
+
+              return Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _buildFilterCard(
-                    count: controller.flaggedCount,
-                    label: 'flagged'.tr,
-                    color: const Color(0xFFD32F2F), // Red
-                    bgColor: const Color(0xFFFFEBEE), // Light Red
-                    status: ReportStatus.flagged,
-                  ),
+                  if (!isBrand)
+                    _buildFilterCard(
+                      count: controller.flaggedCount,
+                      label: 'flagged'.tr,
+                      color: AppPalette.reportFlaggedActive,
+                      bgColor: AppPalette.reportFlaggedInactive,
+                      status: ReportStatus.flagged,
+                    ),
+
                   _buildFilterCard(
                     count: controller.pendingCount,
                     label: 'pending'.tr,
-                    color: const Color(0xFFF57C00), // Orange
-                    bgColor: const Color(0xFFFFF3E0), // Light Orange
+                    color: AppPalette.reportPendingActive,
+                    bgColor: AppPalette.reportPendingInactive,
                     status: ReportStatus.pending,
                   ),
+
                   _buildFilterCard(
                     count: controller.resolvedCount,
                     label: 'resolved'.tr,
-                    color: const Color(0xFF388E3C), // Green
-                    bgColor: const Color(0xFFE8F5E9), // Light Green
+                    color: AppPalette.reportResolvedActive,
+                    bgColor: AppPalette.reportResolvedInactive,
                     status: ReportStatus.resolved,
                   ),
                 ],
-              ),
-            ),
+              );
+            }),
 
-            20.h.verticalSpace,
+            14.h.verticalSpace,
 
             // 2. Search Bar
             CustomTextFormField(
               hintText: 'search_hint'.tr,
-              fillColor: const Color(
-                0xFFF4F6F0,
-              ), // Light greenish beige from image
+              fillColor: AppPalette.thirdColor,
               onChanged: controller.onSearchChanged,
+              borderColor: AppPalette.secondary,
+              borderRadius: 999.r,
               suffixIcon: Icon(
                 Icons.search,
-                color: Colors.grey.shade700,
+                color: AppPalette.defaultStroke,
                 size: 24.sp,
               ),
               contentPadding: EdgeInsets.symmetric(
                 horizontal: 20.w,
-                vertical: 14.h,
+                vertical: 17.h,
               ),
-              textStyle: TextStyle(fontSize: 14.sp, color: Colors.black87),
+              textStyle: TextStyle(fontSize: 14.sp, color: AppPalette.greyText),
             ),
 
-            20.h.verticalSpace,
+            14.h.verticalSpace,
 
             // 3. List of Reports
             Expanded(
@@ -110,54 +112,56 @@ class ReportLogView extends GetView<ReportLogController> {
     required Color bgColor,
     required ReportStatus status,
   }) {
-    bool isSelected = controller.selectedFilter.value == status;
+    final isSelected = controller.selectedFilter.value == status;
 
-    return GestureDetector(
-      onTap: () => controller.toggleFilter(status),
-      child: Container(
-        width: 105.w, // Approx width to fit 3 in row
-        padding: EdgeInsets.symmetric(vertical: 12.h),
-        decoration: BoxDecoration(
-          color: isSelected ? bgColor : Colors.white,
-          borderRadius: BorderRadius.circular(10.r),
-          border: Border.all(
-            color: isSelected ? color : AppPalette.border1,
-            width: 1,
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => controller.toggleFilter(status),
+        child: Container(
+          margin: EdgeInsets.symmetric(horizontal: 6.w),
+          padding: EdgeInsets.symmetric(vertical: 12.h),
+          decoration: BoxDecoration(
+            color: isSelected ? color : bgColor,
+            borderRadius: BorderRadius.circular(10.r),
+            border: Border.all(
+              color: isSelected ? color : AppPalette.border1,
+              width: 1,
+            ),
+            boxShadow: isSelected
+                ? []
+                : [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.05),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
           ),
-          boxShadow: isSelected
-              ? []
-              : [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.05),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
+          child: Column(
+            children: [
+              FittedBox(
+                child: Text(
+                  '$count',
+                  style: TextStyle(
+                    fontSize: 32.sp,
+                    fontWeight: FontWeight.w500,
+                    color: isSelected ? AppPalette.white : color,
                   ),
-                ],
-        ),
-        child: Column(
-          children: [
-            FittedBox(
-              child: Text(
-                count.toString(),
-                style: TextStyle(
-                  fontSize: 24.sp,
-                  fontWeight: FontWeight.bold,
-                  color: color,
                 ),
               ),
-            ),
-            4.h.verticalSpace,
-            FittedBox(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w500,
-                  color: color,
+              4.h.verticalSpace,
+              FittedBox(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w400,
+                    color: isSelected ? AppPalette.white : color,
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -172,20 +176,20 @@ class ReportLogView extends GetView<ReportLogController> {
 
     switch (report.status) {
       case ReportStatus.flagged:
-        themeColor = const Color(0xFFD32F2F); // Red
-        bgTint = const Color(0xFFFFEBEE);
+        themeColor = AppPalette.reportFlaggedActive;
+        bgTint = AppPalette.reportFlaggedInactive;
         btnText = 'flagged'.tr;
         btnIcon = Icons.flag;
         break;
       case ReportStatus.pending:
-        themeColor = const Color(0xFFF57C00); // Orange
-        bgTint = const Color(0xFFFFF3E0);
+        themeColor = AppPalette.reportPendingActive;
+        bgTint = AppPalette.reportPendingInactive;
         btnText = 'pending'.tr;
         btnIcon = Icons.access_time_filled;
         break;
       case ReportStatus.resolved:
-        themeColor = const Color(0xFF388E3C); // Green
-        bgTint = const Color(0xFFE8F5E9);
+        themeColor = AppPalette.reportResolvedActive; // Green
+        bgTint = AppPalette.reportResolvedInactive;
         btnText = 'resolved'.tr;
         btnIcon = Icons.check_circle;
         break;
@@ -193,7 +197,7 @@ class ReportLogView extends GetView<ReportLogController> {
 
     return Container(
       decoration: BoxDecoration(
-        color: bgTint.withOpacity(0.5), // Very light background tint
+        color: bgTint, // Very light background tint
         borderRadius: BorderRadius.circular(12.r),
         border: Border.all(color: Colors.grey.withOpacity(0.2)),
       ),
@@ -209,7 +213,7 @@ class ReportLogView extends GetView<ReportLogController> {
             style: TextStyle(
               fontSize: 14.sp,
               fontWeight: FontWeight.bold,
-              color: Colors.black87, // Dark Green in your theme usually
+              color: AppPalette.primary,
             ),
           ),
           4.h.verticalSpace,
@@ -226,23 +230,23 @@ class ReportLogView extends GetView<ReportLogController> {
           2.h.verticalSpace,
           Text(
             '${report.timeAgo} ${'hours_ago'.tr}',
-            style: TextStyle(fontSize: 10.sp, color: Colors.grey),
+            style: TextStyle(fontSize: 12.sp, color: AppPalette.subtext),
           ),
 
           12.h.verticalSpace,
 
-          // Message Box (White)
+          // Message Box
           Container(
             width: double.infinity,
             padding: EdgeInsets.all(12.w),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(10.r),
-              border: Border.all(color: Colors.grey.shade300),
+              border: Border.all(color: AppPalette.border1),
             ),
             child: Text(
-              report.message.tr, // Using .tr assuming the message is a key
-              style: TextStyle(fontSize: 12.sp, color: Colors.grey.shade700),
+              report.message.tr,
+              style: TextStyle(fontSize: 12.sp, color: AppPalette.greyText),
             ),
           ),
 
@@ -250,7 +254,6 @@ class ReportLogView extends GetView<ReportLogController> {
 
           // Footer Row
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               // Left Side: Company & Date
               Column(
@@ -261,14 +264,14 @@ class ReportLogView extends GetView<ReportLogController> {
                       Icon(
                         Icons.person,
                         size: 12.sp,
-                        color: AppPalette.secondary,
+                        color: AppPalette.complemetary,
                       ), // Brown/Orange in img
                       4.w.horizontalSpace,
                       Text(
                         report.companyName,
                         style: TextStyle(
                           fontSize: 11.sp,
-                          color: AppPalette.secondary,
+                          color: AppPalette.complemetary,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -278,16 +281,16 @@ class ReportLogView extends GetView<ReportLogController> {
                   Row(
                     children: [
                       Icon(
-                        Icons.access_time,
+                        Icons.access_time_filled,
                         size: 12.sp,
-                        color: AppPalette.secondary,
+                        color: AppPalette.complemetary,
                       ),
                       4.w.horizontalSpace,
                       Text(
                         report.date, // e.g., Dec 15, 2025
                         style: TextStyle(
                           fontSize: 11.sp,
-                          color: AppPalette.secondary,
+                          color: AppPalette.complemetary,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -298,6 +301,7 @@ class ReportLogView extends GetView<ReportLogController> {
 
               // Right Side: Status Button
               // Using CustomButton here, adapted to look like a Chip/Capsule
+              Spacer(),
               SizedBox(
                 height: 30.h,
                 child: ElevatedButton(
@@ -318,7 +322,7 @@ class ReportLogView extends GetView<ReportLogController> {
                       Text(
                         btnText,
                         style: TextStyle(
-                          fontSize: 11.sp,
+                          fontSize: 12.sp,
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                         ),

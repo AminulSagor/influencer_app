@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:influencer_app/core/theme/app_palette.dart';
+import 'package:influencer_app/core/utils/constants.dart';
 import '../../../core/controllers/language_controller.dart';
 import '../../../core/widgets/custom_button.dart';
 
@@ -12,7 +13,7 @@ class LanguageView extends GetView<LanguageController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white, // Or AppPalette.scaffoldBackground
+      backgroundColor: AppPalette.background,
       body: Column(
         children: [
           Expanded(
@@ -25,7 +26,7 @@ class LanguageView extends GetView<LanguageController> {
                     20.h.verticalSpace,
                     // Back Arrow
                     GestureDetector(
-                      onTap: () => Get.back(),
+                      onTap: () => Get.back(id: 1),
                       child: Icon(
                         Icons.arrow_back,
                         color: AppPalette.primary, // Assuming Green
@@ -37,20 +38,16 @@ class LanguageView extends GetView<LanguageController> {
                     Container(
                       width: double.infinity,
                       padding: EdgeInsets.symmetric(
-                        horizontal: 16.w,
+                        horizontal: 24.w,
                         vertical: 24.h,
                       ),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(12.r),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                        border: Border.all(color: Colors.grey.shade200),
+                        borderRadius: BorderRadius.circular(kBorderRadius.r),
+                        border: Border.all(
+                          color: AppPalette.border1,
+                          width: kBorderWidth0_5,
+                        ),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -58,11 +55,7 @@ class LanguageView extends GetView<LanguageController> {
                           // Header inside Card
                           Row(
                             children: [
-                              Icon(
-                                Icons.translate, // "A/文" icon
-                                color: AppPalette.secondary, // Assuming Green
-                                size: 20.sp,
-                              ),
+                              Image.asset('assets/icons/language2.png'),
                               10.w.horizontalSpace,
                               Flexible(
                                 child: FittedBox(
@@ -71,9 +64,8 @@ class LanguageView extends GetView<LanguageController> {
                                     'select_language_header'.tr,
                                     style: TextStyle(
                                       fontSize: 16.sp,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppPalette
-                                          .secondary, // Assuming Green
+                                      fontWeight: FontWeight.w600,
+                                      color: AppPalette.primary,
                                     ),
                                   ),
                                 ),
@@ -83,42 +75,56 @@ class LanguageView extends GetView<LanguageController> {
                           20.h.verticalSpace,
 
                           // English Button (Filled Green)
-                          CustomButton(
-                            onTap: controller.changeToEnglish,
-                            width: double.infinity,
-                            btnText: 'english'.tr,
-                            btnColor: AppPalette.secondary, // Green
-                            textColor: Colors.white,
-                            borderRadius: 10,
-                            height: 50.h,
-                            textStyle: TextStyle(
-                              fontSize: 16.sp,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
+                          Obx(() {
+                            final isSelected =
+                                controller.currentLocale.value
+                                    .toLanguageTag() ==
+                                'en-US';
+                            return CustomButton(
+                              onTap: controller.changeToEnglish,
+                              width: double.infinity,
+                              btnText: 'english'.tr,
+                              btnColor: isSelected
+                                  ? AppPalette.secondary
+                                  : AppPalette.white,
+                              borderRadius: kBorderRadius,
+                              height: 50.h,
+                              textStyle: TextStyle(
+                                fontSize: 16.sp,
+                                fontWeight: FontWeight.w500,
+                                color: isSelected
+                                    ? Colors.white
+                                    : AppPalette.primary,
+                              ),
+                            );
+                          }),
 
                           15.h.verticalSpace,
 
                           // Bangla Button (Outlined/White)
-                          CustomButton(
-                            onTap: controller.changeToBangla,
-                            width: double.infinity,
-                            btnText: 'bangla'.tr,
-                            btnColor: Colors.white,
-                            borderColor: Colors.grey.shade300,
-                            showBorder: true,
-                            textColor: AppPalette
-                                .black, // Or Green based on preference
-                            borderRadius: 10,
-                            height: 50.h,
-                            textStyle: TextStyle(
-                              fontSize: 16.sp,
-                              fontWeight: FontWeight.w600,
-                              color:
-                                  AppPalette.black, // Or AppPalette.secondary
-                            ),
-                          ),
+                          Obx(() {
+                            final isSelected =
+                                controller.currentLocale.value
+                                    .toLanguageTag() ==
+                                'bn-BD';
+                            return CustomButton(
+                              onTap: controller.changeToBangla,
+                              width: double.infinity,
+                              btnText: 'bangla'.tr,
+                              btnColor: isSelected
+                                  ? AppPalette.secondary
+                                  : AppPalette.white,
+                              borderRadius: kBorderRadius,
+                              height: 50.h,
+                              textStyle: TextStyle(
+                                fontSize: 16.sp,
+                                fontWeight: FontWeight.w500,
+                                color: isSelected
+                                    ? Colors.white
+                                    : AppPalette.primary,
+                              ),
+                            );
+                          }),
                         ],
                       ),
                     ),

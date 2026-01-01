@@ -11,10 +11,12 @@ import 'package:influencer_app/modules/shared/language/language_view.dart';
 
 import '../../../../core/services/account_type_service.dart';
 import '../../../../routes/app_routes.dart';
+import '../../../brand/analytics/analytics_view.dart';
 import '../../../brand/create_campaign/create_campaign_step3_view.dart';
 import '../../../brand/create_campaign/create_campaign_step4_view.dart';
 import '../../../brand/create_campaign/create_campaign_step5_view.dart';
 import '../../../brand/create_campaign/create_campaign_step6_view.dart';
+import '../../../brand/explore/explore_view.dart';
 import '../../campaign_details/campaign_details_controller.dart';
 import '../../campaign_details/campaign_details_view.dart';
 import '../../earnings/earnings_view.dart';
@@ -169,6 +171,21 @@ class BottomNavRouteGenerator {
               () => MilestoneDetailsController(settings.arguments),
             );
           }),
+        );
+
+      case AppRoutes.explore:
+        return GetPageRoute(
+          settings: settings,
+          page: () => const ExploreView(),
+        );
+
+      case AppRoutes.analytics:
+        if (!accountService.isBrand) {
+          return _errorRoute('Access Denied');
+        }
+        return GetPageRoute(
+          settings: settings,
+          page: () => const AnalyticsView(),
         );
       default:
         // Default fallback to Home
