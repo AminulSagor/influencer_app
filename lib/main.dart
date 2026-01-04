@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:influencer_app/core/theme/app_theme.dart';
+import 'package:influencer_app/modules/brand/analytics/models/analytics_models.dart';
 import 'package:influencer_app/routes/app_routes.dart';
 
 import 'core/services/account_type_service.dart';
@@ -21,13 +22,13 @@ void main() {
     //   enabled: !kReleaseMode,
     //   builder: (context) => MyApp(initialRoute: AppRoutes.bottomNav),
     // ),
-    MyApp(initialRoute: AppRoutes.onboarding),
+    InfluencerApp(initialRoute: AppRoutes.onboarding),
   );
 }
 
-class MyApp extends StatelessWidget {
+class InfluencerApp extends StatelessWidget {
   final String initialRoute;
-  const MyApp({super.key, required this.initialRoute});
+  const InfluencerApp({super.key, required this.initialRoute});
 
   @override
   Widget build(BuildContext context) {
