@@ -4,7 +4,6 @@ import 'package:get/get.dart';
 
 import '../../../core/theme/app_palette.dart';
 import '../../../core/widgets/custom_button.dart';
-import '../../../routes/app_routes.dart';
 import 'forgot_password_controller.dart';
 
 class ResetPasswordSuccessView extends GetView<ForgotPasswordController> {
@@ -41,10 +40,7 @@ class ResetPasswordSuccessView extends GetView<ForgotPasswordController> {
               ),
               SizedBox(height: 40.h),
               CustomButton(
-                onTap: () {
-                  // go to dashboard/home
-                  Get.offAllNamed(AppRoutes.login); // adjust route
-                },
+                onTap: controller.goToLogin,
                 btnText: 'fp_success_button'.tr,
                 width: double.infinity,
                 height: 56.h,

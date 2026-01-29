@@ -183,6 +183,14 @@ class ProfileView extends GetView<ProfileController> {
                   ],
                 ),
               ),
+              SizedBox(height: 16.h),
+              CustomButton(
+                onTap: controller.onSaveVerificationMethods,
+                btnText: 'Save Update',
+                height: 56.h,
+                width: double.infinity,
+                textColor: AppPalette.white,
+              ),
             ],
           ),
         ),
@@ -372,6 +380,8 @@ class _SocialLinksSection extends StatelessWidget {
                     width: 21.w,
                     height: 21.w,
                     fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) =>
+                        Icon(Icons.link, size: 21.w, color: AppPalette.subtext),
                   ),
                   SizedBox(width: 8.w),
                   Expanded(

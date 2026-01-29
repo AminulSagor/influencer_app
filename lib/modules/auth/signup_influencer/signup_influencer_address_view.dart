@@ -138,6 +138,10 @@ class SignupInfluencerAddressView extends GetView<SignupInfluencerController> {
                     hintText: 'influ_addr_thana_hint'.tr,
                     options: controller.thanaOptions,
                     value: controller.selectedThana.value,
+                    validator: (value) =>
+                        (value == null || value.trim().isEmpty)
+                        ? 'influ_addr_select_error'.tr
+                        : null,
                     onChanged: (value) =>
                         controller.selectedThana.value = value,
                   );
@@ -152,6 +156,10 @@ class SignupInfluencerAddressView extends GetView<SignupInfluencerController> {
                     hintText: 'influ_addr_zilla_hint'.tr,
                     options: controller.zillaOptions,
                     value: controller.selectedZilla.value,
+                    validator: (value) =>
+                        (value == null || value.trim().isEmpty)
+                        ? 'influ_addr_select_error'.tr
+                        : null,
                     onChanged: (value) =>
                         controller.selectedZilla.value = value,
                   );

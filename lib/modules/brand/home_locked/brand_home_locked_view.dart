@@ -31,7 +31,7 @@ class BrandHomeLockedView extends GetView<BrandHomeLockedController> {
                   icon: Icons.verified_rounded,
                   title:
                       'Verification Progress', // 'home_locked_verification_title'.tr
-                  progress: controller.verificationProgress.value,
+                  progress: controller.verificationProgress,
                   isExpanded: controller.isVerificationExpanded.value,
                   onToggle: controller.toggleVerificationSection,
                   steps: controller.verificationSteps,
@@ -45,7 +45,7 @@ class BrandHomeLockedView extends GetView<BrandHomeLockedController> {
                   icon: Icons.check_circle_rounded,
                   title:
                       'Complete Your Profile', // 'home_locked_profile_title'.tr
-                  progress: controller.profileProgress.value,
+                  progress: controller.profileProgress,
                   isExpanded: controller.isProfileExpanded.value,
                   onToggle: controller.toggleProfileSection,
                   steps: controller.profileSteps,

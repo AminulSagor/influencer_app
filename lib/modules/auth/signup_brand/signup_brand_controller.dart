@@ -1,11 +1,33 @@
 // lib/modules/auth/signup_brand/signup_brand_controller.dart
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
-
+import 'package:influencer_app/core/services/account_type_service.dart';
+import 'package:influencer_app/core/services/auth_services.dart';
+import 'package:influencer_app/core/services/api_error_handler.dart';
+import 'package:influencer_app/modules/ad_agency/services/upload_service.dart';
+import 'package:influencer_app/modules/brand/models/onboarding_models.dart';
+import 'package:influencer_app/modules/brand/services/brand_onboarding_services.dart';
 import '../../../core/enums/account_type.dart';
 import '../../../core/models/social_link.dart';
 import '../../../routes/app_routes.dart';
+import 'package:path/path.dart' as path;
+
+// Helper class to collect onboarding data across steps
+class _MutableBrandOnboardingData {
+  String? thana;
+  String? zila;
+  String? fullAddress;
+  String? website;
+  List<BrandSocialLink> socialLinks = [];
+  String? nidNumber;
+  String? nidFrontImg;
+  String? nidBackImg;
+  String? tradeLicenseNumber;
+  String? tradeLicenseImg;
+}
 
 class SignupBrandController extends GetxController {
   // ----------------- Step 1 (basic info) -----------------
@@ -16,6 +38,20 @@ class SignupBrandController extends GetxController {
   final lastNameController = TextEditingController();
   final emailController = TextEditingController();
   final phoneController = TextEditingController();
+  final passwordController = TextEditingController();
+  final authService = Get.find<AuthService>();
+  final accountTypeService = Get.find<AccountTypeService>();
+  final _onboardingService = Get.find<BrandOnboardingService>();
+  final _uploadService = Get.find<UploadService>();
+
+  // Onboarding data collection (using mutable fields)
+  final onboardingData = _MutableBrandOnboardingData();
+
+  // Loading states
+  final isUploadingNid = false.obs;
+  final isUploadingTradeLicense = false.obs;
+  final isUploadingTin = false.obs;
+  final isFinishing = false.obs;
 
   // language toggle
   final isEnglish = true.obs;
@@ -30,16 +66,36 @@ class SignupBrandController extends GetxController {
     }
   }
 
-  void onContinue() {
-    // if (formKey.currentState?.validate() != true) return;
+  final isSubmitting = false.obs;
 
-    Get.toNamed(
-      AppRoutes.verification,
-      arguments: {
-        'phone': phoneController.text.trim(),
-        'accountType': AccountType.brand,
-      },
+  void onContinue() async {
+    if (isSubmitting.value) return;
+    if (formKey.currentState?.validate() != true) return;
+    isSubmitting.value = true;
+
+    final result = await ApiErrorHandler.call(
+      () => authService.signup(
+        firstName: firstNameController.text.trim(),
+        lastName: lastNameController.text.trim(),
+        email: emailController.text.trim(),
+        phone: phoneController.text.trim(),
+        password: passwordController.text.trim(),
+        role: 'client',
+      ),
     );
+
+    isSubmitting.value = false;
+
+    if (result.isSuccess) {
+      accountTypeService.setRole(AccountType.brand);
+      Get.toNamed(
+        AppRoutes.verification,
+        arguments: {
+          'phone': result.data!.phone,
+          'accountType': AccountType.brand,
+        },
+      );
+    }
   }
 
   // ----------------- Step 2 (address) -----------------
@@ -64,7 +120,13 @@ class SignupBrandController extends GetxController {
   ];
 
   void onAddressContinue() {
-    // if (addressFormKey.currentState?.validate() != true) return;
+    if (addressFormKey.currentState?.validate() != true) return;
+
+    // Save address data to onboarding model
+    onboardingData.thana = selectedThana.value?.trim();
+    onboardingData.zila = selectedZilla.value?.trim();
+    onboardingData.fullAddress = fullAddressController.text.trim();
+
     Get.toNamed(AppRoutes.signupBrandSocial);
   }
 
@@ -107,7 +169,36 @@ class SignupBrandController extends GetxController {
   }
 
   void onSocialContinue() {
-    // if (socialFormKey.currentState?.validate() != true) return;
+    if (socialFormKey.currentState?.validate() != true) return;
+
+    if ((selectedPlatform.value?.trim().isNotEmpty ?? false) &&
+        profileLinkController.text.trim().isNotEmpty) {
+      socialLinks.add(
+        SocialLink(
+          website: websiteController.text.trim().isEmpty
+              ? null
+              : websiteController.text.trim(),
+          platform: selectedPlatform.value!.trim(),
+          profileUrl: profileLinkController.text.trim(),
+        ),
+      );
+      selectedPlatform.value = null;
+      profileLinkController.clear();
+    }
+
+    // Save social links and website to onboarding model
+    onboardingData.website = websiteController.text.trim().isEmpty
+        ? null
+        : websiteController.text.trim();
+
+    // Convert SocialLink to BrandSocialLink
+    onboardingData.socialLinks = socialLinks
+        .map(
+          (link) =>
+              BrandSocialLink(platform: link.platform, link: link.profileUrl),
+        )
+        .toList();
+
     Get.toNamed(AppRoutes.signupBrandKyc);
   }
 
@@ -150,9 +241,42 @@ class SignupBrandController extends GetxController {
     Get.toNamed(AppRoutes.signupBrandTradeLicense);
   }
 
-  void onKycSubmit() {
-    // if (nidFormKey.currentState?.validate() != true) return;
-    Get.toNamed(AppRoutes.signupBrandTradeLicense);
+  Future<void> onKycSubmit() async {
+    if (isUploadingNid.value) return;
+
+    // Save NID number if provided
+    final nidNumber = nidNumberController.text.trim();
+    if (nidNumber.isNotEmpty) {
+      onboardingData.nidNumber = nidNumber;
+    }
+
+    // Upload NID images if provided
+    isUploadingNid.value = true;
+
+    final result = await ApiErrorHandler.call(() async {
+      if (nidFrontPath.value != null) {
+        final frontUrl = await _uploadFile(
+          filePath: nidFrontPath.value!,
+          module: 'brand-kyc',
+        );
+        onboardingData.nidFrontImg = frontUrl;
+      }
+
+      if (nidBackPath.value != null) {
+        final backUrl = await _uploadFile(
+          filePath: nidBackPath.value!,
+          module: 'brand-kyc',
+        );
+        onboardingData.nidBackImg = backUrl;
+      }
+      return true;
+    });
+
+    isUploadingNid.value = false;
+
+    if (result.isSuccess) {
+      Get.toNamed(AppRoutes.signupBrandTradeLicense);
+    }
   }
 
   // ----------------- Step 5 (trade license / KYC) -----------------
@@ -169,9 +293,34 @@ class SignupBrandController extends GetxController {
     }
   }
 
-  void onTradeLicenseContinue() {
-    // if (tradeLicenseFormKey.currentState?.validate() != true) return;
-    Get.toNamed(AppRoutes.signupBrandTin);
+  Future<void> onTradeLicenseContinue() async {
+    if (isUploadingTradeLicense.value) return;
+
+    // Save trade license number if provided
+    final tradeLicenseNumber = tradeLicenseNumberController.text.trim();
+    if (tradeLicenseNumber.isNotEmpty) {
+      onboardingData.tradeLicenseNumber = tradeLicenseNumber;
+    }
+
+    // Upload trade license image if provided
+    isUploadingTradeLicense.value = true;
+
+    final result = await ApiErrorHandler.call(() async {
+      if (tradeLicenseFilePath.value != null) {
+        final tradeLicenseUrl = await _uploadFile(
+          filePath: tradeLicenseFilePath.value!,
+          module: 'brand-trade-license',
+        );
+        onboardingData.tradeLicenseImg = tradeLicenseUrl;
+      }
+      return true;
+    });
+
+    isUploadingTradeLicense.value = false;
+
+    if (result.isSuccess) {
+      Get.toNamed(AppRoutes.signupBrandTin);
+    }
   }
 
   void onTradeLicenseSkip() {
@@ -199,20 +348,132 @@ class SignupBrandController extends GetxController {
   }
 
   void onTinSkip() {
-    // go to success / dashboard
-    Get.toNamed(
-      AppRoutes.signupSuccess,
-      arguments: {'accountType': AccountType.brand},
-    );
+    // Submit onboarding without TIN
+    _finishBrandSignup();
   }
 
-  void onTinContinue() {
-    // if (tinFormKey.currentState?.validate() != true) return;
-    // optionally ensure certificate selected
-    Get.toNamed(
-      AppRoutes.signupSuccess,
-      arguments: {'accountType': AccountType.brand},
+  Future<void> onTinContinue() async {
+    if (isFinishing.value) return;
+
+    // Upload TIN certificate if provided
+    isUploadingTin.value = true;
+
+    final result = await ApiErrorHandler.call(() async {
+      if (tinCertificatePath.value != null) {
+        await _uploadFile(
+          filePath: tinCertificatePath.value!,
+          module: 'brand-tin',
+        );
+      }
+      return true;
+    });
+
+    isUploadingTin.value = false;
+
+    if (result.isSuccess) {
+      _finishBrandSignup();
+    }
+  }
+
+  // ----------------- File Upload Helper -----------------
+
+  /// Upload a file and return the public URL
+  Future<String> _uploadFile({
+    required String filePath,
+    required String module,
+  }) async {
+    final file = File(filePath);
+    if (!await file.exists()) {
+      throw Exception('File not found: $filePath');
+    }
+
+    // Get file info
+    final fileName = path.basename(filePath);
+    final fileExtension = path.extension(fileName).replaceFirst('.', '');
+    final contentType = _getContentType(fileExtension);
+
+    // Step 1: Get signed URL
+    final signedUrlResult = await _uploadService.createSignedUrl(
+      fileName: fileName,
+      fileType: contentType,
+      module: module,
     );
+
+    // Step 2: Upload to cloud storage
+    await _uploadService.uploadFileToSignedUrl(
+      uploadUrl: signedUrlResult.uploadUrl,
+      file: file,
+      contentType: contentType,
+    );
+
+    // Step 3: Return public URL
+    return signedUrlResult.fileUrl;
+  }
+
+  /// Get content type from file extension
+  String _getContentType(String extension) {
+    switch (extension.toLowerCase()) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'pdf':
+        return 'application/pdf';
+      default:
+        return 'image/jpeg';
+    }
+  }
+
+  // ----------------- Final Submission -----------------
+
+  /// Collect all data and submit brand onboarding
+  Future<void> _finishBrandSignup() async {
+    if (isFinishing.value) return;
+    isFinishing.value = true;
+
+    // Collect data before navigation (in case controllers get disposed)
+    final brandName = brandNameController.text.trim();
+    final firstName = firstNameController.text.trim();
+    final lastName = lastNameController.text.trim();
+
+    final result = await ApiErrorHandler.call(() async {
+      // Update basic info (brandName, firstName, lastName)
+      await _onboardingService.updateBasicInfo(
+        brandName: brandName,
+        firstName: firstName,
+        lastName: lastName,
+      );
+
+      // Build final onboarding request with all collected data
+      final request = BrandOnboardingRequest(
+        thana: onboardingData.thana,
+        zila: onboardingData.zila,
+        fullAddress: onboardingData.fullAddress,
+        website: onboardingData.website,
+        socialLinks: onboardingData.socialLinks,
+        nidNumber: onboardingData.nidNumber,
+        nidFrontImg: onboardingData.nidFrontImg,
+        nidBackImg: onboardingData.nidBackImg,
+        tradeLicenseNumber: onboardingData.tradeLicenseNumber,
+        tradeLicenseImg: onboardingData.tradeLicenseImg,
+      );
+
+      // Submit onboarding data
+      await _onboardingService.submitOnboarding(request);
+      return true;
+    });
+
+    if (!isClosed) {
+      isFinishing.value = false;
+    }
+
+    if (result.isSuccess) {
+      Get.offAllNamed(
+        AppRoutes.signupSuccess,
+        arguments: {'accountType': AccountType.brand},
+      );
+    }
   }
 
   // ----------------- Common navigation -----------------
@@ -225,10 +486,13 @@ class SignupBrandController extends GetxController {
   }
 
   // IMPORTANT: do NOT dispose the TextEditingControllers here
-  // because this controller is shared across multiple steps.
+  // because this controller is shared across multiple steps and is permanent.
+  // The controllers should remain alive for the entire signup flow.
   @override
   void onClose() {
-    // Leave controllers alive; Get will keep this instance for the flow.
+    // Don't dispose controllers - they're needed across multiple steps
+    // Since the controller is permanent, GetX won't automatically dispose it
+    // Only call super.onClose() - GetX will handle cleanup if needed
     super.onClose();
   }
 }

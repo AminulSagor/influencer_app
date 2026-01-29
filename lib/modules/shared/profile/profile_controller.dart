@@ -1,10 +1,14 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:influencer_app/core/services/account_type_service.dart';
+import 'package:influencer_app/core/services/api_client.dart';
 import 'package:influencer_app/core/theme/app_palette.dart';
+import 'package:influencer_app/modules/influencer/models/influencer_profile_model.dart';
+import 'package:influencer_app/modules/influencer/services/influencer_profile_service.dart';
 
 import 'models/brand_asset.dart';
 import 'models/user_location.dart';
@@ -127,11 +131,725 @@ class ProfileController extends GetxController {
   final verificationInprogressItems = <VerificationInprogressItem>[].obs;
   final payoutMethods = <PayoutMethod>[].obs;
 
+  /// Loading state for profile fetch
+  final isLoadingProfile = false.obs;
+
+  /// Current influencer profile (null for brand/agency)
+  final Rxn<InfluencerProfile> influencerProfile = Rxn<InfluencerProfile>();
+
   @override
   void onInit() {
     super.onInit();
     profileName.value = accountTypeService.isBrand ? 'Salman Khan' : 'Grow Big';
-    _loadMockDataForUnverified();
+    _fetchProfileData();
+  }
+
+  /// Fetches profile data from API based on account type
+  Future<void> _fetchProfileData() async {
+    isLoadingProfile.value = true;
+
+    if (accountTypeService.isInfluencer) {
+      await _fetchInfluencerProfile();
+    } else if (accountTypeService.isAdAgency) {
+      await _fetchAgencyProfile();
+    } else if (accountTypeService.isBrand) {
+      await _fetchBrandProfile();
+    } else {
+      _loadMockDataForUnverified();
+    }
+
+    isLoadingProfile.value = false;
+  }
+
+  /// Fetches influencer profile from API and populates UI fields
+  Future<void> _fetchInfluencerProfile() async {
+    final apiClient = Get.find<ApiClient>();
+    final service = InfluencerProfileService(apiClient);
+    final result = await service.getProfile();
+
+    if (result.isSuccess && result.data != null) {
+      final profile = result.data!;
+      influencerProfile.value = profile;
+
+      debugPrint('📋 INFLUENCER PROFILE LOADED:');
+      debugPrint('  Name: ${profile.fullName}');
+      debugPrint('  isVerified: ${profile.isOnboardingComplete}');
+
+      _populateFromInfluencerProfile(profile);
+    } else {
+      debugPrint('❌ Failed to load profile: ${result.error}');
+      _loadMockDataForUnverified();
+    }
+  }
+
+  /// Populates controller fields from InfluencerProfile data
+  void _populateFromInfluencerProfile(InfluencerProfile profile) {
+    // Basic info
+    profileName.value = profile.fullName.isNotEmpty
+        ? profile.fullName
+        : 'Influencer';
+    profileStatus.value = profile.isOnboardingComplete
+        ? ProfileStatus.verified
+        : ProfileStatus.unverified;
+    bioText.value = profile.bio ?? '';
+    profileRating.value = profile.averageRating;
+    profileRatingCount.value = profile.totalReviews;
+
+    // Calculate profile completion
+    int completed = 0;
+    int total = 7;
+    if (profile.fullName.isNotEmpty) completed++;
+    if (profile.bio != null && profile.bio!.isNotEmpty) completed++;
+    if (profile.addresses.isNotEmpty) completed++;
+    if (profile.socialLinks != null && profile.socialLinks!.isNotEmpty)
+      completed++;
+    if (profile.niches != null && profile.niches!.isNotEmpty) completed++;
+    if (profile.skills != null && profile.skills!.isNotEmpty) completed++;
+    if (profile.payouts != null) completed++;
+    profileCompletion.value = completed / total;
+
+    // Social accounts
+    if (profile.socialLinks != null && profile.socialLinks!.isNotEmpty) {
+      socialAccounts.assignAll(
+        profile.socialLinks!
+            .map(
+              (link) => SocialAccount(
+                platform: _capitalizeFirst(link.platform),
+                iconPath: _getIconPathForPlatform(link.platform),
+                handle: link.url,
+                isVerified: link.isVerified,
+              ),
+            )
+            .toList(),
+      );
+    } else {
+      socialAccounts.clear();
+    }
+
+    // Niches
+    if (profile.niches != null && profile.niches!.isNotEmpty) {
+      niches.assignAll(profile.niches!.map((n) => n.name).toList());
+    } else {
+      niches.clear();
+    }
+
+    // Skills
+    if (profile.skills != null && profile.skills!.isNotEmpty) {
+      skills.assignAll(profile.skills!.map((s) => s.name).toList());
+    } else {
+      skills.clear();
+    }
+
+    // Locations/Addresses
+    if (profile.addresses.isNotEmpty) {
+      locations.assignAll(
+        profile.addresses
+            .map(
+              (addr) => UserLocation(
+                name: addr.addressName ?? '',
+                thana: addr.thana ?? '',
+                zilla: addr.zilla ?? '',
+                fullAddress: addr.fullAddress ?? '',
+              ),
+            )
+            .toList(),
+      );
+    } else {
+      locations.clear();
+    }
+
+    // Payout methods
+    if (profile.payouts != null) {
+      final List<PayoutMethod> methods = [];
+
+      for (final bank in profile.payouts!.bankAccounts) {
+        methods.add(
+          PayoutMethod.bank(
+            bankName: bank.bankName,
+            accountName: bank.bankAccHolderName,
+            accountNo: bank.bankAccNo,
+            routingNumber: bank.bankRoutingNo ?? '',
+            isApproved: bank.isApproved,
+          ),
+        );
+      }
+
+      for (final mobile in profile.payouts!.mobileAccounts) {
+        methods.add(
+          PayoutMethod.bKash(
+            bKashNo: mobile.accountNo,
+            bKashName: mobile.accountHolderName,
+            bKashAccountType: mobile.accountType,
+            isApproved: mobile.isApproved,
+          ),
+        );
+      }
+
+      payoutMethods.assignAll(methods);
+    } else {
+      payoutMethods.clear();
+    }
+
+    // Verification status
+    verificationInprogressItems.assignAll([
+      VerificationInprogressItem(
+        title: 'Social Profile Verification',
+        state:
+            (profile.socialLinks != null &&
+                profile.socialLinks!.any((s) => s.isVerified))
+            ? VerificationState.verified
+            : (profile.socialLinks != null && profile.socialLinks!.isNotEmpty)
+            ? VerificationState.underReview
+            : VerificationState.unverified,
+      ),
+      VerificationInprogressItem(
+        title: 'Payment Setup',
+        state: profile.payouts != null
+            ? VerificationState.verified
+            : VerificationState.unverified,
+      ),
+      VerificationInprogressItem(
+        title: 'NID',
+        state: _getNidVerificationState(profile),
+      ),
+      VerificationInprogressItem(
+        title: 'Email',
+        state: VerificationState.verified, // Email is verified during signup
+      ),
+    ]);
+
+    // Profile fields
+    profileFields.assignAll([
+      ProfileField(
+        label: 'First Name',
+        hintText: 'Enter First Name',
+        value: profile.firstName,
+        isRequired: true,
+      ),
+      ProfileField(
+        label: 'Last Name',
+        hintText: 'Enter Last Name',
+        value: profile.lastName,
+        isRequired: true,
+      ),
+      ProfileField(
+        label: 'Email Address',
+        hintText: 'Enter Email Address',
+        value: '', // Email is on User model, not profile
+        isRequired: true,
+      ),
+      ProfileField(
+        label: 'Website',
+        hintText: 'Enter Website URL',
+        value: profile.website ?? '',
+        isRequired: false,
+      ),
+    ]);
+  }
+
+  /// Get NID verification state from profile
+  VerificationState _getNidVerificationState(InfluencerProfile profile) {
+    if (profile.nidVerification == null) {
+      return profile.hasNidSubmitted
+          ? VerificationState.underReview
+          : VerificationState.unverified;
+    }
+    final status = profile.nidVerification!.status;
+    if (status == 'approved' || status == 'verified')
+      return VerificationState.verified;
+    if (status == 'pending') return VerificationState.underReview;
+    return VerificationState.unverified;
+  }
+
+  /// Helper to get icon path for social platform
+  String _getIconPathForPlatform(String platform) {
+    switch (platform.toLowerCase()) {
+      case 'instagram':
+        return 'assets/icons/Instagram_outline.png';
+      case 'youtube':
+        return 'assets/icons/youtube_outline.png';
+      case 'tiktok':
+        return 'assets/icons/tiktok_outline.png';
+      case 'facebook':
+        return 'assets/icons/facebook.png';
+      case 'twitter':
+      case 'x':
+        return 'assets/icons/instagram.png'; // fallback - no x icon available
+      default:
+        return 'assets/icons/instagram.png'; // fallback
+    }
+  }
+
+  /// Capitalize first letter
+  String _capitalizeFirst(String text) {
+    if (text.isEmpty) return text;
+    return text[0].toUpperCase() + text.substring(1).toLowerCase();
+  }
+
+  /// Fetches agency profile from API and populates UI fields
+  Future<void> _fetchAgencyProfile() async {
+    final apiClient = Get.find<ApiClient>();
+    try {
+      final res = await apiClient.dio.get('/agency/profile');
+      final json = res.data as Map<String, dynamic>;
+
+      debugPrint('📋 AGENCY PROFILE LOADED:');
+      debugPrint('  Name: ${json['agencyName']}');
+      debugPrint('  isOnboardingComplete: ${json['isOnboardingComplete']}');
+
+      _populateFromAgencyJson(json);
+    } catch (e) {
+      debugPrint('❌ Failed to load agency profile: $e');
+      _loadMockDataForUnverified();
+    }
+  }
+
+  /// Fetches brand profile from API and populates UI fields
+  Future<void> _fetchBrandProfile() async {
+    final apiClient = Get.find<ApiClient>();
+    try {
+      final res = await apiClient.dio.get('/client/profile');
+      final json = res.data as Map<String, dynamic>;
+
+      debugPrint('📋 BRAND PROFILE LOADED:');
+      debugPrint('  Name: ${json['firstName']} ${json['lastName']}');
+      debugPrint('  isOnboardingComplete: ${json['isOnboardingComplete']}');
+
+      _populateFromBrandJson(json);
+    } catch (e) {
+      debugPrint('❌ Failed to load brand profile: $e');
+      _loadMockDataForUnverified();
+    }
+  }
+
+  /// Populates controller fields from Agency profile JSON
+  void _populateFromAgencyJson(Map<String, dynamic> json) {
+    final isComplete = json['isOnboardingComplete'] as bool? ?? false;
+
+    // Basic info
+    final agencyName = json['agencyName'] as String? ?? '';
+    final firstName = json['firstName'] as String? ?? '';
+    final lastName = json['lastName'] as String? ?? '';
+    profileName.value = agencyName.isNotEmpty
+        ? agencyName
+        : '$firstName $lastName'.trim();
+    profileStatus.value = isComplete
+        ? ProfileStatus.verified
+        : ProfileStatus.unverified;
+    bioText.value = json['agencyBio'] as String? ?? '';
+    serviceFeeText.value = json['serviceFee']?.toString() ?? '';
+
+    // Rating
+    final rating = json['averageRating'];
+    if (rating is String) {
+      profileRating.value = double.tryParse(rating) ?? 0.0;
+    } else if (rating is num) {
+      profileRating.value = rating.toDouble();
+    }
+    profileRatingCount.value = json['totalReviews'] as int? ?? 0;
+
+    // Calculate profile completion
+    int completed = 0;
+    int total = 8;
+    if (agencyName.isNotEmpty) completed++;
+    if ((json['agencyBio'] as String?)?.isNotEmpty == true) completed++;
+    if (json['address'] != null) completed++;
+    if (json['socialLinks'] != null) completed++;
+    if (json['nidNumber'] != null) completed++;
+    if (json['tradeLicenseNumber'] != null) completed++;
+    if (json['tinNumber'] != null) completed++;
+    if (json['payouts'] != null) completed++;
+    profileCompletion.value = completed / total;
+
+    // Social accounts
+    final socialLinks = json['socialLinks'] as List?;
+    if (socialLinks != null && socialLinks.isNotEmpty) {
+      socialAccounts.assignAll(
+        socialLinks.map((link) {
+          final linkMap = link as Map<String, dynamic>;
+          return SocialAccount(
+            platform: _capitalizeFirst(linkMap['platform'] as String? ?? ''),
+            iconPath: _getIconPathForPlatform(
+              linkMap['platform'] as String? ?? '',
+            ),
+            handle: linkMap['url'] as String? ?? '',
+            isVerified: linkMap['status'] == 'verified',
+          );
+        }).toList(),
+      );
+    } else {
+      socialAccounts.clear();
+    }
+
+    // Niches
+    final niches_ = json['niches'] as List?;
+    if (niches_ != null && niches_.isNotEmpty) {
+      niches.assignAll(
+        niches_.map((n) {
+          if (n is String) return n;
+          if (n is Map) return n['name'] as String? ?? '';
+          return n.toString();
+        }).toList(),
+      );
+    } else {
+      niches.clear();
+    }
+
+    // Locations/Addresses
+    final address = json['address'];
+    if (address != null) {
+      if (address is Map<String, dynamic>) {
+        locations.assignAll([
+          UserLocation(
+            name: address['addressName'] as String? ?? 'Office',
+            thana: address['thana'] as String? ?? '',
+            zilla: address['zilla'] as String? ?? '',
+            fullAddress: address['fullAddress'] as String? ?? '',
+          ),
+        ]);
+      } else if (address is List && address.isNotEmpty) {
+        locations.assignAll(
+          address.map((addr) {
+            final addrMap = addr as Map<String, dynamic>;
+            return UserLocation(
+              name: addrMap['addressName'] as String? ?? 'Office',
+              thana: addrMap['thana'] as String? ?? '',
+              zilla: addrMap['zilla'] as String? ?? '',
+              fullAddress: addrMap['fullAddress'] as String? ?? '',
+            );
+          }).toList(),
+        );
+      }
+    } else {
+      locations.clear();
+    }
+
+    // Payout methods
+    final payouts = json['payouts'] as Map<String, dynamic>?;
+    if (payouts != null) {
+      final List<PayoutMethod> methods = [];
+
+      final banks = payouts['bank'] as List?;
+      if (banks != null) {
+        for (final bank in banks) {
+          final bankMap = bank as Map<String, dynamic>;
+          methods.add(
+            PayoutMethod.bank(
+              bankName: bankMap['bankName'] as String? ?? '',
+              accountName: bankMap['bankAccHolderName'] as String? ?? '',
+              accountNo: bankMap['bankAccNo'] as String? ?? '',
+              routingNumber: bankMap['bankRoutingNo'] as String? ?? '',
+              isApproved: bankMap['status'] == 'approved',
+            ),
+          );
+        }
+      }
+
+      final mobile = payouts['mobileBanking'] as List?;
+      if (mobile != null) {
+        for (final m in mobile) {
+          final mobileMap = m as Map<String, dynamic>;
+          methods.add(
+            PayoutMethod.bKash(
+              bKashNo: mobileMap['accountNo'] as String? ?? '',
+              bKashName: mobileMap['accountHolderName'] as String? ?? '',
+              bKashAccountType:
+                  mobileMap['accountType'] as String? ?? 'Personal',
+              isApproved: mobileMap['status'] == 'approved',
+            ),
+          );
+        }
+      }
+
+      payoutMethods.assignAll(methods);
+    } else {
+      payoutMethods.clear();
+    }
+
+    // Verification status items
+    verificationInprogressItems.assignAll([
+      VerificationInprogressItem(
+        title: 'Social Profile Verification',
+        state:
+            (socialLinks != null &&
+                socialLinks.any((s) => (s as Map)['status'] == 'verified'))
+            ? VerificationState.verified
+            : (socialLinks != null && socialLinks.isNotEmpty)
+            ? VerificationState.underReview
+            : VerificationState.unverified,
+      ),
+      VerificationInprogressItem(
+        title: 'Payment Setup',
+        state: json['payouts'] != null
+            ? VerificationState.verified
+            : VerificationState.unverified,
+      ),
+      VerificationInprogressItem(
+        title: 'NID',
+        state: _getVerificationStateFromJson(
+          json['nidVerification'],
+          json['nidNumber'],
+        ),
+      ),
+      VerificationInprogressItem(
+        title: 'Trade License',
+        state: _getVerificationStateFromJson(
+          json['tradeLicenseVerification'],
+          json['tradeLicenseNumber'],
+        ),
+      ),
+      VerificationInprogressItem(
+        title: 'TIN',
+        state: _getVerificationStateFromJson(
+          json['tinVerification'],
+          json['tinNumber'],
+        ),
+      ),
+      VerificationInprogressItem(
+        title: 'BIN',
+        state: _getVerificationStateFromJson(
+          json['binVerification'],
+          json['binNumber'],
+        ),
+      ),
+    ]);
+
+    // Profile fields
+    profileFields.assignAll([
+      ProfileField(
+        label: 'Agency Name',
+        hintText: 'Enter Agency Name',
+        value: agencyName,
+        isRequired: true,
+      ),
+      ProfileField(
+        label: 'First Name',
+        hintText: 'Enter First Name',
+        value: firstName,
+        isRequired: true,
+      ),
+      ProfileField(
+        label: 'Last Name',
+        hintText: 'Enter Last Name',
+        value: lastName,
+        isRequired: true,
+      ),
+      ProfileField(
+        label: 'Website',
+        hintText: 'Enter Website URL',
+        value: json['website'] as String? ?? '',
+        isRequired: false,
+      ),
+    ]);
+  }
+
+  /// Populates controller fields from Brand profile JSON
+  void _populateFromBrandJson(Map<String, dynamic> json) {
+    // Brand uses similar structure - reuse agency logic with slight modifications
+    final isComplete = json['isOnboardingComplete'] as bool? ?? false;
+
+    final companyName = json['companyName'] as String? ?? '';
+    final firstName = json['firstName'] as String? ?? '';
+    final lastName = json['lastName'] as String? ?? '';
+    profileName.value = companyName.isNotEmpty
+        ? companyName
+        : '$firstName $lastName'.trim();
+    brandName.value = companyName;
+    profileStatus.value = isComplete
+        ? ProfileStatus.verified
+        : ProfileStatus.unverified;
+    bioText.value = json['bio'] as String? ?? '';
+
+    // Rating
+    final rating = json['averageRating'];
+    if (rating is String) {
+      profileRating.value = double.tryParse(rating) ?? 0.0;
+    } else if (rating is num) {
+      profileRating.value = rating.toDouble();
+    }
+    profileRatingCount.value = json['totalReviews'] as int? ?? 0;
+
+    // Calculate profile completion
+    int completed = 0;
+    int total = 7;
+    if (companyName.isNotEmpty || firstName.isNotEmpty) completed++;
+    if ((json['bio'] as String?)?.isNotEmpty == true) completed++;
+    if (json['address'] != null || json['addresses'] != null) completed++;
+    if (json['socialLinks'] != null) completed++;
+    if (json['tradeLicenseNumber'] != null) completed++;
+    if (json['tinNumber'] != null) completed++;
+    if (json['payouts'] != null) completed++;
+    profileCompletion.value = completed / total;
+
+    // Social accounts
+    final socialLinks = json['socialLinks'] as List?;
+    if (socialLinks != null && socialLinks.isNotEmpty) {
+      socialAccounts.assignAll(
+        socialLinks.map((link) {
+          final linkMap = link as Map<String, dynamic>;
+          return SocialAccount(
+            platform: _capitalizeFirst(linkMap['platform'] as String? ?? ''),
+            iconPath: _getIconPathForPlatform(
+              linkMap['platform'] as String? ?? '',
+            ),
+            handle: linkMap['url'] as String? ?? '',
+            isVerified: linkMap['status'] == 'verified',
+          );
+        }).toList(),
+      );
+    } else {
+      socialAccounts.clear();
+    }
+
+    // Locations/Addresses
+    final addresses =
+        json['addresses'] as List? ??
+        (json['address'] != null ? [json['address']] : null);
+    if (addresses != null && addresses.isNotEmpty) {
+      locations.assignAll(
+        addresses.map((addr) {
+          final addrMap = addr as Map<String, dynamic>;
+          return UserLocation(
+            name: addrMap['addressName'] as String? ?? 'Office',
+            thana: addrMap['thana'] as String? ?? '',
+            zilla: addrMap['zilla'] as String? ?? '',
+            fullAddress: addrMap['fullAddress'] as String? ?? '',
+          );
+        }).toList(),
+      );
+    } else {
+      locations.clear();
+    }
+
+    // Payout methods (same as agency)
+    final payouts = json['payouts'] as Map<String, dynamic>?;
+    if (payouts != null) {
+      final List<PayoutMethod> methods = [];
+
+      final banks = payouts['bank'] as List?;
+      if (banks != null) {
+        for (final bank in banks) {
+          final bankMap = bank as Map<String, dynamic>;
+          methods.add(
+            PayoutMethod.bank(
+              bankName: bankMap['bankName'] as String? ?? '',
+              accountName: bankMap['bankAccHolderName'] as String? ?? '',
+              accountNo: bankMap['bankAccNo'] as String? ?? '',
+              routingNumber: bankMap['bankRoutingNo'] as String? ?? '',
+              isApproved: bankMap['status'] == 'approved',
+            ),
+          );
+        }
+      }
+
+      final mobile = payouts['mobileBanking'] as List?;
+      if (mobile != null) {
+        for (final m in mobile) {
+          final mobileMap = m as Map<String, dynamic>;
+          methods.add(
+            PayoutMethod.bKash(
+              bKashNo: mobileMap['accountNo'] as String? ?? '',
+              bKashName: mobileMap['accountHolderName'] as String? ?? '',
+              bKashAccountType:
+                  mobileMap['accountType'] as String? ?? 'Personal',
+              isApproved: mobileMap['status'] == 'approved',
+            ),
+          );
+        }
+      }
+
+      payoutMethods.assignAll(methods);
+    } else {
+      payoutMethods.clear();
+    }
+
+    // Verification status items
+    verificationInprogressItems.assignAll([
+      VerificationInprogressItem(
+        title: 'Social Profile Verification',
+        state:
+            (socialLinks != null &&
+                socialLinks.any((s) => (s as Map)['status'] == 'verified'))
+            ? VerificationState.verified
+            : (socialLinks != null && socialLinks.isNotEmpty)
+            ? VerificationState.underReview
+            : VerificationState.unverified,
+      ),
+      VerificationInprogressItem(
+        title: 'Payment Setup',
+        state: json['payouts'] != null
+            ? VerificationState.verified
+            : VerificationState.unverified,
+      ),
+      VerificationInprogressItem(
+        title: 'Trade License',
+        state: _getVerificationStateFromJson(
+          json['tradeLicenseVerification'],
+          json['tradeLicenseNumber'],
+        ),
+      ),
+      VerificationInprogressItem(
+        title: 'TIN',
+        state: _getVerificationStateFromJson(
+          json['tinVerification'],
+          json['tinNumber'],
+        ),
+      ),
+      VerificationInprogressItem(
+        title: 'BIN',
+        state: _getVerificationStateFromJson(
+          json['binVerification'],
+          json['binNumber'],
+        ),
+      ),
+    ]);
+
+    // Profile fields
+    profileFields.assignAll([
+      ProfileField(
+        label: 'Company Name',
+        hintText: 'Enter Company Name',
+        value: companyName,
+        isRequired: true,
+      ),
+      ProfileField(
+        label: 'First Name',
+        hintText: 'Enter First Name',
+        value: firstName,
+        isRequired: true,
+      ),
+      ProfileField(
+        label: 'Last Name',
+        hintText: 'Enter Last Name',
+        value: lastName,
+        isRequired: true,
+      ),
+      ProfileField(
+        label: 'Website',
+        hintText: 'Enter Website URL',
+        value: json['website'] as String? ?? '',
+        isRequired: false,
+      ),
+    ]);
+  }
+
+  /// Helper to get verification state from JSON verification object
+  VerificationState _getVerificationStateFromJson(
+    dynamic verification,
+    dynamic documentNumber,
+  ) {
+    if (verification != null && verification is Map) {
+      final status = verification['status'] as String?;
+      if (status == 'approved' || status == 'verified')
+        return VerificationState.verified;
+      if (status == 'pending') return VerificationState.underReview;
+      if (status == 'rejected') return VerificationState.unverified;
+    }
+    // If no verification object but document exists, assume under review
+    if (documentNumber != null && documentNumber.toString().isNotEmpty) {
+      return VerificationState.underReview;
+    }
+    return VerificationState.unverified;
   }
 
   @override
@@ -226,6 +944,7 @@ class ProfileController extends GetxController {
     } catch (e) {
       debugPrint("Failed to pick image: $e");
       // Get.snackbar("Error", "Failed to pick image: $e");
+      return null;
     }
   }
 
@@ -891,4 +1610,9 @@ class ProfileController extends GetxController {
   void toggleSettings() => settingsExpanded.toggle();
   void toggleVerification() => verificationExpanded.toggle();
   void togglePayout() => payoutExpanded.toggle();
+
+  // Placeholder: save verification methods changes
+  Future<void> onSaveVerificationMethods() async {
+    debugPrint('Save verification methods tapped');
+  }
 }

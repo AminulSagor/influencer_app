@@ -74,6 +74,7 @@ class ForgotPasswordOtpView extends GetView<ForgotPasswordController> {
                       focusNode: controller.otpFocusNodes[index],
                       onChanged: (value) =>
                           controller.onOtpDigitChanged(value, index),
+                      autofocus: index == 0, // Auto-focus first OTP box
                     );
                   }),
                 ),
@@ -157,11 +158,13 @@ class _OtpBox extends StatelessWidget {
   final TextEditingController controller;
   final FocusNode focusNode;
   final ValueChanged<String> onChanged;
+  final bool autofocus;
 
   const _OtpBox({
     required this.controller,
     required this.focusNode,
     required this.onChanged,
+    this.autofocus = false,
   });
 
   @override
@@ -172,6 +175,7 @@ class _OtpBox extends StatelessWidget {
       child: TextField(
         controller: controller,
         focusNode: focusNode,
+        autofocus: autofocus,
         keyboardType: TextInputType.number,
         textAlign: TextAlign.center,
         style: TextStyle(

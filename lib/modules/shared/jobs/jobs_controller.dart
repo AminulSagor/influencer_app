@@ -2,8 +2,11 @@ import 'dart:developer' as dev;
 
 import 'package:get/get.dart';
 import 'package:influencer_app/core/services/account_type_service.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/models/job_item.dart';
+import '../../../core/services/api_client.dart';
+import '../../../core/services/api_error_handler.dart';
 import '../../../routes/app_routes.dart';
 
 class JobsController extends GetxController {
@@ -22,6 +25,7 @@ class JobsController extends GetxController {
   void setBrandBudgetChip(int index) => brandBudgetChipIndex.value = index;
 
   final AccountTypeService _accountTypeService = Get.find<AccountTypeService>();
+  final ApiClient _apiClient = Get.find<ApiClient>();
   bool get isBrand => _accountTypeService.isBrand;
 
   // ---------------- INFLUENCER / AGENCY LISTS ----------------
@@ -451,18 +455,25 @@ class JobsController extends GetxController {
       brandActive.clear();
     }
 
-    final items = await _mockFetchJobs(
-      tabIndex: 0,
-      page: _brandActivePage,
-      pageSize: _pageSize,
-      mode: _MockMode.brand,
+    final result = await ApiErrorHandler.call(
+      () => _fetchBrandCampaigns(
+        status: 'active',
+        page: _brandActivePage,
+        pageSize: _pageSize,
+      ),
     );
-    if (items.isEmpty) {
-      hasMoreBrandActive.value = false;
-    } else {
-      brandActive.addAll(items);
-      _brandActivePage++;
-      if (items.length < _pageSize) hasMoreBrandActive.value = false;
+
+    if (result.isSuccess) {
+      final page = result.data!;
+      if (page.items.isEmpty) {
+        hasMoreBrandActive.value = false;
+      } else {
+        brandActive.addAll(page.items);
+        _brandActivePage++;
+        if (_brandActivePage > page.totalPages) {
+          hasMoreBrandActive.value = false;
+        }
+      }
     }
     isLoadingBrandActive.value = false;
   }
@@ -478,18 +489,25 @@ class JobsController extends GetxController {
       brandBudgeting.clear();
     }
 
-    final items = await _mockFetchJobs(
-      tabIndex: 1,
-      page: _brandBudgetingPage,
-      pageSize: _pageSize,
-      mode: _MockMode.brand,
+    final result = await ApiErrorHandler.call(
+      () => _fetchBrandCampaigns(
+        status: 'quoting',
+        page: _brandBudgetingPage,
+        pageSize: _pageSize,
+      ),
     );
-    if (items.isEmpty) {
-      hasMoreBrandBudgeting.value = false;
-    } else {
-      brandBudgeting.addAll(items);
-      _brandBudgetingPage++;
-      if (items.length < _pageSize) hasMoreBrandBudgeting.value = false;
+
+    if (result.isSuccess) {
+      final page = result.data!;
+      if (page.items.isEmpty) {
+        hasMoreBrandBudgeting.value = false;
+      } else {
+        brandBudgeting.addAll(page.items);
+        _brandBudgetingPage++;
+        if (_brandBudgetingPage > page.totalPages) {
+          hasMoreBrandBudgeting.value = false;
+        }
+      }
     }
     isLoadingBrandBudgeting.value = false;
   }
@@ -505,18 +523,25 @@ class JobsController extends GetxController {
       brandCompleted.clear();
     }
 
-    final items = await _mockFetchJobs(
-      tabIndex: 2,
-      page: _brandCompletedPage,
-      pageSize: _pageSize,
-      mode: _MockMode.brand,
+    final result = await ApiErrorHandler.call(
+      () => _fetchBrandCampaigns(
+        status: 'completed',
+        page: _brandCompletedPage,
+        pageSize: _pageSize,
+      ),
     );
-    if (items.isEmpty) {
-      hasMoreBrandCompleted.value = false;
-    } else {
-      brandCompleted.addAll(items);
-      _brandCompletedPage++;
-      if (items.length < _pageSize) hasMoreBrandCompleted.value = false;
+
+    if (result.isSuccess) {
+      final page = result.data!;
+      if (page.items.isEmpty) {
+        hasMoreBrandCompleted.value = false;
+      } else {
+        brandCompleted.addAll(page.items);
+        _brandCompletedPage++;
+        if (_brandCompletedPage > page.totalPages) {
+          hasMoreBrandCompleted.value = false;
+        }
+      }
     }
     isLoadingBrandCompleted.value = false;
   }
@@ -532,18 +557,25 @@ class JobsController extends GetxController {
       brandDrafts.clear();
     }
 
-    final items = await _mockFetchJobs(
-      tabIndex: 3,
-      page: _brandDraftsPage,
-      pageSize: _pageSize,
-      mode: _MockMode.brand,
+    final result = await ApiErrorHandler.call(
+      () => _fetchBrandCampaigns(
+        status: 'draft',
+        page: _brandDraftsPage,
+        pageSize: _pageSize,
+      ),
     );
-    if (items.isEmpty) {
-      hasMoreBrandDrafts.value = false;
-    } else {
-      brandDrafts.addAll(items);
-      _brandDraftsPage++;
-      if (items.length < _pageSize) hasMoreBrandDrafts.value = false;
+
+    if (result.isSuccess) {
+      final page = result.data!;
+      if (page.items.isEmpty) {
+        hasMoreBrandDrafts.value = false;
+      } else {
+        brandDrafts.addAll(page.items);
+        _brandDraftsPage++;
+        if (_brandDraftsPage > page.totalPages) {
+          hasMoreBrandDrafts.value = false;
+        }
+      }
     }
     isLoadingBrandDrafts.value = false;
   }
@@ -559,20 +591,174 @@ class JobsController extends GetxController {
       brandCanceled.clear();
     }
 
-    final items = await _mockFetchJobs(
-      tabIndex: 4,
-      page: _brandCanceledPage,
-      pageSize: _pageSize,
-      mode: _MockMode.brand,
+    final result = await ApiErrorHandler.call(
+      () => _fetchBrandCampaigns(
+        status: 'cancelled',
+        page: _brandCanceledPage,
+        pageSize: _pageSize,
+      ),
     );
-    if (items.isEmpty) {
-      hasMoreBrandCanceled.value = false;
-    } else {
-      brandCanceled.addAll(items);
-      _brandCanceledPage++;
-      if (items.length < _pageSize) hasMoreBrandCanceled.value = false;
+
+    if (result.isSuccess) {
+      final page = result.data!;
+      if (page.items.isEmpty) {
+        hasMoreBrandCanceled.value = false;
+      } else {
+        brandCanceled.addAll(page.items);
+        _brandCanceledPage++;
+        if (_brandCanceledPage > page.totalPages) {
+          hasMoreBrandCanceled.value = false;
+        }
+      }
     }
     isLoadingBrandCanceled.value = false;
+  }
+
+  // -------- BRAND API --------
+
+  Future<_CampaignPage> _fetchBrandCampaigns({
+    required String status,
+    required int page,
+    required int pageSize,
+  }) async {
+    final res = await _apiClient.dio.get(
+      '/campaign/my-campaigns',
+      queryParameters: {'status': status, 'page': page, 'limit': pageSize},
+    );
+
+    final data = res.data as Map<String, dynamic>;
+    final list = (data['data'] as List?) ?? const [];
+    final items = list
+        .whereType<Map>()
+        .map(
+          (e) => _mapCampaignToJob(
+            Map<String, dynamic>.from(e),
+            statusHint: status,
+          ),
+        )
+        .toList();
+
+    final meta = data['meta'] as Map<String, dynamic>?;
+    final totalPages = (meta?['totalPages'] as num?)?.toInt() ?? 1;
+
+    return _CampaignPage(items: items, totalPages: totalPages);
+  }
+
+  JobItem _mapCampaignToJob(
+    Map<String, dynamic> json, {
+    required String statusHint,
+  }) {
+    final campaignName = (json['campaignName'] as String?)?.trim();
+    final campaignTypeRaw = (json['campaignType'] as String?)?.trim();
+    final budget = _numToDouble(json['totalBudget']);
+    final createdAt = json['createdAt'] as String?;
+    final deadline = json['deadline'] as String?;
+    final progress = (json['progress'] as num?)?.toInt() ?? 0;
+
+    final assignedTo = (json['assignedTo'] as List?) ?? const [];
+    final clientName = _formatAssignedTo(assignedTo);
+
+    final dueLabel = _buildDueLabel(deadline);
+    final dateLabel = _formatDateLabel(deadline ?? createdAt);
+
+    final negotiationRevisedTimes =
+        (json['negotiationRevisedTimes'] as num?)?.toInt() ?? 0;
+    final totalQuotations =
+        (json['totalQuotationsReceived'] as num?)?.toInt() ?? 0;
+    final budgetPending = _numToDouble(json['budgetPendingAmount']);
+
+    final budgetStatus = _budgetStatusLabel(
+      statusHint: statusHint,
+      totalQuotationsReceived: totalQuotations,
+    );
+
+    final isQuotation = budgetStatus == 'Quotation Received';
+
+    return JobItem(
+      title: campaignName?.isNotEmpty == true
+          ? campaignName!
+          : 'Untitled Campaign',
+      subTitle: _campaignTypeLabel(campaignTypeRaw),
+      clientName: clientName,
+      campaignType: _parseCampaignType(campaignTypeRaw),
+      dateLabel: dateLabel,
+      budget: isQuotation
+          ? budget
+          : (budgetPending > 0 ? budgetPending : budget),
+      sharePercent: 0,
+      progressPercent: isQuotation ? totalQuotations : progress,
+      dueLabel: dueLabel,
+      profitLabel: budgetStatus,
+      totalEarningsLabel: 'Revised: $negotiationRevisedTimes Times',
+    );
+  }
+
+  CampaignType _parseCampaignType(String? raw) {
+    final v = (raw ?? '').toLowerCase();
+    if (v == 'paid_ad' || v == 'paidad') return CampaignType.paidAd;
+    return CampaignType.influencerPromotion;
+  }
+
+  String _campaignTypeLabel(String? raw) {
+    final v = (raw ?? '').toLowerCase();
+    return v == 'paid_ad' || v == 'paidad' ? 'Paid Ad' : 'Influencer Promotion';
+  }
+
+  String _budgetStatusLabel({
+    required String statusHint,
+    required int totalQuotationsReceived,
+  }) {
+    final hint = statusHint.toLowerCase();
+    if (hint == 'quotation_received') return 'Quotation Received';
+    if (hint == 'budget_pending' || hint == 'quoting') {
+      return totalQuotationsReceived > 0
+          ? 'Quotation Received'
+          : 'Budget Pending';
+    }
+    return totalQuotationsReceived > 0
+        ? 'Quotation Received'
+        : 'Budget Pending';
+  }
+
+  String _formatAssignedTo(List<dynamic> assigned) {
+    if (assigned.isEmpty) return '—';
+    final names = assigned
+        .map((e) => (e as Map?)?['name']?.toString() ?? '')
+        .where((e) => e.trim().isNotEmpty)
+        .toList();
+    if (names.isEmpty) return '—';
+    if (names.length == 1) return names.first;
+    return '${names.first}, +${names.length - 1}';
+  }
+
+  String _formatDateLabel(String? iso) {
+    final date = _tryParseDate(iso);
+    if (date == null) return '—';
+    return DateFormat('MMM dd, yyyy').format(date);
+  }
+
+  String? _buildDueLabel(String? iso) {
+    final date = _tryParseDate(iso);
+    if (date == null) return null;
+    final today = DateTime.now();
+    final start = DateTime(today.year, today.month, today.day);
+    final end = DateTime(date.year, date.month, date.day);
+    final diff = end.difference(start).inDays;
+    if (diff == 1) return 'Due: Tomorrow';
+    if (diff > 1) return 'Due: $diff Days';
+    if (diff == 0) return 'Due: Today';
+    return null;
+  }
+
+  DateTime? _tryParseDate(String? iso) {
+    if (iso == null || iso.trim().isEmpty) return null;
+    return DateTime.tryParse(iso);
+  }
+
+  double _numToDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
   }
 
   // -------- MOCK API --------
@@ -998,3 +1184,10 @@ class JobsController extends GetxController {
 }
 
 enum _MockMode { influencer, brand }
+
+class _CampaignPage {
+  final List<JobItem> items;
+  final int totalPages;
+
+  const _CampaignPage({required this.items, required this.totalPages});
+}

@@ -5,7 +5,7 @@ import 'package:get/get.dart';
 import 'package:influencer_app/core/theme/app_theme.dart';
 import 'package:influencer_app/modules/brand/analytics/models/analytics_models.dart';
 import 'package:influencer_app/routes/app_routes.dart';
-
+import 'core/bindings/initial_binding.dart';
 import 'core/services/account_type_service.dart';
 import 'core/controllers/language_controller.dart';
 import 'core/localization/app_translations.dart';
@@ -13,9 +13,6 @@ import 'routes/app_pages.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-
-  Get.put(LanguageController(), permanent: true);
-  Get.put<AccountTypeService>(AccountTypeService(), permanent: true);
 
   runApp(
     // DevicePreview(
@@ -37,11 +34,12 @@ class InfluencerApp extends StatelessWidget {
       minTextAdapt: true,
       splitScreenMode: true,
       builder: (_, __) => GetMaterialApp(
+        initialBinding: InitialBinding(),
+
         // FOR DEVICE PREVIEW
         // useInheritedMediaQuery: true,
         // locale: DevicePreview.locale(context),
         // builder: DevicePreview.appBuilder,
-        //
         translations: AppTranslations(),
         locale: const Locale('en', 'US'),
         fallbackLocale: const Locale('en', 'US'),

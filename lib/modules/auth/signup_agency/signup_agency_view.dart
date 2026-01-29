@@ -2,9 +2,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:influencer_app/core/services/account_type_service.dart';
+import 'package:influencer_app/core/widgets/top_back_and_step.dart';
 
 import '../../../core/theme/app_palette.dart';
 import '../../../core/widgets/custom_button.dart';
+import '../../../core/widgets/custom_text_form_field.dart';
+import '../../../core/widgets/language_switcher.dart';
+import '../../../core/widgets/signup_page_header.dart';
 import 'signup_agency_controller.dart';
 
 class SignupAgencyView extends GetView<SignupAgencyController> {
@@ -12,184 +17,178 @@ class SignupAgencyView extends GetView<SignupAgencyController> {
 
   @override
   Widget build(BuildContext context) {
+    final accountTypeService = Get.find<AccountTypeService>();
+    final totalSteps = accountTypeService.isAdAgency ? 10 : 7;
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
-          padding: EdgeInsets.symmetric(horizontal: 28.w, vertical: 24.h),
+          padding: EdgeInsets.symmetric(horizontal: 32.w, vertical: 20.h),
           child: Form(
             key: controller.formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Top bar: back + progress
-                Row(
-                  children: [
-                    InkWell(
-                      onTap: controller.goBack,
-                      borderRadius: BorderRadius.circular(999.r),
-                      child: Padding(
-                        padding: EdgeInsets.all(6.w),
-                        child: Icon(
-                          Icons.arrow_back_ios_new_rounded,
-                          size: 22.sp,
-                          color: AppPalette.primary,
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
-                    const _SignupProgressBar(
-                      totalSteps: 8, // adjust based on full flow
-                      currentStep: 1,
-                    ),
-                  ],
+                TopBackAndStep(
+                  currentStep: 2,
+                  totalSteps: totalSteps,
+                  onGoBack: controller.goBack,
+                ),
+                SizedBox(height: 28.h),
+
+                // Header
+                SignupPageHeader(
+                  title: 'agency_profile_title'.tr,
+                  subtitle: 'agency_profile_subtitle'.tr,
                 ),
 
-                SizedBox(height: 40.h),
+                SizedBox(height: 27.h),
 
-                // Title
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Hello, Agency!',
-                    style: TextStyle(
-                      fontSize: 38.sp,
-                      fontWeight: FontWeight.w700,
-                      color: AppPalette.primary,
-                      height: 1.1,
-                    ),
-                  ),
-                ),
-                SizedBox(height: 10.h),
-
-                // Subtitle
+                // Section title
                 Text(
-                  "Let's Get You Set Up!",
+                  'infl_profile_section_title'.tr,
                   style: TextStyle(
-                    fontSize: 18.sp,
+                    fontSize: 16.sp,
                     fontWeight: FontWeight.w500,
                     color: AppPalette.primary,
                   ),
                 ),
+                SizedBox(height: 15.h),
 
-                SizedBox(height: 32.h),
+                // Agency name
+                CustomTextFormField(
+                  title: 'agency_name_label'.tr,
+                  hintText: 'agency_name_hint'.tr,
+                  controller: controller.agencyNameController,
+                  textInputAction: TextInputAction.next,
+                  contentPadding: EdgeInsets.all(12.w),
+                  validator: (value) => (value == null || value.trim().isEmpty)
+                      ? 'Required'
+                      : null,
+                ),
+                SizedBox(height: 15.h),
 
-                // Section title
-                Text(
-                  'Profile Details',
-                  style: TextStyle(
-                    fontSize: 20.sp,
-                    fontWeight: FontWeight.w700,
-                    color: AppPalette.primary,
-                  ),
+                // First name
+                CustomTextFormField(
+                  title: 'infl_first_name_label'.tr,
+                  hintText: 'infl_first_name_hint'.tr,
+                  controller: controller.firstNameController,
+                  textInputAction: TextInputAction.next,
+                  contentPadding: EdgeInsets.all(12.w),
+                  validator: (value) => (value == null || value.trim().isEmpty)
+                      ? 'Required'
+                      : null,
+                ),
+                SizedBox(height: 15.h),
+
+                // Last name
+                CustomTextFormField(
+                  title: 'infl_last_name_label'.tr,
+                  hintText: 'infl_last_name_hint'.tr,
+                  controller: controller.lastNameController,
+                  textInputAction: TextInputAction.next,
+                  contentPadding: EdgeInsets.all(12.w),
+                  validator: (value) => (value == null || value.trim().isEmpty)
+                      ? 'Required'
+                      : null,
+                ),
+                SizedBox(height: 15.h),
+
+                // Email
+                CustomTextFormField(
+                  title: 'infl_email_label'.tr,
+                  hintText: 'infl_email_hint'.tr,
+                  controller: controller.emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  contentPadding: EdgeInsets.all(12.w),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Required';
+                    }
+                    if (!GetUtils.isEmail(value.trim())) {
+                      return 'Invalid email';
+                    }
+                    return null;
+                  },
+                ),
+                SizedBox(height: 15.h),
+
+                // Phone
+                CustomTextFormField(
+                  title: 'infl_phone_label'.tr,
+                  hintText: 'infl_phone_hint'.tr,
+                  controller: controller.phoneController,
+                  keyboardType: TextInputType.phone,
+                  textInputAction: TextInputAction.next,
+                  contentPadding: EdgeInsets.all(12.w),
+                  validator: (value) => (value == null || value.trim().isEmpty)
+                      ? 'Required'
+                      : null,
+                ),
+                SizedBox(height: 15.h),
+
+                // Password
+                CustomTextFormField(
+                  title: 'brand_step1_password_label'.tr,
+                  hintText: 'brand_step1_password_hint'.tr,
+                  controller: controller.passwordController,
+                  obscureText: true,
+                  textInputAction: TextInputAction.done,
+                  contentPadding: EdgeInsets.all(12.w),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Required';
+                    }
+                    if (value.trim().length < 8) {
+                      return 'Password must be at least 8 characters';
+                    }
+                    return null;
+                  },
                 ),
 
                 SizedBox(height: 24.h),
 
-                // First name
-                const _FieldLabel(text: 'First Name *'),
-                SizedBox(height: 6.h),
-                _AgencyTextField(
-                  controller: controller.firstNameController,
-                  hintText: 'Enter Your First Name',
-                  keyboardType: TextInputType.name,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'First name is required';
-                    }
-                    return null;
-                  },
-                ),
-                SizedBox(height: 18.h),
+                // Language toggle
+                const LanguageSwitcher(),
 
-                // Last name
-                const _FieldLabel(text: 'Last Name *'),
-                SizedBox(height: 6.h),
-                _AgencyTextField(
-                  controller: controller.lastNameController,
-                  hintText: 'Enter Your Last Name',
-                  keyboardType: TextInputType.name,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Last name is required';
-                    }
-                    return null;
-                  },
-                ),
-                SizedBox(height: 18.h),
-
-                // Email
-                const _FieldLabel(text: 'Email Address *'),
-                SizedBox(height: 6.h),
-                _AgencyTextField(
-                  controller: controller.emailController,
-                  hintText: 'Ex: johndoe@email.com',
-                  keyboardType: TextInputType.emailAddress,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Email is required';
-                    }
-                    if (!GetUtils.isEmail(value.trim())) {
-                      return 'Enter a valid email';
-                    }
-                    return null;
-                  },
-                ),
-                SizedBox(height: 18.h),
-
-                // Phone
-                const _FieldLabel(text: 'Phone Number *'),
-                SizedBox(height: 6.h),
-                _AgencyTextField(
-                  controller: controller.phoneController,
-                  hintText: 'Ex: +8801234567890',
-                  keyboardType: TextInputType.phone,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Phone number is required';
-                    }
-                    return null;
-                  },
-                ),
-
-                SizedBox(height: 40.h),
+                SizedBox(height: 28.h),
 
                 // Continue button
                 CustomButton(
                   onTap: controller.onContinue,
-                  btnText: 'Continue',
+                  btnText: 'btn_continue'.tr,
+                  height: 64.h,
                   width: double.infinity,
-                  height: 56.h,
                   textStyle: TextStyle(
                     fontSize: 18.sp,
                     fontWeight: FontWeight.w600,
-                    color: Colors.white,
+                    color: AppPalette.white,
                   ),
                 ),
 
                 SizedBox(height: 24.h),
 
-                // Already have an account? Login
+                // Already have account
                 Center(
                   child: GestureDetector(
                     onTap: controller.goToLogin,
                     child: RichText(
-                      textAlign: TextAlign.center,
                       text: TextSpan(
-                        text: 'Already have an account? ',
+                        text: 'auth_already_have_account'.tr,
                         style: TextStyle(
                           fontSize: 14.sp,
-                          color: const Color(0xFFD1D5DB),
+                          color: AppPalette.subtext,
                         ),
                         children: [
                           TextSpan(
-                            text: 'Login',
+                            text: ' ${'auth_login'.tr}',
                             style: TextStyle(
                               fontSize: 14.sp,
                               fontWeight: FontWeight.w600,
-                              color: const Color(0xFF111827),
+                              color: AppPalette.primary,
                             ),
                           ),
                         ],
@@ -197,111 +196,12 @@ class SignupAgencyView extends GetView<SignupAgencyController> {
                     ),
                   ),
                 ),
+
+                SizedBox(height: 24.h),
               ],
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Reusable widgets
-// ---------------------------------------------------------------------------
-
-class _FieldLabel extends StatelessWidget {
-  final String text;
-
-  const _FieldLabel({required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: TextStyle(
-        fontSize: 14.sp,
-        fontWeight: FontWeight.w600,
-        color: AppPalette.primary,
-      ),
-    );
-  }
-}
-
-class _AgencyTextField extends StatelessWidget {
-  final TextEditingController controller;
-  final String hintText;
-  final TextInputType keyboardType;
-  final String? Function(String?)? validator;
-
-  const _AgencyTextField({
-    required this.controller,
-    required this.hintText,
-    required this.keyboardType,
-    this.validator,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      validator: validator,
-      decoration: InputDecoration(
-        hintText: hintText,
-        filled: true,
-        fillColor: const Color(0xFFF9FAFB),
-        contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18.r),
-          borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18.r),
-          borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18.r),
-          borderSide: BorderSide(color: AppPalette.primary, width: 1.6),
-        ),
-      ),
-    );
-  }
-}
-
-/// Progress bar that matches the design (thick bar + dots)
-class _SignupProgressBar extends StatelessWidget {
-  final int totalSteps;
-  final int currentStep;
-
-  const _SignupProgressBar({
-    required this.totalSteps,
-    required this.currentStep,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 180.w,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: List.generate(totalSteps, (index) {
-          // first index as main bar, rest as dots
-          final bool isMainBar = index == 1; // middle bar in screenshot
-          final bool isActive = currentStep >= index + 1;
-
-          return Container(
-            margin: EdgeInsets.symmetric(horizontal: 3.w),
-            width: isMainBar ? 90.w : 8.w,
-            height: 8.h,
-            decoration: BoxDecoration(
-              color: isActive
-                  ? AppPalette.primary
-                  : AppPalette.primary.withOpacity(0.25),
-              borderRadius: BorderRadius.circular(999.r),
-            ),
-          );
-        }),
       ),
     );
   }

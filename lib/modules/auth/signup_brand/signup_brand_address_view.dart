@@ -1,10 +1,17 @@
-// lib/modules/auth/signup_influencer/signup_influencer_address_view.dart
+// lib/modules/auth/signup_brand/signup_brand_address_view.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:influencer_app/core/services/account_type_service.dart';
+import 'package:influencer_app/core/widgets/custom_text_form_field.dart';
+import 'package:influencer_app/core/widgets/signup_info_row.dart';
+import 'package:influencer_app/core/widgets/signup_page_header.dart';
+import 'package:influencer_app/core/widgets/signup_section_title.dart';
+import 'package:influencer_app/core/widgets/top_back_and_step.dart';
 
 import '../../../core/theme/app_palette.dart';
 import '../../../core/widgets/custom_button.dart';
+import '../../../core/widgets/custom_drop_down_menu.dart';
 import 'signup_brand_controller.dart';
 
 class SignupBrandAddressView extends GetView<SignupBrandController> {
@@ -12,6 +19,15 @@ class SignupBrandAddressView extends GetView<SignupBrandController> {
 
   @override
   Widget build(BuildContext context) {
+    final accountTypeService = Get.find<AccountTypeService>();
+    final isBrand = accountTypeService.isBrand;
+
+    final title = isBrand ? 'brand_addr_title'.tr : 'influ_addr_title'.tr;
+    final subtitle = isBrand
+        ? 'brand_addr_subtitle'.tr
+        : 'influ_addr_subtitle'.tr;
+    final body = isBrand ? 'brand_addr_body'.tr : 'influ_addr_body'.tr;
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -23,171 +39,80 @@ class SignupBrandAddressView extends GetView<SignupBrandController> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _TopBar(onBack: controller.goBack),
+                TopBackAndStep(currentStep: 5, onGoBack: controller.goBack),
 
                 SizedBox(height: 32.h),
 
-                // Title
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'influ_addr_title'.tr,
-                    style: TextStyle(
-                      fontSize: 38.sp,
-                      fontWeight: FontWeight.w700,
-                      color: AppPalette.primary,
-                      height: 1.1,
-                    ),
-                  ),
-                ),
-                SizedBox(height: 14.h),
+                // Header
+                SignupPageHeader(title: title, subtitle: subtitle, body: body),
 
-                // Subtitle line
-                Text(
-                  'influ_addr_subtitle'.tr,
-                  style: TextStyle(
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.w500,
-                    color: AppPalette.primary,
-                  ),
-                ),
-                SizedBox(height: 8.h),
-
-                // Subtitle body
-                Text(
-                  'influ_addr_body'.tr,
-                  style: TextStyle(
-                    fontSize: 13.sp,
-                    height: 1.5,
-                    color: AppPalette.primary.withOpacity(0.85),
-                  ),
-                ),
-
-                SizedBox(height: 32.h),
+                SizedBox(height: 40.h),
 
                 // Info row
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 44.w,
-                      height: 44.w,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE7F3D9),
-                        borderRadius: BorderRadius.circular(14.r),
-                      ),
-                      child: Icon(
-                        Icons.location_on_outlined,
-                        color: AppPalette.primary,
-                        size: 24.sp,
-                      ),
-                    ),
-                    SizedBox(width: 12.w),
-                    Expanded(
-                      child: Text(
-                        'influ_addr_info'.tr,
-                        style: TextStyle(
-                          fontSize: 14.sp,
-                          height: 1.5,
-                          color: AppPalette.primary,
-                        ),
-                      ),
-                    ),
-                  ],
+                SignupInfoRow(
+                  text: 'influ_addr_info'.tr,
+                  iconAsset: 'assets/icons/tracking.png',
                 ),
 
-                SizedBox(height: 32.h),
+                SizedBox(height: 50.h),
 
-                // Address heading
-                Row(
-                  children: [
-                    Icon(
-                      Icons.place_outlined,
-                      size: 24.sp,
-                      color: AppPalette.primary,
-                    ),
-                    SizedBox(width: 10.w),
-                    Text(
-                      'influ_addr_section_title'.tr,
-                      style: TextStyle(
-                        fontSize: 20.sp,
-                        fontWeight: FontWeight.w700,
-                        color: AppPalette.primary,
-                      ),
-                    ),
-                  ],
+                // Section title
+                SignupSectionTitle(
+                  title: 'influ_addr_section_title'.tr,
+                  iconAsset: 'assets/icons/place_marker.png',
                 ),
 
                 SizedBox(height: 28.h),
 
                 // Thana dropdown
-                _FieldLabel(text: 'influ_addr_thana_label'.tr),
-                SizedBox(height: 6.h),
-                Obx(
-                  () => _DropdownField(
-                    value: controller.selectedThana.value,
-                    items: controller.thanaOptions,
+                Obx(() {
+                  return CustomDropDownMenu(
+                    title: 'influ_addr_thana_label'.tr,
                     hintText: 'influ_addr_thana_hint'.tr,
+                    options: controller.thanaOptions,
+                    value: controller.selectedThana.value,
+                    validator: (value) =>
+                        (value == null || value.trim().isEmpty)
+                        ? 'influ_addr_select_error'.tr
+                        : null,
                     onChanged: (value) =>
                         controller.selectedThana.value = value,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'influ_addr_select_error'.tr;
-                      }
-                      return null;
-                    },
-                  ),
-                ),
+                  );
+                }),
 
                 SizedBox(height: 20.h),
 
                 // Zilla dropdown
-                _FieldLabel(text: 'influ_addr_zilla_label'.tr),
-                SizedBox(height: 6.h),
-                Obx(
-                  () => _DropdownField(
-                    value: controller.selectedZilla.value,
-                    items: controller.zillaOptions,
+                Obx(() {
+                  return CustomDropDownMenu(
+                    title: 'influ_addr_zilla_label'.tr,
                     hintText: 'influ_addr_zilla_hint'.tr,
+                    options: controller.zillaOptions,
+                    value: controller.selectedZilla.value,
+                    validator: (value) =>
+                        (value == null || value.trim().isEmpty)
+                        ? 'influ_addr_select_error'.tr
+                        : null,
                     onChanged: (value) =>
                         controller.selectedZilla.value = value,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'influ_addr_select_error'.tr;
-                      }
-                      return null;
-                    },
-                  ),
-                ),
+                  );
+                }),
 
                 SizedBox(height: 20.h),
 
                 // Full address
-                _FieldLabel(text: 'influ_addr_full_label'.tr),
-                SizedBox(height: 6.h),
-                TextFormField(
+                CustomTextFormField(
+                  title: 'influ_addr_full_label'.tr,
+                  hintText: 'influ_addr_full_hint'.tr,
                   controller: controller.fullAddressController,
                   maxLines: 4,
+                  contentPadding: EdgeInsets.all(12.w),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
                       return 'influ_addr_full_error'.tr;
                     }
                     return null;
                   },
-                  decoration: InputDecoration(
-                    hintText: 'influ_addr_full_hint'.tr,
-                    filled: true,
-                    fillColor: const Color(0xFFF9FAFB),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(18.r),
-                      borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
-                    ),
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 14.w,
-                      vertical: 12.h,
-                    ),
-                  ),
                 ),
 
                 SizedBox(height: 40.h),
@@ -195,7 +120,7 @@ class SignupBrandAddressView extends GetView<SignupBrandController> {
                 CustomButton(
                   onTap: controller.onAddressContinue,
                   btnText: 'btn_continue'.tr,
-                  height: 56.h,
+                  height: 64.h,
                   width: double.infinity,
                   textStyle: TextStyle(
                     fontSize: 18.sp,
@@ -210,128 +135,6 @@ class SignupBrandAddressView extends GetView<SignupBrandController> {
           ),
         ),
       ),
-    );
-  }
-}
-
-// ----------------- Reusable widgets -----------------
-
-class _TopBar extends StatelessWidget {
-  final VoidCallback onBack;
-
-  const _TopBar({required this.onBack});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        InkWell(
-          onTap: onBack,
-          borderRadius: BorderRadius.circular(999.r),
-          child: Padding(
-            padding: EdgeInsets.all(8.w),
-            child: Icon(
-              Icons.arrow_back_ios_new_rounded,
-              size: 20.sp,
-              color: AppPalette.primary,
-            ),
-          ),
-        ),
-        const Spacer(),
-        const _ProgressDots(activeIndex: 3, total: 7),
-      ],
-    );
-  }
-}
-
-class _ProgressDots extends StatelessWidget {
-  final int activeIndex;
-  final int total;
-
-  const _ProgressDots({required this.activeIndex, required this.total});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: List.generate(total, (index) {
-        final isActive = index == activeIndex;
-        final isBar = index == activeIndex;
-
-        return Padding(
-          padding: EdgeInsets.symmetric(horizontal: 3.w),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            width: isBar ? 70.w : 8.w,
-            height: 8.h,
-            decoration: BoxDecoration(
-              color: AppPalette.primary,
-              borderRadius: BorderRadius.circular(999.r),
-            ),
-          ),
-        );
-      }),
-    );
-  }
-}
-
-class _FieldLabel extends StatelessWidget {
-  final String text;
-
-  const _FieldLabel({required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: TextStyle(
-        fontSize: 14.sp,
-        fontWeight: FontWeight.w600,
-        color: AppPalette.primary,
-      ),
-    );
-  }
-}
-
-class _DropdownField extends StatelessWidget {
-  final String? value;
-  final List<String> items;
-  final String hintText;
-  final FormFieldValidator<String>? validator;
-  final ValueChanged<String?>? onChanged;
-
-  const _DropdownField({
-    required this.value,
-    required this.items,
-    required this.hintText,
-    this.validator,
-    this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return DropdownButtonFormField<String>(
-      value: value,
-      validator: validator,
-      decoration: InputDecoration(
-        hintText: hintText,
-        filled: true,
-        fillColor: const Color(0xFFF9FAFB),
-        contentPadding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 6.h),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18.r),
-          borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
-        ),
-      ),
-      icon: Icon(Icons.keyboard_arrow_down_rounded, color: AppPalette.primary),
-      items: items
-          .map(
-            (item) => DropdownMenuItem<String>(
-              value: item,
-              child: Text(item, overflow: TextOverflow.ellipsis),
-            ),
-          )
-          .toList(),
-      onChanged: onChanged,
     );
   }
 }

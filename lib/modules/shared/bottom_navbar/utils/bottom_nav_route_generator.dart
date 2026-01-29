@@ -21,6 +21,8 @@ import '../../campaign_details/campaign_details_controller.dart';
 import '../../campaign_details/campaign_details_view.dart';
 import '../../earnings/earnings_view.dart';
 import '../../../ad_agency/home_locked/agency_home_locked_view.dart';
+import '../../../influencer/home_locked/influencer_home_locked_view.dart';
+import '../../../brand/home_locked/brand_home_locked_view.dart';
 import '../../jobs/jobs_view.dart';
 import '../../milestone_details/milestone_details_controller.dart';
 import '../../milestone_details/milestone_details_view.dart';
@@ -128,6 +130,18 @@ class BottomNavRouteGenerator {
         return GetPageRoute(
           settings: settings,
           page: () => const AgencyHomeLockedView(),
+        );
+
+      case AppRoutes.influencerHomeLocked:
+        return GetPageRoute(
+          settings: settings,
+          page: () => const InfluencerHomeLockedView(),
+        );
+
+      case AppRoutes.brandHomeLocked:
+        return GetPageRoute(
+          settings: settings,
+          page: () => const BrandHomeLockedView(),
         );
 
       case AppRoutes.campaignDetails:

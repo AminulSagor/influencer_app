@@ -1,19 +1,53 @@
 // lib/modules/brand/create_campaign/create_campaign_controller.dart
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:influencer_app/routes/app_routes.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:intl/intl.dart';
+import 'package:path/path.dart' as path;
 
 import '../../../core/models/job_item.dart';
+import '../../../core/services/api_error_handler.dart';
+import '../../../core/services/campaign_service.dart';
+import '../../ad_agency/services/upload_service.dart';
+import 'models/lookup_models.dart';
 
 class AdAgencyUiModel {
+  final String id;
   final String name;
   final String subtitle;
-  const AdAgencyUiModel({required this.name, required this.subtitle});
+  const AdAgencyUiModel({
+    required this.id,
+    required this.name,
+    required this.subtitle,
+  });
+}
+
+class InfluencerUiModel {
+  final String id;
+  final String name;
+  final String? avatar;
+  final double? rating;
+
+  const InfluencerUiModel({
+    required this.id,
+    required this.name,
+    this.avatar,
+    this.rating,
+  });
 }
 
 class CreateCampaignController extends GetxController {
+  final CampaignService _campaignService = Get.find<CampaignService>();
+  final UploadService _uploadService = Get.find<UploadService>();
+
+  final isSavingStep = false.obs;
+  final campaignId = RxnString();
+
   /// ---------------- STEP 1 ----------------
   final campaignNameCtrl = TextEditingController();
   final campaignName = ''.obs;
@@ -22,6 +56,36 @@ class CreateCampaignController extends GetxController {
   /// ---------------- STEP 2 (Influencer Promotion) ----------------
   final selectedProductType = RxnString();
   final selectedNiches = <String>[].obs;
+
+  final preferredInfluencerIds = <String>[].obs;
+  final notPreferredInfluencerIds = <String>[].obs;
+
+  final preferredQuery = ''.obs;
+  final notPreferredQuery = ''.obs;
+
+  final preferredSuggestionScroll = ScrollController();
+  final notPreferredSuggestionScroll = ScrollController();
+
+  final preferredSuggestions = <InfluencerUiModel>[].obs;
+  final notPreferredSuggestions = <InfluencerUiModel>[].obs;
+
+  static const Duration _typingDebounceDuration = Duration(milliseconds: 350);
+  static const Duration _scrollDebounceDuration = Duration(milliseconds: 350);
+
+  Timer? _preferredTypingDebounce;
+  Timer? _notPreferredTypingDebounce;
+  Timer? _agencyScrollDebounce;
+  Timer? _preferredScrollDebounce;
+  Timer? _notPreferredScrollDebounce;
+
+  int _preferredPage = 1;
+  int _notPreferredPage = 1;
+  bool _preferredHasMore = true;
+  bool _notPreferredHasMore = true;
+  bool _preferredLoading = false;
+  bool _notPreferredLoading = false;
+  String _preferredLastQuery = '';
+  String _notPreferredLastQuery = '';
 
   final preferredInputCtrl = TextEditingController();
   final notPreferredInputCtrl = TextEditingController();
@@ -32,17 +96,24 @@ class CreateCampaignController extends GetxController {
   /// ---------------- STEP 2 (Paid Ad) ----------------
   final selectedPaidAdNiche = RxnString();
   final selectedAgencyName = RxnString();
+  final selectedAgencyId = RxnString();
 
-  final recommendedAgencies = <AdAgencyUiModel>[
-    const AdAgencyUiModel(name: 'Trendy Ad', subtitle: 'Boosting Page'),
-    const AdAgencyUiModel(name: 'GrowUp Media', subtitle: 'Ad Solutions'),
-    const AdAgencyUiModel(name: 'Spark Ads', subtitle: 'Boosting Page'),
-  ].obs;
+  final agencyQuery = ''.obs;
+  final agencySearchCtrl = TextEditingController();
 
-  final otherAgencies = <AdAgencyUiModel>[
-    const AdAgencyUiModel(name: 'Trendy Ad', subtitle: 'Boosting Page'),
-    const AdAgencyUiModel(name: 'Prime Agency', subtitle: 'Boosting Page'),
-  ].obs;
+  final recommendedAgencyScroll = ScrollController();
+  int _agencyPage = 1;
+  bool _isAgencyLoading = false;
+  bool _hasMoreAgencies = true;
+
+  final recommendedAgencies = <AdAgencyUiModel>[].obs;
+  final otherAgencies = <AdAgencyUiModel>[].obs;
+
+  final productTypeOptions = <String>[].obs;
+  final nicheOptions = <String>[].obs;
+
+  final influencers = <InfluencerUiModel>[].obs;
+  final isLoadingLookups = false.obs;
 
   /// ---------------- STEP 3 (Both types) ----------------
   final campaignGoalsCtrl = TextEditingController();
@@ -189,7 +260,7 @@ class CreateCampaignController extends GetxController {
       }
       if (type == CampaignType.paidAd) {
         return selectedPaidAdNiche.value != null &&
-            selectedAgencyName.value != null;
+            selectedAgencyId.value != null;
       }
     }
 
@@ -221,29 +292,104 @@ class CreateCampaignController extends GetxController {
   void onInit() {
     super.onInit();
 
-    // demo prefill to match screenshots (only if empty)
-    if (contentAssets.isEmpty) {
-      contentAssets.addAll(const [
-        JobAsset(
-          title: 'Brand Logo Pack',
-          meta: 'PNG, SVG – 2.4 MB',
-          kind: JobAssetKind.image,
-        ),
-        JobAsset(
-          title: 'Product Demo Video',
-          meta: 'MP4 – 80 MB',
-          kind: JobAssetKind.video,
-        ),
-        JobAsset(
-          title: 'Brand Guidelines',
-          meta: 'PDF – 750 KB',
-          kind: JobAssetKind.document,
-        ),
-      ]);
+    _loadStep2Lookups();
+
+    recommendedAgencyScroll.addListener(_onRecommendedAgencyScroll);
+    preferredSuggestionScroll.addListener(_onPreferredSuggestionScroll);
+    notPreferredSuggestionScroll.addListener(_onNotPreferredSuggestionScroll);
+  }
+
+  Future<void> _loadStep2Lookups() async {
+    if (isLoadingLookups.value) return;
+    isLoadingLookups.value = true;
+
+    await ApiErrorHandler.call(() async {
+      final types = await _campaignService.fetchProductTypes();
+      if (types.isNotEmpty) {
+        productTypeOptions
+          ..clear()
+          ..addAll(types);
+      }
+
+      final niches = await _campaignService.fetchNiches();
+      if (niches.isNotEmpty) {
+        nicheOptions
+          ..clear()
+          ..addAll(niches);
+      }
+
+      await _loadAgencyPage(reset: true);
+
+      final infl = await _campaignService.fetchInfluencers(limit: 10);
+      if (infl.isNotEmpty) {
+        influencers
+          ..clear()
+          ..addAll(
+            infl
+                .map(
+                  (i) => InfluencerUiModel(
+                    id: i.id,
+                    name: i.name,
+                    avatar: i.avatar,
+                    rating: i.rating,
+                  ),
+                )
+                .toList(growable: false),
+          );
+      }
+
+      return true;
+    }, showError: false);
+
+    isLoadingLookups.value = false;
+  }
+
+  Future<void> _loadAgencyPage({required bool reset}) async {
+    if (_isAgencyLoading) return;
+
+    if (reset) {
+      _agencyPage = 1;
+      _hasMoreAgencies = true;
+      recommendedAgencies.clear();
+      otherAgencies.clear();
     }
 
-    if (brandAssets.isEmpty) {
-      brandAssets.add(const BrandAsset(title: 'Facebook Page', value: ''));
+    if (!_hasMoreAgencies) return;
+
+    _isAgencyLoading = true;
+    final agencies = await _campaignService.fetchAgencies(
+      page: _agencyPage,
+      limit: 10,
+    );
+
+    if (agencies.isNotEmpty) {
+      final models = agencies
+          .map(
+            (a) => AdAgencyUiModel(
+              id: a.id,
+              name: a.name,
+              subtitle: a.subtitle ?? 'Ad Agency',
+            ),
+          )
+          .toList(growable: false);
+
+      recommendedAgencies.addAll(models);
+      _agencyPage += 1;
+    } else {
+      _hasMoreAgencies = false;
+    }
+
+    _isAgencyLoading = false;
+  }
+
+  void _onRecommendedAgencyScroll() {
+    if (!recommendedAgencyScroll.hasClients) return;
+    final position = recommendedAgencyScroll.position;
+    if (position.pixels >= position.maxScrollExtent - 120) {
+      _agencyScrollDebounce?.cancel();
+      _agencyScrollDebounce = Timer(_scrollDebounceDuration, () {
+        _loadAgencyPage(reset: false);
+      });
     }
   }
 
@@ -268,20 +414,27 @@ class CreateCampaignController extends GetxController {
     notPreferredInputCtrl.clear();
     preferredInfluencers.clear();
     notPreferredInfluencers.clear();
+    preferredInfluencerIds.clear();
+    notPreferredInfluencerIds.clear();
+    preferredQuery.value = '';
+    notPreferredQuery.value = '';
 
     selectedPaidAdNiche.value = null;
     selectedAgencyName.value = null;
+    selectedAgencyId.value = null;
+    agencySearchCtrl.clear();
+    agencyQuery.value = '';
   }
 
-  /// ---------------- Step 2 options (demo) ----------------
-  final productTypeOptions = const [
+  List<String> get _productTypeOptionsFallback => const [
     'Electronics',
     'Fashion',
     'Beauty',
     'Food',
     'Other',
   ];
-  final nicheOptions = const [
+
+  List<String> get _nicheOptionsFallback => const [
     'Lifestyle',
     'Tech',
     'Sports',
@@ -291,10 +444,13 @@ class CreateCampaignController extends GetxController {
   ];
 
   void openProductTypePicker() {
+    final options = productTypeOptions.isNotEmpty
+        ? productTypeOptions.toList(growable: false)
+        : _productTypeOptionsFallback;
     Get.bottomSheet(
       _SimplePickerSheet(
         title: 'create_campaign_product_type_label'.tr,
-        options: productTypeOptions,
+        options: options,
         selected: selectedProductType.value,
         onSelect: (v) {
           selectedProductType.value = v;
@@ -307,10 +463,13 @@ class CreateCampaignController extends GetxController {
   }
 
   void openNichePicker() {
+    final options = nicheOptions.isNotEmpty
+        ? nicheOptions.toList(growable: false)
+        : _nicheOptionsFallback;
     Get.bottomSheet(
       _MultiPickerSheet(
         title: 'create_campaign_niche_label'.tr,
-        options: nicheOptions,
+        options: options,
         selected: selectedNiches,
       ),
       isScrollControlled: true,
@@ -319,27 +478,76 @@ class CreateCampaignController extends GetxController {
   }
 
   void onPreferredTyping(String v) {
-    if (v.contains(',')) commitPreferredInput();
+    preferredQuery.value = v;
+    _preferredTypingDebounce?.cancel();
+    if (v.contains(',')) {
+      commitPreferredInput();
+      return;
+    }
+    _preferredTypingDebounce = Timer(_typingDebounceDuration, () {
+      _fetchPreferredSuggestions(v, reset: true);
+    });
   }
 
   void onNotPreferredTyping(String v) {
-    if (v.contains(',')) commitNotPreferredInput();
+    notPreferredQuery.value = v;
+    _notPreferredTypingDebounce?.cancel();
+    if (v.contains(',')) {
+      commitNotPreferredInput();
+      return;
+    }
+    _notPreferredTypingDebounce = Timer(_typingDebounceDuration, () {
+      _fetchNotPreferredSuggestions(v, reset: true);
+    });
   }
 
-  void commitPreferredInput() =>
-      _commitCommaSeparated(preferredInputCtrl, preferredInfluencers);
-  void commitNotPreferredInput() =>
-      _commitCommaSeparated(notPreferredInputCtrl, notPreferredInfluencers);
+  void commitPreferredInput() => _commitCommaSeparated(
+    preferredInputCtrl,
+    preferredInfluencers,
+    preferredInfluencerIds,
+    openInfluencerPicker,
+    () => preferredQuery.value = '',
+  );
+  void commitNotPreferredInput() => _commitCommaSeparated(
+    notPreferredInputCtrl,
+    notPreferredInfluencers,
+    notPreferredInfluencerIds,
+    openNotPreferredInfluencerPicker,
+    () => notPreferredQuery.value = '',
+  );
 
-  void removePreferred(String name) => preferredInfluencers.remove(name);
-  void removeNotPreferred(String name) => notPreferredInfluencers.remove(name);
+  void onAgencyTyping(String v) {
+    agencyQuery.value = v;
+  }
+
+  void removePreferred(String name) {
+    final index = preferredInfluencers.indexOf(name);
+    if (index >= 0 && index < preferredInfluencerIds.length) {
+      preferredInfluencerIds.removeAt(index);
+    }
+    preferredInfluencers.remove(name);
+  }
+
+  void removeNotPreferred(String name) {
+    final index = notPreferredInfluencers.indexOf(name);
+    if (index >= 0 && index < notPreferredInfluencerIds.length) {
+      notPreferredInfluencerIds.removeAt(index);
+    }
+    notPreferredInfluencers.remove(name);
+  }
 
   void _commitCommaSeparated(
     TextEditingController ctrl,
     RxList<String> target,
+    RxList<String> targetIds,
+    VoidCallback onEmpty,
+    VoidCallback onDone,
   ) {
     final raw = ctrl.text.trim();
-    if (raw.isEmpty) return;
+    if (raw.isEmpty) {
+      onEmpty();
+      return;
+    }
 
     final parts = raw
         .split(',')
@@ -349,15 +557,59 @@ class CreateCampaignController extends GetxController {
 
     for (final p in parts) {
       if (!target.contains(p)) target.add(p);
+      if (_looksLikeUuid(p) && !targetIds.contains(p)) targetIds.add(p);
     }
     ctrl.clear();
+    onDone();
+  }
+
+  List<InfluencerUiModel> filteredInfluencers(
+    String query,
+    RxList<String> ids,
+  ) {
+    final q = query.trim().toLowerCase();
+    final list = influencers.toList(growable: false);
+    if (q.isEmpty) {
+      return list.where((e) => !ids.contains(e.id)).toList(growable: false);
+    }
+    return list
+        .where((e) => e.name.toLowerCase().contains(q) && !ids.contains(e.id))
+        .toList(growable: false);
+  }
+
+  List<InfluencerUiModel> preferredSuggestionsFiltered() {
+    final q = preferredQuery.value.trim().toLowerCase();
+    if (q.isEmpty) return const [];
+    return preferredSuggestions
+        .where((e) => !preferredInfluencerIds.contains(e.id))
+        .toList(growable: false);
+  }
+
+  List<InfluencerUiModel> notPreferredSuggestionsFiltered() {
+    final q = notPreferredQuery.value.trim().toLowerCase();
+    if (q.isEmpty) return const [];
+    return notPreferredSuggestions
+        .where((e) => !notPreferredInfluencerIds.contains(e.id))
+        .toList(growable: false);
+  }
+
+  List<AdAgencyUiModel> filteredAgencies(String query) {
+    final q = query.trim().toLowerCase();
+    final list = <AdAgencyUiModel>[...recommendedAgencies, ...otherAgencies];
+    if (q.isEmpty) return list;
+    return list
+        .where((e) => e.name.toLowerCase().contains(q))
+        .toList(growable: false);
   }
 
   void openPaidAdNichePicker() {
+    final options = nicheOptions.isNotEmpty
+        ? nicheOptions.toList(growable: false)
+        : _nicheOptionsFallback;
     Get.bottomSheet(
       _SimplePickerSheet(
         title: 'create_campaign_niche_label'.tr,
-        options: nicheOptions,
+        options: options,
         selected: selectedPaidAdNiche.value,
         onSelect: (v) {
           selectedPaidAdNiche.value = v;
@@ -369,7 +621,195 @@ class CreateCampaignController extends GetxController {
     );
   }
 
-  void selectAgency(String name) => selectedAgencyName.value = name;
+  void openInfluencerPicker() {
+    Get.bottomSheet(
+      _InfluencerPickerSheet(
+        title: 'create_campaign_preferred_influencers_label'.tr,
+        items: influencers.toList(growable: false),
+        selectedIds: preferredInfluencerIds,
+        onToggle: (item) => _toggleInfluencer(
+          item,
+          preferredInfluencers,
+          preferredInfluencerIds,
+        ),
+      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+    );
+  }
+
+  void openNotPreferredInfluencerPicker() {
+    Get.bottomSheet(
+      _InfluencerPickerSheet(
+        title: 'create_campaign_not_preferred_influencers_label'.tr,
+        items: influencers.toList(growable: false),
+        selectedIds: notPreferredInfluencerIds,
+        onToggle: (item) => _toggleInfluencer(
+          item,
+          notPreferredInfluencers,
+          notPreferredInfluencerIds,
+        ),
+      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+    );
+  }
+
+  void _toggleInfluencer(
+    InfluencerUiModel item,
+    RxList<String> names,
+    RxList<String> ids,
+  ) {
+    final exists = ids.contains(item.id);
+    if (exists) {
+      final idx = ids.indexOf(item.id);
+      if (idx >= 0 && idx < names.length) names.removeAt(idx);
+      ids.remove(item.id);
+      return;
+    }
+
+    ids.add(item.id);
+    names.add(item.name);
+  }
+
+  void selectPreferredSuggestion(InfluencerUiModel item) {
+    if (preferredInfluencerIds.contains(item.id)) return;
+    preferredInfluencerIds.add(item.id);
+    preferredInfluencers.add(item.name);
+    preferredInputCtrl.clear();
+    preferredQuery.value = '';
+    preferredSuggestions.clear();
+  }
+
+  void selectNotPreferredSuggestion(InfluencerUiModel item) {
+    if (notPreferredInfluencerIds.contains(item.id)) return;
+    notPreferredInfluencerIds.add(item.id);
+    notPreferredInfluencers.add(item.name);
+    notPreferredInputCtrl.clear();
+    notPreferredQuery.value = '';
+    notPreferredSuggestions.clear();
+  }
+
+  void selectAgencySuggestion(AdAgencyUiModel agency) {
+    selectAgency(agency);
+    agencyQuery.value = '';
+    agencySearchCtrl.clear();
+  }
+
+  Future<void> _fetchPreferredSuggestions(
+    String query, {
+    required bool reset,
+  }) async {
+    final q = query.trim();
+    if (_preferredLoading) return;
+
+    if (reset || q != _preferredLastQuery) {
+      _preferredLastQuery = q;
+      _preferredPage = 1;
+      _preferredHasMore = true;
+      preferredSuggestions.clear();
+    }
+
+    if (q.isEmpty || !_preferredHasMore) return;
+
+    _preferredLoading = true;
+    final list = await _campaignService.fetchInfluencers(
+      page: _preferredPage,
+      limit: 10,
+      search: q,
+    );
+
+    if (list.isNotEmpty) {
+      preferredSuggestions.addAll(
+        list
+            .map(
+              (i) => InfluencerUiModel(
+                id: i.id,
+                name: i.name,
+                avatar: i.avatar,
+                rating: i.rating,
+              ),
+            )
+            .toList(growable: false),
+      );
+      _preferredPage += 1;
+    } else {
+      _preferredHasMore = false;
+    }
+
+    _preferredLoading = false;
+  }
+
+  Future<void> _fetchNotPreferredSuggestions(
+    String query, {
+    required bool reset,
+  }) async {
+    final q = query.trim();
+    if (_notPreferredLoading) return;
+
+    if (reset || q != _notPreferredLastQuery) {
+      _notPreferredLastQuery = q;
+      _notPreferredPage = 1;
+      _notPreferredHasMore = true;
+      notPreferredSuggestions.clear();
+    }
+
+    if (q.isEmpty || !_notPreferredHasMore) return;
+
+    _notPreferredLoading = true;
+    final list = await _campaignService.fetchInfluencers(
+      page: _notPreferredPage,
+      limit: 10,
+      search: q,
+    );
+
+    if (list.isNotEmpty) {
+      notPreferredSuggestions.addAll(
+        list
+            .map(
+              (i) => InfluencerUiModel(
+                id: i.id,
+                name: i.name,
+                avatar: i.avatar,
+                rating: i.rating,
+              ),
+            )
+            .toList(growable: false),
+      );
+      _notPreferredPage += 1;
+    } else {
+      _notPreferredHasMore = false;
+    }
+
+    _notPreferredLoading = false;
+  }
+
+  void _onPreferredSuggestionScroll() {
+    if (!preferredSuggestionScroll.hasClients) return;
+    final position = preferredSuggestionScroll.position;
+    if (position.pixels >= position.maxScrollExtent - 120) {
+      _preferredScrollDebounce?.cancel();
+      _preferredScrollDebounce = Timer(_scrollDebounceDuration, () {
+        _fetchPreferredSuggestions(preferredQuery.value, reset: false);
+      });
+    }
+  }
+
+  void _onNotPreferredSuggestionScroll() {
+    if (!notPreferredSuggestionScroll.hasClients) return;
+    final position = notPreferredSuggestionScroll.position;
+    if (position.pixels >= position.maxScrollExtent - 120) {
+      _notPreferredScrollDebounce?.cancel();
+      _notPreferredScrollDebounce = Timer(_scrollDebounceDuration, () {
+        _fetchNotPreferredSuggestions(notPreferredQuery.value, reset: false);
+      });
+    }
+  }
+
+  void selectAgency(AdAgencyUiModel agency) {
+    selectedAgencyName.value = agency.name;
+    selectedAgencyId.value = agency.id;
+  }
 
   /// ---------------- Step 3 handlers ----------------
   void onCampaignGoalsChanged(String v) => campaignGoals.value = v;
@@ -1083,6 +1523,153 @@ class CreateCampaignController extends GetxController {
     );
   }
 
+  String _requireCampaignId() {
+    final id = campaignId.value;
+    if (id == null || id.trim().isEmpty) {
+      throw Exception('Campaign id is not available.');
+    }
+    return id;
+  }
+
+  bool _looksLikeUuid(String value) {
+    final v = value.trim();
+    final regex = RegExp(
+      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+    );
+    return regex.hasMatch(v);
+  }
+
+  List<String> _filterUuidList(Iterable<String> values) {
+    return values.where(_looksLikeUuid).map((e) => e.trim()).toList();
+  }
+
+  String _formatApiDate(DateTime date) {
+    return DateFormat('yyyy-MM-dd').format(date);
+  }
+
+  String _safeText(RxString value, TextEditingController controller) {
+    final v = value.value.trim();
+    if (v.isNotEmpty) return v;
+    return controller.text.trim();
+  }
+
+  Future<List<Map<String, dynamic>>> _buildAssetsForApi() async {
+    final assets = <Map<String, dynamic>>[];
+
+    for (final asset in contentAssets) {
+      final mapped = await _mapContentAsset(asset);
+      if (mapped != null) assets.add(mapped);
+    }
+
+    for (final asset in brandAssets) {
+      final mapped = _mapBrandAsset(asset);
+      if (mapped != null) assets.add(mapped);
+    }
+
+    return assets;
+  }
+
+  Future<Map<String, dynamic>?> _mapContentAsset(JobAsset asset) async {
+    String? fileUrl;
+    String fileName = asset.title.trim();
+    int fileSize = 0;
+
+    final pathOrUrl = asset.pathOrUrl?.trim();
+
+    if (pathOrUrl != null && pathOrUrl.isNotEmpty) {
+      if (_isHttpUrl(pathOrUrl)) {
+        fileUrl = pathOrUrl;
+        final uri = Uri.tryParse(pathOrUrl);
+        final name = uri == null ? null : path.basename(uri.path);
+        if (name != null && name.isNotEmpty) fileName = name;
+      } else {
+        final file = File(pathOrUrl);
+        if (await file.exists()) {
+          final name = path.basename(pathOrUrl);
+          if (name.isNotEmpty) fileName = name;
+          fileSize = await file.length();
+
+          final contentType = _getContentType(pathOrUrl);
+          final signed = await _uploadService.createSignedUrl(
+            fileName: fileName,
+            fileType: contentType,
+            module: 'campaign-assets',
+          );
+
+          await _uploadService.uploadFileToSignedUrl(
+            uploadUrl: signed.uploadUrl,
+            file: file,
+            contentType: contentType,
+          );
+
+          fileUrl = signed.fileUrl;
+        }
+      }
+    }
+
+    if (fileUrl == null || fileUrl.isEmpty) return null;
+
+    final mimeType = _getContentType(fileName);
+
+    return _removeNulls({
+      'fileName': fileName,
+      'fileUrl': fileUrl,
+      'assetType': mimeType,
+      'category': 'content',
+      'fileSize': fileSize == 0 ? null : fileSize,
+      'mimeType': mimeType,
+      'description': asset.title,
+    });
+  }
+
+  Map<String, dynamic>? _mapBrandAsset(BrandAsset asset) {
+    final title = asset.title.trim();
+    if (title.isEmpty) return null;
+
+    final value = asset.value?.trim();
+    final isUrl = value != null && _isHttpUrl(value);
+    if (!isUrl) return null;
+
+    return _removeNulls({
+      'fileName': title,
+      'fileUrl': value,
+      'assetType': 'brand_asset',
+      'category': 'brand',
+      'fileSize': null,
+      'mimeType': 'text/plain',
+      'description': null,
+    });
+  }
+
+  bool _isHttpUrl(String value) {
+    final v = value.toLowerCase();
+    return v.startsWith('http://') || v.startsWith('https://');
+  }
+
+  String _getContentType(String filePathOrName) {
+    final ext = path.extension(filePathOrName).replaceFirst('.', '');
+    switch (ext.toLowerCase()) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'pdf':
+        return 'application/pdf';
+      case 'mp4':
+        return 'video/mp4';
+      case 'mov':
+        return 'video/quicktime';
+      default:
+        return 'application/octet-stream';
+    }
+  }
+
+  Map<String, dynamic> _removeNulls(Map<String, dynamic> data) {
+    data.removeWhere((key, value) => value == null);
+    return data;
+  }
+
   /// ---------------- Navigation ----------------
   void onPrevious() {
     if (currentStep.value > 1) {
@@ -1093,7 +1680,7 @@ class CreateCampaignController extends GetxController {
     Get.back(id: 1);
   }
 
-  void onNext() {
+  Future<void> onNext() async {
     if (!canGoNext) {
       Get.snackbar(
         'create_campaign_error_title'.tr,
@@ -1105,7 +1692,120 @@ class CreateCampaignController extends GetxController {
       return;
     }
 
+    if (isSavingStep.value) return;
+    isSavingStep.value = true;
+
     final step = currentStep.value;
+
+    final result = await ApiErrorHandler.call(() async {
+      if (step == 1) {
+        final type = selectedType.value;
+        if (type == null) throw Exception('Campaign type is required');
+
+        final title = _safeText(campaignName, campaignNameCtrl);
+        final id = await _campaignService.createCampaign(
+          campaignName: title.isNotEmpty ? title : 'Untitled Campaign',
+          campaignType: type,
+        );
+        campaignId.value = id;
+        return true;
+      }
+
+      final id = _requireCampaignId();
+
+      if (step == 2) {
+        final type = selectedType.value;
+        if (type == CampaignType.influencerPromotion) {
+          final niche = selectedNiches.isNotEmpty ? selectedNiches.first : '';
+          await _campaignService.updateStep2Influencer(
+            campaignId: id,
+            productType: selectedProductType.value ?? '',
+            campaignNiche: niche,
+            preferredInfluencerIds: _filterUuidList(preferredInfluencerIds),
+            notPreferableInfluencerIds: _filterUuidList(
+              notPreferredInfluencerIds,
+            ),
+          );
+        } else {
+          final agencyIds = <String>[];
+          final selected = selectedAgencyId.value;
+          if (selected != null && _looksLikeUuid(selected)) {
+            agencyIds.add(selected);
+          }
+          await _campaignService.updateStep2PaidAd(
+            campaignId: id,
+            campaignNiche: selectedPaidAdNiche.value ?? '',
+            agencyIds: agencyIds,
+          );
+        }
+        return true;
+      }
+
+      if (step == 3) {
+        final start = startDate.value;
+        final startDateText = start == null ? '' : _formatApiDate(start);
+
+        await _campaignService.updateStep3(
+          campaignId: id,
+          campaignGoals: _safeText(campaignGoals, campaignGoalsCtrl),
+          productServiceDetails: _safeText(
+            productServiceDetails,
+            productServiceCtrl,
+          ),
+          reportingRequirements: _safeText(
+            reportingRequirements,
+            reportingReqCtrl,
+          ),
+          usageRights: _safeText(usageRights, usageRightsCtrl),
+          dos: _safeText(dosText, dosCtrl),
+          donts: _safeText(dontsText, dontsCtrl),
+          startingDate: startDateText,
+          duration: _durationDays,
+        );
+        return true;
+      }
+
+      if (step == 4) {
+        final mappedMilestones = milestones
+            .map((m) {
+              final map = {
+                'contentTitle': m.title,
+                'platform': m.platform?.toLowerCase(),
+                'contentQuantity': m.deliverable ?? m.subtitle,
+                'deliveryDays': m.dayIndex,
+                'expectedReach': m.targets?.reach,
+                'expectedViews': m.targets?.views,
+                'expectedLikes': m.targets?.likes,
+                'expectedComments': m.targets?.comments,
+              };
+              return _removeNulls(map);
+            })
+            .where((m) => m.isNotEmpty)
+            .toList(growable: false);
+
+        await _campaignService.updateStep4(
+          campaignId: id,
+          baseBudget: baseBudget.value,
+          milestones: mappedMilestones,
+        );
+        return true;
+      }
+
+      if (step == 5) {
+        final assets = await _buildAssetsForApi();
+        await _campaignService.updateStep5(
+          campaignId: id,
+          needSampleProduct: needToSendSample.value,
+          assets: assets,
+        );
+        return true;
+      }
+
+      return true;
+    }, errorTitle: 'create_campaign_error_title'.tr);
+
+    isSavingStep.value = false;
+    if (!result.isSuccess) return;
 
     if (step == 1) {
       currentStep.value = 2;
@@ -1131,7 +1831,6 @@ class CreateCampaignController extends GetxController {
       return;
     }
 
-    // ✅ UPDATED: go to Step 6 route
     if (step == 5) {
       currentStep.value = 6;
       Get.toNamed(AppRoutes.createCampaignStep6, id: 1);
@@ -1145,9 +1844,19 @@ class CreateCampaignController extends GetxController {
 
   @override
   void onClose() {
+    _preferredTypingDebounce?.cancel();
+    _notPreferredTypingDebounce?.cancel();
+    _agencyScrollDebounce?.cancel();
+    _preferredScrollDebounce?.cancel();
+    _notPreferredScrollDebounce?.cancel();
+
     campaignNameCtrl.dispose();
     preferredInputCtrl.dispose();
     notPreferredInputCtrl.dispose();
+    agencySearchCtrl.dispose();
+    recommendedAgencyScroll.dispose();
+    preferredSuggestionScroll.dispose();
+    notPreferredSuggestionScroll.dispose();
 
     campaignGoalsCtrl.dispose();
     productServiceCtrl.dispose();
@@ -1175,7 +1884,19 @@ class CreateCampaignController extends GetxController {
   // ---------------- Step 6 submit + popup ----------------
 
   /// Call this from Step 6 "Get Quote" button
-  void submitAndShowPlacementConfirmedPopup() {
+  Future<void> submitAndShowPlacementConfirmedPopup() async {
+    if (isSavingStep.value) return;
+    isSavingStep.value = true;
+
+    final result = await ApiErrorHandler.call(() async {
+      final id = _requireCampaignId();
+      await _campaignService.placeCampaign(campaignId: id);
+      return true;
+    }, errorTitle: 'create_campaign_error_title'.tr);
+
+    isSavingStep.value = false;
+    if (!result.isSuccess) return;
+
     createdJobItem.value = buildFinalJobItem();
     _openPlacementConfirmedDialog();
   }
@@ -1210,6 +1931,8 @@ class CreateCampaignController extends GetxController {
   void resetAllToInitial() {
     currentStep.value = 1;
 
+    campaignId.value = null;
+
     // STEP 1
     campaignNameCtrl.clear();
     campaignName.value = '';
@@ -1223,10 +1946,15 @@ class CreateCampaignController extends GetxController {
     notPreferredInputCtrl.clear();
     preferredInfluencers.clear();
     notPreferredInfluencers.clear();
+    preferredSuggestions.clear();
+    notPreferredSuggestions.clear();
 
     // STEP 2 (Paid Ad)
     selectedPaidAdNiche.value = null;
     selectedAgencyName.value = null;
+    selectedAgencyId.value = null;
+    agencySearchCtrl.clear();
+    agencyQuery.value = '';
 
     // STEP 3
     campaignGoalsCtrl.clear();
@@ -1274,26 +2002,7 @@ class CreateCampaignController extends GetxController {
     contentAssets.clear();
     brandAssets.clear();
 
-    // Re-add your demo prefills (same as onInit)
-    contentAssets.addAll(const [
-      JobAsset(
-        title: 'Brand Logo Pack',
-        meta: 'PNG, SVG – 2.4 MB',
-        kind: JobAssetKind.image,
-      ),
-      JobAsset(
-        title: 'Product Demo Video',
-        meta: 'MP4 – 80 MB',
-        kind: JobAssetKind.video,
-      ),
-      JobAsset(
-        title: 'Brand Guidelines',
-        meta: 'PDF – 750 KB',
-        kind: JobAssetKind.document,
-      ),
-    ]);
-
-    brandAssets.add(const BrandAsset(title: 'Facebook Page', value: ''));
+    // Keep assets empty for user input
   }
 
   // ---------------- Locale helpers (Bangla digits for ৳ amount) ----------------
@@ -1424,6 +2133,123 @@ class _MultiPickerSheet extends StatelessWidget {
                 }).toList(),
               );
             }),
+            8.h.verticalSpace,
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Get.back(),
+                  child: Text('common_done'.tr),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _InfluencerPickerSheet extends StatefulWidget {
+  final String title;
+  final List<InfluencerUiModel> items;
+  final RxList<String> selectedIds;
+  final void Function(InfluencerUiModel) onToggle;
+
+  const _InfluencerPickerSheet({
+    required this.title,
+    required this.items,
+    required this.selectedIds,
+    required this.onToggle,
+  });
+
+  @override
+  State<_InfluencerPickerSheet> createState() => _InfluencerPickerSheetState();
+}
+
+class _InfluencerPickerSheetState extends State<_InfluencerPickerSheet> {
+  final _searchCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final items = widget.items;
+
+    return SafeArea(
+      child: Container(
+        padding: const EdgeInsets.only(top: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(18.r)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              widget.title,
+              style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w600),
+            ),
+            12.h.verticalSpace,
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16.w),
+              child: TextField(
+                controller: _searchCtrl,
+                decoration: const InputDecoration(
+                  hintText: 'Search',
+                  prefixIcon: Icon(Icons.search),
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
+            ),
+            8.h.verticalSpace,
+            Flexible(
+              child: Obx(() {
+                final selected = widget.selectedIds.toList(growable: false);
+                final query = _searchCtrl.text.trim().toLowerCase();
+                final filtered = query.isEmpty
+                    ? items
+                    : items
+                          .where((e) => e.name.toLowerCase().contains(query))
+                          .toList();
+
+                if (filtered.isEmpty) {
+                  return Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12.h),
+                    child: Text(
+                      'No results',
+                      style: TextStyle(fontSize: 12.sp, color: Colors.black54),
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: filtered.length,
+                  itemBuilder: (_, i) {
+                    final item = filtered[i];
+                    final isSelected = selected.contains(item.id);
+                    return CheckboxListTile(
+                      value: isSelected,
+                      title: Text(
+                        item.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: item.rating == null
+                          ? null
+                          : Text('★ ${item.rating!.toStringAsFixed(1)}'),
+                      onChanged: (_) => widget.onToggle(item),
+                    );
+                  },
+                );
+              }),
+            ),
             8.h.verticalSpace,
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),

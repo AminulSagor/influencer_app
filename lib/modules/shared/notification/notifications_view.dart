@@ -46,7 +46,7 @@ class NotificationsView extends GetView<NotificationsController> {
                   Divider(color: AppPalette.border1, thickness: kBorderWeight1),
                   Obx(
                     () => _NotificationGroupCard(
-                      items: controller.newItems.value,
+                      items: controller.newItems.toList(),
                       showNewDot: true,
                     ),
                   ),
@@ -66,7 +66,7 @@ class NotificationsView extends GetView<NotificationsController> {
                   Divider(color: AppPalette.border1, thickness: kBorderWeight1),
                   Obx(
                     () => _NotificationGroupCard(
-                      items: controller.earlierItems.value,
+                      items: controller.earlierItems.toList(),
                       showNewDot: false,
                     ),
                   ),

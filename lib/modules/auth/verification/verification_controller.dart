@@ -2,8 +2,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:influencer_app/routes/app_routes.dart';
-
+import 'package:influencer_app/core/services/auth_services.dart';
+import 'package:influencer_app/core/services/api_error_handler.dart';
 import '../../../core/enums/account_type.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 
 class VerificationController extends GetxController {
   final PageController progressController = PageController();
@@ -14,14 +16,14 @@ class VerificationController extends GetxController {
     (_) => TextEditingController(),
   );
   final List<FocusNode> focusNodes = List.generate(4, (_) => FocusNode());
-
+  final RxBool isLoading = false.obs;
   late final String phoneNumber;
   late final AccountType accountType;
 
   final RxBool isCodeComplete = false.obs;
 
   String get code => digitControllers.map((c) => c.text.trim()).join();
-
+  final AuthService _authService = Get.find<AuthService>();
   @override
   void onInit() {
     super.onInit();
@@ -68,34 +70,63 @@ class VerificationController extends GetxController {
     Get.back();
   }
 
-  void onResend() {
-    // TODO: call API to resend OTP
-    Get.snackbar('info'.tr, 'otp_resent_message'.tr);
+  void onResend() async {
+    final result = await ApiErrorHandler.call(
+      () => _authService.resendOtp(phone: phoneNumber),
+    );
+    if (result.isSuccess && result.data!.message.isNotEmpty) {
+      Get.snackbar('info'.tr, result.data!.message);
+    }
   }
 
-  void onContinue() {
+  Future<void> onContinue() async {
     if (!isCodeComplete.value) {
       Get.snackbar('error'.tr, 'otp_incomplete_error'.tr);
       return;
     }
 
     final enteredCode = code;
-    // TODO: verify [enteredCode] with backend.
+    isLoading.value = true;
 
-    Get.toNamed(AppRoutes.phoneVerified);
+    final result = await ApiErrorHandler.call(
+      () => _authService.verifyOtp(phone: phoneNumber, otp: enteredCode),
+    );
+
+    isLoading.value = false;
+
+    if (result.isSuccess) {
+      final token = result.data!.accessToken;
+      final payload = JwtDecoder.decode(token);
+
+      final role =
+          payload['role'] ??
+          payload['accountType'] ??
+          (payload['user'] is Map ? payload['user']['role'] : null);
+
+      if (role == null) {
+        Get.snackbar('error'.tr, 'Role not found in token');
+        return;
+      }
+
+      // Pass the account type to the phone verified page
+      Get.offAllNamed(
+        AppRoutes.phoneVerified,
+        arguments: {'phone': phoneNumber, 'accountType': accountType},
+      );
+    }
   }
 
   void onPhoneVerifiedGoNext() {
     // Navigate according to account type
     switch (accountType) {
       case AccountType.brand:
-        Get.offAllNamed(AppRoutes.signupBrandAddress);
+        Get.toNamed(AppRoutes.signupBrandAddress);
         break;
       case AccountType.influencer:
         Get.toNamed(AppRoutes.signupInfluencerAddress);
         break;
       case AccountType.adAgency:
-        Get.offAllNamed(AppRoutes.signupAgencyAddress);
+        Get.toNamed(AppRoutes.signupAgencyAddress);
         break;
     }
   }

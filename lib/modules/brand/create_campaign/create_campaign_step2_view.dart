@@ -292,6 +292,29 @@ class _InfluencerPromotionStep2 extends StatelessWidget {
           ),
           onChanged: controller.onPreferredTyping,
         ),
+        Obx(() {
+          final query = controller.preferredQuery.value;
+          final suggestions = controller.preferredSuggestionsFiltered();
+          if (query.trim().isEmpty || suggestions.isEmpty) {
+            return const SizedBox.shrink();
+          }
+          return _SuggestionList(
+            controller: controller.preferredSuggestionScroll,
+            items: suggestions.map((e) => e.name).toList(growable: false),
+            onTap: (name) {
+              InfluencerUiModel? match;
+              for (final item in suggestions) {
+                if (item.name == name) {
+                  match = item;
+                  break;
+                }
+              }
+              if (match != null) {
+                controller.selectPreferredSuggestion(match);
+              }
+            },
+          );
+        }),
         12.h.verticalSpace,
         Obx(() {
           final items = controller.preferredInfluencers.toList(); // ✅ IMPORTANT
@@ -326,6 +349,29 @@ class _InfluencerPromotionStep2 extends StatelessWidget {
           ),
           onChanged: controller.onNotPreferredTyping,
         ),
+        Obx(() {
+          final query = controller.notPreferredQuery.value;
+          final suggestions = controller.notPreferredSuggestionsFiltered();
+          if (query.trim().isEmpty || suggestions.isEmpty) {
+            return const SizedBox.shrink();
+          }
+          return _SuggestionList(
+            controller: controller.notPreferredSuggestionScroll,
+            items: suggestions.map((e) => e.name).toList(growable: false),
+            onTap: (name) {
+              InfluencerUiModel? match;
+              for (final item in suggestions) {
+                if (item.name == name) {
+                  match = item;
+                  break;
+                }
+              }
+              if (match != null) {
+                controller.selectNotPreferredSuggestion(match);
+              }
+            },
+          );
+        }),
         12.h.verticalSpace,
         Obx(() {
           final items = controller.notPreferredInfluencers
@@ -393,6 +439,7 @@ class _PaidAdStep2 extends StatelessWidget {
             final selectedName =
                 controller.selectedAgencyName.value; // ✅ reads Rx
             return ListView.separated(
+              controller: controller.recommendedAgencyScroll,
               scrollDirection: Axis.horizontal,
               physics: const BouncingScrollPhysics(),
               itemCount: items.length,
@@ -404,7 +451,7 @@ class _PaidAdStep2 extends StatelessWidget {
                   name: a.name,
                   subtitle: a.subtitle,
                   selected: selected,
-                  onTap: () => controller.selectAgency(a.name),
+                  onTap: () => controller.selectAgency(a),
                 );
               },
             );
@@ -414,34 +461,38 @@ class _PaidAdStep2 extends StatelessWidget {
         18.h.verticalSpace,
 
         /// Other agencies (vertical)
-        Text(
-          'create_campaign_other_agencies_label'.tr,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 14.sp,
-            fontWeight: FontWeight.w600,
-            color: AppPalette.primary,
-          ),
-        ),
-        12.h.verticalSpace,
         Obx(() {
           final items = controller.otherAgencies.toList(); // ✅ IMPORTANT
           final selectedName =
               controller.selectedAgencyName.value; // ✅ reads Rx
+          if (items.isEmpty) return const SizedBox.shrink();
           return Column(
-            children: items.map((a) {
-              final selected = selectedName == a.name;
-              return Padding(
-                padding: EdgeInsets.only(bottom: 12.h),
-                child: _AgencyWideCard(
-                  name: a.name,
-                  subtitle: a.subtitle,
-                  selected: selected,
-                  onTap: () => controller.selectAgency(a.name),
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'create_campaign_other_agencies_label'.tr,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w600,
+                  color: AppPalette.primary,
                 ),
-              );
-            }).toList(),
+              ),
+              12.h.verticalSpace,
+              ...items.map((a) {
+                final selected = selectedName == a.name;
+                return Padding(
+                  padding: EdgeInsets.only(bottom: 12.h),
+                  child: _AgencyWideCard(
+                    name: a.name,
+                    subtitle: a.subtitle,
+                    selected: selected,
+                    onTap: () => controller.selectAgency(a),
+                  ),
+                );
+              }).toList(),
+            ],
           );
         }),
       ],
@@ -561,6 +612,52 @@ class _ChipBox extends StatelessWidget {
                 );
               }).toList(),
             ),
+    );
+  }
+}
+
+class _SuggestionList extends StatelessWidget {
+  final ScrollController? controller;
+  final List<String> items;
+  final void Function(String) onTap;
+
+  const _SuggestionList({
+    this.controller,
+    required this.items,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: EdgeInsets.only(top: 8.h, bottom: 12.h),
+      decoration: BoxDecoration(
+        color: AppPalette.white,
+        borderRadius: BorderRadius.circular(kBorderRadius.r),
+        border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
+      ),
+      child: SizedBox(
+        height: 200.h,
+        child: ListView.separated(
+          controller: controller,
+          itemCount: items.length,
+          separatorBuilder: (_, __) =>
+              Divider(height: 1, color: AppPalette.border1),
+          itemBuilder: (_, i) {
+            final name = items[i];
+            return ListTile(
+              dense: true,
+              title: Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 12.sp, color: AppPalette.black),
+              ),
+              onTap: () => onTap(name),
+            );
+          },
+        ),
+      ),
     );
   }
 }

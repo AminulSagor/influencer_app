@@ -1,9 +1,15 @@
+// lib/modules/auth/signup_brand/signup_brand_view.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:influencer_app/core/services/account_type_service.dart';
+import 'package:influencer_app/core/widgets/top_back_and_step.dart';
 
 import '../../../core/theme/app_palette.dart';
 import '../../../core/widgets/custom_button.dart';
+import '../../../core/widgets/custom_text_form_field.dart';
+import '../../../core/widgets/language_switcher.dart';
+import '../../../core/widgets/signup_page_header.dart';
 import 'signup_brand_controller.dart';
 
 class SignupBrandView extends GetView<SignupBrandController> {
@@ -11,164 +17,142 @@ class SignupBrandView extends GetView<SignupBrandController> {
 
   @override
   Widget build(BuildContext context) {
+    final accountTypeService = Get.find<AccountTypeService>();
+    final totalSteps = accountTypeService.isBrand ? 9 : 7;
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
-          padding: EdgeInsets.symmetric(horizontal: 28.w, vertical: 20.h),
+          padding: EdgeInsets.symmetric(horizontal: 32.w, vertical: 20.h),
           child: Form(
             key: controller.formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _TopBar(onBack: controller.goBack),
-
-                SizedBox(height: 32.h),
-
-                // Title
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'brand_step1_title'.tr,
-                    style: TextStyle(
-                      fontSize: 38.sp,
-                      fontWeight: FontWeight.w700,
-                      color: AppPalette.primary,
-                      height: 1.1,
-                    ),
-                  ),
+                TopBackAndStep(
+                  currentStep: 2,
+                  totalSteps: totalSteps,
+                  onGoBack: controller.goBack,
                 ),
-                SizedBox(height: 14.h),
+                SizedBox(height: 28.h),
 
-                // Subtitle
+                // Header
+                SignupPageHeader(
+                  title: 'brand_profile_title'.tr,
+                  subtitle: 'brand_profile_subtitle'.tr,
+                ),
+
+                SizedBox(height: 27.h),
+
+                // Section title
                 Text(
-                  'brand_step1_subtitle'.tr,
+                  'infl_profile_section_title'.tr,
                   style: TextStyle(
                     fontSize: 16.sp,
                     fontWeight: FontWeight.w500,
                     color: AppPalette.primary,
                   ),
                 ),
-
-                SizedBox(height: 32.h),
-
-                // Section title
-                Text(
-                  'brand_step1_section_title'.tr,
-                  style: TextStyle(
-                    fontSize: 20.sp,
-                    fontWeight: FontWeight.w700,
-                    color: AppPalette.primary,
-                  ),
-                ),
-
-                SizedBox(height: 20.h),
+                SizedBox(height: 15.h),
 
                 // Brand name
-                _FieldLabel(text: 'brand_step1_brand_label'.tr),
-                SizedBox(height: 6.h),
-                TextFormField(
+                CustomTextFormField(
+                  title: 'brand_name_label'.tr,
+                  hintText: 'brand_name_hint'.tr,
                   controller: controller.brandNameController,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'brand_step1_brand_error'.tr;
-                    }
-                    return null;
-                  },
-                  decoration: _inputDecoration(
-                    hintText: 'brand_step1_brand_hint'.tr,
-                  ),
+                  textInputAction: TextInputAction.next,
+                  contentPadding: EdgeInsets.all(12.w),
+                  validator: (value) => (value == null || value.trim().isEmpty)
+                      ? 'Required'
+                      : null,
                 ),
-
-                SizedBox(height: 18.h),
+                SizedBox(height: 15.h),
 
                 // First name
-                _FieldLabel(text: 'brand_step1_first_label'.tr),
-                SizedBox(height: 6.h),
-                TextFormField(
+                CustomTextFormField(
+                  title: 'infl_first_name_label'.tr,
+                  hintText: 'infl_first_name_hint'.tr,
                   controller: controller.firstNameController,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'brand_step1_first_error'.tr;
-                    }
-                    return null;
-                  },
-                  decoration: _inputDecoration(
-                    hintText: 'brand_step1_first_hint'.tr,
-                  ),
+                  textInputAction: TextInputAction.next,
+                  contentPadding: EdgeInsets.all(12.w),
+                  validator: (value) => (value == null || value.trim().isEmpty)
+                      ? 'Required'
+                      : null,
                 ),
-
-                SizedBox(height: 18.h),
+                SizedBox(height: 15.h),
 
                 // Last name
-                _FieldLabel(text: 'brand_step1_last_label'.tr),
-                SizedBox(height: 6.h),
-                TextFormField(
+                CustomTextFormField(
+                  title: 'infl_last_name_label'.tr,
+                  hintText: 'infl_last_name_hint'.tr,
                   controller: controller.lastNameController,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'brand_step1_last_error'.tr;
-                    }
-                    return null;
-                  },
-                  decoration: _inputDecoration(
-                    hintText: 'brand_step1_last_hint'.tr,
-                  ),
+                  textInputAction: TextInputAction.next,
+                  contentPadding: EdgeInsets.all(12.w),
+                  validator: (value) => (value == null || value.trim().isEmpty)
+                      ? 'Required'
+                      : null,
                 ),
-
-                SizedBox(height: 18.h),
+                SizedBox(height: 15.h),
 
                 // Email
-                _FieldLabel(text: 'brand_step1_email_label'.tr),
-                SizedBox(height: 6.h),
-                TextFormField(
+                CustomTextFormField(
+                  title: 'infl_email_label'.tr,
+                  hintText: 'infl_email_hint'.tr,
                   controller: controller.emailController,
                   keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  contentPadding: EdgeInsets.all(12.w),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'brand_step1_email_error'.tr;
+                      return 'Required';
                     }
                     if (!GetUtils.isEmail(value.trim())) {
-                      return 'brand_step1_email_invalid'.tr;
+                      return 'Invalid email';
                     }
                     return null;
                   },
-                  decoration: _inputDecoration(
-                    hintText: 'brand_step1_email_hint'.tr,
-                  ),
                 ),
-
-                SizedBox(height: 18.h),
+                SizedBox(height: 15.h),
 
                 // Phone
-                _FieldLabel(text: 'brand_step1_phone_label'.tr),
-                SizedBox(height: 6.h),
-                TextFormField(
+                CustomTextFormField(
+                  title: 'infl_phone_label'.tr,
+                  hintText: 'infl_phone_hint'.tr,
                   controller: controller.phoneController,
                   keyboardType: TextInputType.phone,
+                  textInputAction: TextInputAction.next,
+                  contentPadding: EdgeInsets.all(12.w),
+                  validator: (value) => (value == null || value.trim().isEmpty)
+                      ? 'Required'
+                      : null,
+                ),
+                SizedBox(height: 15.h),
+
+                // Password
+                CustomTextFormField(
+                  title: 'brand_step1_password_label'.tr,
+                  hintText: 'brand_step1_password_hint'.tr,
+                  controller: controller.passwordController,
+                  obscureText: true,
+                  textInputAction: TextInputAction.done,
+                  contentPadding: EdgeInsets.all(12.w),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'brand_step1_phone_error'.tr;
+                      return 'Required';
+                    }
+                    if (value.trim().length < 8) {
+                      return 'Password must be at least 8 characters';
                     }
                     return null;
                   },
-                  decoration: _inputDecoration(
-                    hintText: 'brand_step1_phone_hint'.tr,
-                  ),
                 ),
 
                 SizedBox(height: 24.h),
 
                 // Language toggle
-                Obx(
-                  () => _LanguageToggle(
-                    isEnglish: controller.isEnglish.value,
-                    onEnglishTap: () => controller.setLanguage('en'),
-                    onBanglaTap: () => controller.setLanguage('bn'),
-                  ),
-                ),
+                const LanguageSwitcher(),
 
                 SizedBox(height: 28.h),
 
@@ -176,7 +160,7 @@ class SignupBrandView extends GetView<SignupBrandController> {
                 CustomButton(
                   onTap: controller.onContinue,
                   btnText: 'btn_continue'.tr,
-                  height: 56.h,
+                  height: 64.h,
                   width: double.infinity,
                   textStyle: TextStyle(
                     fontSize: 18.sp,
@@ -185,33 +169,31 @@ class SignupBrandView extends GetView<SignupBrandController> {
                   ),
                 ),
 
-                SizedBox(height: 20.h),
+                SizedBox(height: 24.h),
 
-                // Login footer
+                // Already have account
                 Center(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'brand_step1_footer_title'.tr,
+                  child: GestureDetector(
+                    onTap: controller.goToLogin,
+                    child: RichText(
+                      text: TextSpan(
+                        text: 'auth_already_have_account'.tr,
                         style: TextStyle(
                           fontSize: 14.sp,
-                          color: Colors.grey.shade500,
+                          color: AppPalette.subtext,
                         ),
-                      ),
-                      SizedBox(width: 6.w),
-                      GestureDetector(
-                        onTap: controller.goToLogin,
-                        child: Text(
-                          'brand_step1_footer_login'.tr,
-                          style: TextStyle(
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black87,
+                        children: [
+                          TextSpan(
+                            text: ' ${'auth_login'.tr}',
+                            style: TextStyle(
+                              fontSize: 14.sp,
+                              fontWeight: FontWeight.w600,
+                              color: AppPalette.primary,
+                            ),
                           ),
-                        ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
 
@@ -220,164 +202,6 @@ class SignupBrandView extends GetView<SignupBrandController> {
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  InputDecoration _inputDecoration({required String hintText}) {
-    return InputDecoration(
-      hintText: hintText,
-      filled: true,
-      fillColor: const Color(0xFFF9FAFB),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(18.r),
-        borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
-      ),
-      contentPadding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Reusable widgets
-// ---------------------------------------------------------------------------
-
-class _TopBar extends StatelessWidget {
-  final VoidCallback onBack;
-
-  const _TopBar({required this.onBack});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        InkWell(
-          onTap: onBack,
-          borderRadius: BorderRadius.circular(999.r),
-          child: Padding(
-            padding: EdgeInsets.all(8.w),
-            child: Icon(
-              Icons.arrow_back_ios_new_rounded,
-              size: 20.sp,
-              color: AppPalette.primary,
-            ),
-          ),
-        ),
-        const Spacer(),
-        const _ProgressDots(activeIndex: 0, total: 8),
-      ],
-    );
-  }
-}
-
-class _ProgressDots extends StatelessWidget {
-  final int activeIndex;
-  final int total;
-
-  const _ProgressDots({required this.activeIndex, required this.total});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: List.generate(total, (index) {
-        final isBar = index == activeIndex;
-        return Padding(
-          padding: EdgeInsets.symmetric(horizontal: 3.w),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            width: isBar ? 70.w : 8.w,
-            height: 8.h,
-            decoration: BoxDecoration(
-              color: AppPalette.primary,
-              borderRadius: BorderRadius.circular(999.r),
-            ),
-          ),
-        );
-      }),
-    );
-  }
-}
-
-class _FieldLabel extends StatelessWidget {
-  final String text;
-
-  const _FieldLabel({required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: TextStyle(
-        fontSize: 14.sp,
-        fontWeight: FontWeight.w600,
-        color: AppPalette.primary,
-      ),
-    );
-  }
-}
-
-class _LanguageToggle extends StatelessWidget {
-  final bool isEnglish;
-  final VoidCallback onEnglishTap;
-  final VoidCallback onBanglaTap;
-
-  const _LanguageToggle({
-    required this.isEnglish,
-    required this.onEnglishTap,
-    required this.onBanglaTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 48.h,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(999.r),
-        border: Border.all(color: AppPalette.primary),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: GestureDetector(
-              onTap: onEnglishTap,
-              child: Container(
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: isEnglish ? AppPalette.primary : Colors.transparent,
-                  borderRadius: BorderRadius.circular(999.r),
-                ),
-                child: Text(
-                  'brand_step1_lang_en'.tr,
-                  style: TextStyle(
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w600,
-                    color: isEnglish ? Colors.white : AppPalette.primary,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: GestureDetector(
-              onTap: onBanglaTap,
-              child: Container(
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: !isEnglish ? AppPalette.primary : Colors.transparent,
-                  borderRadius: BorderRadius.circular(999.r),
-                ),
-                child: Text(
-                  'brand_step1_lang_bn'.tr,
-                  style: TextStyle(
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w600,
-                    color: !isEnglish ? Colors.white : AppPalette.primary,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

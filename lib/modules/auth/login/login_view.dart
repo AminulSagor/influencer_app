@@ -66,7 +66,7 @@ class LoginView extends GetView<LoginController> {
               CustomTextFormField(
                 hintText: 'login_phone_hint'.tr,
                 controller: controller.phoneController,
-                keyboardType: TextInputType.phone,
+                //keyboardType: TextInputType.,
                 contentPadding: EdgeInsets.symmetric(
                   horizontal: 22.w,
                   vertical: 16.h,
@@ -78,7 +78,7 @@ class LoginView extends GetView<LoginController> {
                 ),
                 textStyle: TextStyle(
                   fontSize: 16.sp,
-                  fontWeight: .w400,
+                  fontWeight: FontWeight.w400,
                   color: AppPalette.greyText,
                 ),
               ),
@@ -96,7 +96,7 @@ class LoginView extends GetView<LoginController> {
                   ),
                   textStyle: TextStyle(
                     fontSize: 16.sp,
-                    fontWeight: .w400,
+                    fontWeight: FontWeight.w400,
                     color: AppPalette.greyText,
                   ),
                   obscureText: controller.isPasswordObscured.value,

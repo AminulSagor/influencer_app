@@ -5,7 +5,7 @@ import 'package:influencer_app/core/services/account_type_service.dart';
 import 'bottom_nav_controller.dart';
 import 'package:influencer_app/routes/app_routes.dart';
 import 'package:influencer_app/core/theme/app_palette.dart';
-
+import 'package:influencer_app/core/services/auth_services.dart';
 import 'utils/bottom_nav_route_generator.dart';
 
 class BottomNavView extends GetView<BottomNavController> {
@@ -33,7 +33,7 @@ class BottomNavView extends GetView<BottomNavController> {
                   key: Get.nestedKey(1),
                   initialRoute: controller.isAccountVerified
                       ? AppRoutes.home
-                      : AppRoutes.agencyHomeLocked,
+                      : controller.lockedRoute,
                   onGenerateRoute: BottomNavRouteGenerator.generateRoute,
                 ),
               ),
@@ -235,6 +235,45 @@ class _ProfileDrawer extends StatelessWidget {
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width * 0.7;
     final _accountTypeService = Get.find<AccountTypeService>();
+    Future<void> logout() async {
+      final auth = Get.find<AuthService>();
+      final accountType = Get.find<AccountTypeService>();
+
+      // close drawer
+      if (Get.isOverlaysOpen) Get.back();
+
+      final confirmed = await Get.dialog<bool>(
+        AlertDialog(
+          title: const Text('Confirm Logout'),
+          content: const Text('Are you sure you want to log out?'),
+          actions: [
+            TextButton(
+              onPressed: () => Get.back(result: false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Get.back(result: true),
+              child: const Text('Logout'),
+            ),
+          ],
+        ),
+        barrierDismissible: true,
+      );
+
+      if (confirmed != true) return;
+
+      try {
+        await auth.logout(); // clears tokens (SharedPreferences)
+        accountType.setRole(null); // reset selected role
+        // go back to start
+        Get.offAllNamed(AppRoutes.onboarding);
+        if (Get.isRegistered<BottomNavController>()) {
+          Get.delete<BottomNavController>(force: true);
+        }
+      } catch (e) {
+        Get.snackbar('Error', 'Logout failed');
+      }
+    }
 
     return SizedBox(
       width: width,
@@ -300,9 +339,7 @@ class _ProfileDrawer extends StatelessWidget {
                 icon: Icons.logout_rounded,
                 color: AppPalette.complemetary,
                 label: 'Logout',
-                onTap: () {
-                  // TODO: handle logout
-                },
+                onTap: logout,
               ),
               40.h.verticalSpace,
             ],

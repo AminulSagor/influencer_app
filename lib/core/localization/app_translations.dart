@@ -43,9 +43,12 @@ class AppTranslations extends Translations {
       'infl_profile_title': 'Hey, Influencer!',
       'brand_profile_title': 'Ready to launch?',
       'agency_profile_title': 'Hello, Agency!',
+      'agency_profile_subtitle': 'Let\'s build your agency profile!',
       'infl_profile_subtitle': "Let\'s Get You Set Up!",
       'brand_profile_subtitle': "Let's Grow your brand!",
       'infl_profile_section_title': 'Profile Details',
+      'agency_name_label': 'Agency Name *',
+      'agency_name_hint': 'Enter your agency full name',
       'brand_name_label': 'Brand name *',
       'brand_name_hint': 'Enter your brand/Business Name',
       'infl_first_name_label': 'First Name *',
@@ -56,6 +59,18 @@ class AppTranslations extends Translations {
       'infl_email_hint': 'Ex: johndoe@email.com',
       'infl_phone_label': 'Phone Number *',
       'infl_phone_hint': 'Ex: +8801234567890',
+
+      // Password field
+      'infl_password_label': 'Password *',
+      'infl_password_hint': 'Enter Your Password',
+
+      // Brand password field
+      'brand_step1_password_label': 'Password *',
+      'brand_step1_password_hint': 'Enter Your Password',
+
+      // Agency password field
+      'agency_password_label': 'Password *',
+      'agency_password_hint': 'Enter Your Password',
 
       'btn_continue': 'Continue',
       'auth_already_have_account': 'Already have an account?',
@@ -218,6 +233,42 @@ class AppTranslations extends Translations {
       'brand_tin_skip': 'Skip',
       'brand_tin_continue': 'Continue',
 
+      // Agency Trade License
+      'agency_tl_title': 'Make it Official!',
+      'agency_tl_subtitle': 'Become a Certified Agency Partner',
+      'agency_tl_body':
+          'Uploading your trade license shows you\'re a legitimate and professional agency, ready for serious partnerships.',
+
+      // Agency TIN
+      'agency_tin_title': 'One Final Step!',
+      'agency_tin_subtitle': 'Establish Your Agency\'s Credibility',
+      'agency_tin_body':
+          'To comply with financial regulations and enable secure invoicing and payouts, please provide your official business tax and identification numbers.',
+
+      // Agency KYC
+      'agency_kyc_title': 'Unlock Payout!',
+      'agency_kyc_subtitle': 'Let\'s get you ready to earn!',
+      'agency_kyc_body':
+          'This is a one-time security check to ensure payments are sent to the correct person. Your data is safe with us.',
+
+      // Agency Expertise
+      'agency_expertise_title': 'What\'s Your Expertise?',
+      'agency_expertise_subtitle': 'Tell Us About Your Specializations',
+      'agency_expertise_body':
+          'Help brands understand what you excel at. Select the platforms you specialize in and the niches you serve best.',
+      'agency_expertise_info':
+          'This helps us match you with the right campaigns. The more details you provide, the better offers you\'ll receive.',
+      'agency_expertise_section_title': 'Your Expertise',
+      'agency_expertise_add_platform': '+ Add Another Platform',
+      'agency_expertise_platform': 'Platform',
+      'agency_expertise_platform_label': 'Select Platform *',
+      'agency_expertise_platform_hint': 'Choose a platform',
+      'agency_expertise_niches_label': 'Select Niches *',
+      'agency_expertise_niches_hint': 'Choose niches',
+
+      // Common buttons
+      'btn_finish': 'Finish',
+
       'fp_title': 'Forgot\nPassword?',
       'fp_subtitle': 'No worries, we’ll send you reset instructions',
       'fp_input_hint': 'Phone / Email',
@@ -275,6 +326,27 @@ class AppTranslations extends Translations {
           'A niche is a focused area of interest, need, or demographic that an influencer or agency focuses on exclusively.',
       'home_locked_help_skills':
           'To be a successful agency, you need a mix of creative, technical, interpersonal, and business skills.',
+
+      // Onboarding status strings
+      'basic_info': 'Basic Information',
+      'social_portfolio': 'Social Portfolio',
+      'payment_setup': 'Payment Setup',
+      'verify_email': 'Verify Email',
+      'trade_license': 'Trade License',
+      'add_profile_picture': 'Add Profile Picture',
+      'add_niches': 'Add Niches',
+      'add_skills': 'Add Skills',
+      'add_bio': 'Add Bio',
+      'completed': 'Completed',
+      'verified': 'Verified',
+      'in_review': 'In Review',
+      'declined': 'Declined',
+      'that_is_how_we_reach_you': "That's how we are going to reach you",
+      'add_at_least_one_social': 'Add at least one social link',
+      'niche_help_text':
+          'A niche is a focused area of interest, need, or demographic that an influencer or agency focuses on exclusively.',
+      'skills_help_text':
+          'To be successful, you need a mix of creative, technical, interpersonal, and business skills.',
 
       'support_contact_title': 'Contact Support',
       'support_helpline_section_title': 'Helpline Numbers',
@@ -977,6 +1049,26 @@ class AppTranslations extends Translations {
       'view_submitted_report': 'View Submitted Report',
       'submitted_report_title': 'Submitted Report',
       'no_reports_yet': 'No reports yet',
+
+      // API Error Messages
+      'connection_timeout': 'Connection timed out. Please try again.',
+      'send_timeout': 'Request timed out. Please try again.',
+      'receive_timeout': 'Server took too long to respond.',
+      'bad_certificate': 'Security certificate error.',
+      'request_cancelled': 'Request was cancelled.',
+      'connection_error': 'No internet connection.',
+      'unknown_error': 'Something went wrong.',
+      'bad_request': 'Invalid request. Please check your input.',
+      'unauthorized': 'Session expired. Please login again.',
+      'forbidden': 'You don\'t have permission for this action.',
+      'not_found': 'Resource not found.',
+      'conflict': 'This action conflicts with existing data.',
+      'validation_error': 'Please check your input.',
+      'too_many_requests': 'Too many requests. Please wait.',
+      'server_error': 'Server error. Please try again later.',
+      'bad_gateway': 'Server is temporarily unavailable.',
+      'service_unavailable': 'Service is currently unavailable.',
+      'http_error': 'Network error occurred.',
     },
 
     // Bangla
@@ -1017,7 +1109,10 @@ class AppTranslations extends Translations {
 
       'infl_profile_title': 'হ্যালো, ইনফ্লুয়েন্সার!',
       'brand_profile_title': 'ব্র্যান্ড প্রোমোশনের জন্য প্রস্তুত?',
-      'agency_profile_title': 'Hello, Agency!',
+      'agency_name_label': 'এজেন্সির নাম *',
+      'agency_name_hint': 'আপনার এজেন্সির পূর্ণ নাম লিখুন',
+      'agency_profile_title': 'হ্যালো, এজেন্সি!',
+      'agency_profile_subtitle': 'আপনার এজেন্সির প্রোফাইল তৈরি করা যাক',
       'infl_profile_subtitle': 'চলুন, আপনার প্রোফাইল তৈরি করা যাক',
       'brand_profile_subtitle': 'আপনার ব্র্যান্ডের প্রচার শুরু করুন!',
       'infl_profile_section_title': 'প্রোফাইল বিবরণী',
@@ -1031,6 +1126,18 @@ class AppTranslations extends Translations {
       'infl_email_hint': 'Ex: johndoe@email.com',
       'infl_phone_label': 'ফোন নম্বর *',
       'infl_phone_hint': 'Ex: +8801234567890',
+
+      // Password field
+      'infl_password_label': 'পাসওয়ার্ড *',
+      'infl_password_hint': 'আপনার পাসওয়ার্ড লিখুন',
+
+      // Brand password field
+      'brand_step1_password_label': 'পাসওয়ার্ড *',
+      'brand_step1_password_hint': 'আপনার পাসওয়ার্ড লিখুন',
+
+      // Agency password field
+      'agency_password_label': 'পাসওয়ার্ড *',
+      'agency_password_hint': 'আপনার পাসওয়ার্ড লিখুন',
 
       'btn_continue': 'এগিয়ে যান',
       'auth_already_have_account': 'অ্যাকাউন্ট আছে?',
@@ -1092,6 +1199,18 @@ class AppTranslations extends Translations {
       'influ_social_profile_hint': 'প্রোফাইল লিংক',
       'influ_social_profile_error': 'অনুগ্রহ করে প্রোফাইল লিংক লিখুন',
       'influ_social_add_another': '+ আর যুক্ত করুন',
+
+      // Brand social
+      'brand_social_title': 'আপনার প্রতিভা দেখান!',
+      'brand_social_subtitle': 'সোশ্যাল মিডিয়ায় আপনার উপস্থিতি জানান দিন!',
+      'brand_social_body':
+          'ইনফ্লুয়েন্সাররা যাতে আপনার ব্র্যান্ডের ধরণ ও রুচি বুঝতে পারে, সেজন্য আপনার অ্যাক্টিভ সোশ্যাল চ্যানেলগুলো যুক্ত করুন।',
+
+      // Agency social
+      'agency_social_title': 'আপনার প্রতিভা দেখান!',
+      'agency_social_subtitle': 'সোশ্যাল মিডিয়ায় আপনার উপস্থিতি জানান দিন!',
+      'agency_social_body':
+          'এটাই আপনার ডিজিটাল সিভি। যত বেশি প্রোফাইল লিংক করবেন, তত বেশি ক্যাম্পেইন পাওয়ার সুযোগ।',
 
       'influ_kyc_title': 'পেমেন্ট আনলক করুন!',
       'brand_kyc_title': 'ব্র্যান্ডের আস্থা তৈরি করুন!',
@@ -1185,6 +1304,42 @@ class AppTranslations extends Translations {
       'brand_tin_skip': 'স্কিপ',
       'brand_tin_continue': 'এগিয়ে যান',
 
+      // Agency Trade License
+      'agency_tl_title': 'ব্যবসাটিকে অফিসিয়াল করুন!',
+      'agency_tl_subtitle': 'নিবন্ধিত এজেন্সি অংশীদার হন',
+      'agency_tl_body':
+          'ট্রেড লাইসেন্স আপলোড করার মাধ্যমে আপনি আপনার এজেন্সির বৈধতা ও পেশাগত দক্ষতা প্রমাণ করছেন।',
+
+      // Agency TIN
+      'agency_tin_title': 'আর মাত্র একটি ধাপ!',
+      'agency_tin_subtitle': 'আপনার এজেন্সির বিশ্বাসযোগ্যতা প্রতিষ্ঠা করুন',
+      'agency_tin_body':
+          'আর্থিক নিয়ম মেনে নিরাপদ পেমেন্ট ও ইনভয়েস সক্রিয় করতে আপনার অফিসিয়াল ব্যবসায়িক ট্যাক্স ও পরিচয় নম্বর দিন।',
+
+      // Agency KYC
+      'agency_kyc_title': 'পেমেন্ট আনলক করুন!',
+      'agency_kyc_subtitle': 'উপার্জন শুরু করুন!',
+      'agency_kyc_body':
+          'সঠিক মানুষকে পেমেন্ট পৌঁছানো নিশ্চিত করতে এটি একটি সিকিউরিটি চেক। আপনার তথ্য আমাদের কাছে সম্পূর্ণ নিরাপদ।',
+
+      // Agency Expertise
+      'agency_expertise_title': 'আপনার দক্ষতা কী?',
+      'agency_expertise_subtitle': 'আপনার বিশেষত্ব সম্পর্কে বলুন',
+      'agency_expertise_body':
+          'ব্র্যান্ডদের বুঝতে সাহায্য করুন আপনি কোথায় সবচেয়ে দক্ষ। আপনি যে প্ল্যাটফর্মগুলোতে বিশেষজ্ঞ এবং যে নিশগুলো সবচেয়ে ভালো সার্ভ করেন সেগুলো বাছাই করুন।',
+      'agency_expertise_info':
+          'এটি আমাদের আপনাকে সঠিক ক্যাম্পেইনের সাথে মেলাতে সাহায্য করে। আপনি যত বেশি বিবরণ দেবেন, তত ভালো অফার পাবেন।',
+      'agency_expertise_section_title': 'আপনার দক্ষতা',
+      'agency_expertise_add_platform': '+ আরেকটি প্ল্যাটফর্ম যোগ করুন',
+      'agency_expertise_platform': 'প্ল্যাটফর্ম',
+      'agency_expertise_platform_label': 'প্ল্যাটফর্ম নির্বাচন করুন *',
+      'agency_expertise_platform_hint': 'একটি প্ল্যাটফর্ম বাছাই করুন',
+      'agency_expertise_niches_label': 'নিশ নির্বাচন করুন *',
+      'agency_expertise_niches_hint': 'নিশ বাছাই করুন',
+
+      // Common buttons
+      'btn_finish': 'সম্পন্ন করুন',
+
       'fp_title': 'পাসওয়ার্ড\nভুলে গেছেন?',
       'fp_subtitle':
           'চিন্তার কিছু নেই! আমরা আপনাকে\nপাসওয়ার্ড রিসেট করার নিয়ম পাঠিয়ে দেব।',
@@ -1245,6 +1400,28 @@ class AppTranslations extends Translations {
           'নিস হচ্ছে কোনও নির্দিষ্ট আগ্রহ, চাহিদা বা নির্দিষ্ট ধরনের দর্শক — যেখানে একজন ইনফ্লুয়েন্সার বা এজেন্সি মূলত কাজ করে।',
       'home_locked_help_skills':
           'একটি সফল এজেন্সি গড়ে তুলতে সৃজনশীল, প্রযুক্তিগত, যোগাযোগ দক্ষতা এবং ব্যবসায়িক দক্ষতার সঠিক মিশ্রণ দরকার।',
+
+      // Onboarding status strings
+      'basic_info': 'প্রাথমিক তথ্য',
+      'social_portfolio': 'সোশ্যাল পোর্টফোলিও',
+      'payment_setup': 'পেমেন্ট সেটআপ',
+      'verify_email': 'ইমেইল ভেরিফাই করুন',
+      'trade_license': 'ট্রেড লাইসেন্স',
+      'add_profile_picture': 'প্রোফাইল ছবি যোগ করুন',
+      'add_niches': 'নিস যোগ করুন',
+      'add_skills': 'স্কিল যোগ করুন',
+      'add_bio': 'বায়ো লিখুন',
+      'completed': 'সম্পন্ন',
+      'verified': 'ভেরিফাইড',
+      'in_review': 'পর্যালোচনাধীন',
+      'declined': 'বাতিল',
+      'that_is_how_we_reach_you': 'এভাবেই আমরা আপনার সাথে যোগাযোগ করব',
+      'add_at_least_one_social': 'কমপক্ষে একটি সোশ্যাল লিংক যোগ করুন',
+      'niche_help_text':
+          'নিস হচ্ছে কোনও নির্দিষ্ট আগ্রহ, চাহিদা বা নির্দিষ্ট ধরনের দর্শক — যেখানে একজন ইনফ্লুয়েন্সার বা এজেন্সি মূলত কাজ করে।',
+      'skills_help_text':
+          'সফল হতে হলে সৃজনশীল, প্রযুক্তিগত, যোগাযোগ দক্ষতা এবং ব্যবসায়িক দক্ষতার সঠিক মিশ্রণ দরকার।',
+
       'support_contact_title': 'সাপোর্ট টিম',
       'support_helpline_section_title': 'হেল্পলাইন নম্বরসমূহ',
       'support_email_section_title': 'ইমেইল করুন',
@@ -1952,6 +2129,26 @@ class AppTranslations extends Translations {
       'view_submitted_report': 'জমা দেওয়া রিপোর্ট দেখুন',
       'submitted_report_title': 'জমা দেওয়া রিপোর্ট',
       'no_reports_yet': 'এখনও কোনো রিপোর্ট নেই',
+
+      // API Error Messages
+      'connection_timeout': 'সংযোগ সময় শেষ। আবার চেষ্টা করুন।',
+      'send_timeout': 'অনুরোধ সময় শেষ। আবার চেষ্টা করুন।',
+      'receive_timeout': 'সার্ভার উত্তর দিতে দেরি করছে।',
+      'bad_certificate': 'নিরাপত্তা সার্টিফিকেট ত্রুটি।',
+      'request_cancelled': 'অনুরোধ বাতিল করা হয়েছে।',
+      'connection_error': 'ইন্টারনেট সংযোগ নেই।',
+      'unknown_error': 'কিছু ভুল হয়েছে।',
+      'bad_request': 'অবৈধ অনুরোধ। আপনার ইনপুট যাচাই করুন।',
+      'unauthorized': 'সেশন শেষ। আবার লগইন করুন।',
+      'forbidden': 'এই কাজের জন্য আপনার অনুমতি নেই।',
+      'not_found': 'রিসোর্স পাওয়া যায়নি।',
+      'conflict': 'এই কাজটি বিদ্যমান ডেটার সাথে সাংঘর্ষিক।',
+      'validation_error': 'আপনার ইনপুট যাচাই করুন।',
+      'too_many_requests': 'অনেক বেশি অনুরোধ। অনুগ্রহ করে অপেক্ষা করুন।',
+      'server_error': 'সার্ভার ত্রুটি। পরে আবার চেষ্টা করুন।',
+      'bad_gateway': 'সার্ভার সাময়িকভাবে অনুপলব্ধ।',
+      'service_unavailable': 'সেবা বর্তমানে অনুপলব্ধ।',
+      'http_error': 'নেটওয়ার্ক ত্রুটি হয়েছে।',
     },
   };
 }

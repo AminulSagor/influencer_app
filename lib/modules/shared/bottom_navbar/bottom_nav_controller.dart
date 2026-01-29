@@ -7,6 +7,8 @@ import '../../brand/explore/explore_controller.dart';
 import '../earnings/earnings_controller.dart';
 import '../home/home_controller.dart';
 import '../../ad_agency/home_locked/agency_home_locked_controller.dart';
+import '../../brand/home_locked/brand_home_locked_controller.dart';
+import '../../influencer/home_locked/influencer_home_locked_controller.dart';
 import '../jobs/jobs_controller.dart';
 import '../notification/notifications_controller.dart';
 import '../profile/profile_controller.dart';
@@ -18,12 +20,21 @@ class BottomNavController extends GetxController {
   late final AccountTypeService _accountTypeService;
 
   bool get isBrand => _accountTypeService.isBrand;
+  bool get isAgency => _accountTypeService.isAdAgency;
+  bool get isInfluencer => _accountTypeService.isInfluencer;
+
+  /// Returns the correct locked route based on account type
+  String get lockedRoute {
+    if (isInfluencer) return AppRoutes.influencerHomeLocked;
+    if (isBrand) return AppRoutes.brandHomeLocked;
+    return AppRoutes.agencyHomeLocked;
+  }
 
   @override
   void onInit() {
     _accountTypeService = Get.find<AccountTypeService>();
 
-    if (Get.arguments != null) {
+    if (Get.arguments != null && Get.arguments['isAccountVerified'] != null) {
       isAccountVerified = Get.arguments['isAccountVerified'];
     } else {
       isAccountVerified = true;
@@ -35,11 +46,14 @@ class BottomNavController extends GetxController {
   void onTabChanged(int index) {
     currentIndex.value = index;
 
-    if (!isAccountVerified) {
-      currentIndex.value = 0;
-      Get.offAllNamed(AppRoutes.agencyHomeLocked, id: 1);
-      return;
-    }
+    // Profile page (last tab) should always be accessible for onboarding
+    // final profileIndex = isBrand ? 4 : 3;
+
+    // if (!isAccountVerified && index != profileIndex) {
+    //   currentIndex.value = 0;
+    //   Get.offAllNamed(lockedRoute, id: 1);
+    //   return;
+    // }
 
     if (isBrand) {
       switch (index) {
@@ -89,10 +103,20 @@ class BottomNavController extends GetxController {
 class BottomNavBinding extends Bindings {
   @override
   void dependencies() {
+    // Delete existing controller if any to ensure fresh state on each login
+    Get.delete<BottomNavController>(force: true);
     Get.put(BottomNavController(), permanent: true);
 
     Get.lazyPut<AgencyHomeLockedController>(
       () => AgencyHomeLockedController(),
+      fenix: true,
+    );
+    Get.lazyPut<BrandHomeLockedController>(
+      () => BrandHomeLockedController(),
+      fenix: true,
+    );
+    Get.lazyPut<InfluencerHomeLockedController>(
+      () => InfluencerHomeLockedController(),
       fenix: true,
     );
     Get.lazyPut<HomeController>(() => HomeController(), fenix: true);

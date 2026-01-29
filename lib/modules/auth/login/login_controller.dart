@@ -1,10 +1,15 @@
 // lib/modules/auth/login/login_controller.dart
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:influencer_app/core/enums/account_type.dart';
 import 'package:influencer_app/core/services/account_type_service.dart';
-
+import 'package:influencer_app/core/services/auth_services.dart';
+import 'package:influencer_app/core/services/api_error_handler.dart';
+import 'package:influencer_app/core/services/onboarding_check_service.dart';
 import '../../../routes/app_routes.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:influencer_app/core/services/token_service.dart';
 
 class LoginController extends GetxController {
   final TextEditingController phoneController = TextEditingController();
@@ -14,27 +19,89 @@ class LoginController extends GetxController {
   final RxBool isLoading = false.obs;
 
   final _accountTypeService = Get.find<AccountTypeService>();
+  final _authService = Get.find<AuthService>();
+  final _tokenService = Get.find<TokenService>();
+  final _onboardingService = Get.find<OnboardingCheckService>();
 
   void togglePasswordVisibility() {
     isPasswordObscured.toggle();
   }
 
   Future<void> submitLogin() async {
-    // simple placeholder
-    // if (phoneController.text.isEmpty || passwordController.text.isEmpty) {
-    //   Get.snackbar('Error', 'Please fill all fields');
-    //   return;
-    // }
+    final phone = phoneController.text.trim();
+    final password = passwordController.text.trim();
+    if (phone.isEmpty || password.isEmpty) {
+      Get.snackbar(
+        'error'.tr,
+        'please_fill_all_fields'.tr,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
 
     isLoading.value = true;
-    await Future.delayed(const Duration(milliseconds: 600));
+
+    final result = await ApiErrorHandler.call(
+      () => _authService.login(phone: phone, password: password),
+    );
+
+    if (!result.isSuccess) {
+      isLoading.value = false;
+      return;
+    }
+
+    final token = result.data!.accessToken;
+    await _tokenService.saveAccessToken(token);
+
+    final payload = JwtDecoder.decode(token);
+
+    // Debug: Print decoded token payload
+    debugPrint('═══════════════════════════════════════════════════════════');
+    debugPrint('🔐 DECODED JWT TOKEN:');
+    debugPrint('═══════════════════════════════════════════════════════════');
+    payload.forEach((key, value) {
+      debugPrint('  $key: $value');
+    });
+    debugPrint('═══════════════════════════════════════════════════════════');
+
+    final role =
+        payload['role'] ??
+        payload['accountType'] ??
+        (payload['user'] is Map ? payload['user']['role'] : null);
+
+    if (role == null) {
+      isLoading.value = false;
+      Get.snackbar('error'.tr, 'Role not found in token');
+      return;
+    }
+
+    // Set account type based on role
+    if (role == 'influencer') {
+      _accountTypeService.setRole(AccountType.influencer);
+    } else if (role == 'brand' || role == 'client') {
+      _accountTypeService.setRole(AccountType.brand);
+    } else if (role == 'agency') {
+      _accountTypeService.setRole(AccountType.adAgency);
+    }
+
+    // Get admin verification status from JWT token
+    // Dashboard is locked only if user is NOT verified by admin
+    // Incomplete onboarding doesn't lock the dashboard
+    final isVerifiedByAdmin = payload['isVerified'] as bool? ?? false;
+
+    debugPrint('🔓 Dashboard Lock Status:');
+    debugPrint('  isVerified (from JWT): $isVerifiedByAdmin');
+    debugPrint(
+      '  → Dashboard will be: ${isVerifiedByAdmin ? "UNLOCKED ✅" : "LOCKED 🔒"}',
+    );
+
     isLoading.value = false;
 
-    // _accountTypeService.setRole(AccountType.adAgency);
-    // _accountTypeService.setRole(AccountType.influencer);
-    _accountTypeService.setRole(AccountType.brand);
-
-    Get.offAllNamed(AppRoutes.bottomNav);
+    Get.snackbar('Success', result.data!.message);
+    Get.offAllNamed(
+      AppRoutes.bottomNav,
+      arguments: {'isAccountVerified': isVerifiedByAdmin},
+    );
   }
 
   void goToSignUp() {

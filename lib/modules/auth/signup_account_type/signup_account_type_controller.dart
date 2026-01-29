@@ -9,6 +9,13 @@ class SignupAccountTypeController extends GetxController {
   final Rx<AccountType> selectedType = AccountType.influencer.obs;
   final accountTypeService = Get.find<AccountTypeService>();
   final totalSteps = 0.obs;
+  @override
+  void onInit() {
+    super.onInit();
+
+    // Apply default selection properly
+    selectType(selectedType.value);
+  }
 
   void selectType(AccountType type) {
     selectedType.value = type;
@@ -26,11 +33,17 @@ class SignupAccountTypeController extends GetxController {
   }
 
   void onContinue() {
-    if (selectedType.value == AccountType.adAgency) {
-      final locale = const Locale('en', 'US');
-      Get.updateLocale(locale);
+    switch (selectedType.value) {
+      case AccountType.influencer:
+        Get.toNamed(AppRoutes.signupInfluencer);
+        break;
+      case AccountType.brand:
+        Get.toNamed(AppRoutes.signupBrand);
+        break;
+      case AccountType.adAgency:
+        Get.toNamed(AppRoutes.signupAgency);
+        break;
     }
-    Get.toNamed(AppRoutes.signupInfluencer);
   }
 }
 

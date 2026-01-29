@@ -16,4 +16,11 @@ class AccountTypeService extends GetxService {
   void setRole(AccountType? type) {
     _currentType.value = type;
   }
+
+  String get currentRole => switch (_currentType.value) {
+    AccountType.brand => 'brand',
+    AccountType.influencer => 'influencer',
+    AccountType.adAgency => 'agency',
+    null => 'unknown',
+  };
 }

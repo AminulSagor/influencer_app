@@ -144,6 +144,13 @@ class SignupInfluencerSocialView extends GetView<SignupInfluencerController> {
                     hintText: 'influ_social_platform_hint'.tr,
                     options: controller.platformOptions,
                     value: controller.selectedPlatform.value,
+                    validator: (value) {
+                      if (controller.socialLinks.isNotEmpty) return null;
+                      if (value == null || value.trim().isEmpty) {
+                        return 'influ_social_platform_error'.tr;
+                      }
+                      return null;
+                    },
                     onChanged: (value) {
                       controller.selectedPlatform.value = value;
                     },
@@ -163,6 +170,13 @@ class SignupInfluencerSocialView extends GetView<SignupInfluencerController> {
                   title: 'influ_social_profile_label'.tr,
                   hintText: 'influ_social_profile_hint'.tr,
                   controller: controller.profileLinkController,
+                  validator: (value) {
+                    if (controller.socialLinks.isNotEmpty) return null;
+                    if (value == null || value.trim().isEmpty) {
+                      return 'influ_social_profile_error'.tr;
+                    }
+                    return null;
+                  },
                 ),
 
                 SizedBox(height: 30.h),

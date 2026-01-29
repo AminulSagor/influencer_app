@@ -36,7 +36,7 @@ import '../modules/auth/login/login_view.dart';
 import '../modules/auth/signup_account_type/signup_account_type_controller.dart';
 import '../modules/auth/signup_account_type/signup_account_type_view.dart';
 import '../modules/auth/signup_agency/signup_agency_address_view.dart';
-import '../modules/auth/signup_agency/signup_influencer_kyc_view.dart';
+import '../modules/auth/signup_agency/signup_agency_kyc_view.dart';
 import '../modules/auth/signup_brand/signup_brand_controller.dart';
 import '../modules/auth/signup_brand/signup_brand_tin_view.dart';
 import '../modules/auth/signup_brand/signup_brand_trade_license_view.dart';
@@ -47,10 +47,43 @@ import '../modules/auth/signup_influencer/signup_influencer_view.dart';
 import '../modules/influencer/campaign_shipping/campaign_shipping_controller.dart';
 import '../modules/shared/report_log/report_log_view.dart';
 import '../modules/shared/support/support_view.dart';
+import 'package:influencer_app/modules/influencer/home_locked/influencer_home_locked_view.dart';
+import 'package:influencer_app/modules/influencer/home_locked/influencer_home_locked_controller.dart';
+
+import 'package:influencer_app/modules/brand/home_locked/brand_home_locked_view.dart';
+import 'package:influencer_app/modules/brand/home_locked/brand_home_locked_controller.dart';
+
+import 'package:influencer_app/modules/brand/create_campaign/create_campaign_controller.dart';
+import 'package:influencer_app/modules/brand/create_campaign/create_campaign_view.dart';
+import 'package:influencer_app/modules/brand/create_campaign/create_campaign_step2_view.dart';
+import 'package:influencer_app/modules/brand/create_campaign/create_campaign_step3_view.dart';
+import 'package:influencer_app/modules/brand/create_campaign/create_campaign_step4_view.dart';
+import 'package:influencer_app/modules/brand/create_campaign/create_campaign_step5_view.dart';
+import 'package:influencer_app/modules/brand/create_campaign/create_campaign_step6_view.dart';
+
+import 'package:influencer_app/modules/ad_agency/home_locked/agency_home_locked_view.dart';
+import 'package:influencer_app/modules/ad_agency/home_locked/agency_home_locked_controller.dart';
+
 import 'app_routes.dart';
 
 class AppPages {
   static final routes = <GetPage>[
+    GetPage(
+      name: AppRoutes.influencerHomeLocked,
+      page: () => const InfluencerHomeLockedView(),
+      binding: InfluencerHomeLockedBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.brandHomeLocked,
+      page: () => const BrandHomeLockedView(),
+      binding: BrandHomeLockedBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.agencyHomeLocked,
+      page: () => const AgencyHomeLockedView(),
+      binding: AgencyHomeLockedBinding(),
+    ),
+
     GetPage(
       name: AppRoutes.bottomNav,
       page: () => const BottomNavView(),
@@ -164,17 +197,17 @@ class AppPages {
     GetPage(
       name: AppRoutes.forgotPasswordOtp,
       page: () => const ForgotPasswordOtpView(),
-      binding: ForgotPasswordBinding(),
+      // Reuses controller from forgotPassword route
     ),
     GetPage(
       name: AppRoutes.resetPassword,
       page: () => const ResetPasswordView(),
-      binding: ForgotPasswordBinding(),
+      // Reuses controller from forgotPassword route
     ),
     GetPage(
       name: AppRoutes.resetPasswordSuccess,
       page: () => const ResetPasswordSuccessView(),
-      binding: ForgotPasswordBinding(),
+      // Reuses controller from forgotPassword route
     ),
 
     GetPage(
@@ -231,6 +264,48 @@ class AppPages {
       page: () => const LanguageView(),
       binding: BindingsBuilder(() {
         Get.lazyPut<LanguageController>(() => LanguageController());
+      }),
+    ),
+    GetPage(
+      name: AppRoutes.createCampaign,
+      page: () => const CreateCampaignView(),
+      binding: BindingsBuilder(() {
+        Get.lazyPut<CreateCampaignController>(() => CreateCampaignController());
+      }),
+    ),
+    GetPage(
+      name: AppRoutes.createCampaignStep2,
+      page: () => const CreateCampaignStep2View(),
+      binding: BindingsBuilder(() {
+        Get.lazyPut<CreateCampaignController>(() => CreateCampaignController());
+      }),
+    ),
+    GetPage(
+      name: AppRoutes.createCampaignStep3,
+      page: () => const CreateCampaignStep3View(),
+      binding: BindingsBuilder(() {
+        Get.lazyPut<CreateCampaignController>(() => CreateCampaignController());
+      }),
+    ),
+    GetPage(
+      name: AppRoutes.createCampaignStep4,
+      page: () => const CreateCampaignStep4View(),
+      binding: BindingsBuilder(() {
+        Get.lazyPut<CreateCampaignController>(() => CreateCampaignController());
+      }),
+    ),
+    GetPage(
+      name: AppRoutes.createCampaignStep5,
+      page: () => const CreateCampaignStep5View(),
+      binding: BindingsBuilder(() {
+        Get.lazyPut<CreateCampaignController>(() => CreateCampaignController());
+      }),
+    ),
+    GetPage(
+      name: AppRoutes.createCampaignStep6,
+      page: () => const CreateCampaignStep6View(),
+      binding: BindingsBuilder(() {
+        Get.lazyPut<CreateCampaignController>(() => CreateCampaignController());
       }),
     ),
   ];

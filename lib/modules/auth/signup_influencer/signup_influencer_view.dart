@@ -150,6 +150,30 @@ class SignupInfluencerView extends GetView<SignupInfluencerController> {
                       ? 'Required'
                       : null,
                 ),
+                //SizedBox(height: 15.h),
+                SizedBox(height: 15.h),
+
+                // Password field
+                CustomTextFormField(
+                  title: 'infl_password_label'.tr,
+                  hintText: 'infl_password_hint'.tr,
+                  controller: controller.passwordController,
+                  keyboardType: TextInputType.visiblePassword,
+                  textInputAction: TextInputAction.done,
+                  obscureText: true,
+                  contentPadding: EdgeInsets.all(12.w),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Required';
+                    }
+                    if (value.trim().length < 8) {
+                      return 'Password must be at least 8 characters';
+                    }
+                    return null;
+                  },
+                ),
+                SizedBox(height: 15.h),
+
                 SizedBox(height: 15.h),
 
                 // language switcher segment
