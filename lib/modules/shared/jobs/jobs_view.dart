@@ -323,201 +323,191 @@ class JobsView extends GetView<JobsController> {
   // ---------------- INFLUENCER / AGENCY TABS (unchanged UI) ----------------
 
   Widget _buildNewOffersTab() {
-    return NotificationListener<ScrollNotification>(
-      onNotification: (notification) => _onNotification(notification, 0),
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _tabHeader('jobs_header_new_offers'.tr),
-            SizedBox(height: 12.h),
-            Obx(() {
-              final items = controller.filteredNewOffers;
-              final isLoading = controller.isLoadingNewOffers.value;
+    return SingleChildScrollView(
+      controller: controller.scrollControllerForTab(0),
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _tabHeader('jobs_header_new_offers'.tr),
+          SizedBox(height: 12.h),
+          Obx(() {
+            final items = controller.filteredNewOffers;
+            final isLoading = controller.isLoadingNewOffers.value;
 
-              if (items.isEmpty && !isLoading) return _emptyState();
+            if (items.isEmpty && !isLoading) return _emptyState();
 
-              return Column(
-                children: [
-                  ...items.map(
-                    (job) => Padding(
-                      padding: EdgeInsets.only(bottom: 12.h),
-                      child: JobOfferCard(
-                        job: job,
-                        type: 'new',
-                        onAccept: () {
-                          if (controller.isAdAgency) {
-                            controller.acceptAgencyOffer(job);
-                          }
-                        },
-                        onDecline: () {
-                          if (controller.isAdAgency) {
-                            controller.declineAgencyOffer(job);
-                          }
-                        },
-                        onView: () => controller.openJobDetails(job),
-                      ),
+            return Column(
+              children: [
+                ...items.map(
+                  (job) => Padding(
+                    padding: EdgeInsets.only(bottom: 12.h),
+                    child: JobOfferCard(
+                      job: job,
+                      type: 'new',
+                      onAccept: () {
+                        if (controller.isAdAgency) {
+                          controller.acceptAgencyOffer(job);
+                        }
+                      },
+                      onDecline: () {
+                        if (controller.isAdAgency) {
+                          controller.declineAgencyOffer(job);
+                        }
+                      },
+                      onView: () => controller.openJobDetails(job),
                     ),
                   ),
-                  _bottomLoader(isLoading: isLoading),
-                ],
-              );
-            }),
-          ],
-        ),
+                ),
+                _bottomLoader(isLoading: isLoading),
+              ],
+            );
+          }),
+        ],
       ),
     );
   }
 
   Widget _buildActiveJobsTab() {
-    return NotificationListener<ScrollNotification>(
-      onNotification: (notification) => _onNotification(notification, 1),
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _tabHeader('jobs_header_active_jobs'.tr),
-            SizedBox(height: 12.h),
-            Obx(() {
-              final items = controller.filteredActiveJobs;
-              final isLoading = controller.isLoadingActiveJobs.value;
+    return SingleChildScrollView(
+      controller: controller.scrollControllerForTab(1),
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _tabHeader('jobs_header_active_jobs'.tr),
+          SizedBox(height: 12.h),
+          Obx(() {
+            final items = controller.filteredActiveJobs;
+            final isLoading = controller.isLoadingActiveJobs.value;
 
-              if (items.isEmpty && !isLoading) return _emptyState();
+            if (items.isEmpty && !isLoading) return _emptyState();
 
-              return Column(
-                children: [
-                  ...items.map(
-                    (job) => Padding(
-                      padding: EdgeInsets.only(bottom: 12.h),
-                      child: JobOfferCard(
-                        job: job,
-                        type: 'active',
-                        onView: () => controller.openJobDetails(job),
-                      ),
+            return Column(
+              children: [
+                ...items.map(
+                  (job) => Padding(
+                    padding: EdgeInsets.only(bottom: 12.h),
+                    child: JobOfferCard(
+                      job: job,
+                      type: 'active',
+                      onView: () => controller.openJobDetails(job),
                     ),
                   ),
-                  _bottomLoader(isLoading: isLoading),
-                ],
-              );
-            }),
-          ],
-        ),
+                ),
+                _bottomLoader(isLoading: isLoading),
+              ],
+            );
+          }),
+        ],
       ),
     );
   }
 
   Widget _buildCompletedJobsTab() {
-    return NotificationListener<ScrollNotification>(
-      onNotification: (notification) => _onNotification(notification, 2),
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _tabHeader('jobs_header_completed_jobs'.tr),
-            SizedBox(height: 12.h),
-            Obx(() {
-              final items = controller.filteredCompletedJobs;
-              final isLoading = controller.isLoadingCompletedJobs.value;
+    return SingleChildScrollView(
+      controller: controller.scrollControllerForTab(2),
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _tabHeader('jobs_header_completed_jobs'.tr),
+          SizedBox(height: 12.h),
+          Obx(() {
+            final items = controller.filteredCompletedJobs;
+            final isLoading = controller.isLoadingCompletedJobs.value;
 
-              if (items.isEmpty && !isLoading) return _emptyState();
+            if (items.isEmpty && !isLoading) return _emptyState();
 
-              return Column(
-                children: [
-                  ...items.map(
-                    (job) => Padding(
-                      padding: EdgeInsets.only(bottom: 12.h),
-                      child: JobOfferCard(
-                        job: job,
-                        type: 'complete',
-                        onView: () => controller.openJobDetails(job),
-                      ),
+            return Column(
+              children: [
+                ...items.map(
+                  (job) => Padding(
+                    padding: EdgeInsets.only(bottom: 12.h),
+                    child: JobOfferCard(
+                      job: job,
+                      type: 'complete',
+                      onView: () => controller.openJobDetails(job),
                     ),
                   ),
-                  _bottomLoader(isLoading: isLoading),
-                ],
-              );
-            }),
-          ],
-        ),
+                ),
+                _bottomLoader(isLoading: isLoading),
+              ],
+            );
+          }),
+        ],
       ),
     );
   }
 
   Widget _buildPendingTab() {
-    return NotificationListener<ScrollNotification>(
-      onNotification: (notification) => _onNotification(notification, 3),
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _tabHeader('jobs_header_pending_payments'.tr),
-            SizedBox(height: 12.h),
-            Obx(() {
-              final items = controller.filteredPendingPayments;
-              final isLoading = controller.isLoadingPendingPayments.value;
+    return SingleChildScrollView(
+      controller: controller.scrollControllerForTab(3),
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _tabHeader('jobs_header_pending_payments'.tr),
+          SizedBox(height: 12.h),
+          Obx(() {
+            final items = controller.filteredPendingPayments;
+            final isLoading = controller.isLoadingPendingPayments.value;
 
-              if (items.isEmpty && !isLoading) return _emptyState();
+            if (items.isEmpty && !isLoading) return _emptyState();
 
-              return Column(
-                children: [
-                  ...items.map(
-                    (job) => Padding(
-                      padding: EdgeInsets.only(bottom: 12.h),
-                      child: JobOfferCard(
-                        job: job,
-                        type: 'pending',
-                        onView: () => controller.openJobDetails(job),
-                      ),
+            return Column(
+              children: [
+                ...items.map(
+                  (job) => Padding(
+                    padding: EdgeInsets.only(bottom: 12.h),
+                    child: JobOfferCard(
+                      job: job,
+                      type: 'pending',
+                      onView: () => controller.openJobDetails(job),
                     ),
                   ),
-                  _bottomLoader(isLoading: isLoading),
-                ],
-              );
-            }),
-          ],
-        ),
+                ),
+                _bottomLoader(isLoading: isLoading),
+              ],
+            );
+          }),
+        ],
       ),
     );
   }
 
   Widget _buildDeclinedTab() {
-    return NotificationListener<ScrollNotification>(
-      onNotification: (notification) => _onNotification(notification, 4),
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _tabHeader('jobs_header_declined_jobs'.tr),
-            SizedBox(height: 12.h),
-            Obx(() {
-              final items = controller.filteredDeclinedJobs;
-              final isLoading = controller.isLoadingDeclinedJobs.value;
+    return SingleChildScrollView(
+      controller: controller.scrollControllerForTab(4),
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _tabHeader('jobs_header_declined_jobs'.tr),
+          SizedBox(height: 12.h),
+          Obx(() {
+            final items = controller.filteredDeclinedJobs;
+            final isLoading = controller.isLoadingDeclinedJobs.value;
 
-              if (items.isEmpty && !isLoading) return _emptyState();
+            if (items.isEmpty && !isLoading) return _emptyState();
 
-              return Column(
-                children: [
-                  ...items.map(
-                    (job) => Padding(
-                      padding: EdgeInsets.only(bottom: 12.h),
-                      child: JobOfferCard(
-                        job: job,
-                        type: 'declined',
-                        onView: () => controller.openJobDetails(job),
-                      ),
+            return Column(
+              children: [
+                ...items.map(
+                  (job) => Padding(
+                    padding: EdgeInsets.only(bottom: 12.h),
+                    child: JobOfferCard(
+                      job: job,
+                      type: 'declined',
+                      onView: () => controller.openJobDetails(job),
                     ),
                   ),
-                  _bottomLoader(isLoading: isLoading),
-                ],
-              );
-            }),
-          ],
-        ),
+                ),
+                _bottomLoader(isLoading: isLoading),
+              ],
+            );
+          }),
+        ],
       ),
     );
   }
@@ -525,71 +515,67 @@ class JobsView extends GetView<JobsController> {
   // ---------------- BRAND TABS (matches screenshots) ----------------
 
   Widget _buildBrandActiveTab() {
-    return NotificationListener<ScrollNotification>(
-      onNotification: (notification) => _onNotification(notification, 0),
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _tabHeader('jobs_header_active_jobs'.tr),
-            SizedBox(height: 12.h),
-            Obx(() {
-              final items = controller.filteredBrandActive;
-              final isLoading = controller.isLoadingBrandActive.value;
+    return SingleChildScrollView(
+      controller: controller.scrollControllerForTab(0),
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _tabHeader('jobs_header_active_jobs'.tr),
+          SizedBox(height: 12.h),
+          Obx(() {
+            final items = controller.filteredBrandActive;
+            final isLoading = controller.isLoadingBrandActive.value;
 
-              if (items.isEmpty && !isLoading) return _emptyState();
+            if (items.isEmpty && !isLoading) return _emptyState();
 
-              return Column(
-                children: [
-                  ...items.map(
-                    (job) => Padding(
-                      padding: EdgeInsets.only(bottom: 12.h),
-                      child: _brandActiveCard(job),
-                    ),
+            return Column(
+              children: [
+                ...items.map(
+                  (job) => Padding(
+                    padding: EdgeInsets.only(bottom: 12.h),
+                    child: _brandActiveCard(job),
                   ),
-                  _bottomLoader(isLoading: isLoading),
-                ],
-              );
-            }),
-          ],
-        ),
+                ),
+                _bottomLoader(isLoading: isLoading),
+              ],
+            );
+          }),
+        ],
       ),
     );
   }
 
   Widget _buildBrandBudgetingTab() {
-    return NotificationListener<ScrollNotification>(
-      onNotification: (notification) => _onNotification(notification, 1),
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _tabHeader('jobs_tab_budgeting_quoting'.tr),
-            SizedBox(height: 10.h),
-            _brandBudgetingChips(),
-            SizedBox(height: 12.h),
-            Obx(() {
-              final items = controller.filteredBrandBudgeting;
-              final isLoading = controller.isLoadingBrandBudgeting.value;
+    return SingleChildScrollView(
+      controller: controller.scrollControllerForTab(1),
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _tabHeader('jobs_tab_budgeting_quoting'.tr),
+          SizedBox(height: 10.h),
+          _brandBudgetingChips(),
+          SizedBox(height: 12.h),
+          Obx(() {
+            final items = controller.filteredBrandBudgeting;
+            final isLoading = controller.isLoadingBrandBudgeting.value;
 
-              if (items.isEmpty && !isLoading) return _emptyState();
+            if (items.isEmpty && !isLoading) return _emptyState();
 
-              return Column(
-                children: [
-                  ...items.map(
-                    (job) => Padding(
-                      padding: EdgeInsets.only(bottom: 12.h),
-                      child: _brandBudgetingCard(job),
-                    ),
+            return Column(
+              children: [
+                ...items.map(
+                  (job) => Padding(
+                    padding: EdgeInsets.only(bottom: 12.h),
+                    child: _brandBudgetingCard(job),
                   ),
-                  _bottomLoader(isLoading: isLoading),
-                ],
-              );
-            }),
-          ],
-        ),
+                ),
+                _bottomLoader(isLoading: isLoading),
+              ],
+            );
+          }),
+        ],
       ),
     );
   }
@@ -668,103 +654,97 @@ class JobsView extends GetView<JobsController> {
   }
 
   Widget _buildBrandCompletedTab() {
-    return NotificationListener<ScrollNotification>(
-      onNotification: (notification) => _onNotification(notification, 2),
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _tabHeader('jobs_tab_completed'.tr),
-            SizedBox(height: 12.h),
-            Obx(() {
-              final items = controller.filteredBrandCompleted;
-              final isLoading = controller.isLoadingBrandCompleted.value;
+    return SingleChildScrollView(
+      controller: controller.scrollControllerForTab(2),
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _tabHeader('jobs_tab_completed'.tr),
+          SizedBox(height: 12.h),
+          Obx(() {
+            final items = controller.filteredBrandCompleted;
+            final isLoading = controller.isLoadingBrandCompleted.value;
 
-              if (items.isEmpty && !isLoading) return _emptyState();
+            if (items.isEmpty && !isLoading) return _emptyState();
 
-              return Column(
-                children: [
-                  ...items.map(
-                    (job) => Padding(
-                      padding: EdgeInsets.only(bottom: 12.h),
-                      child: _brandCompletedCard(job),
-                    ),
+            return Column(
+              children: [
+                ...items.map(
+                  (job) => Padding(
+                    padding: EdgeInsets.only(bottom: 12.h),
+                    child: _brandCompletedCard(job),
                   ),
-                  _bottomLoader(isLoading: isLoading),
-                ],
-              );
-            }),
-          ],
-        ),
+                ),
+                _bottomLoader(isLoading: isLoading),
+              ],
+            );
+          }),
+        ],
       ),
     );
   }
 
   Widget _buildBrandDraftsTab() {
-    return NotificationListener<ScrollNotification>(
-      onNotification: (notification) => _onNotification(notification, 3),
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _tabHeader('jobs_tab_draft'.tr),
-            SizedBox(height: 12.h),
-            Obx(() {
-              final items = controller.filteredBrandDrafts;
-              final isLoading = controller.isLoadingBrandDrafts.value;
+    return SingleChildScrollView(
+      controller: controller.scrollControllerForTab(3),
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _tabHeader('jobs_tab_draft'.tr),
+          SizedBox(height: 12.h),
+          Obx(() {
+            final items = controller.filteredBrandDrafts;
+            final isLoading = controller.isLoadingBrandDrafts.value;
 
-              if (items.isEmpty && !isLoading) return _emptyState();
+            if (items.isEmpty && !isLoading) return _emptyState();
 
-              return Column(
-                children: [
-                  ...items.map(
-                    (job) => Padding(
-                      padding: EdgeInsets.only(bottom: 12.h),
-                      child: _brandDraftOrCanceledCard(job, isCanceled: false),
-                    ),
+            return Column(
+              children: [
+                ...items.map(
+                  (job) => Padding(
+                    padding: EdgeInsets.only(bottom: 12.h),
+                    child: _brandDraftOrCanceledCard(job, isCanceled: false),
                   ),
-                  _bottomLoader(isLoading: isLoading),
-                ],
-              );
-            }),
-          ],
-        ),
+                ),
+                _bottomLoader(isLoading: isLoading),
+              ],
+            );
+          }),
+        ],
       ),
     );
   }
 
   Widget _buildBrandCanceledTab() {
-    return NotificationListener<ScrollNotification>(
-      onNotification: (notification) => _onNotification(notification, 4),
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _tabHeader('jobs_tab_canceled'.tr),
-            SizedBox(height: 12.h),
-            Obx(() {
-              final items = controller.filteredBrandCanceled;
-              final isLoading = controller.isLoadingBrandCanceled.value;
+    return SingleChildScrollView(
+      controller: controller.scrollControllerForTab(4),
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _tabHeader('jobs_tab_canceled'.tr),
+          SizedBox(height: 12.h),
+          Obx(() {
+            final items = controller.filteredBrandCanceled;
+            final isLoading = controller.isLoadingBrandCanceled.value;
 
-              if (items.isEmpty && !isLoading) return _emptyState();
+            if (items.isEmpty && !isLoading) return _emptyState();
 
-              return Column(
-                children: [
-                  ...items.map(
-                    (job) => Padding(
-                      padding: EdgeInsets.only(bottom: 12.h),
-                      child: _brandDraftOrCanceledCard(job, isCanceled: true),
-                    ),
+            return Column(
+              children: [
+                ...items.map(
+                  (job) => Padding(
+                    padding: EdgeInsets.only(bottom: 12.h),
+                    child: _brandDraftOrCanceledCard(job, isCanceled: true),
                   ),
-                  _bottomLoader(isLoading: isLoading),
-                ],
-              );
-            }),
-          ],
-        ),
+                ),
+                _bottomLoader(isLoading: isLoading),
+              ],
+            );
+          }),
+        ],
       ),
     );
   }
@@ -1274,24 +1254,5 @@ class JobsView extends GetView<JobsController> {
         );
       }),
     );
-  }
-
-  bool _onNotification(ScrollNotification notification, int index) {
-    final m = notification.metrics;
-
-    // 1) Avoid triggering on first build when list isn't scrollable yet
-    if (m.maxScrollExtent <= 0) return false;
-
-    // 2) Optional: avoid triggering when you're still at top
-    if (m.pixels <= 0) return false;
-
-    // 3) Near bottom → load more AFTER this frame
-    if (m.pixels >= m.maxScrollExtent - 120) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        controller.loadMoreForTab(index);
-      });
-    }
-
-    return false;
   }
 }

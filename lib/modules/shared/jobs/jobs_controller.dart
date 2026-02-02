@@ -1,5 +1,6 @@
 import 'dart:developer' as dev;
 
+import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:influencer_app/core/services/account_type_service.dart';
 import 'package:intl/intl.dart';
@@ -84,10 +85,76 @@ class JobsController extends GetxController {
   static const int _pageSize = 10;
   static const int _totalPerTab = 30;
 
+  final Map<int, ScrollController> _tabScrollControllers = {};
+
   @override
   void onInit() {
     super.onInit();
     _initLoad();
+  }
+
+  @override
+  void onClose() {
+    for (final controller in _tabScrollControllers.values) {
+      controller.dispose();
+    }
+    _tabScrollControllers.clear();
+    super.onClose();
+  }
+
+  ScrollController scrollControllerForTab(int index) {
+    return _tabScrollControllers.putIfAbsent(index, () {
+      final controller = ScrollController();
+      controller.addListener(() {
+        if (!controller.hasClients) return;
+
+        final max = controller.position.maxScrollExtent;
+        final pos = controller.position.pixels;
+
+        if (max <= 0) return;
+
+        if (pos >= max - 120) {
+          if (_canLoadMoreForTab(index)) {
+            loadMoreForTab(index);
+          }
+        }
+      });
+      return controller;
+    });
+  }
+
+  bool _canLoadMoreForTab(int index) {
+    if (isBrand) {
+      switch (index) {
+        case 0:
+          return hasMoreBrandActive.value && !isLoadingBrandActive.value;
+        case 1:
+          return hasMoreBrandBudgeting.value && !isLoadingBrandBudgeting.value;
+        case 2:
+          return hasMoreBrandCompleted.value && !isLoadingBrandCompleted.value;
+        case 3:
+          return hasMoreBrandDrafts.value && !isLoadingBrandDrafts.value;
+        case 4:
+          return hasMoreBrandCanceled.value && !isLoadingBrandCanceled.value;
+        default:
+          return false;
+      }
+    }
+
+    switch (index) {
+      case 0:
+        return hasMoreNewOffers.value && !isLoadingNewOffers.value;
+      case 1:
+        return hasMoreActiveJobs.value && !isLoadingActiveJobs.value;
+      case 2:
+        return hasMoreCompletedJobs.value && !isLoadingCompletedJobs.value;
+      case 3:
+        return hasMorePendingPayments.value && !isLoadingPendingPayments.value;
+      case 4:
+        return hasMoreDeclinedJobs.value && !isLoadingDeclinedJobs.value;
+      default:
+        return false;
+    }
   }
 
   Future<void> _initLoad() async {
