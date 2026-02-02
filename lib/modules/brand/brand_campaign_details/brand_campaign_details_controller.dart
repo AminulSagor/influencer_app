@@ -362,14 +362,16 @@ class BrandCampaignDetailsController extends GetxController {
   void _loadAgencyBids(List<Map<String, dynamic>> bids) {
     if (bids.isEmpty) return;
 
-    final mapped = bids.map((b) {
-      final name = b['agencyName']?.toString().trim();
-      final percent = _parsePercent(b['proposedServiceFeePercent']);
-      return PaidAdAgencyOffer(
-        name: (name == null || name.isEmpty) ? 'Agency' : name,
-        agencyFeePercent: percent <= 0 ? 10 : percent,
-      );
-    }).toList(growable: false);
+    final mapped = bids
+        .map((b) {
+          final name = b['agencyName']?.toString().trim();
+          final percent = _parsePercent(b['proposedServiceFeePercent']);
+          return PaidAdAgencyOffer(
+            name: (name == null || name.isEmpty) ? 'Agency' : name,
+            agencyFeePercent: percent <= 0 ? 10 : percent,
+          );
+        })
+        .toList(growable: false);
 
     if (mapped.isNotEmpty) agencyOffers.assignAll(mapped);
   }
@@ -408,10 +410,12 @@ class BrandCampaignDetailsController extends GetxController {
 
     // Brief
     campaignGoals.value = (data['campaignGoals'] ?? '').toString().trim();
-    productServiceDetails.value =
-        (data['productServiceDetails'] ?? '').toString().trim();
-    reportingRequirements.value =
-        (data['reportingRequirements'] ?? '').toString().trim();
+    productServiceDetails.value = (data['productServiceDetails'] ?? '')
+        .toString()
+        .trim();
+    reportingRequirements.value = (data['reportingRequirements'] ?? '')
+        .toString()
+        .trim();
     usageRights.value = (data['usageRights'] ?? '').toString().trim();
     dosText.value = (data['dos'] ?? '').toString().trim();
     dontsText.value = (data['donts'] ?? '').toString().trim();
@@ -433,9 +437,11 @@ class BrandCampaignDetailsController extends GetxController {
     if (contentRequirements.isEmpty && milestones.isNotEmpty) {
       contentRequirements.assignAll(
         milestones
-            .map((m) => m.subtitle?.trim().isNotEmpty == true
-                ? '${m.title} · ${m.subtitle}'
-                : m.title)
+            .map(
+              (m) => m.subtitle?.trim().isNotEmpty == true
+                  ? '${m.title} · ${m.subtitle}'
+                  : m.title,
+            )
             .toList(growable: false),
       );
     }
@@ -474,7 +480,9 @@ class BrandCampaignDetailsController extends GetxController {
         final icon = _iconForBrandAsset(fileName, fileUrl);
         brand.add(
           BrandAssetLink(
-            title: fileName.isNotEmpty ? fileName : (assetType ?? 'Brand Asset'),
+            title: fileName.isNotEmpty
+                ? fileName
+                : (assetType ?? 'Brand Asset'),
             subtitle: assetType?.isNotEmpty == true ? assetType! : 'Page Link',
             icon: icon,
             url: fileUrl?.isNotEmpty == true ? fileUrl : null,
