@@ -19,7 +19,7 @@ void main() {
     //   enabled: !kReleaseMode,
     //   builder: (context) => MyApp(initialRoute: AppRoutes.bottomNav),
     // ),
-    InfluencerApp(initialRoute: AppRoutes.onboarding),
+    InfluencerApp(initialRoute: AppRoutes.bootstrap),
   );
 }
 

@@ -27,6 +27,7 @@ class JobsController extends GetxController {
   final AccountTypeService _accountTypeService = Get.find<AccountTypeService>();
   final ApiClient _apiClient = Get.find<ApiClient>();
   bool get isBrand => _accountTypeService.isBrand;
+  bool get isAdAgency => _accountTypeService.isAdAgency;
 
   // ---------------- INFLUENCER / AGENCY LISTS ----------------
 
@@ -318,18 +319,41 @@ class JobsController extends GetxController {
       newOffers.clear();
     }
 
-    final items = await _mockFetchJobs(
-      tabIndex: 0,
-      page: _newOffersPage,
-      pageSize: _pageSize,
-      mode: _MockMode.influencer,
-    );
-    if (items.isEmpty) {
-      hasMoreNewOffers.value = false;
+    if (isAdAgency) {
+      final result = await ApiErrorHandler.call(
+        () => _fetchAgencyCampaigns(
+          tab: _agencyTabParam(0),
+          page: _newOffersPage,
+          pageSize: _pageSize,
+        ),
+      );
+
+      if (result.isSuccess) {
+        final page = result.data!;
+        if (page.items.isEmpty) {
+          hasMoreNewOffers.value = false;
+        } else {
+          newOffers.addAll(page.items);
+          _newOffersPage++;
+          if (_newOffersPage > page.totalPages) {
+            hasMoreNewOffers.value = false;
+          }
+        }
+      }
     } else {
-      newOffers.addAll(items);
-      _newOffersPage++;
-      if (items.length < _pageSize) hasMoreNewOffers.value = false;
+      final items = await _mockFetchJobs(
+        tabIndex: 0,
+        page: _newOffersPage,
+        pageSize: _pageSize,
+        mode: _MockMode.influencer,
+      );
+      if (items.isEmpty) {
+        hasMoreNewOffers.value = false;
+      } else {
+        newOffers.addAll(items);
+        _newOffersPage++;
+        if (items.length < _pageSize) hasMoreNewOffers.value = false;
+      }
     }
     isLoadingNewOffers.value = false;
   }
@@ -345,18 +369,41 @@ class JobsController extends GetxController {
       activeJobs.clear();
     }
 
-    final items = await _mockFetchJobs(
-      tabIndex: 1,
-      page: _activeJobsPage,
-      pageSize: _pageSize,
-      mode: _MockMode.influencer,
-    );
-    if (items.isEmpty) {
-      hasMoreActiveJobs.value = false;
+    if (isAdAgency) {
+      final result = await ApiErrorHandler.call(
+        () => _fetchAgencyCampaigns(
+          tab: _agencyTabParam(1),
+          page: _activeJobsPage,
+          pageSize: _pageSize,
+        ),
+      );
+
+      if (result.isSuccess) {
+        final page = result.data!;
+        if (page.items.isEmpty) {
+          hasMoreActiveJobs.value = false;
+        } else {
+          activeJobs.addAll(page.items);
+          _activeJobsPage++;
+          if (_activeJobsPage > page.totalPages) {
+            hasMoreActiveJobs.value = false;
+          }
+        }
+      }
     } else {
-      activeJobs.addAll(items);
-      _activeJobsPage++;
-      if (items.length < _pageSize) hasMoreActiveJobs.value = false;
+      final items = await _mockFetchJobs(
+        tabIndex: 1,
+        page: _activeJobsPage,
+        pageSize: _pageSize,
+        mode: _MockMode.influencer,
+      );
+      if (items.isEmpty) {
+        hasMoreActiveJobs.value = false;
+      } else {
+        activeJobs.addAll(items);
+        _activeJobsPage++;
+        if (items.length < _pageSize) hasMoreActiveJobs.value = false;
+      }
     }
     isLoadingActiveJobs.value = false;
   }
@@ -372,18 +419,41 @@ class JobsController extends GetxController {
       completedJobs.clear();
     }
 
-    final items = await _mockFetchJobs(
-      tabIndex: 2,
-      page: _completedJobsPage,
-      pageSize: _pageSize,
-      mode: _MockMode.influencer,
-    );
-    if (items.isEmpty) {
-      hasMoreCompletedJobs.value = false;
+    if (isAdAgency) {
+      final result = await ApiErrorHandler.call(
+        () => _fetchAgencyCampaigns(
+          tab: _agencyTabParam(2),
+          page: _completedJobsPage,
+          pageSize: _pageSize,
+        ),
+      );
+
+      if (result.isSuccess) {
+        final page = result.data!;
+        if (page.items.isEmpty) {
+          hasMoreCompletedJobs.value = false;
+        } else {
+          completedJobs.addAll(page.items);
+          _completedJobsPage++;
+          if (_completedJobsPage > page.totalPages) {
+            hasMoreCompletedJobs.value = false;
+          }
+        }
+      }
     } else {
-      completedJobs.addAll(items);
-      _completedJobsPage++;
-      if (items.length < _pageSize) hasMoreCompletedJobs.value = false;
+      final items = await _mockFetchJobs(
+        tabIndex: 2,
+        page: _completedJobsPage,
+        pageSize: _pageSize,
+        mode: _MockMode.influencer,
+      );
+      if (items.isEmpty) {
+        hasMoreCompletedJobs.value = false;
+      } else {
+        completedJobs.addAll(items);
+        _completedJobsPage++;
+        if (items.length < _pageSize) hasMoreCompletedJobs.value = false;
+      }
     }
     isLoadingCompletedJobs.value = false;
   }
@@ -399,18 +469,41 @@ class JobsController extends GetxController {
       pendingPayments.clear();
     }
 
-    final items = await _mockFetchJobs(
-      tabIndex: 3,
-      page: _pendingPaymentsPage,
-      pageSize: _pageSize,
-      mode: _MockMode.influencer,
-    );
-    if (items.isEmpty) {
-      hasMorePendingPayments.value = false;
+    if (isAdAgency) {
+      final result = await ApiErrorHandler.call(
+        () => _fetchAgencyCampaigns(
+          tab: _agencyTabParam(3),
+          page: _pendingPaymentsPage,
+          pageSize: _pageSize,
+        ),
+      );
+
+      if (result.isSuccess) {
+        final page = result.data!;
+        if (page.items.isEmpty) {
+          hasMorePendingPayments.value = false;
+        } else {
+          pendingPayments.addAll(page.items);
+          _pendingPaymentsPage++;
+          if (_pendingPaymentsPage > page.totalPages) {
+            hasMorePendingPayments.value = false;
+          }
+        }
+      }
     } else {
-      pendingPayments.addAll(items);
-      _pendingPaymentsPage++;
-      if (items.length < _pageSize) hasMorePendingPayments.value = false;
+      final items = await _mockFetchJobs(
+        tabIndex: 3,
+        page: _pendingPaymentsPage,
+        pageSize: _pageSize,
+        mode: _MockMode.influencer,
+      );
+      if (items.isEmpty) {
+        hasMorePendingPayments.value = false;
+      } else {
+        pendingPayments.addAll(items);
+        _pendingPaymentsPage++;
+        if (items.length < _pageSize) hasMorePendingPayments.value = false;
+      }
     }
     isLoadingPendingPayments.value = false;
   }
@@ -426,20 +519,76 @@ class JobsController extends GetxController {
       declinedJobs.clear();
     }
 
-    final items = await _mockFetchJobs(
-      tabIndex: 4,
-      page: _declinedJobsPage,
-      pageSize: _pageSize,
-      mode: _MockMode.influencer,
-    );
-    if (items.isEmpty) {
-      hasMoreDeclinedJobs.value = false;
+    if (isAdAgency) {
+      final result = await ApiErrorHandler.call(
+        () => _fetchAgencyCampaigns(
+          tab: _agencyTabParam(4),
+          page: _declinedJobsPage,
+          pageSize: _pageSize,
+        ),
+      );
+
+      if (result.isSuccess) {
+        final page = result.data!;
+        if (page.items.isEmpty) {
+          hasMoreDeclinedJobs.value = false;
+        } else {
+          declinedJobs.addAll(page.items);
+          _declinedJobsPage++;
+          if (_declinedJobsPage > page.totalPages) {
+            hasMoreDeclinedJobs.value = false;
+          }
+        }
+      }
     } else {
-      declinedJobs.addAll(items);
-      _declinedJobsPage++;
-      if (items.length < _pageSize) hasMoreDeclinedJobs.value = false;
+      final items = await _mockFetchJobs(
+        tabIndex: 4,
+        page: _declinedJobsPage,
+        pageSize: _pageSize,
+        mode: _MockMode.influencer,
+      );
+      if (items.isEmpty) {
+        hasMoreDeclinedJobs.value = false;
+      } else {
+        declinedJobs.addAll(items);
+        _declinedJobsPage++;
+        if (items.length < _pageSize) hasMoreDeclinedJobs.value = false;
+      }
     }
     isLoadingDeclinedJobs.value = false;
+  }
+
+  // -------- AGENCY ACTIONS --------
+
+  Future<void> acceptAgencyOffer(JobItem job) async {
+    final campaignId = job.id;
+    if (campaignId == null || campaignId.isEmpty) return;
+
+    final result = await ApiErrorHandler.call(
+      () => _apiClient.dio.post('/campaign/agency/$campaignId/accept'),
+    );
+
+    if (result.isSuccess) {
+      newOffers.removeWhere((e) => e.id == campaignId);
+      await fetchActiveJobs(reset: true);
+    }
+  }
+
+  Future<void> declineAgencyOffer(JobItem job) async {
+    final campaignId = job.id;
+    if (campaignId == null || campaignId.isEmpty) return;
+
+    final result = await ApiErrorHandler.call(
+      () => _apiClient.dio.post(
+        '/campaign/agency/decline-offer',
+        data: {'campaignId': campaignId},
+      ),
+    );
+
+    if (result.isSuccess) {
+      newOffers.removeWhere((e) => e.id == campaignId);
+      await fetchDeclinedJobs(reset: true);
+    }
   }
 
   // -------- BRAND FETCH --------
@@ -644,10 +793,105 @@ class JobsController extends GetxController {
     return _CampaignPage(items: items, totalPages: totalPages);
   }
 
+  // -------- AGENCY API --------
+
+  String _agencyTabParam(int tabIndex) {
+    switch (tabIndex) {
+      case 0:
+        return 'pending';
+      case 1:
+        return 'active';
+      case 2:
+        return 'completed';
+      case 3:
+        return 'pending_payment';
+      case 4:
+        return 'declined';
+      default:
+        return 'active';
+    }
+  }
+
+  Future<_CampaignPage> _fetchAgencyCampaigns({
+    required String tab,
+    required int page,
+    required int pageSize,
+  }) async {
+    final res = await _apiClient.dio.get(
+      '/campaign/agency/list',
+      queryParameters: {
+        'page': page,
+        'limit': pageSize,
+        if (tab.trim().isNotEmpty) 'tab': tab.trim(),
+      },
+    );
+
+    final data = res.data as Map<String, dynamic>;
+    final list = (data['data'] as List?) ?? const [];
+    final items = list
+        .whereType<Map>()
+        .map((e) => _mapAgencyCampaignToJob(e.cast<String, dynamic>()))
+        .toList();
+
+    final meta = data['meta'] as Map<String, dynamic>?;
+    final totalPages = (meta?['totalPages'] as num?)?.toInt() ?? 1;
+
+    return _CampaignPage(items: items, totalPages: totalPages);
+  }
+
+  JobItem _mapAgencyCampaignToJob(Map<String, dynamic> json) {
+    final campaignId = json['id']?.toString();
+    final campaignName = (json['campaignName'] as String?)?.trim();
+    final status = json['status']?.toString();
+
+    final client = json['client'] as Map<String, dynamic>?;
+    final clientName = client?['brandName']?.toString().trim();
+
+    final financials = json['financials'] as Map<String, dynamic>?;
+    final totalBudget = _numToDouble(financials?['totalBudget']);
+    final availableBudget = _numToDouble(
+      financials?['availableBudgetForExecution'],
+    );
+    final serviceFee = _numToDouble(
+      financials?['adminOfferedServiceFeePercent'] ??
+          financials?['proposedServiceFeePercent'],
+    );
+
+    final schedule = json['schedule'] as Map<String, dynamic>?;
+    final startingDate = schedule?['startingDate']?.toString();
+    final deadline = schedule?['deadline']?.toString();
+
+    final campaignTypeRaw = json['campaignType']?.toString();
+
+    final budget = totalBudget > 0 ? totalBudget : availableBudget;
+
+    return JobItem(
+      id: campaignId,
+      title: campaignName?.isNotEmpty == true
+          ? campaignName!
+          : 'Untitled Campaign',
+      clientName: clientName?.isNotEmpty == true ? clientName! : '—',
+      campaignType: _parseCampaignType(campaignTypeRaw),
+      dateLabel: _formatDateLabel(startingDate ?? deadline),
+      budget: budget,
+      sharePercent: serviceFee.round(),
+      dueLabel: _buildDueLabel(deadline),
+      progressPercent: _progressFromStatus(status),
+    );
+  }
+
+  int? _progressFromStatus(String? status) {
+    final v = (status ?? '').toLowerCase();
+    if (v == 'completed') return 100;
+    if (v.contains('active')) return 50;
+    return 0;
+  }
+
   JobItem _mapCampaignToJob(
     Map<String, dynamic> json, {
     required String statusHint,
   }) {
+    final campaignId = json['id']?.toString();
     final campaignName = (json['campaignName'] as String?)?.trim();
     final campaignTypeRaw = (json['campaignType'] as String?)?.trim();
     final budget = _numToDouble(json['totalBudget']);
@@ -675,6 +919,7 @@ class JobsController extends GetxController {
     final isQuotation = budgetStatus == 'Quotation Received';
 
     return JobItem(
+      id: campaignId,
       title: campaignName?.isNotEmpty == true
           ? campaignName!
           : 'Untitled Campaign',

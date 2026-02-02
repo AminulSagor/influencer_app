@@ -3,7 +3,8 @@
 ///
 /// Fields based on Postman collection:
 /// thana, zila, fullAddress, website, socialLinks, nidNumber, nidFrontImg,
-/// nidBackImg, tradeLicenseNumber, tradeLicenseImg
+/// nidBackImg, tradeLicenseNumber, tradeLicenseImg, tinNumber, tinImage,
+/// binNumber
 class BrandOnboardingRequest {
   final String? thana;
   final String? zila;
@@ -18,6 +19,9 @@ class BrandOnboardingRequest {
 
   final String? tradeLicenseNumber;
   final String? tradeLicenseImg;
+  final String? tinNumber;
+  final String? tinImage;
+  final String? binNumber;
 
   const BrandOnboardingRequest({
     this.thana,
@@ -30,6 +34,9 @@ class BrandOnboardingRequest {
     this.nidBackImg,
     this.tradeLicenseNumber,
     this.tradeLicenseImg,
+    this.tinNumber,
+    this.tinImage,
+    this.binNumber,
   });
 
   Map<String, dynamic> toJson() => {
@@ -43,6 +50,9 @@ class BrandOnboardingRequest {
     if (nidBackImg != null) 'nidBackImg': nidBackImg,
     if (tradeLicenseNumber != null) 'tradeLicenseNumber': tradeLicenseNumber,
     if (tradeLicenseImg != null) 'tradeLicenseImg': tradeLicenseImg,
+    if (tinNumber != null) 'tinNumber': tinNumber,
+    if (tinImage != null) 'tinImage': tinImage,
+    if (binNumber != null) 'binNumber': binNumber,
   };
 }
 
@@ -111,6 +121,9 @@ class BrandProfile {
 
   final String? tradeLicenseNumber;
   final String? tradeLicenseImg;
+  final String? tinNumber;
+  final String? tinImage;
+  final String? binNumber;
 
   final bool? isOnboardingComplete;
 
@@ -139,6 +152,9 @@ class BrandProfile {
     this.nidBackImg,
     this.tradeLicenseNumber,
     this.tradeLicenseImg,
+    this.tinNumber,
+    this.tinImage,
+    this.binNumber,
     this.isOnboardingComplete,
     this.averageRating,
     this.totalReviews,
@@ -182,6 +198,9 @@ class BrandProfile {
       tradeLicenseNumber: json['tradeLicenseNumber']?.toString(),
       tradeLicenseImg: (json['tradeLicenseImg'] ?? json['tradeLicenseImage'])
           ?.toString(),
+      tinNumber: json['tinNumber']?.toString(),
+      tinImage: (json['tinImage'] ?? json['tinImg'])?.toString(),
+      binNumber: json['binNumber']?.toString(),
       isOnboardingComplete: json['isOnboardingComplete'] is bool
           ? json['isOnboardingComplete'] as bool
           : null,

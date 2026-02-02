@@ -27,6 +27,9 @@ class _MutableBrandOnboardingData {
   String? nidBackImg;
   String? tradeLicenseNumber;
   String? tradeLicenseImg;
+  String? tinNumber;
+  String? tinImage;
+  String? binNumber;
 }
 
 class SignupBrandController extends GetxController {
@@ -237,11 +240,13 @@ class SignupBrandController extends GetxController {
     }
   }
 
-  void onKycSkip() {
-    Get.toNamed(AppRoutes.signupBrandTradeLicense);
+  Future<void> onKycSkip() async {
+    // Mandatory fields must be validated before proceeding
+    await onKycSubmit();
   }
 
   Future<void> onKycSubmit() async {
+    if (nidFormKey.currentState?.validate() != true) return;
     if (isUploadingNid.value) return;
 
     // Save NID number if provided
@@ -294,6 +299,7 @@ class SignupBrandController extends GetxController {
   }
 
   Future<void> onTradeLicenseContinue() async {
+    if (tradeLicenseFormKey.currentState?.validate() != true) return;
     if (isUploadingTradeLicense.value) return;
 
     // Save trade license number if provided
@@ -323,8 +329,9 @@ class SignupBrandController extends GetxController {
     }
   }
 
-  void onTradeLicenseSkip() {
-    Get.toNamed(AppRoutes.signupBrandTin);
+  Future<void> onTradeLicenseSkip() async {
+    // Mandatory fields must be validated before proceeding
+    await onTradeLicenseContinue();
   }
 
   // ----------------- Step 6 (TIN / BIN) -----------------
@@ -347,23 +354,37 @@ class SignupBrandController extends GetxController {
     }
   }
 
-  void onTinSkip() {
-    // Submit onboarding without TIN
-    _finishBrandSignup();
+  Future<void> onTinSkip() async {
+    // Mandatory fields must be validated before proceeding
+    await onTinContinue();
   }
 
   Future<void> onTinContinue() async {
+    if (tinFormKey.currentState?.validate() != true) return;
     if (isFinishing.value) return;
+
+    // Save TIN number if provided
+    final tinNumber = tinNumberController.text.trim();
+    if (tinNumber.isNotEmpty) {
+      onboardingData.tinNumber = tinNumber;
+    }
+
+    // Save BIN number if provided
+    final binNumber = binNumberController.text.trim();
+    if (binNumber.isNotEmpty) {
+      onboardingData.binNumber = binNumber;
+    }
 
     // Upload TIN certificate if provided
     isUploadingTin.value = true;
 
     final result = await ApiErrorHandler.call(() async {
       if (tinCertificatePath.value != null) {
-        await _uploadFile(
+        final tinUrl = await _uploadFile(
           filePath: tinCertificatePath.value!,
           module: 'brand-tin',
         );
+        onboardingData.tinImage = tinUrl;
       }
       return true;
     });
@@ -457,6 +478,9 @@ class SignupBrandController extends GetxController {
         nidBackImg: onboardingData.nidBackImg,
         tradeLicenseNumber: onboardingData.tradeLicenseNumber,
         tradeLicenseImg: onboardingData.tradeLicenseImg,
+        tinNumber: onboardingData.tinNumber,
+        tinImage: onboardingData.tinImage,
+        binNumber: onboardingData.binNumber,
       );
 
       // Submit onboarding data

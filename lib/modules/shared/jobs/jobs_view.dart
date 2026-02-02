@@ -346,8 +346,16 @@ class JobsView extends GetView<JobsController> {
                       child: JobOfferCard(
                         job: job,
                         type: 'new',
-                        onAccept: () {},
-                        onDecline: () {},
+                        onAccept: () {
+                          if (controller.isAdAgency) {
+                            controller.acceptAgencyOffer(job);
+                          }
+                        },
+                        onDecline: () {
+                          if (controller.isAdAgency) {
+                            controller.declineAgencyOffer(job);
+                          }
+                        },
                         onView: () => controller.openJobDetails(job),
                       ),
                     ),

@@ -7,6 +7,7 @@ import 'package:path/path.dart' as path;
 
 import '../../../core/enums/account_type.dart';
 import '../../../core/models/social_link.dart';
+import '../../../core/services/campaign_service.dart';
 import '../../../routes/app_routes.dart';
 import 'widgets/experienced_niche_dialog.dart';
 import 'package:influencer_app/core/services/account_type_service.dart';
@@ -31,6 +32,7 @@ class SignupAgencyController extends GetxController {
   final AgencyOnboardingService _agencyOnboardingService =
       Get.find<AgencyOnboardingService>();
   final UploadService _uploadService = Get.find<UploadService>();
+  final CampaignService _campaignService = Get.find<CampaignService>();
 
   final isSubmitting = false.obs;
   final isFinishing = false.obs;
@@ -118,19 +120,8 @@ class SignupAgencyController extends GetxController {
     'LinkedIn',
   ];
 
-  /// Master list of niches – extend as you like
-  final List<String> allNiches = const [
-    'Public Speaking',
-    'Voiceovers',
-    'Podcasting',
-    'Product Photography',
-    'Conversion Optimization',
-    'Technology',
-    'Fashion',
-    'Food & Beverage',
-    'Travel',
-    'Health & Fitness',
-  ];
+  final RxList<String> allNiches = <String>[].obs;
+  final isLoadingNiches = false.obs;
 
   // List of platform blocks shown in the UI
   final RxList<AgencyPlatformEntry> platforms = <AgencyPlatformEntry>[].obs;
@@ -140,6 +131,24 @@ class SignupAgencyController extends GetxController {
     super.onInit();
     // start with one block
     platforms.add(AgencyPlatformEntry());
+    _loadNiches();
+  }
+
+  Future<void> _loadNiches() async {
+    if (isLoadingNiches.value) return;
+    isLoadingNiches.value = true;
+
+    await ApiErrorHandler.call(() async {
+      final niches = await _campaignService.fetchNiches();
+      if (niches.isNotEmpty) {
+        allNiches
+          ..clear()
+          ..addAll(niches);
+      }
+      return true;
+    }, showError: false);
+
+    isLoadingNiches.value = false;
   }
 
   void addPlatform() {
@@ -153,10 +162,17 @@ class SignupAgencyController extends GetxController {
   }
 
   Future<void> openNicheDialog(AgencyPlatformEntry entry) async {
+    if (allNiches.isEmpty) {
+      await _loadNiches();
+    }
+    if (allNiches.isEmpty) {
+      Get.snackbar('Niches Unavailable', 'Please try again in a moment.');
+      return;
+    }
     final result = await Get.dialog<List<String>>(
       ExperiencedNicheDialog(
         initialSelected: entry.workedNiches.toList(),
-        allNiches: allNiches,
+        allNiches: allNiches.toList(growable: false),
       ),
     );
 
@@ -277,11 +293,13 @@ class SignupAgencyController extends GetxController {
     }
   }
 
-  void onKycSkip() {
-    Get.toNamed(AppRoutes.signupAgencyTradeLicense);
+  Future<void> onKycSkip() async {
+    // Mandatory fields must be validated before proceeding
+    await onKycSubmit();
   }
 
   Future<void> onKycSubmit() async {
+    if (nidFormKey.currentState?.validate() != true) return;
     if (isUploadingNid.value) return;
 
     // Save NID number if provided
@@ -334,6 +352,7 @@ class SignupAgencyController extends GetxController {
   }
 
   Future<void> onTradeLicenseContinue() async {
+    if (tradeLicenseFormKey.currentState?.validate() != true) return;
     if (isUploadingTradeLicense.value) return;
 
     // Save trade license number if provided
@@ -363,8 +382,9 @@ class SignupAgencyController extends GetxController {
     }
   }
 
-  void onTradeLicenseSkip() {
-    Get.toNamed(AppRoutes.signupAgencyTin);
+  Future<void> onTradeLicenseSkip() async {
+    // Mandatory fields must be validated before proceeding
+    await onTradeLicenseContinue();
   }
 
   // ----------------- Step 7 (TIN / BIN) -----------------
@@ -387,12 +407,13 @@ class SignupAgencyController extends GetxController {
     }
   }
 
-  void onTinSkip() {
-    // Submit onboarding without TIN
-    _finishAgencySignup();
+  Future<void> onTinSkip() async {
+    // Mandatory fields must be validated before proceeding
+    await onTinContinue();
   }
 
   Future<void> onTinContinue() async {
+    if (tinFormKey.currentState?.validate() != true) return;
     if (isUploadingTin.value || isFinishing.value) return;
 
     // Save TIN number if provided

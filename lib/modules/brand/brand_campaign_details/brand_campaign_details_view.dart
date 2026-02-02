@@ -209,7 +209,7 @@ class _CampaignDetailsCard extends GetView<BrandCampaignDetailsController> {
                   10.w.horizontalSpace,
                   _Chip(
                     text: controller.targetingText.value.trim().isEmpty
-                        ? 'Crowd'
+                        ? 'brand_campaign_details_targeting_crowd'.tr
                         : controller.targetingText.value,
                   ),
                 ],
@@ -1734,13 +1734,13 @@ class _PaidAdTabPills extends GetView<BrandCampaignDetailsController> {
       return Row(
         children: [
           pill(
-            text: 'এজেন্সির দরপত্র',
+            text: 'brand_campaign_details_agency_quotes_tab'.tr,
             active: selected == 0,
             onTap: () => controller.setPaidAdTab(0),
           ),
           10.w.horizontalSpace,
           pill(
-            text: 'ক্যাম্পেইনের বিবরণ',
+            text: 'brand_campaign_details_campaign_overview_tab'.tr,
             active: selected == 1,
             onTap: () => controller.setPaidAdTab(1),
           ),
@@ -1763,7 +1763,9 @@ class _AgencyBidsTab extends GetView<BrandCampaignDetailsController> {
             children: [
               Expanded(
                 child: Text(
-                  'এজেন্সির দরপত্র (${controller.agencyOffers.length})',
+                  'brand_campaign_details_agency_quotations_count'.trParams({
+                    'count': controller.agencyOffers.length.toString(),
+                  }),
                   style: TextStyle(
                     fontSize: 13.5.sp,
                     fontWeight: FontWeight.w900,
@@ -1784,7 +1786,7 @@ class _AgencyBidsTab extends GetView<BrandCampaignDetailsController> {
                 child: Row(
                   children: [
                     Text(
-                      'Low To High',
+                      'common_low_to_high'.tr,
                       style: TextStyle(
                         fontSize: 11.sp,
                         fontWeight: FontWeight.w800,
@@ -1853,7 +1855,7 @@ class _AgencyBidsTab extends GetView<BrandCampaignDetailsController> {
                     ),
                     10.w.horizontalSpace,
                     Text(
-                      'Of 30',
+                      'common_of_n'.trParams({'n': '30'}),
                       style: TextStyle(
                         fontSize: 12.sp,
                         fontWeight: FontWeight.w800,
@@ -1870,7 +1872,7 @@ class _AgencyBidsTab extends GetView<BrandCampaignDetailsController> {
                         borderRadius: BorderRadius.circular(12.r),
                       ),
                       child: Text(
-                        'পরবর্তী',
+                        'common_next'.tr,
                         style: TextStyle(
                           fontSize: 12.sp,
                           fontWeight: FontWeight.w900,
@@ -1951,7 +1953,7 @@ class _AgencyOfferCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    'ডলার রেট',
+                    'brand_campaign_details_fx_rate'.tr,
                     style: TextStyle(
                       fontSize: 11.sp,
                       fontWeight: FontWeight.w700,
@@ -1977,7 +1979,7 @@ class _AgencyOfferCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  'এজেন্সি ফি (%)',
+                  'brand_campaign_details_agency_fee_percent'.tr,
                   style: TextStyle(
                     fontSize: 11.sp,
                     fontWeight: FontWeight.w700,
@@ -2010,13 +2012,25 @@ class _AgencyOfferCard extends StatelessWidget {
             ),
             child: Column(
               children: [
-                _miniRow('এজেন্সি ফি (৳)', _bdt(agencyFeeBdt)),
+                _miniRow(
+                  'brand_campaign_details_agency_fee_bdt'.tr,
+                  _bdt(agencyFeeBdt),
+                ),
                 6.h.verticalSpace,
-                _miniRow('এজেন্সি ফি ছাড়া বাজেট', _bdt(budgetExclAgencyBdt)),
+                _miniRow(
+                  'brand_campaign_details_budget_excl_agency'.tr,
+                  _bdt(budgetExclAgencyBdt),
+                ),
                 6.h.verticalSpace,
-                _miniRow('ডলার রেট (৳/\$)', fxRate.toStringAsFixed(2)),
+                _miniRow(
+                  'brand_campaign_details_fx_rate_bdt'.tr,
+                  fxRate.toStringAsFixed(2),
+                ),
                 6.h.verticalSpace,
-                _miniRow('ডলার (\$)', usdValue.toStringAsFixed(2)),
+                _miniRow(
+                  'brand_campaign_details_usd_value'.tr,
+                  usdValue.toStringAsFixed(2),
+                ),
               ],
             ),
           ),
@@ -2035,7 +2049,7 @@ class _AgencyOfferCard extends StatelessWidget {
                 elevation: 0,
               ),
               child: Text(
-                'দরপত্র গ্রহণ ও পেমেন্ট করুন',
+                'brand_campaign_details_accept_quote_and_pay'.tr,
                 style: TextStyle(
                   fontSize: 12.sp,
                   fontWeight: FontWeight.w900,

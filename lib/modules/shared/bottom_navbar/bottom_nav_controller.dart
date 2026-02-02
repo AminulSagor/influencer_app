@@ -34,13 +34,18 @@ class BottomNavController extends GetxController {
   void onInit() {
     _accountTypeService = Get.find<AccountTypeService>();
 
-    if (Get.arguments != null && Get.arguments['isAccountVerified'] != null) {
-      isAccountVerified = Get.arguments['isAccountVerified'];
-    } else {
-      isAccountVerified = true;
-    }
+    // Dev mode: ignore verification state
+    isAccountVerified = true;
 
     super.onInit();
+  }
+
+  @override
+  void onReady() {
+    super.onReady();
+    // Dev mode: always show dashboard home (no verification checks)
+    currentIndex.value = 0;
+    Get.offAllNamed(AppRoutes.home, id: 1);
   }
 
   void onTabChanged(int index) {

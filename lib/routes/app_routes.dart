@@ -1,4 +1,5 @@
 class AppRoutes {
+  static const bootstrap = '/bootstrap';
   static const onboarding = '/onboarding';
   static const login = '/login';
   static const signupAccountType = '/signup-account-type';

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/models/job_item.dart';
+import '../../../core/services/campaign_service.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../create_campaign/create_campaign_controller.dart';
 
@@ -30,6 +32,8 @@ class PaidAdAgencyOffer {
 }
 
 class BrandCampaignDetailsController extends GetxController {
+  final CampaignService _campaignService = Get.find<CampaignService>();
+
   // ✅ PaidAd tabs (0 = Agency Bids, 1 = Campaign Details)
   final paidAdTabIndex = 1.obs;
   void setPaidAdTab(int i) => paidAdTabIndex.value = i.clamp(0, 1);
@@ -105,6 +109,10 @@ class BrandCampaignDetailsController extends GetxController {
   // ✅ Brand Assets (PaidAd screenshot)
   final brandAssets = <BrandAssetLink>[].obs;
 
+  // Loading state
+  final isLoading = false.obs;
+  final loadError = RxnString();
+
   // Expandables
   final briefExpanded = true.obs;
   final assetsExpanded = true.obs;
@@ -124,6 +132,7 @@ class BrandCampaignDetailsController extends GetxController {
       job = argJob;
       _loadFromJob(argJob);
       _applyFallbacks();
+      _loadFromApiIfPossible();
       return;
     }
 
@@ -132,11 +141,13 @@ class BrandCampaignDetailsController extends GetxController {
       final c = Get.find<CreateCampaignController>();
       _loadFromCreateCampaign(c);
       _applyFallbacks();
+      _loadFromApiIfPossible();
       return;
     }
 
     // 3) Last resort: demo defaults
     _loadDemo();
+    _loadFromApiIfPossible();
   }
 
   // -------------------------
@@ -237,6 +248,24 @@ class BrandCampaignDetailsController extends GetxController {
     return null;
   }
 
+  String? _extractCampaignId(dynamic args) {
+    if (args == null) return null;
+
+    if (args is Map) {
+      final v = args['campaignId'] ?? args['id'];
+      if (v is String && v.trim().isNotEmpty) return v.trim();
+
+      final jobArg = args['job'];
+      if (jobArg is JobItem && jobArg.id?.isNotEmpty == true) {
+        return jobArg.id;
+      }
+    }
+
+    if (args is JobItem && args.id?.isNotEmpty == true) return args.id;
+    if (job?.id?.isNotEmpty == true) return job?.id;
+    return null;
+  }
+
   String _safeGetCampaignType(JobItem j) {
     final dj = j as dynamic;
     try {
@@ -297,6 +326,285 @@ class BrandCampaignDetailsController extends GetxController {
       }
     } catch (_) {}
     return const [];
+  }
+
+  // -------------------------
+  // API loading
+  // -------------------------
+
+  Future<void> _loadFromApiIfPossible() async {
+    final campaignId = _extractCampaignId(arguments);
+    if (campaignId == null || campaignId.trim().isEmpty) return;
+
+    try {
+      isLoading.value = true;
+      loadError.value = null;
+
+      final data = await _campaignService.fetchClientCampaignDetails(
+        campaignId: campaignId,
+      );
+      _loadFromApiMap(data);
+
+      if (isPaidAd) {
+        final bids = await _campaignService.fetchClientAgencyBids(
+          campaignId: campaignId,
+        );
+        _loadAgencyBids(bids);
+      }
+    } catch (e) {
+      loadError.value = e.toString();
+    } finally {
+      isLoading.value = false;
+      _applyFallbacks();
+    }
+  }
+
+  void _loadAgencyBids(List<Map<String, dynamic>> bids) {
+    if (bids.isEmpty) return;
+
+    final mapped = bids.map((b) {
+      final name = b['agencyName']?.toString().trim();
+      final percent = _parsePercent(b['proposedServiceFeePercent']);
+      return PaidAdAgencyOffer(
+        name: (name == null || name.isEmpty) ? 'Agency' : name,
+        agencyFeePercent: percent <= 0 ? 10 : percent,
+      );
+    }).toList(growable: false);
+
+    if (mapped.isNotEmpty) agencyOffers.assignAll(mapped);
+  }
+
+  void _loadFromApiMap(Map<String, dynamic> data) {
+    // Type
+    final ct = data['campaignType']?.toString() ?? '';
+    if (ct.isNotEmpty) campaignType.value = ct;
+
+    // Top
+    final title = data['campaignName']?.toString().trim();
+    if (title != null && title.isNotEmpty) campaignTitle.value = title;
+
+    final totalBudget = _numToDouble(data['totalBudget']);
+    if (totalBudget > 0) budgetText.value = formatCurrencyByLocale(totalBudget);
+
+    // Rating
+    rating.value = (_numToDouble(data['rating']).round()).clamp(0, 5);
+
+    // Quote breakdown
+    final base = _numToDouble(data['baseBudget']).round();
+    final vat = _numToDouble(data['vatAmount']).round();
+    if (base > 0) baseBudget.value = base;
+    if (vat > 0) vatAmount.value = vat;
+
+    // Budget status
+    final dueAmount = _numToDouble(data['dueAmount']);
+    if (dueAmount <= 0) {
+      budgetStatusText.value = trOr(
+        'brand_campaign_details_budget_paid',
+        'Paid',
+      );
+    } else {
+      budgetStatusText.value = 'brand_campaign_details_budget_pending'.tr;
+    }
+
+    // Brief
+    campaignGoals.value = (data['campaignGoals'] ?? '').toString().trim();
+    productServiceDetails.value =
+        (data['productServiceDetails'] ?? '').toString().trim();
+    reportingRequirements.value =
+        (data['reportingRequirements'] ?? '').toString().trim();
+    usageRights.value = (data['usageRights'] ?? '').toString().trim();
+    dosText.value = (data['dos'] ?? '').toString().trim();
+    dontsText.value = (data['donts'] ?? '').toString().trim();
+
+    // Deadline
+    final startingDate = data['startingDate']?.toString();
+    final duration = (data['duration'] as num?)?.toInt();
+    _applyDeadline(startingDate: startingDate, duration: duration);
+
+    // Assets
+    final assets = (data['assets'] as List?) ?? const [];
+    _mapAssets(assets);
+
+    // Milestones
+    final ms = (data['milestones'] as List?) ?? const [];
+    _mapMilestones(ms);
+
+    // Content requirements fallback from milestones
+    if (contentRequirements.isEmpty && milestones.isNotEmpty) {
+      contentRequirements.assignAll(
+        milestones
+            .map((m) => m.subtitle?.trim().isNotEmpty == true
+                ? '${m.title} · ${m.subtitle}'
+                : m.title)
+            .toList(growable: false),
+      );
+    }
+  }
+
+  void _applyDeadline({String? startingDate, int? duration}) {
+    final start = _tryParseDate(startingDate);
+    if (start == null || duration == null) return;
+
+    final deadline = start.add(Duration(days: duration));
+    final label = DateFormat('MMM dd, yyyy').format(deadline);
+    deadlineDateText.value = label;
+
+    final today = DateTime.now();
+    final startDay = DateTime(today.year, today.month, today.day);
+    final endDay = DateTime(deadline.year, deadline.month, deadline.day);
+    final diff = endDay.difference(startDay).inDays;
+    daysRemaining.value = diff < 0 ? 0 : diff;
+  }
+
+  void _mapAssets(List<dynamic> assets) {
+    final content = <JobAsset>[];
+    final brand = <BrandAssetLink>[];
+
+    for (final raw in assets) {
+      if (raw is! Map) continue;
+      final item = Map<String, dynamic>.from(raw);
+      final category = item['category']?.toString().toLowerCase();
+      final fileName = item['fileName']?.toString().trim() ?? '';
+      final fileUrl = item['fileUrl']?.toString().trim();
+      final fileSize = _numToInt(item['fileSize']);
+      final mime = item['mimeType']?.toString().trim() ?? '';
+      final assetType = item['assetType']?.toString().trim();
+
+      if (category == 'brand') {
+        final icon = _iconForBrandAsset(fileName, fileUrl);
+        brand.add(
+          BrandAssetLink(
+            title: fileName.isNotEmpty ? fileName : (assetType ?? 'Brand Asset'),
+            subtitle: assetType?.isNotEmpty == true ? assetType! : 'Page Link',
+            icon: icon,
+            url: fileUrl?.isNotEmpty == true ? fileUrl : null,
+          ),
+        );
+        continue;
+      }
+
+      if (category == 'content' || category == null) {
+        final meta = [
+          if (fileSize > 0) _formatBytes(fileSize),
+          if (mime.isNotEmpty) mime.toUpperCase(),
+        ].where((e) => e.trim().isNotEmpty).join(' · ');
+
+        content.add(
+          JobAsset(
+            title: fileName.isNotEmpty ? fileName : 'Asset',
+            meta: meta.isNotEmpty ? meta : '—',
+            kind: _guessAssetKind(fileName),
+            pathOrUrl: fileUrl?.isNotEmpty == true ? fileUrl : null,
+          ),
+        );
+      }
+    }
+
+    if (content.isNotEmpty) contentAssets.assignAll(content);
+    if (brand.isNotEmpty) brandAssets.assignAll(brand);
+  }
+
+  void _mapMilestones(List<dynamic> list) {
+    if (list.isEmpty) return;
+
+    final mapped = <Milestone>[];
+    for (final raw in list) {
+      if (raw is! Map) continue;
+      final item = Map<String, dynamic>.from(raw);
+
+      final title = item['contentTitle']?.toString().trim() ?? 'Milestone';
+      final quantity = item['contentQuantity']?.toString().trim();
+      final deliveryDays = (item['deliveryDays'] as num?)?.toInt();
+      final order = (item['order'] as num?)?.toInt();
+      final amount = _numToDouble(item['amount']).round();
+      final platform = item['platform']?.toString();
+      final status = _parseMilestoneStatus(item['status']?.toString());
+
+      mapped.add(
+        Milestone(
+          stepLabel: ((order ?? mapped.length) + 1).toString(),
+          title: title,
+          subtitle: quantity?.isNotEmpty == true ? quantity : null,
+          dayLabel: deliveryDays != null ? 'DAY $deliveryDays' : null,
+          amountLabel: amount > 0 ? _fmt(amount) : '',
+          platform: platform,
+          deliverable: quantity,
+          targets: PromotionTarget(
+            reach: _numToInt(item['expectedReach']),
+            views: _numToInt(item['expectedViews']),
+            likes: _numToInt(item['expectedLikes']),
+            comments: _numToInt(item['expectedComments']),
+          ),
+          status: status,
+        ),
+      );
+    }
+
+    if (mapped.isNotEmpty) milestones.assignAll(mapped);
+  }
+
+  MilestoneStatus _parseMilestoneStatus(String? raw) {
+    final v = (raw ?? '').toLowerCase();
+    switch (v) {
+      case 'in_review':
+        return MilestoneStatus.inReview;
+      case 'paid':
+        return MilestoneStatus.paid;
+      case 'approved':
+        return MilestoneStatus.approved;
+      case 'partial_paid':
+        return MilestoneStatus.partialPaid;
+      case 'declined':
+        return MilestoneStatus.declined;
+      case 'completed':
+        return MilestoneStatus.approved;
+      case 'todo':
+      case 'to_do':
+      case 'pending':
+      default:
+        return MilestoneStatus.todo;
+    }
+  }
+
+  int _parsePercent(dynamic raw) {
+    final v = raw?.toString() ?? '';
+    final match = RegExp(r'(\d{1,3})').firstMatch(v);
+    return int.tryParse(match?.group(1) ?? '') ?? 0;
+  }
+
+  int _numToInt(dynamic value) {
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
+
+  double _numToDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
+  }
+
+  DateTime? _tryParseDate(String? iso) {
+    if (iso == null || iso.trim().isEmpty) return null;
+    return DateTime.tryParse(iso);
+  }
+
+  IconData _iconForBrandAsset(String fileName, String? url) {
+    final name = fileName.toLowerCase();
+    final link = (url ?? '').toLowerCase();
+    if (name.contains('facebook') || link.contains('facebook')) {
+      return Icons.facebook;
+    }
+    if (name.contains('instagram') || link.contains('instagram')) {
+      return Icons.camera_alt_outlined;
+    }
+    if (name.contains('youtube') || link.contains('youtube')) {
+      return Icons.play_circle_outline;
+    }
+    if (name.contains('tiktok') || link.contains('tiktok')) {
+      return Icons.music_note_outlined;
+    }
+    return Icons.link_rounded;
   }
 
   // -------------------------

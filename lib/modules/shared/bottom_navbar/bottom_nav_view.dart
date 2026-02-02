@@ -31,9 +31,8 @@ class BottomNavView extends GetView<BottomNavController> {
                 // ---------- NESTED NAVIGATOR ----------
                 child: Navigator(
                   key: Get.nestedKey(1),
-                  initialRoute: controller.isAccountVerified
-                      ? AppRoutes.home
-                      : controller.lockedRoute,
+                  // Dev mode: always show dashboard home (no verification checks)
+                  initialRoute: AppRoutes.home,
                   onGenerateRoute: BottomNavRouteGenerator.generateRoute,
                 ),
               ),

@@ -197,6 +197,29 @@ class CampaignService {
     await _api.dio.post('$_campaignBase/$campaignId/place');
   }
 
+  Future<Map<String, dynamic>> fetchClientCampaignDetails({
+    required String campaignId,
+  }) async {
+    final res = await _api.dio.get('/campaign/client/details/$campaignId');
+    final data = _expectMap(res.data, 'client campaign details');
+    final payload = data['data'] is Map
+        ? Map<String, dynamic>.from(data['data'] as Map)
+        : Map<String, dynamic>.from(data);
+    return payload;
+  }
+
+  Future<List<Map<String, dynamic>>> fetchClientAgencyBids({
+    required String campaignId,
+  }) async {
+    final res = await _api.dio.get('/campaign/client/bids/$campaignId');
+    final data = _expectMap(res.data, 'client agency bids');
+    final list = (data['data'] as List?) ?? const [];
+    return list
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList(growable: false);
+  }
+
   static String _campaignTypeToApi(CampaignType type) {
     switch (type) {
       case CampaignType.paidAd:

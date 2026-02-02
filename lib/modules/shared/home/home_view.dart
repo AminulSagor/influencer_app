@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:influencer_app/core/models/job_item.dart';
 import 'package:influencer_app/core/services/account_type_service.dart';
+import 'package:influencer_app/modules/shared/bottom_navbar/bottom_nav_controller.dart';
 
 import '../../../core/theme/app_palette.dart';
 import '../../../core/utils/constants.dart';
@@ -26,12 +27,13 @@ class HomeView extends GetView<HomeController> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (!accountTypeService.isBrand) ...[
-                Obx(
-                  () => EarningsOverviewCard(
-                    lifetimeEarnings: controller.lifetimeEarnings.value,
-                    pendingEarnings: controller.pendingEarnings.value,
-                  ),
-                ),
+                Obx(() {
+                  final dashboard = controller.dashboard.value;
+                  return EarningsOverviewCard(
+                    lifetimeEarnings: dashboard.lifetimeEarnings,
+                    pendingEarnings: dashboard.pendingEarnings,
+                  );
+                }),
                 SizedBox(height: 12.h),
               ],
               _buildSummaryRow(),
@@ -59,16 +61,17 @@ class HomeView extends GetView<HomeController> {
           child: _summaryCard(
             iconPath: 'assets/icons/suitcase.png',
             title: 'home_active_jobs'.tr,
-            value: Obx(
-              () => Text(
-                formatNumberByLocale(controller.activeJobs.value),
+            value: Obx(() {
+              final dashboard = controller.dashboard.value;
+              return Text(
+                formatNumberByLocale(dashboard.activeJobs),
                 style: TextStyle(
                   fontSize: 32.sp,
                   fontWeight: FontWeight.w500,
                   color: isBrand ? AppPalette.thirdColor : AppPalette.secondary,
                 ),
-              ),
-            ),
+              );
+            }),
             trailingText: 'home_view_all'.tr,
             isGradient: isBrand,
           ),
@@ -78,16 +81,17 @@ class HomeView extends GetView<HomeController> {
           child: _summaryCard(
             iconPath: 'assets/icons/sand_watch2.png',
             title: 'home_new_offers_for_you'.tr,
-            value: Obx(
-              () => Text(
-                formatNumberByLocale(controller.newOffers.value),
+            value: Obx(() {
+              final dashboard = controller.dashboard.value;
+              return Text(
+                formatNumberByLocale(dashboard.newOffers),
                 style: TextStyle(
                   fontSize: 32.sp,
                   fontWeight: FontWeight.w500,
                   color: isBrand ? AppPalette.thirdColor : AppPalette.secondary,
                 ),
-              ),
-            ),
+              );
+            }),
             trailingText: 'home_view_all'.tr,
             isGradient: accountTypeService.isBrand,
           ),
@@ -199,8 +203,9 @@ class HomeView extends GetView<HomeController> {
                 ),
               ),
               const Spacer(),
-              Obx(
-                () => Container(
+              Obx(() {
+                final count = controller.dashboard.value.jobsInProgress.length;
+                return Container(
                   padding: EdgeInsets.symmetric(
                     horizontal: 22.w,
                     vertical: 5.h,
@@ -215,9 +220,7 @@ class HomeView extends GetView<HomeController> {
                   ),
                   child: Text(
                     'home_active_badge'.trParams({
-                      'count': formatNumberByLocale(
-                        controller.jobsInProgress.length,
-                      ),
+                      'count': formatNumberByLocale(count),
                     }),
                     style: TextStyle(
                       color: AppPalette.white,
@@ -225,14 +228,15 @@ class HomeView extends GetView<HomeController> {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                ),
-              ),
+                );
+              }),
             ],
           ),
           SizedBox(height: 14.h),
-          Obx(
-            () => Column(
-              children: controller.jobsInProgress
+          Obx(() {
+            final jobs = controller.dashboard.value.jobsInProgress;
+            return Column(
+              children: jobs
                   .map(
                     (job) => Padding(
                       padding: EdgeInsets.only(bottom: 12.h),
@@ -240,8 +244,8 @@ class HomeView extends GetView<HomeController> {
                     ),
                   )
                   .toList(),
-            ),
-          ),
+            );
+          }),
           SizedBox(height: 12.h),
           Center(
             child: OutlinedButton(
@@ -256,7 +260,9 @@ class HomeView extends GetView<HomeController> {
                 ),
                 padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 5.h),
               ),
-              onPressed: () {},
+              onPressed: () {
+                Get.find<BottomNavController>().onTabChanged(1);
+              },
               child: Text(
                 'home_view_all_jobs'.tr,
                 style: TextStyle(
@@ -482,26 +488,28 @@ class HomeView extends GetView<HomeController> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Obx(
-                  () => Text(
-                    controller.topClientName.value,
+                Obx(() {
+                  final dashboard = controller.dashboard.value;
+                  return Text(
+                    dashboard.topClientName,
                     style: TextStyle(
                       fontSize: 24.sp,
                       fontWeight: FontWeight.w600,
                       color: AppPalette.secondary,
                     ),
-                  ),
-                ),
+                  );
+                }),
                 SizedBox(height: 2.h),
-                Obx(
-                  () => Text(
-                    '${controller.topClientJobsCompleted} ${'home_jobs_completed_suffix'.tr}',
+                Obx(() {
+                  final dashboard = controller.dashboard.value;
+                  return Text(
+                    '${dashboard.topClientJobsCompleted} ${'home_jobs_completed_suffix'.tr}',
                     style: TextStyle(
                       fontSize: 10.sp,
                       color: AppPalette.secondary,
                     ),
-                  ),
-                ),
+                  );
+                }),
                 SizedBox(height: 8.h),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -532,9 +540,10 @@ class HomeView extends GetView<HomeController> {
             children: [
               Expanded(
                 child: Obx(() {
+                  final dashboard = controller.dashboard.value;
                   return _smallStatCard(
                     titleKey: 'home_total_jobs_completed',
-                    value: controller.totalJobsCompleted.toString(),
+                    value: dashboard.totalJobsCompleted.toString(),
                   );
                 }),
               ),
@@ -542,9 +551,10 @@ class HomeView extends GetView<HomeController> {
               if (!isBrand)
                 Expanded(
                   child: Obx(() {
+                    final dashboard = controller.dashboard.value;
                     return _smallStatCard(
                       titleKey: 'home_total_earnings',
-                      value: '৳${controller.totalEarningsK}k'.replaceAll(
+                      value: '৳${dashboard.totalEarningsK}k'.replaceAll(
                         'k00',
                         'k',
                       ),
@@ -554,9 +564,10 @@ class HomeView extends GetView<HomeController> {
               if (isBrand)
                 Expanded(
                   child: Obx(() {
+                    final dashboard = controller.dashboard.value;
                     return _smallStatCard(
                       titleKey: 'home_total_jobs_declined',
-                      value: controller.totalJobsDeclined.toString(),
+                      value: dashboard.totalJobsDeclined.toString(),
                       isDeclined: true,
                     );
                   }),
@@ -569,9 +580,10 @@ class HomeView extends GetView<HomeController> {
               children: [
                 Expanded(
                   child: Obx(() {
+                    final dashboard = controller.dashboard.value;
                     return _smallStatCard(
                       titleKey: 'home_total_jobs_declined',
-                      value: controller.totalJobsDeclined.toString(),
+                      value: dashboard.totalJobsDeclined.toString(),
                       isDeclined: true,
                     );
                   }),
@@ -579,9 +591,10 @@ class HomeView extends GetView<HomeController> {
                 SizedBox(width: 12.w),
                 Expanded(
                   child: Obx(() {
+                    final dashboard = controller.dashboard.value;
                     return _smallStatCard(
                       titleKey: 'home_most_used_platform',
-                      value: controller.mostUsedPlatform.value,
+                      value: dashboard.mostUsedPlatform,
                     );
                   }),
                 ),

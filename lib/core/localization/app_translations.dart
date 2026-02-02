@@ -833,6 +833,12 @@ class AppTranslations extends Translations {
 
       'brand_campaign_details_welcome': 'Welcome, User!',
       'brand_campaign_details_campaign_details': 'Campaign Details',
+      'brand_campaign_details_targeting': 'Targeting',
+      'brand_campaign_details_targeting_crowd': 'Crowd',
+      'brand_campaign_details_agency_quotes_tab': 'Agency Quotations',
+      'brand_campaign_details_campaign_overview_tab': 'Campaign Details',
+      'brand_campaign_details_agency_quotations_count':
+          'Agency Quotations (@count)',
       'brand_campaign_details_influencers': 'Influencers',
       'brand_campaign_details_platforms': 'Platforms',
       'brand_campaign_details_deadline': 'Deadline',
@@ -860,6 +866,13 @@ class AppTranslations extends Translations {
       'brand_campaign_details_quote': 'Quote',
       'brand_campaign_details_request_quote_msg': 'Request sent.',
       'brand_campaign_details_accept_quote_msg': 'Quote accepted.',
+      'brand_campaign_details_fx_rate': 'Dollar Rate',
+      'brand_campaign_details_agency_fee_percent': 'Agency Fee (%)',
+      'brand_campaign_details_agency_fee_bdt': 'Agency Fee (৳)',
+      'brand_campaign_details_budget_excl_agency': 'Budget Excl. Agency Fee',
+      'brand_campaign_details_fx_rate_bdt': 'Dollar Rate (৳/\$)',
+      'brand_campaign_details_usd_value': 'Dollar (\$)',
+      'brand_campaign_details_accept_quote_and_pay': 'Accept Quote & Pay',
 
       'brand_campaign_details_campaign_milestones': 'Campaign Milestones',
       'brand_campaign_details_campaign_not_started': 'Campaign Not Started',
@@ -1908,6 +1921,12 @@ class AppTranslations extends Translations {
 
       'brand_campaign_details_welcome': 'স্বাগতম, User!',
       'brand_campaign_details_campaign_details': 'ক্যাম্পেইন ডিটেইলস',
+      'brand_campaign_details_targeting': 'টার্গেটিং',
+      'brand_campaign_details_targeting_crowd': 'ক্রাউড',
+      'brand_campaign_details_agency_quotes_tab': 'এজেন্সির দরপত্র',
+      'brand_campaign_details_campaign_overview_tab': 'ক্যাম্পেইনের বিবরণ',
+      'brand_campaign_details_agency_quotations_count':
+          'এজেন্সির দরপত্র (@count)',
       'brand_campaign_details_influencers': 'ইনফ্লুয়েন্সার',
       'brand_campaign_details_platforms': 'প্ল্যাটফর্ম',
       'brand_campaign_details_deadline': 'ডেডলাইন',
@@ -1936,6 +1955,14 @@ class AppTranslations extends Translations {
       'brand_campaign_details_quote': 'কোট',
       'brand_campaign_details_request_quote_msg': 'রিকোয়েস্ট পাঠানো হয়েছে।',
       'brand_campaign_details_accept_quote_msg': 'কোট একসেপ্ট হয়েছে।',
+      'brand_campaign_details_fx_rate': 'ডলার রেট',
+      'brand_campaign_details_agency_fee_percent': 'এজেন্সি ফি (%)',
+      'brand_campaign_details_agency_fee_bdt': 'এজেন্সি ফি (৳)',
+      'brand_campaign_details_budget_excl_agency': 'এজেন্সি ফি ছাড়া বাজেট',
+      'brand_campaign_details_fx_rate_bdt': 'ডলার রেট (৳/\$)',
+      'brand_campaign_details_usd_value': 'ডলার (\$)',
+      'brand_campaign_details_accept_quote_and_pay':
+          'দরপত্র গ্রহণ ও পেমেন্ট করুন',
 
       'brand_campaign_details_campaign_milestones': 'ক্যাম্পেইন মাইলস্টোন',
       'brand_campaign_details_campaign_not_started': 'ক্যাম্পেইন শুরু হয়নি',

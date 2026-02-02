@@ -60,6 +60,8 @@ import 'package:influencer_app/modules/brand/create_campaign/create_campaign_ste
 import 'package:influencer_app/modules/brand/create_campaign/create_campaign_step4_view.dart';
 import 'package:influencer_app/modules/brand/create_campaign/create_campaign_step5_view.dart';
 import 'package:influencer_app/modules/brand/create_campaign/create_campaign_step6_view.dart';
+import 'package:influencer_app/core/bootstrap/bootstrap_controller.dart';
+import 'package:influencer_app/core/bootstrap/bootstrap_view.dart';
 
 import 'package:influencer_app/modules/ad_agency/home_locked/agency_home_locked_view.dart';
 import 'package:influencer_app/modules/ad_agency/home_locked/agency_home_locked_controller.dart';
@@ -68,6 +70,11 @@ import 'app_routes.dart';
 
 class AppPages {
   static final routes = <GetPage>[
+    GetPage(
+      name: AppRoutes.bootstrap,
+      page: () => const BootstrapView(),
+      binding: BootstrapBinding(),
+    ),
     GetPage(
       name: AppRoutes.influencerHomeLocked,
       page: () => const InfluencerHomeLockedView(),

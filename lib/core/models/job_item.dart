@@ -3,6 +3,7 @@
 enum CampaignType { paidAd, influencerPromotion }
 
 class JobItem {
+  final String? id;
   final String title;
   final String? subTitle;
   final String clientName;
@@ -48,6 +49,7 @@ class JobItem {
   final List<Milestone>? milestones;
 
   const JobItem({
+    this.id,
     required this.title,
     required this.clientName,
     required this.dateLabel,

@@ -211,25 +211,12 @@ class SignupInfluencerController extends GetxController {
   }
 
   Future<void> onKycSkip() async {
-    // Submit onboarding without NID
-    if (isSubmitting.value) return;
-    isSubmitting.value = true;
-
-    final result = await ApiErrorHandler.call(
-      () => _onboardingService.submitOnboarding(onboardingData),
-    );
-
-    isSubmitting.value = false;
-
-    if (result.isSuccess) {
-      Get.toNamed(
-        AppRoutes.signupSuccess,
-        arguments: {'accountType': AccountType.influencer},
-      );
-    }
+    // Mandatory fields must be validated before proceeding
+    await onKycSubmit();
   }
 
   Future<void> onKycSubmit() async {
+    if (nidFormKey.currentState?.validate() != true) return;
     if (isSubmitting.value || isUploadingNid.value) return;
 
     // Save NID number

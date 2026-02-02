@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:influencer_app/core/services/token_service.dart';
 
 import '../../../routes/app_routes.dart';
 
@@ -45,9 +46,9 @@ class OnboardingController extends GetxController {
     currentPage.value = index;
   }
 
-  void next() {
+  Future<void> next() async {
     if (isLastPage) {
-      _finish();
+      await _finish();
     } else {
       pageController.nextPage(
         duration: const Duration(milliseconds: 260),
@@ -56,11 +57,13 @@ class OnboardingController extends GetxController {
     }
   }
 
-  void skip() {
-    _finish();
+  Future<void> skip() async {
+    await _finish();
   }
 
-  void _finish() {
+  Future<void> _finish() async {
+    final tokenService = Get.find<TokenService>();
+    await tokenService.markOnboardingComplete();
     Get.offAllNamed(AppRoutes.login);
   }
 

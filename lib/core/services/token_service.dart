@@ -7,6 +7,7 @@ class TokenService {
 
   // Keys
   static const String _accessTokenKey = 'access_token';
+  static const String _firstTimeKey = 'is_first_time_user';
   // static const String _refreshTokenKey = 'refresh_token'; // future-proof(unnecessary now)
 
   // -------- Access Token --------
@@ -37,5 +38,21 @@ class TokenService {
   Future<bool> hasToken() async {
     final token = await getAccessToken();
     return token != null && token.isNotEmpty;
+  }
+
+  // -------- First Time User --------
+
+  Future<bool> isFirstTimeUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_firstTimeKey) ?? true;
+  }
+
+  Future<void> setFirstTimeUser(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_firstTimeKey, value);
+  }
+
+  Future<void> markOnboardingComplete() async {
+    await setFirstTimeUser(false);
   }
 }
