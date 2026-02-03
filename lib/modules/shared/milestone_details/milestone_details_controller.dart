@@ -5,6 +5,8 @@ import 'package:get/get.dart';
 
 import '../../../core/models/job_item.dart';
 import '../../../core/services/account_type_service.dart';
+import '../../../core/services/api_client.dart';
+import '../../../core/services/api_error_handler.dart';
 import '../../../core/theme/app_palette.dart';
 import 'widgets/brand_submission_card.dart';
 
@@ -28,6 +30,7 @@ class AdminReportModel {
 
 class SubmissionUiModel {
   final int index;
+  String? serverId;
 
   // form controllers
   final TextEditingController descriptionController = TextEditingController();
@@ -83,7 +86,9 @@ class MilestoneDetailsController extends GetxController {
   // bottom checkboxes
   final RxBool confirmOwnership = false.obs;
   final RxBool acceptLicense = false.obs;
+  final ApiClient _apiClient = Get.find<ApiClient>();
 
+  final AccountTypeService _accountTypeService = Get.find<AccountTypeService>();
   @override
   void onInit() {
     super.onInit();
@@ -100,6 +105,7 @@ class MilestoneDetailsController extends GetxController {
     if (milestone.submissions.isNotEmpty) {
       for (final submission in milestone.submissions) {
         final ui = SubmissionUiModel(index: submission.index);
+        ui.serverId = submission.id;
         ui.descriptionController.text = submission.description;
         ui.amountController.text = submission.amount.toString();
         ui.linkController.text = submission.liveLink;
@@ -115,8 +121,7 @@ class MilestoneDetailsController extends GetxController {
       submissions.add(SubmissionUiModel(index: 1));
     }
 
-    final accountTypeService = Get.find<AccountTypeService>();
-    final isBrand = accountTypeService.isBrand;
+    final isBrand = _accountTypeService.isBrand;
     final isPaidAd = job.campaignType == CampaignType.paidAd;
 
     if (isBrand) {
@@ -304,6 +309,10 @@ class MilestoneDetailsController extends GetxController {
         milestoneStatus.value = MilestoneLocalStatus.declined;
         break;
     }
+
+    if (_accountTypeService.isInfluencer) {
+      _loadInfluencerMilestoneDetails();
+    }
   }
 
   int get declinedSubmissionCount => submissions
@@ -469,6 +478,12 @@ class MilestoneDetailsController extends GetxController {
       return;
     }
 
+    final isInfluencer = _accountTypeService.isInfluencer;
+    if (isInfluencer && milestone.id != null && milestone.id!.isNotEmpty) {
+      _submitInfluencerMilestone(milestone.id!);
+      return;
+    }
+
     // Lock UI submissions and set status to In Review
     for (final ui in submissions) {
       ui.status.value = SubmissionStatus.inReview;
@@ -501,6 +516,269 @@ class MilestoneDetailsController extends GetxController {
     Get.snackbar('Submitted', 'Milestone sent for admin review');
     // If you want to refresh parent:
     // Get.back(result: milestone);
+  }
+
+  Future<void> _loadInfluencerMilestoneDetails() async {
+    final milestoneId = milestone.id;
+    if (milestoneId == null || milestoneId.isEmpty) return;
+
+    final result = await ApiErrorHandler.call(() async {
+      final res = await _apiClient.dio.get(
+        '/campaign/influencer/milestone/$milestoneId',
+      );
+      return res.data;
+    }, showError: false);
+
+    if (!result.isSuccess || result.data == null) return;
+
+    final data = result.data as Map<String, dynamic>;
+    final raw = data['data'] is Map<String, dynamic>
+        ? data['data'] as Map<String, dynamic>
+        : data;
+
+    final milestoneJson = raw['milestone'] is Map<String, dynamic>
+        ? raw['milestone'] as Map<String, dynamic>
+        : raw;
+
+    final statusRaw =
+        raw['status']?.toString() ?? milestoneJson['status']?.toString();
+
+    milestone = milestone.copyWith(
+      id: milestoneJson['id']?.toString() ?? milestone.id,
+      title:
+          milestoneJson['contentTitle']?.toString().trim() ?? milestone.title,
+      platform: milestoneJson['platform']?.toString() ?? milestone.platform,
+      deliverable:
+          milestoneJson['contentQuantity']?.toString() ?? milestone.deliverable,
+      dayIndex: _intFrom(milestoneJson['deliveryDays']) ?? milestone.dayIndex,
+      amountLabel: _amountLabelFrom(
+        milestoneJson['amount'] ?? milestoneJson['paidAmount'],
+      ),
+      targets: PromotionTarget(
+        reach: _intFrom(milestoneJson['expectedReach']),
+        views: _intFrom(milestoneJson['expectedViews']),
+        likes: _intFrom(milestoneJson['expectedLikes']),
+        comments: _intFrom(milestoneJson['expectedComments']),
+      ),
+      status: _parseMilestoneStatus(statusRaw),
+    );
+
+    milestoneStatus.value = _localStatusFromMilestone(milestone.status);
+
+    final submissionsRaw = (raw['submissions'] as List?) ?? const [];
+    final mapped = submissionsRaw
+        .whereType<Map>()
+        .map((e) => _mapInfluencerSubmission(e.cast<String, dynamic>()))
+        .toList();
+
+    submissions.clear();
+    if (mapped.isNotEmpty) {
+      for (final s in mapped) {
+        final ui = SubmissionUiModel(index: s.index);
+        ui.serverId = s.id;
+        ui.descriptionController.text = s.description;
+        ui.amountController.text = s.amount.toString();
+        ui.linkController.text = s.liveLink;
+        ui.metricLabelController.text = s.metricLabel;
+        ui.metricValueController.text = s.metricValue;
+        ui.status.value = s.status;
+        ui.isSubmitted.value = true;
+        ui.isExpanded.value = false;
+        submissions.add(ui);
+      }
+    } else {
+      submissions.add(SubmissionUiModel(index: 1));
+    }
+  }
+
+  Submission _mapInfluencerSubmission(Map<String, dynamic> json) {
+    final metrics = json['metrics'] as Map<String, dynamic>?;
+    final reach = _intFrom(metrics?['reach']);
+    final views = _intFrom(metrics?['views']);
+    final likes = _intFrom(metrics?['likes']);
+    final comments = _intFrom(metrics?['comments']);
+
+    final metric = _preferredMetricValue(
+      reach: reach,
+      views: views,
+      likes: likes,
+      comments: comments,
+    );
+
+    return Submission(
+      id: json['id']?.toString(),
+      index: (json['index'] as num?)?.toInt() ?? 1,
+      description: json['description']?.toString() ?? '',
+      amount: _intFrom(json['amount']) ?? 0,
+      liveLink: _firstString(json['liveLinks']) ?? '',
+      metricLabel: metric.label,
+      metricValue: metric.value.toString(),
+      proofPaths: _stringList(json['attachments']),
+      status: _parseSubmissionStatus(json['status']?.toString()),
+      achieved: PromotionTarget(
+        reach: reach,
+        views: views,
+        likes: likes,
+        comments: comments,
+      ),
+    );
+  }
+
+  Future<void> _submitInfluencerMilestone(String milestoneId) async {
+    if (submissions.isEmpty) return;
+
+    final ui = submissions.first;
+    final link = ui.linkController.text.trim();
+    final label = ui.metricLabelController.text.trim().toLowerCase();
+    final value = _intFrom(ui.metricValueController.text) ?? 0;
+
+    int views = 0;
+    int reach = 0;
+    int likes = 0;
+    int comments = 0;
+
+    if (label.contains('view')) {
+      views = value;
+    } else if (label.contains('like')) {
+      likes = value;
+    } else if (label.contains('comment')) {
+      comments = value;
+    } else {
+      reach = value;
+    }
+
+    final payload = {
+      'description': ui.descriptionController.text.trim(),
+      'liveLinks': link.isEmpty ? [] : [link],
+      'proofAttachments': ui.proofs
+          .map((f) => f.path ?? f.name)
+          .where((e) => e.trim().isNotEmpty)
+          .toList(),
+      'achievedViews': views,
+      'achievedReach': reach,
+      'achievedLikes': likes,
+      'achievedComments': comments,
+    };
+
+    final Future<dynamic> Function() apiCall;
+    if (ui.serverId != null && ui.status.value == SubmissionStatus.declined) {
+      apiCall = () => _apiClient.dio.patch(
+        '/campaign/influencer/submission/${ui.serverId}/resubmit',
+        data: payload,
+      );
+    } else {
+      apiCall = () => _apiClient.dio.post(
+        '/campaign/influencer/milestone/$milestoneId/submit',
+        data: payload,
+      );
+    }
+
+    final result = await ApiErrorHandler.call(apiCall);
+    if (!result.isSuccess) return;
+
+    ui.status.value = SubmissionStatus.inReview;
+    ui.isSubmitted.value = true;
+    ui.isExpanded.value = false;
+    milestone = milestone.copyWith(status: MilestoneStatus.inReview);
+    milestoneStatus.value = MilestoneLocalStatus.inReview;
+
+    Get.snackbar('Submitted', 'Milestone sent for admin review');
+  }
+
+  MilestoneStatus _parseMilestoneStatus(String? raw) {
+    final v = (raw ?? '').toLowerCase();
+    switch (v) {
+      case 'in_review':
+      case 'inreview':
+        return MilestoneStatus.inReview;
+      case 'paid':
+        return MilestoneStatus.paid;
+      case 'approved':
+        return MilestoneStatus.approved;
+      case 'partial_paid':
+      case 'partialpaid':
+        return MilestoneStatus.partialPaid;
+      case 'declined':
+        return MilestoneStatus.declined;
+      case 'completed':
+        return MilestoneStatus.approved;
+      case 'to_do':
+      case 'todo':
+      default:
+        return MilestoneStatus.todo;
+    }
+  }
+
+  SubmissionStatus _parseSubmissionStatus(String? raw) {
+    final v = (raw ?? '').toLowerCase();
+    if (v.contains('declined')) return SubmissionStatus.declined;
+    if (v.contains('approved')) return SubmissionStatus.approved;
+    return SubmissionStatus.inReview;
+  }
+
+  MilestoneLocalStatus _localStatusFromMilestone(MilestoneStatus status) {
+    switch (status) {
+      case MilestoneStatus.inReview:
+        return MilestoneLocalStatus.inReview;
+      case MilestoneStatus.paid:
+        return MilestoneLocalStatus.paid;
+      case MilestoneStatus.approved:
+        return MilestoneLocalStatus.approved;
+      case MilestoneStatus.partialPaid:
+        return MilestoneLocalStatus.partialPaid;
+      case MilestoneStatus.declined:
+        return MilestoneLocalStatus.declined;
+      case MilestoneStatus.todo:
+      default:
+        return MilestoneLocalStatus.toDo;
+    }
+  }
+
+  String _amountLabelFrom(dynamic value) {
+    final v = _intFrom(value);
+    if (v != null) return '৳$v';
+    if (value is String && value.trim().isNotEmpty) return value;
+    return '—';
+  }
+
+  int? _intFrom(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
+
+  List<String> _stringList(dynamic value) {
+    if (value is List) {
+      return value
+          .map((e) => e?.toString() ?? '')
+          .where((e) => e.trim().isNotEmpty)
+          .toList();
+    }
+    return const [];
+  }
+
+  String? _firstString(dynamic value) {
+    if (value is List && value.isNotEmpty) {
+      return value.first?.toString();
+    }
+    if (value is String && value.trim().isNotEmpty) return value;
+    return null;
+  }
+
+  _MetricValue _preferredMetricValue({
+    int? reach,
+    int? views,
+    int? likes,
+    int? comments,
+  }) {
+    if (reach != null && reach > 0) return _MetricValue('Reach', reach);
+    if (views != null && views > 0) return _MetricValue('Views', views);
+    if (likes != null && likes > 0) return _MetricValue('Likes', likes);
+    if (comments != null && comments > 0) {
+      return _MetricValue('Comments', comments);
+    }
+    return const _MetricValue('Reach', 0);
   }
 
   BrandSubmissionUiModel? get selectedBrandSubmission {
@@ -565,5 +843,16 @@ class MilestoneDetailsController extends GetxController {
 
     target.status.value = BrandSubmissionStatus.declined;
     target.declinedReason.value = r;
+  }
+}
+
+class _MetricValue {
+  final String label;
+  final int value;
+
+  const _MetricValue(this.label, this.value);
+
+  _MetricValue copyWith({String? label, int? value}) {
+    return _MetricValue(label ?? this.label, value ?? this.value);
   }
 }

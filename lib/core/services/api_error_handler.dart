@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 
 /// Centralized API error handler for consistent error management across the app.
@@ -116,15 +117,19 @@ class ApiErrorHandler {
 
   /// Shows an error snackbar using GetX.
   static void _showErrorSnackbar(String title, String message) {
-    if (Get.isSnackbarOpen) {
-      Get.closeCurrentSnackbar();
+    void showSnackbar() {
+      if (Get.isSnackbarOpen) {
+        Get.closeCurrentSnackbar();
+      }
+      Get.snackbar(
+        title,
+        message,
+        snackPosition: SnackPosition.TOP,
+        duration: const Duration(seconds: 3),
+      );
     }
-    Get.snackbar(
-      title,
-      message,
-      snackPosition: SnackPosition.TOP,
-      duration: const Duration(seconds: 3),
-    );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) => showSnackbar());
   }
 
   /// Extracts error message from DioException (for manual usage).

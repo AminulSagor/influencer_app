@@ -128,10 +128,10 @@ class BottomNavBinding extends Bindings {
     Get.lazyPut<JobsController>(() => JobsController(), fenix: true);
     Get.lazyPut<EarningsController>(() => EarningsController(), fenix: true);
     Get.lazyPut<ProfileController>(() => ProfileController(), fenix: true);
-    Get.lazyPut<NotificationsController>(
-      () => NotificationsController(),
-      fenix: true,
-    );
+    // Get.lazyPut<NotificationsController>(
+    //   () => NotificationsController(service: ),
+    //   fenix: true,
+    // );
 
     Get.lazyPut<ExploreController>(() => ExploreController(), fenix: true);
     Get.lazyPut<AnalyticsController>(() => AnalyticsController(), fenix: true);

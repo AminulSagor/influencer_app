@@ -1,5 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:influencer_app/core/services/account_type_service.dart';
+import 'package:influencer_app/core/services/api_client.dart';
+import 'package:influencer_app/core/services/api_error_handler.dart';
 import '../../../core/models/job_item.dart';
 import '../../../routes/app_routes.dart';
 import '../../../core/utils/label_localizers.dart';
@@ -14,6 +17,7 @@ class CampaignDetailsController extends GetxController {
   bool _isNewOffer = true;
 
   final accountTypeService = Get.find<AccountTypeService>();
+  final ApiClient _apiClient = Get.find<ApiClient>();
 
   final milestonesExpanded = true.obs;
   final briefExpanded = true.obs;
@@ -47,11 +51,42 @@ class CampaignDetailsController extends GetxController {
       );
       return;
     }
+    if (isInfluencer && job.id != null && job.id!.isNotEmpty) {
+      _acceptInfluencerOffer(job.id!);
+      return;
+    }
+
     _isNewOffer = false;
     _recalculateStatus();
   }
 
-  void onDecline() => Get.back(id: 1);
+  void onDecline() {
+    final isInfluencer = accountTypeService.isInfluencer;
+    if (isInfluencer && job.id != null && job.id!.isNotEmpty) {
+      _declineInfluencerOffer(job.id!);
+      return;
+    }
+    Get.back(id: 1);
+  }
+
+  Future<void> _acceptInfluencerOffer(String jobId) async {
+    final result = await ApiErrorHandler.call(
+      () => _apiClient.dio.post('/campaign/influencer/job/$jobId/accept'),
+    );
+
+    if (!result.isSuccess) return;
+    _isNewOffer = false;
+    _recalculateStatus();
+  }
+
+  Future<void> _declineInfluencerOffer(String jobId) async {
+    final result = await ApiErrorHandler.call(
+      () => _apiClient.dio.post('/campaign/influencer/job/$jobId/decline'),
+    );
+
+    if (!result.isSuccess) return;
+    Get.back(id: 1);
+  }
 
   void openMilestoneDetails(Milestone milestone) {
     Get.toNamed(
@@ -106,4 +141,12 @@ class CampaignDetailsController extends GetxController {
 
   bool get showQuoteCard => campaignStatus.value == CampaignStatus.newOffer;
   bool get showAgreementBar => campaignStatus.value == CampaignStatus.newOffer;
+
+  bool _isNonEmpty(dynamic value) {
+    if (value == null) return false;
+    if (value is String) return value.trim().isNotEmpty;
+    if (value is Iterable) return value.isNotEmpty;
+    if (value is Map) return value.isNotEmpty;
+    return true;
+  }
 }

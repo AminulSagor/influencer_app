@@ -348,11 +348,15 @@ class JobsView extends GetView<JobsController> {
                       onAccept: () {
                         if (controller.isAdAgency) {
                           controller.acceptAgencyOffer(job);
+                        } else {
+                          controller.acceptInfluencerOffer(job);
                         }
                       },
                       onDecline: () {
                         if (controller.isAdAgency) {
                           controller.declineAgencyOffer(job);
+                        } else {
+                          controller.declineInfluencerOffer(job);
                         }
                       },
                       onView: () => controller.openJobDetails(job),
@@ -1027,17 +1031,17 @@ class JobsView extends GetView<JobsController> {
                 ),
               ),
               const Spacer(),
-              GestureDetector(
-                onTap: () => controller.openJobDetails(job),
-                child: Text(
-                  '${'common_view'.tr} >',
-                  style: TextStyle(
-                    fontSize: 12.sp,
-                    color: AppPalette.black,
-                    fontWeight: FontWeight.w300,
-                  ),
-                ),
-              ),
+              // GestureDetector(
+              //   onTap: () => controller.openJobDetails(job),
+              //   child: Text(
+              //     '${'common_view'.tr} >',
+              //     style: TextStyle(
+              //       fontSize: 12.sp,
+              //       color: AppPalette.black,
+              //       fontWeight: FontWeight.w300,
+              //     ),
+              //   ),
+              // ),
             ],
           ),
         ],

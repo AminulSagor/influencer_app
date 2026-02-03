@@ -380,10 +380,22 @@ class _ChartCard extends StatelessWidget {
           Obx(() {
             final points = controller.chartPoints;
 
-            if (points.isEmpty) {
+            if (controller.chartIsLoading.value) {
               return SizedBox(
                 height: 210.h,
                 child: const Center(child: CircularProgressIndicator()),
+              );
+            }
+
+            if (points.isEmpty) {
+              return SizedBox(
+                height: 210.h,
+                child: Center(
+                  child: Text(
+                    'common_no_data'.tr,
+                    style: TextStyle(fontSize: 12.sp, color: Colors.grey[600]),
+                  ),
+                ),
               );
             }
 
@@ -1055,17 +1067,15 @@ class _TransactionsSection extends StatelessWidget {
             );
           }),
           SizedBox(height: 16.h),
-          Obx(
-            () => AppPaginationRow(
-              page: controller.transactionCurrentPage,
-              totalPages: controller.transactionTotalPages,
-              isLoading: controller.transactionIsLoading,
-              onPrev: () => controller.goToPrevTransactionPage(),
-              onNext: () => controller.goToNextTransactionPage(),
-              pageLabel: 'common_page'.tr,
-              ofLabel: 'common_of'.tr,
-              nextLabel: 'common_next'.tr,
-            ),
+          AppPaginationRow(
+            page: controller.transactionCurrentPage,
+            totalPages: controller.transactionTotalPages,
+            isLoading: controller.transactionIsLoading,
+            onPrev: () => controller.goToPrevTransactionPage(),
+            onNext: () => controller.goToNextTransactionPage(),
+            pageLabel: 'common_page'.tr,
+            ofLabel: 'common_of'.tr,
+            nextLabel: 'common_next'.tr,
           ),
         ],
       ),

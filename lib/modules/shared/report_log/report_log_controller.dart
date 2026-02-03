@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../core/services/account_type_service.dart';
+import '../../../core/services/api_error_handler.dart';
+import '../../../core/services/report_service.dart';
 import 'models/report_model.dart';
 
 class ReportLogController extends GetxController {
   final accountTypeService = Get.find<AccountTypeService>();
+  final ReportService _reportService = Get.find<ReportService>();
 
   bool get isBrand => accountTypeService.isBrand;
 
@@ -15,50 +18,15 @@ class ReportLogController extends GetxController {
   // Observables
   var searchQuery = ''.obs;
   var selectedFilter = Rxn<ReportStatus>(); // null = All
+  var isLoading = false.obs;
 
-  // Dummy Data
-  final List<ReportModel> _allReports = [
-    ReportModel(
-      id: '1',
-      campaignName: 'Summer Fashion Campaign',
-      milestone: '1',
-      timeAgo: '2',
-      message: 'audio_issue',
-      companyName: 'StyleCo',
-      date: 'Dec 15, 2025',
-      status: ReportStatus.flagged,
-    ),
-    ReportModel(
-      id: '2',
-      campaignName: 'Summer Fashion Campaign',
-      milestone: '2',
-      timeAgo: '2',
-      message: 'audio_issue',
-      companyName: 'StyleCo',
-      date: 'Dec 15, 2025',
-      status: ReportStatus.resolved,
-    ),
-    ReportModel(
-      id: '3',
-      campaignName: 'Winter Collection',
-      milestone: '3',
-      timeAgo: '5',
-      message: 'audio_issue',
-      companyName: 'StyleCo',
-      date: 'Dec 15, 2025',
-      status: ReportStatus.pending,
-    ),
-    ReportModel(
-      id: '4',
-      campaignName: 'Tech Review Ads',
-      milestone: '1',
-      timeAgo: '12',
-      message: 'audio_issue',
-      companyName: 'TechWorld',
-      date: 'Dec 14, 2025',
-      status: ReportStatus.flagged,
-    ),
-  ];
+  final List<ReportModel> _allReports = [];
+
+  @override
+  void onInit() {
+    super.onInit();
+    loadReports();
+  }
 
   /// Only show these tabs in UI
   List<ReportStatus> get availableStatuses {
@@ -109,6 +77,103 @@ class ReportLogController extends GetxController {
       selectedFilter.value = null; // toggle off
     } else {
       selectedFilter.value = status;
+    }
+  }
+
+  Future<void> loadReports({int page = 1, int limit = 10}) async {
+    isLoading.value = true;
+
+    final result = await ApiErrorHandler.call(() {
+      if (accountTypeService.isBrand) {
+        return _reportService.fetchClientReports(
+          page: page,
+          limit: limit,
+          search: searchQuery.value.trim().isEmpty
+              ? null
+              : searchQuery.value.trim(),
+        );
+      }
+
+      if (accountTypeService.isAdAgency) {
+        return _reportService.fetchAgencyReports(
+          page: page,
+          limit: limit,
+          search: searchQuery.value.trim().isEmpty
+              ? null
+              : searchQuery.value.trim(),
+        );
+      }
+
+      return _reportService.fetchInfluencerReportLogs(page: page, limit: limit);
+    }, showError: false);
+
+    if (result.isSuccess && result.data != null) {
+      final items = result.data!.items
+          .map(_mapApiToReport)
+          .toList(growable: false);
+      _allReports
+        ..clear()
+        ..addAll(items);
+    } else {
+      _allReports.clear();
+    }
+
+    isLoading.value = false;
+  }
+
+  ReportModel _mapApiToReport(Map<String, dynamic> json) {
+    final id = json['reportId']?.toString() ?? json['id']?.toString() ?? '';
+    final campaignName =
+        json['campaignName']?.toString() ??
+        json['campaignTitle']?.toString() ??
+        '—';
+    final milestone =
+        json['milestoneTitle']?.toString() ??
+        json['milestone']?.toString() ??
+        '—';
+    final message =
+        json['feedback']?.toString() ?? json['message']?.toString() ?? '—';
+    final companyName =
+        json['clientName']?.toString() ??
+        json['brandName']?.toString() ??
+        json['companyName']?.toString() ??
+        '—';
+    final date =
+        json['date']?.toString() ?? json['createdAt']?.toString() ?? '—';
+    final statusRaw =
+        json['logStatus']?.toString() ?? json['status']?.toString() ?? '';
+
+    return ReportModel(
+      id: id,
+      campaignName: campaignName,
+      milestone: milestone,
+      timeAgo: _timeAgo(date),
+      message: message,
+      companyName: companyName,
+      date: date,
+      status: _mapStatus(statusRaw),
+    );
+  }
+
+  ReportStatus _mapStatus(String raw) {
+    final value = raw.toLowerCase();
+    if (value.contains('resolve')) return ReportStatus.resolved;
+    if (value.contains('pending')) return ReportStatus.pending;
+    if (value.contains('flag') || value.contains('reject')) {
+      return ReportStatus.flagged;
+    }
+    return ReportStatus.pending;
+  }
+
+  String _timeAgo(String raw) {
+    try {
+      final dt = DateTime.parse(raw);
+      final diff = DateTime.now().difference(dt);
+      if (diff.inMinutes < 60) return '${diff.inMinutes}m';
+      if (diff.inHours < 24) return '${diff.inHours}h';
+      return '${diff.inDays}d';
+    } catch (_) {
+      return '—';
     }
   }
 }

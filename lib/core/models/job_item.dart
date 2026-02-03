@@ -28,7 +28,6 @@ class JobItem {
   final String? dueLabel;
 
   final int? rating;
-
   final String? profitLabel;
   final String? vatLabel;
   final String? totalCostLabel;
@@ -130,6 +129,7 @@ enum MilestoneStatus { todo, inReview, paid, approved, partialPaid, declined }
 enum SubmissionStatus { inReview, approved, declined }
 
 class Submission {
+  final String? id;
   final int index;
   final String description;
   final int amount; // in your main currency unit
@@ -148,6 +148,7 @@ class Submission {
   final String? submittedDateLabel;
 
   const Submission({
+    this.id,
     required this.index,
     required this.description,
     required this.amount,
@@ -161,6 +162,7 @@ class Submission {
   });
 
   Submission copyWith({
+    String? id,
     int? index,
     String? description,
     int? amount,
@@ -177,6 +179,7 @@ class Submission {
     String? submittedDateLabel,
   }) {
     return Submission(
+      id: id ?? this.id,
       index: index ?? this.index,
       description: description ?? this.description,
       amount: amount ?? this.amount,
@@ -216,6 +219,7 @@ class PromotionTarget {
 }
 
 class Milestone {
+  final String? id;
   final String stepLabel;
   final String title;
   final String? subtitle;
@@ -243,6 +247,7 @@ class Milestone {
   final List<Submission> submissions;
 
   const Milestone({
+    this.id,
     required this.stepLabel,
     required this.title,
     this.subtitle,
@@ -282,6 +287,7 @@ class Milestone {
       .fold<int>(0, (sum, s) => sum + s.amount);
 
   Milestone copyWith({
+    String? id,
     String? stepLabel,
     String? title,
     String? subtitle,
@@ -302,6 +308,7 @@ class Milestone {
     List<Submission>? submissions,
   }) {
     return Milestone(
+      id: id ?? this.id,
       stepLabel: stepLabel ?? this.stepLabel,
       title: title ?? this.title,
       subtitle: subtitle ?? this.subtitle,

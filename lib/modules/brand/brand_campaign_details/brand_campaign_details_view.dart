@@ -27,11 +27,13 @@ class BrandCampaignDetailsView extends GetView<BrandCampaignDetailsController> {
                 _CampaignDetailsCard(),
                 12.h.verticalSpace,
 
-                // ✅ PaidAd gets tab layout like screenshot
+                // ✅ Show agency quotations tab if bids exist (any campaign type)
                 Obx(() {
                   controller.campaignType.value;
                   final isPaidAd = controller.isPaidAd;
-                  if (!isPaidAd) {
+                  final showAgencyTabs = controller.agencyOffers.isNotEmpty;
+
+                  Widget detailsColumn() {
                     return Column(
                       children: [
                         _CampaignProgressCard(),
@@ -47,8 +49,16 @@ class BrandCampaignDetailsView extends GetView<BrandCampaignDetailsController> {
                         _ContentAssetsCard(),
                         12.h.verticalSpace,
                         _TermsCard(),
+                        if (isPaidAd) ...[
+                          12.h.verticalSpace,
+                          _BrandAssetsCard(),
+                        ],
                       ],
                     );
+                  }
+
+                  if (!showAgencyTabs) {
+                    return detailsColumn();
                   }
 
                   return Column(
@@ -60,29 +70,11 @@ class BrandCampaignDetailsView extends GetView<BrandCampaignDetailsController> {
                       Obx(() {
                         final tab = controller.paidAdTabIndex.value;
 
-                        // 0 = Agency bids (screenshot 2)
+                        // 0 = Agency bids
                         if (tab == 0) return _AgencyBidsTab();
 
-                        // 1 = Campaign details (screenshot 1)
-                        return Column(
-                          children: [
-                            _CampaignProgressCard(),
-                            12.h.verticalSpace,
-                            _QuoteDetailsCard(),
-                            12.h.verticalSpace,
-                            _MilestonesCard(),
-                            14.h.verticalSpace,
-                            _RatingCard(),
-                            12.h.verticalSpace,
-                            _BriefCard(),
-                            12.h.verticalSpace,
-                            _ContentAssetsCard(),
-                            12.h.verticalSpace,
-                            _TermsCard(),
-                            12.h.verticalSpace,
-                            _BrandAssetsCard(),
-                          ],
-                        );
+                        // 1 = Campaign details
+                        return detailsColumn();
                       }),
                     ],
                   );
@@ -145,7 +137,7 @@ class _CampaignDetailsCard extends GetView<BrandCampaignDetailsController> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(.9),
+                    color: Colors.white.withAlpha(230),
                     fontSize: 13.sp,
                     fontWeight: FontWeight.w700,
                   ),

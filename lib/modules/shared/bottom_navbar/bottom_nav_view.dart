@@ -265,7 +265,7 @@ class _ProfileDrawer extends StatelessWidget {
         await auth.logout(); // clears tokens (SharedPreferences)
         accountType.setRole(null); // reset selected role
         // go back to start
-        Get.offAllNamed(AppRoutes.onboarding);
+        Get.offAllNamed(AppRoutes.login);
         if (Get.isRegistered<BottomNavController>()) {
           Get.delete<BottomNavController>(force: true);
         }

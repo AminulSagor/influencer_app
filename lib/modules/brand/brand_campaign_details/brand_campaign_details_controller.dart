@@ -40,6 +40,7 @@ class BrandCampaignDetailsController extends GetxController {
 
   // ✅ PaidAd: agency bids list (screenshot 2)
   final agencyOffers = <PaidAdAgencyOffer>[].obs;
+  bool _agencyBidsChecked = false;
 
   /// Expect either:
   /// - Get.toNamed(..., arguments: jobItem)
@@ -123,6 +124,8 @@ class BrandCampaignDetailsController extends GetxController {
   void onInit() {
     super.onInit();
 
+    _showDebugSnackbar(arguments);
+
     // 0) read campaignType/targeting from args if provided
     _readMetaArgs(arguments);
 
@@ -148,6 +151,45 @@ class BrandCampaignDetailsController extends GetxController {
     // 3) Last resort: demo defaults
     _loadDemo();
     _loadFromApiIfPossible();
+  }
+
+  void _showDebugSnackbar(dynamic args) {
+    if (args is Map) {
+      final totalQuotations =
+          (args['totalQuotationsReceived'] as num?)?.toInt() ??
+          (args['totalQuotations'] as num?)?.toInt() ??
+          (args['totalQuotation'] as num?)?.toInt() ??
+          (args['totalQuotationsReceivedCount'] as num?)?.toInt() ??
+          0;
+      final campaign = args['campaign'] ?? args['campaignData'];
+      final client = args['client'] ?? args['clientData'];
+      final bids = args['bids'] ?? args['bid'] ?? args['quotations'];
+
+      final hasCampaign = _isNonEmpty(campaign);
+      final hasClient = _isNonEmpty(client);
+      final hasBids = _isNonEmpty(bids);
+
+      ScaffoldMessenger.of(Get.context!).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Brand campaign details debug\ncampaign: $hasCampaign, client: $hasClient, bids: $hasBids, totalQuotationsReceived: $totalQuotations',
+          ),
+        ),
+      );
+    } else {
+      Get.snackbar(
+        'Brand campaign details debug',
+        'campaign: false, client: false, bids: false, totalQuotationsReceived: 0',
+      );
+    }
+  }
+
+  bool _isNonEmpty(dynamic value) {
+    if (value == null) return false;
+    if (value is String) return value.trim().isNotEmpty;
+    if (value is Iterable) return value.isNotEmpty;
+    if (value is Map) return value.isNotEmpty;
+    return true;
   }
 
   // -------------------------
@@ -345,10 +387,11 @@ class BrandCampaignDetailsController extends GetxController {
       );
       _loadFromApiMap(data);
 
-      if (isPaidAd) {
-        final bids = await _campaignService.fetchClientAgencyBids(
-          campaignId: campaignId,
-        );
+      final bids = await _campaignService.fetchClientAgencyBids(
+        campaignId: campaignId,
+      );
+      _agencyBidsChecked = true;
+      if (bids.isNotEmpty) {
         _loadAgencyBids(bids);
       }
     } catch (e) {
@@ -905,15 +948,6 @@ class BrandCampaignDetailsController extends GetxController {
           icon: Icons.facebook,
         ),
       );
-    }
-
-    if (isPaidAd && agencyOffers.isEmpty) {
-      agencyOffers.assignAll(const [
-        PaidAdAgencyOffer(name: 'Trendy Ad', agencyFeePercent: 10),
-        PaidAdAgencyOffer(name: 'GrowBig', agencyFeePercent: 10),
-        PaidAdAgencyOffer(name: 'Social Growth', agencyFeePercent: 10),
-        PaidAdAgencyOffer(name: 'Social Growth', agencyFeePercent: 10),
-      ]);
     }
 
     _ensureDummyMilestonesIfEmpty();

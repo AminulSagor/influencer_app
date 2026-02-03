@@ -69,8 +69,8 @@ class CreateCampaignController extends GetxController {
   final preferredSuggestions = <InfluencerUiModel>[].obs;
   final notPreferredSuggestions = <InfluencerUiModel>[].obs;
 
-  static const Duration _typingDebounceDuration = Duration(milliseconds: 350);
-  static const Duration _scrollDebounceDuration = Duration(milliseconds: 350);
+  static const Duration _typingDebounceDuration = Duration(milliseconds: 500);
+  static const Duration _scrollDebounceDuration = Duration(milliseconds: 500);
 
   Timer? _preferredTypingDebounce;
   Timer? _notPreferredTypingDebounce;

@@ -4,12 +4,14 @@ import 'package:influencer_app/core/services/account_type_service.dart';
 import 'package:influencer_app/core/services/api_error_handler.dart';
 import 'package:influencer_app/modules/ad_agency/services/agency_dashboard_service.dart';
 import 'package:influencer_app/modules/brand/services/brand_dashboard_service.dart';
+import 'package:influencer_app/modules/influencer/services/influencer_dashboard_service.dart';
 import 'models/home_dashboard_model.dart';
 
 class HomeController extends GetxController {
   final _accountTypeService = Get.find<AccountTypeService>();
   final _brandDashboardService = Get.find<BrandDashboardService>();
   final _agencyDashboardService = Get.find<AgencyDashboardService>();
+  final _influencerDashboardService = Get.find<InfluencerDashboardService>();
 
   final dashboard = HomeDashboardModel.empty().obs;
 
@@ -22,6 +24,8 @@ class HomeController extends GetxController {
       _loadBrandDashboard();
     } else if (_accountTypeService.isAdAgency) {
       _loadAgencyDashboard();
+    } else if (_accountTypeService.isInfluencer) {
+      _loadInfluencerDashboard();
     } else {
       _loadMockData(userType);
     }
@@ -128,6 +132,73 @@ class HomeController extends GetxController {
 
     if (earningsResult.isSuccess && earningsResult.data != null) {
       current = _applyAgencyEarnings(current, earningsResult.data!);
+    }
+
+    if (actionRequiredResult.isSuccess && actionRequiredResult.data != null) {
+      final count = actionRequiredResult.data!.total > 0
+          ? actionRequiredResult.data!.total
+          : actionRequiredResult.data!.items.length;
+      if (count > 0 && current.newOffers == 0) {
+        current = current.copyWith(newOffers: count);
+      }
+    }
+
+    if (workInProgressResult.isSuccess && workInProgressResult.data != null) {
+      if (workInProgressResult.data!.items.isNotEmpty) {
+        current = current.copyWith(
+          jobsInProgress: _mapJobs(workInProgressResult.data!.items),
+        );
+      }
+    }
+
+    if (current.jobsInProgress.isEmpty &&
+        deadlinesResult.isSuccess &&
+        deadlinesResult.data != null &&
+        deadlinesResult.data!.items.isNotEmpty) {
+      current = current.copyWith(
+        jobsInProgress: _mapJobs(deadlinesResult.data!.items),
+      );
+    }
+
+    dashboard.value = current;
+  }
+
+  Future<void> _loadInfluencerDashboard() async {
+    var current = dashboard.value;
+
+    final summaryResult = await ApiErrorHandler.call(
+      () => _influencerDashboardService.fetchSummary(),
+      showError: false,
+    );
+
+    final earningsResult = await ApiErrorHandler.call(
+      () => _influencerDashboardService.fetchEarningsOverview(),
+      showError: false,
+    );
+
+    final actionRequiredResult = await ApiErrorHandler.call(
+      () => _influencerDashboardService.fetchActionRequired(page: 1, limit: 5),
+      showError: false,
+    );
+
+    final deadlinesResult = await ApiErrorHandler.call(
+      () =>
+          _influencerDashboardService.fetchUpcomingDeadlines(page: 1, limit: 5),
+      showError: false,
+    );
+
+    final workInProgressResult = await ApiErrorHandler.call(
+      () => _influencerDashboardService.fetchWorkInProgress(page: 1, limit: 5),
+      showError: false,
+    );
+
+    if (summaryResult.isSuccess && summaryResult.data != null) {
+      current = _applyInfluencerSummary(current, summaryResult.data!);
+      current = _applyLifetimeSummary(current, summaryResult.data!);
+    }
+
+    if (earningsResult.isSuccess && earningsResult.data != null) {
+      current = _applyInfluencerEarnings(current, earningsResult.data!);
     }
 
     if (actionRequiredResult.isSuccess && actionRequiredResult.data != null) {
@@ -293,6 +364,48 @@ class HomeController extends GetxController {
   }
 
   HomeDashboardModel _applyAgencyEarnings(
+    HomeDashboardModel current,
+    Map<String, dynamic> json,
+  ) {
+    final data = json['data'] is Map<String, dynamic>
+        ? json['data'] as Map<String, dynamic>
+        : json;
+
+    final totalEarnings = _doubleFrom(data['totalEarnings']);
+    final completedJobs = _intFrom(data['completedJobs']);
+
+    return current.copyWith(
+      totalEarningsK: totalEarnings != null
+          ? _toThousands(totalEarnings)
+          : current.totalEarningsK,
+      totalJobsCompleted: completedJobs ?? current.totalJobsCompleted,
+    );
+  }
+
+  HomeDashboardModel _applyInfluencerSummary(
+    HomeDashboardModel current,
+    Map<String, dynamic> json,
+  ) {
+    final data = json['data'] is Map<String, dynamic>
+        ? json['data'] as Map<String, dynamic>
+        : json;
+
+    final lifetime = _doubleFrom(
+      data['lifetimeEarnings'] ?? data['totalEarnings'],
+    );
+    final pending = _doubleFrom(data['pendingEarnings']);
+    final active = _intFrom(data['activeJobs'] ?? data['ongoingJobs']);
+    final offers = _intFrom(data['newOffers'] ?? data['newOffersCount']);
+
+    return current.copyWith(
+      lifetimeEarnings: lifetime?.round() ?? current.lifetimeEarnings,
+      pendingEarnings: pending?.round() ?? current.pendingEarnings,
+      activeJobs: active ?? current.activeJobs,
+      newOffers: offers ?? current.newOffers,
+    );
+  }
+
+  HomeDashboardModel _applyInfluencerEarnings(
     HomeDashboardModel current,
     Map<String, dynamic> json,
   ) {

@@ -505,6 +505,7 @@ class AppTranslations extends Translations {
       'common_client': 'Client',
       'common_completed': 'Completed',
       'common_no_deadline': 'No Deadline',
+      'common_no_data': 'No data found',
       'common_no_jobs_found': 'No jobs found',
 
       // Sort / Search
@@ -1491,6 +1492,7 @@ class AppTranslations extends Translations {
       // Common
       'welcome_user': 'স্বাগতম, User!',
       'campaign_details_title': 'ক্যাম্পেইন ডিটেইলস',
+      'common_no_data': 'কোন তথ্য পাওয়া যায়নি',
 
       // Shipping page
       'shipping_where_to_send': 'পণ্য কোথায় পাঠানো হবে?',

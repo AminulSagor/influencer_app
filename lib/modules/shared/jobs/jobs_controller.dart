@@ -3,6 +3,7 @@ import 'dart:developer' as dev;
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:influencer_app/core/services/account_type_service.dart';
+import 'package:influencer_app/core/utils/currency_formatter.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/models/job_item.dart';
@@ -29,6 +30,7 @@ class JobsController extends GetxController {
   final ApiClient _apiClient = Get.find<ApiClient>();
   bool get isBrand => _accountTypeService.isBrand;
   bool get isAdAgency => _accountTypeService.isAdAgency;
+  bool get isInfluencer => _accountTypeService.isInfluencer;
 
   // ---------------- INFLUENCER / AGENCY LISTS ----------------
 
@@ -37,6 +39,8 @@ class JobsController extends GetxController {
   final completedJobs = <JobItem>[].obs;
   final pendingPayments = <JobItem>[].obs;
   final declinedJobs = <JobItem>[].obs;
+
+  final RxMap<String, int> influencerCounts = <String, int>{}.obs;
 
   final isLoadingNewOffers = false.obs;
   final isLoadingActiveJobs = false.obs;
@@ -167,6 +171,9 @@ class JobsController extends GetxController {
         fetchBrandCanceled(reset: true),
       ]);
     } else {
+      if (isInfluencer) {
+        await fetchInfluencerCounts();
+      }
       await Future.wait([
         fetchNewOffers(reset: true),
         fetchActiveJobs(reset: true),
@@ -281,29 +288,101 @@ class JobsController extends GetxController {
       }
     }
 
+    final hasCounts = influencerCounts.isNotEmpty;
+    int byKey(String key, int fallback) {
+      if (!hasCounts) return fallback;
+      return influencerCounts[key] ?? fallback;
+    }
+
     switch (index) {
       case 0:
-        return newOffers.length;
+        return byKey('new_offer', newOffers.length);
       case 1:
-        return activeJobs.length;
+        return byKey('active', activeJobs.length);
       case 2:
-        return completedJobs.length;
+        return byKey('completed', completedJobs.length);
       case 3:
-        return pendingPayments.length;
+        return byKey('pending', pendingPayments.length);
       case 4:
-        return declinedJobs.length;
+        return byKey('declined', declinedJobs.length);
       default:
         return 0;
     }
+  }
+
+  Future<void> fetchInfluencerCounts() async {
+    final result = await ApiErrorHandler.call(() async {
+      final res = await _apiClient.dio.get('/campaign/influencer/jobs/counts');
+      return res.data;
+    }, showError: false);
+
+    if (!result.isSuccess || result.data == null) return;
+
+    final data = result.data as Map<String, dynamic>;
+    final raw = data['data'] is Map<String, dynamic>
+        ? data['data'] as Map<String, dynamic>
+        : data;
+
+    final counts = <String, int>{
+      'new_offer': _countFrom(raw, ['new_offer', 'newOffer']),
+      'active': _countFrom(raw, ['active']),
+      'completed': _countFrom(raw, ['completed']),
+      'pending': _countFrom(raw, [
+        'pending',
+        'pending_payment',
+        'pendingPayment',
+      ]),
+      'declined': _countFrom(raw, ['declined']),
+    };
+
+    influencerCounts.assignAll(counts);
+  }
+
+  int _countFrom(Map<String, dynamic> raw, List<String> keys) {
+    for (final key in keys) {
+      final value = raw[key];
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      if (value is String) {
+        final parsed = int.tryParse(value);
+        if (parsed != null) return parsed;
+      }
+    }
+    return 0;
   }
 
   void openJobDetails(JobItem job) {
     dev.log('JOB TYPE: ${job.campaignType}');
     if (_accountTypeService.isBrand) {
       Get.toNamed(AppRoutes.brandCampaignDetails, id: 1, arguments: job);
-    } else {
-      Get.toNamed(AppRoutes.campaignDetails, id: 1, arguments: job);
+      return;
     }
+
+    _openInfluencerOrAgencyJobDetails(job);
+  }
+
+  Future<void> _openInfluencerOrAgencyJobDetails(JobItem job) async {
+    final jobId = job.id;
+    if (jobId == null || jobId.isEmpty) {
+      Get.toNamed(AppRoutes.campaignDetails, id: 1, arguments: job);
+      return;
+    }
+
+    if (_accountTypeService.isAdAgency) {
+      Get.toNamed(AppRoutes.campaignDetails, id: 1, arguments: job);
+      return;
+    }
+
+    final result = await ApiErrorHandler.call(
+      () => _fetchInfluencerJobDetails(jobId),
+      showError: false,
+    );
+
+    final resolved = result.isSuccess && result.data != null
+        ? result.data!
+        : job;
+
+    Get.toNamed(AppRoutes.campaignDetails, id: 1, arguments: resolved);
   }
 
   // -------- FILTER + SORT HELPERS --------
@@ -408,18 +487,25 @@ class JobsController extends GetxController {
         }
       }
     } else {
-      final items = await _mockFetchJobs(
-        tabIndex: 0,
-        page: _newOffersPage,
-        pageSize: _pageSize,
-        mode: _MockMode.influencer,
+      final result = await ApiErrorHandler.call(
+        () => _fetchInfluencerJobs(
+          status: _influencerTabParam(0),
+          page: _newOffersPage,
+          pageSize: _pageSize,
+        ),
       );
-      if (items.isEmpty) {
-        hasMoreNewOffers.value = false;
-      } else {
-        newOffers.addAll(items);
-        _newOffersPage++;
-        if (items.length < _pageSize) hasMoreNewOffers.value = false;
+
+      if (result.isSuccess) {
+        final page = result.data!;
+        if (page.items.isEmpty) {
+          hasMoreNewOffers.value = false;
+        } else {
+          newOffers.addAll(page.items);
+          _newOffersPage++;
+          if (_newOffersPage > page.totalPages) {
+            hasMoreNewOffers.value = false;
+          }
+        }
       }
     }
     isLoadingNewOffers.value = false;
@@ -458,18 +544,25 @@ class JobsController extends GetxController {
         }
       }
     } else {
-      final items = await _mockFetchJobs(
-        tabIndex: 1,
-        page: _activeJobsPage,
-        pageSize: _pageSize,
-        mode: _MockMode.influencer,
+      final result = await ApiErrorHandler.call(
+        () => _fetchInfluencerJobs(
+          status: _influencerTabParam(1),
+          page: _activeJobsPage,
+          pageSize: _pageSize,
+        ),
       );
-      if (items.isEmpty) {
-        hasMoreActiveJobs.value = false;
-      } else {
-        activeJobs.addAll(items);
-        _activeJobsPage++;
-        if (items.length < _pageSize) hasMoreActiveJobs.value = false;
+
+      if (result.isSuccess) {
+        final page = result.data!;
+        if (page.items.isEmpty) {
+          hasMoreActiveJobs.value = false;
+        } else {
+          activeJobs.addAll(page.items);
+          _activeJobsPage++;
+          if (_activeJobsPage > page.totalPages) {
+            hasMoreActiveJobs.value = false;
+          }
+        }
       }
     }
     isLoadingActiveJobs.value = false;
@@ -508,18 +601,25 @@ class JobsController extends GetxController {
         }
       }
     } else {
-      final items = await _mockFetchJobs(
-        tabIndex: 2,
-        page: _completedJobsPage,
-        pageSize: _pageSize,
-        mode: _MockMode.influencer,
+      final result = await ApiErrorHandler.call(
+        () => _fetchInfluencerJobs(
+          status: _influencerTabParam(2),
+          page: _completedJobsPage,
+          pageSize: _pageSize,
+        ),
       );
-      if (items.isEmpty) {
-        hasMoreCompletedJobs.value = false;
-      } else {
-        completedJobs.addAll(items);
-        _completedJobsPage++;
-        if (items.length < _pageSize) hasMoreCompletedJobs.value = false;
+
+      if (result.isSuccess) {
+        final page = result.data!;
+        if (page.items.isEmpty) {
+          hasMoreCompletedJobs.value = false;
+        } else {
+          completedJobs.addAll(page.items);
+          _completedJobsPage++;
+          if (_completedJobsPage > page.totalPages) {
+            hasMoreCompletedJobs.value = false;
+          }
+        }
       }
     }
     isLoadingCompletedJobs.value = false;
@@ -558,18 +658,25 @@ class JobsController extends GetxController {
         }
       }
     } else {
-      final items = await _mockFetchJobs(
-        tabIndex: 3,
-        page: _pendingPaymentsPage,
-        pageSize: _pageSize,
-        mode: _MockMode.influencer,
+      final result = await ApiErrorHandler.call(
+        () => _fetchInfluencerJobs(
+          status: _influencerTabParam(3),
+          page: _pendingPaymentsPage,
+          pageSize: _pageSize,
+        ),
       );
-      if (items.isEmpty) {
-        hasMorePendingPayments.value = false;
-      } else {
-        pendingPayments.addAll(items);
-        _pendingPaymentsPage++;
-        if (items.length < _pageSize) hasMorePendingPayments.value = false;
+
+      if (result.isSuccess) {
+        final page = result.data!;
+        if (page.items.isEmpty) {
+          hasMorePendingPayments.value = false;
+        } else {
+          pendingPayments.addAll(page.items);
+          _pendingPaymentsPage++;
+          if (_pendingPaymentsPage > page.totalPages) {
+            hasMorePendingPayments.value = false;
+          }
+        }
       }
     }
     isLoadingPendingPayments.value = false;
@@ -608,18 +715,25 @@ class JobsController extends GetxController {
         }
       }
     } else {
-      final items = await _mockFetchJobs(
-        tabIndex: 4,
-        page: _declinedJobsPage,
-        pageSize: _pageSize,
-        mode: _MockMode.influencer,
+      final result = await ApiErrorHandler.call(
+        () => _fetchInfluencerJobs(
+          status: _influencerTabParam(4),
+          page: _declinedJobsPage,
+          pageSize: _pageSize,
+        ),
       );
-      if (items.isEmpty) {
-        hasMoreDeclinedJobs.value = false;
-      } else {
-        declinedJobs.addAll(items);
-        _declinedJobsPage++;
-        if (items.length < _pageSize) hasMoreDeclinedJobs.value = false;
+
+      if (result.isSuccess) {
+        final page = result.data!;
+        if (page.items.isEmpty) {
+          hasMoreDeclinedJobs.value = false;
+        } else {
+          declinedJobs.addAll(page.items);
+          _declinedJobsPage++;
+          if (_declinedJobsPage > page.totalPages) {
+            hasMoreDeclinedJobs.value = false;
+          }
+        }
       }
     }
     isLoadingDeclinedJobs.value = false;
@@ -879,6 +993,83 @@ class JobsController extends GetxController {
     }
   }
 
+  String _influencerTabParam(int tabIndex) {
+    switch (tabIndex) {
+      case 0:
+        return 'new_offer';
+      case 1:
+        return 'active';
+      case 2:
+        return 'completed';
+      case 3:
+        return 'pending';
+      case 4:
+        return 'declined';
+      default:
+        return 'active';
+    }
+  }
+
+  Future<JobItem> _fetchInfluencerJobDetails(String jobId) async {
+    final res = await _apiClient.dio.get('/campaign/influencer/job/$jobId');
+    final data = res.data as Map<String, dynamic>;
+    final raw = data['data'] is Map<String, dynamic>
+        ? data['data'] as Map<String, dynamic>
+        : data;
+
+    final base = _mapInfluencerJobToJobItem(raw);
+    final milestones = await _fetchInfluencerJobMilestones(jobId);
+    return _copyJobWithMilestones(base, milestones);
+  }
+
+  Future<List<Milestone>> _fetchInfluencerJobMilestones(String jobId) async {
+    final res = await _apiClient.dio.get(
+      '/campaign/influencer/job/$jobId/milestones',
+    );
+
+    final data = res.data as Map<String, dynamic>;
+    final raw = data['data'] is Map<String, dynamic>
+        ? data['data'] as Map<String, dynamic>
+        : data;
+    final list = (raw['milestones'] as List?) ?? const [];
+
+    return list
+        .whereType<Map>()
+        .map((e) => e.cast<String, dynamic>())
+        .toList()
+        .asMap()
+        .entries
+        .map((entry) => _mapInfluencerMilestone(entry.value, entry.key))
+        .toList(growable: false);
+  }
+
+  Future<_CampaignPage> _fetchInfluencerJobs({
+    required String status,
+    required int page,
+    required int pageSize,
+  }) async {
+    final res = await _apiClient.dio.get(
+      '/campaign/influencer/jobs',
+      queryParameters: {
+        'page': page,
+        'limit': pageSize,
+        if (status.trim().isNotEmpty) 'status': status.trim(),
+      },
+    );
+
+    final data = res.data as Map<String, dynamic>;
+    final list = (data['data'] as List?) ?? const [];
+    final items = list
+        .whereType<Map>()
+        .map((e) => _mapInfluencerJobToJobItem(e.cast<String, dynamic>()))
+        .toList();
+
+    final meta = (data['pagination'] ?? data['meta']) as Map<String, dynamic>?;
+    final totalPages = (meta?['totalPages'] as num?)?.toInt() ?? 1;
+
+    return _CampaignPage(items: items, totalPages: totalPages);
+  }
+
   Future<_CampaignPage> _fetchAgencyCampaigns({
     required String tab,
     required int page,
@@ -952,6 +1143,210 @@ class JobsController extends GetxController {
     if (v == 'completed') return 100;
     if (v.contains('active')) return 50;
     return 0;
+  }
+
+  int? _progressFromInfluencerStatus(String? status) {
+    final v = (status ?? '').toLowerCase();
+    if (v.contains('complete')) return 100;
+    if (v.contains('active')) return 50;
+    return 0;
+  }
+
+  MilestoneStatus _parseMilestoneStatus(String? raw) {
+    final v = (raw ?? '').toLowerCase();
+    switch (v) {
+      case 'in_review':
+      case 'inreview':
+        return MilestoneStatus.inReview;
+      case 'paid':
+        return MilestoneStatus.paid;
+      case 'approved':
+        return MilestoneStatus.approved;
+      case 'partial_paid':
+      case 'partialpaid':
+        return MilestoneStatus.partialPaid;
+      case 'declined':
+        return MilestoneStatus.declined;
+      case 'completed':
+        return MilestoneStatus.approved;
+      case 'to_do':
+      case 'todo':
+      default:
+        return MilestoneStatus.todo;
+    }
+  }
+
+  String _amountLabelFrom(dynamic value) {
+    final v = _numToDouble(value);
+    if (v > 0) return formatCurrencyByLocale(v);
+    if (value is String && value.trim().isNotEmpty) return value;
+    return '—';
+  }
+
+  Milestone _mapInfluencerMilestone(Map<String, dynamic> json, int index) {
+    final title =
+        json['title']?.toString().trim() ??
+        json['contentTitle']?.toString().trim() ??
+        'Milestone';
+    final amount = json['amount'];
+    final expectedViews = _intFrom(json['expectedViews']);
+    final expectedReach = _intFrom(json['expectedReach']);
+    final expectedLikes = _intFrom(json['expectedLikes']);
+    final expectedComments = _intFrom(json['expectedComments']);
+
+    return Milestone(
+      id: json['id']?.toString(),
+      stepLabel: '${index + 1}',
+      title: title,
+      amountLabel: _amountLabelFrom(amount),
+      dayIndex: _intFrom(json['deliveryDays']),
+      deliverable: json['contentQuantity']?.toString(),
+      platform: json['platform']?.toString(),
+      targets: PromotionTarget(
+        reach: expectedReach,
+        views: expectedViews,
+        likes: expectedLikes,
+        comments: expectedComments,
+      ),
+      status: _parseMilestoneStatus(json['status']?.toString()),
+    );
+  }
+
+  JobItem _copyJobWithMilestones(JobItem base, List<Milestone> milestones) {
+    return JobItem(
+      id: base.id,
+      title: base.title,
+      subTitle: base.subTitle,
+      clientName: base.clientName,
+      campaignType: base.campaignType,
+      dateLabel: base.dateLabel,
+      budget: base.budget,
+      sharePercent: base.sharePercent,
+      progressPercent: base.progressPercent,
+      dueInDays: base.dueInDays,
+      dueLabel: base.dueLabel,
+      rating: base.rating,
+      profitLabel: base.profitLabel,
+      vatLabel: base.vatLabel,
+      totalCostLabel: base.totalCostLabel,
+      totalEarningsLabel: base.totalEarningsLabel,
+      baseBudget: base.baseBudget,
+      vatPercent: base.vatPercent,
+      vatAmount: base.vatAmount,
+      netPayableBudget: base.netPayableBudget,
+      contentAssets: base.contentAssets,
+      brandAssets: base.brandAssets,
+      needToSendSample: base.needToSendSample,
+      sampleGuidelinesConfirmed: base.sampleGuidelinesConfirmed,
+      dosText: base.dosText,
+      dontsText: base.dontsText,
+      milestones: milestones,
+    );
+  }
+
+  int? _intFrom(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
+
+  JobItem _mapInfluencerJobToJobItem(Map<String, dynamic> json) {
+    final campaignId =
+        json['id']?.toString() ?? json['assignmentId']?.toString();
+    final campaignName = (json['campaignName'] as String?)?.trim();
+    final campaignTypeRaw = json['campaignType']?.toString();
+    final brandName = (json['brandName'] as String?)?.trim();
+    final client = json['client'] as Map<String, dynamic>?;
+    final clientName = client?['brandName']?.toString().trim();
+
+    final offeredAmount = _numToDouble(json['offeredAmount']);
+    final totalAmount = _numToDouble(json['totalAmount']);
+    final budget = offeredAmount > 0 ? offeredAmount : totalAmount;
+
+    final createdAt = json['createdAt']?.toString();
+    final deadline = json['deadline']?.toString();
+    final status = json['status']?.toString();
+
+    return JobItem(
+      id: campaignId,
+      title: campaignName?.isNotEmpty == true
+          ? campaignName!
+          : 'Untitled Campaign',
+      subTitle: _campaignTypeLabel(campaignTypeRaw),
+      clientName: clientName?.isNotEmpty == true
+          ? clientName!
+          : (brandName?.isNotEmpty == true ? brandName! : '—'),
+      campaignType: _parseCampaignType(campaignTypeRaw),
+      dateLabel: _formatDateLabel(deadline ?? createdAt),
+      budget: budget,
+      sharePercent: 0,
+      dueLabel: _buildDueLabel(deadline),
+      progressPercent: _progressFromInfluencerStatus(status),
+    );
+  }
+
+  // -------- INFLUENCER ACTIONS --------
+
+  Future<void> acceptInfluencerOffer(JobItem job) async {
+    final jobId = job.id;
+    if (jobId == null || jobId.isEmpty) return;
+
+    final result = await ApiErrorHandler.call(
+      () => _apiClient.dio.post('/campaign/influencer/job/$jobId/accept'),
+    );
+
+    if (result.isSuccess) {
+      newOffers.removeWhere((e) => e.id == jobId);
+      await fetchPendingPayments(reset: true);
+      await fetchInfluencerCounts();
+    }
+  }
+
+  Future<void> declineInfluencerOffer(JobItem job) async {
+    final jobId = job.id;
+    if (jobId == null || jobId.isEmpty) return;
+
+    final result = await ApiErrorHandler.call(
+      () => _apiClient.dio.post('/campaign/influencer/job/$jobId/decline'),
+    );
+
+    if (result.isSuccess) {
+      newOffers.removeWhere((e) => e.id == jobId);
+      await fetchDeclinedJobs(reset: true);
+      await fetchInfluencerCounts();
+    }
+  }
+
+  Future<void> startInfluencerJob(JobItem job) async {
+    final jobId = job.id;
+    if (jobId == null || jobId.isEmpty) return;
+
+    final result = await ApiErrorHandler.call(
+      () => _apiClient.dio.post('/campaign/influencer/job/$jobId/start'),
+    );
+
+    if (result.isSuccess) {
+      await fetchActiveJobs(reset: true);
+      await fetchInfluencerCounts();
+    }
+  }
+
+  Future<void> completeInfluencerJob(JobItem job) async {
+    final jobId = job.id;
+    if (jobId == null || jobId.isEmpty) return;
+
+    final result = await ApiErrorHandler.call(
+      () => _apiClient.dio.post(
+        '/campaign/influencer/job/$jobId/complete',
+        data: {'completionNotes': 'Job completed'},
+      ),
+    );
+
+    if (result.isSuccess) {
+      await fetchCompletedJobs(reset: true);
+      await fetchInfluencerCounts();
+    }
   }
 
   JobItem _mapCampaignToJob(
