@@ -12,6 +12,7 @@ import 'package:influencer_app/core/services/analytics_service.dart';
 import 'package:influencer_app/core/services/report_service.dart';
 import 'package:influencer_app/core/services/earnings_service.dart';
 import 'package:influencer_app/modules/brand/services/brand_dashboard_service.dart';
+import 'package:influencer_app/modules/brand/explore/services/explore_service.dart';
 import 'package:influencer_app/modules/shared/notification/notifications_controller.dart';
 
 class InitialBinding extends Bindings {
@@ -54,6 +55,7 @@ class InitialBinding extends Bindings {
     Get.put(UploadService(Get.find<ApiClient>()), permanent: true);
     Get.put(BrandOnboardingService(Get.find<ApiClient>()), permanent: true);
     Get.put(BrandDashboardService(Get.find<ApiClient>()), permanent: true);
+    Get.put(ExploreService(Get.find<ApiClient>()), permanent: true);
     Get.put(AnalyticsService(Get.find<ApiClient>()), permanent: true);
     Get.put(ReportService(Get.find<ApiClient>()), permanent: true);
     Get.put(EarningsService(Get.find<ApiClient>()), permanent: true);

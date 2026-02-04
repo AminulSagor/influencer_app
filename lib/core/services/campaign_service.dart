@@ -220,6 +220,26 @@ class CampaignService {
         .toList(growable: false);
   }
 
+  Future<void> sendNegotiationCounterOffer({
+    required String campaignId,
+    required int proposedBaseBudget,
+  }) async {
+    await _api.dio.post(
+      '/campaign/negotiation/counter-offer',
+      data: {
+        'campaignId': campaignId,
+        'proposedBaseBudget': proposedBaseBudget,
+      },
+    );
+  }
+
+  Future<void> acceptNegotiation({required String campaignId}) async {
+    await _api.dio.post(
+      '/campaign/negotiation/accept',
+      data: {'campaignId': campaignId},
+    );
+  }
+
   static String _campaignTypeToApi(CampaignType type) {
     switch (type) {
       case CampaignType.paidAd:

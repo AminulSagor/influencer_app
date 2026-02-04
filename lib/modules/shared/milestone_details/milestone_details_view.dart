@@ -33,6 +33,10 @@ class MilestoneDetailsView extends GetView<MilestoneDetailsController> {
 
               if (selected == null) return const SizedBox.shrink();
 
+              final hasSubmissionId = (selected.serverId ?? '')
+                  .trim()
+                  .isNotEmpty;
+
               // hide if already completed (optional)
               if (selected.status.value == BrandSubmissionStatus.completed) {
                 return const SizedBox.shrink();
@@ -40,13 +44,17 @@ class MilestoneDetailsView extends GetView<MilestoneDetailsController> {
 
               return _AcceptDeclineSection(
                 isPaidAd: isPaidAd,
-                onAccept: controller.approveSelectedBrandSubmission,
-                onDecline: () => _showDeclineSheet(
-                  context: context,
-                  onSubmit: (reason) {
-                    controller.declineSelectedBrandSubmission(reason);
-                  },
-                ),
+                onAccept: hasSubmissionId
+                    ? controller.approveSelectedBrandSubmission
+                    : null,
+                onDecline: hasSubmissionId
+                    ? () => _showDeclineSheet(
+                        context: context,
+                        onSubmit: (reason) {
+                          controller.declineSelectedBrandSubmission(reason);
+                        },
+                      )
+                    : null,
               );
             })
           : null,
@@ -217,12 +225,53 @@ class MilestoneDetailsView extends GetView<MilestoneDetailsController> {
                 padding: EdgeInsets.symmetric(horizontal: 16.w),
                 child: Obx(() {
                   final isPaidAd = job.campaignType == CampaignType.paidAd;
+                  final brandSubmissions = controller.brandSubmissions;
+                  if (controller.isBrandSubmissionsLoading.value) {
+                    return Column(
+                      children: const [
+                        _BrandSubmissionSkeleton(),
+                        SizedBox(height: 12),
+                        _BrandSubmissionSkeleton(),
+                      ],
+                    );
+                  }
+                  if (brandSubmissions.isEmpty) {
+                    return Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.symmetric(vertical: 24.h),
+                      decoration: BoxDecoration(
+                        color: AppPalette.defaultFill,
+                        borderRadius: BorderRadius.circular(12.r),
+                        border: Border.all(
+                          color: AppPalette.border1,
+                          width: kBorderWidth0_5,
+                        ),
+                      ),
+                      child: Text(
+                        controller.trOr(
+                          'brand_campaign_details_no_submissions',
+                          'No submissions yet',
+                        ),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w600,
+                          color: AppPalette.greyText,
+                        ),
+                      ),
+                    );
+                  }
                   return Column(
                     children: [
-                      for (final s in controller.brandSubmissions) ...[
+                      for (final s in brandSubmissions) ...[
                         BrandSubmissionCard(
                           submission: s,
                           isPaidAd: isPaidAd,
+                          isSelected: controller.isBrandSubmissionSelected(
+                            s.index,
+                          ),
+                          onSelect: () =>
+                              controller.selectBrandSubmission(s.index),
                           onToggle: isPaidAd
                               ? () => controller.toggleBrandSubmissionExpanded(
                                   s.index,
@@ -313,8 +362,8 @@ class MilestoneDetailsView extends GetView<MilestoneDetailsController> {
 
 class _AcceptDeclineSection extends StatelessWidget {
   final bool isPaidAd;
-  final VoidCallback onAccept;
-  final VoidCallback onDecline;
+  final VoidCallback? onAccept;
+  final VoidCallback? onDecline;
 
   const _AcceptDeclineSection({
     required this.isPaidAd,
@@ -735,6 +784,65 @@ class _PaymentProgressSection extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _BrandSubmissionSkeleton extends StatelessWidget {
+  const _BrandSubmissionSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(kBorderRadius.r),
+        border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _skeletonLine(width: 160.w, height: 12.h),
+          SizedBox(height: 12.h),
+          _skeletonLine(width: double.infinity, height: 10.h),
+          SizedBox(height: 6.h),
+          _skeletonLine(width: 220.w, height: 10.h),
+          SizedBox(height: 16.h),
+          _skeletonLine(width: 120.w, height: 10.h),
+          SizedBox(height: 10.h),
+          Row(
+            children: [
+              _skeletonBox(size: 56.w),
+              SizedBox(width: 12.w),
+              Expanded(child: _skeletonLine(height: 10.h)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  static Widget _skeletonLine({double? width, double height = 10}) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: AppPalette.border1.withOpacity(0.6),
+        borderRadius: BorderRadius.circular(6.r),
+      ),
+    );
+  }
+
+  static Widget _skeletonBox({required double size}) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: AppPalette.border1.withOpacity(0.6),
+        borderRadius: BorderRadius.circular(10.r),
+      ),
     );
   }
 }

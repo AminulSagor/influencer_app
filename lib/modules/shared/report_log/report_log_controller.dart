@@ -20,12 +20,26 @@ class ReportLogController extends GetxController {
   var selectedFilter = Rxn<ReportStatus>(); // null = All
   var isLoading = false.obs;
 
-  final List<ReportModel> _allReports = [];
+  final RxList<ReportModel> _allReports = <ReportModel>[].obs;
+  final RxList<ReportModel> displayedReports = <ReportModel>[].obs;
+  late final Worker _filterWorker;
 
   @override
   void onInit() {
     super.onInit();
+    _filterWorker = everAll([
+      _allReports,
+      searchQuery,
+      selectedFilter,
+    ], (_) => _applyFilters());
     loadReports();
+  }
+
+  @override
+  void onClose() {
+    _filterWorker.dispose();
+    searchController.dispose();
+    super.onClose();
   }
 
   /// Only show these tabs in UI
@@ -45,24 +59,27 @@ class ReportLogController extends GetxController {
   int get resolvedCount =>
       _allReports.where((e) => e.status == ReportStatus.resolved).length;
 
-  // Filtered List
-  List<ReportModel> get displayedReports {
-    return _allReports.where((report) {
-      final matchesSearch = report.campaignName.toLowerCase().contains(
-        searchQuery.value.toLowerCase(),
-      );
+  void _applyFilters() {
+    final filtered = _allReports
+        .where((report) {
+          final matchesSearch = report.campaignName.toLowerCase().contains(
+            searchQuery.value.toLowerCase(),
+          );
 
-      // If brand, never allow flagged filter (even if some old state exists)
-      final activeFilter =
-          (isBrand && selectedFilter.value == ReportStatus.flagged)
-          ? null
-          : selectedFilter.value;
+          // If brand, never allow flagged filter (even if some old state exists)
+          final activeFilter =
+              (isBrand && selectedFilter.value == ReportStatus.flagged)
+              ? null
+              : selectedFilter.value;
 
-      final matchesFilter =
-          activeFilter == null || report.status == activeFilter;
+          final matchesFilter =
+              activeFilter == null || report.status == activeFilter;
 
-      return matchesSearch && matchesFilter;
-    }).toList();
+          return matchesSearch && matchesFilter;
+        })
+        .toList(growable: false);
+
+    displayedReports.assignAll(filtered);
   }
 
   void onSearchChanged(String val) {
@@ -111,9 +128,7 @@ class ReportLogController extends GetxController {
       final items = result.data!.items
           .map(_mapApiToReport)
           .toList(growable: false);
-      _allReports
-        ..clear()
-        ..addAll(items);
+      _allReports.assignAll(items);
     } else {
       _allReports.clear();
     }

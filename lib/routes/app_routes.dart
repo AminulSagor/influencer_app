@@ -62,6 +62,10 @@ class AppRoutes {
   static const createCampaignStep5 = '/create-campaign-step-5';
   static const createCampaignStep6 = '/create-campaign-step-6';
 
+  static const verificationProgress = '/verification-progress';
+  static const verificationInProgress = '/verification-in-progress';
+  static const verificationNotify = '/verification-notify';
+
   static const brandCampaignDetails = '/brand-campaign-details';
   static const brandMilestoneDetails = '/brand-milestone-details';
 

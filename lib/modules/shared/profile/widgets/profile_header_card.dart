@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -5,6 +7,7 @@ import 'package:get/get.dart';
 import '../../../../core/theme/app_palette.dart';
 import '../../../../core/utils/constants.dart';
 import '../../../../core/widgets/custom_button.dart';
+import '../../../../routes/app_routes.dart';
 import '../profile_controller.dart';
 
 class ProfileHeaderCard extends StatelessWidget {
@@ -47,15 +50,31 @@ class ProfileHeaderCard extends StatelessWidget {
                     CircleAvatar(
                       radius: 38.r,
                       backgroundColor: Colors.white,
-                      child: Icon(
-                        Icons.person,
-                        size: 32.sp,
-                        color: Colors.grey[400],
-                      ),
+                      backgroundImage: controller.profileImageFile.value != null
+                          ? FileImage(controller.profileImageFile.value!)
+                          : (controller.profileImageUrl.value.isNotEmpty
+                                    ? NetworkImage(
+                                        controller.profileImageUrl.value,
+                                      )
+                                    : null)
+                                as ImageProvider?,
+                      child:
+                          controller.profileImageFile.value == null &&
+                              controller.profileImageUrl.value.isEmpty
+                          ? Icon(
+                              Icons.person,
+                              size: 32.sp,
+                              color: Colors.grey[400],
+                            )
+                          : null,
                     ),
                     SizedBox(height: 6.h),
 
-                    _StatusChip(label: controller.profileStatusLabel),
+                    _StatusChip(
+                      label: controller.profileStatusLabel,
+                      onTap:
+                          () {}, //Get.toNamed(AppRoutes.verificationProgress),
+                    ),
                     SizedBox(height: 10.h),
 
                     Row(
@@ -175,23 +194,31 @@ class ProfileHeaderCard extends StatelessWidget {
 
 class _StatusChip extends StatelessWidget {
   final String label;
+  final VoidCallback? onTap;
 
-  const _StatusChip({required this.label});
+  const _StatusChip({required this.label, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 4.h),
-      decoration: BoxDecoration(
-        color: AppPalette.thirdColor,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(6.r),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: AppPalette.black,
-          fontSize: 8.sp,
-          fontWeight: FontWeight.w400,
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 4.h),
+          decoration: BoxDecoration(
+            color: AppPalette.thirdColor,
+            borderRadius: BorderRadius.circular(6.r),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: AppPalette.black,
+              fontSize: 8.sp,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
         ),
       ),
     );

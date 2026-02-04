@@ -2,14 +2,16 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'models/explore_item.dart';
-import 'services/explore_mock_api.dart';
+import 'services/explore_service.dart';
 
 class ExploreController extends GetxController {
-  final _api = ExploreMockApi();
+  final ExploreService _api = Get.find<ExploreService>();
 
   final selectedType = ExploreType.influencer.obs;
 
   final isLoading = false.obs;
+  final isLoadingMore = false.obs;
+  final hasMore = true.obs;
   final items = <ExploreItem>[].obs;
 
   final totalResults = 0.obs;
@@ -19,26 +21,29 @@ class ExploreController extends GetxController {
   final searchController = TextEditingController();
   final searchQuery = ''.obs;
 
+  final ScrollController scrollController = ScrollController();
+
   Timer? _debounce;
 
   @override
   void onInit() {
     super.onInit();
-    loadPage(1);
+    scrollController.addListener(_onScroll);
+    loadFirstPage();
   }
 
   @override
   void onClose() {
     _debounce?.cancel();
     searchController.dispose();
+    scrollController.dispose();
     super.onClose();
   }
 
   void changeType(ExploreType type) {
     if (selectedType.value == type) return;
     selectedType.value = type;
-    currentPage.value = 1;
-    loadPage(1);
+    loadFirstPage();
   }
 
   void onSearchChanged(String v) {
@@ -46,12 +51,46 @@ class ExploreController extends GetxController {
 
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 350), () {
-      currentPage.value = 1;
-      loadPage(1);
+      loadFirstPage();
     });
   }
 
-  Future<void> loadPage(int page) async {
+  void _onScroll() {
+    if (!scrollController.hasClients) return;
+    final max = scrollController.position.maxScrollExtent;
+    final pos = scrollController.position.pixels;
+    if (max <= 0) return;
+    if (pos >= max - 120) {
+      loadMore();
+    }
+  }
+
+  Future<void> loadFirstPage() async {
+    if (isLoading.value) return;
+    hasMore.value = true;
+    currentPage.value = 1;
+    items.clear();
+    totalResults.value = 0;
+    totalPages.value = 1;
+    await _fetchPage(1, resetOnError: true);
+  }
+
+  Future<void> prevPage() async {
+    if (isLoading.value) return;
+    final targetPage = currentPage.value - 1;
+    if (targetPage < 1) return;
+    await _fetchPage(targetPage);
+  }
+
+  Future<void> nextPage() async {
+    if (isLoading.value) return;
+    final targetPage = currentPage.value + 1;
+    if (targetPage > totalPages.value) return;
+    await _fetchPage(targetPage);
+  }
+
+  Future<void> _fetchPage(int page, {bool resetOnError = false}) async {
+    if (isLoading.value) return;
     isLoading.value = true;
     try {
       final res = await _api.fetch(
@@ -59,29 +98,51 @@ class ExploreController extends GetxController {
         query: searchQuery.value,
         page: page,
       );
+      final normalizedTotal = res.totalPages < 1 ? 1 : res.totalPages;
+      final normalizedPage = page < 1
+          ? 1
+          : (page > normalizedTotal ? normalizedTotal : page);
       items.assignAll(res.items);
       totalResults.value = res.totalResults;
-      totalPages.value = res.totalPages;
-      currentPage.value = page.clamp(1, res.totalPages);
+      totalPages.value = normalizedTotal;
+      currentPage.value = normalizedPage;
+      hasMore.value = normalizedPage < normalizedTotal;
     } catch (_) {
-      items.clear();
-      totalResults.value = 0;
-      totalPages.value = 1;
-      currentPage.value = 1;
+      if (resetOnError) {
+        items.clear();
+        totalResults.value = 0;
+        totalPages.value = 1;
+        currentPage.value = 1;
+        hasMore.value = false;
+      }
     } finally {
       isLoading.value = false;
     }
   }
 
-  void nextPage() {
-    if (isLoading.value) return;
-    if (currentPage.value >= totalPages.value) return;
-    loadPage(currentPage.value + 1);
-  }
+  Future<void> loadMore() async {
+    if (isLoadingMore.value || isLoading.value) return;
+    if (!hasMore.value) return;
 
-  void prevPage() {
-    if (isLoading.value) return;
-    if (currentPage.value <= 1) return;
-    loadPage(currentPage.value - 1);
+    isLoadingMore.value = true;
+    final nextPage = currentPage.value + 1;
+    try {
+      final res = await _api.fetch(
+        type: selectedType.value,
+        query: searchQuery.value,
+        page: nextPage,
+      );
+      if (res.items.isNotEmpty) {
+        items.addAll(res.items);
+      }
+      totalResults.value = res.totalResults;
+      totalPages.value = res.totalPages;
+      currentPage.value = nextPage.clamp(1, res.totalPages);
+      hasMore.value = currentPage.value < res.totalPages;
+    } catch (_) {
+      hasMore.value = false;
+    } finally {
+      isLoadingMore.value = false;
+    }
   }
 }

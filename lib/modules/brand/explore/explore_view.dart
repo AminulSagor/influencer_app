@@ -4,13 +4,10 @@ import 'package:get/get.dart';
 import 'package:influencer_app/core/utils/constants.dart';
 import 'package:influencer_app/core/widgets/custom_text_form_field.dart';
 import '../../../core/theme/app_palette.dart';
-import '../../../core/widgets/app_pagination_row.dart';
 import '../../../core/widgets/app_pill_tabs.dart';
 import 'explore_controller.dart';
 import 'models/explore_item.dart';
 import 'widgets/explore_list_item.dart';
-import 'widgets/explore_pagination.dart';
-import 'widgets/explore_tabs.dart';
 
 class ExploreView extends GetView<ExploreController> {
   const ExploreView({super.key});
@@ -107,7 +104,10 @@ class ExploreView extends GetView<ExploreController> {
                     // List inside a rounded card like screenshot
                     Expanded(
                       child: Obx(() {
-                        if (controller.isLoading.value) {
+                        final isInitialLoading =
+                            controller.isLoading.value &&
+                            controller.items.isEmpty;
+                        if (isInitialLoading) {
                           return const Center(
                             child: CircularProgressIndicator(),
                           );
@@ -125,34 +125,44 @@ class ExploreView extends GetView<ExploreController> {
                           );
                         }
 
+                        final items = controller.items;
+                        final showLoader = controller.isLoadingMore.value;
+                        final totalCount = items.length + (showLoader ? 1 : 0);
+
                         return ListView.separated(
+                          controller: controller.scrollController,
                           physics: const BouncingScrollPhysics(),
-                          itemCount: controller.items.length,
+                          itemCount: totalCount,
                           separatorBuilder: (_, __) => 10.h.verticalSpace,
                           itemBuilder: (_, index) {
-                            final item = controller.items[index];
+                            if (showLoader && index == items.length) {
+                              return _bottomLoader(isLoading: true);
+                            }
+                            final item = items[index];
                             return ExploreListItem(item: item);
                           },
                         );
                       }),
-                    ),
-
-                    12.h.verticalSpace,
-                    AppPaginationRow(
-                      page: controller.currentPage,
-                      totalPages: controller.totalPages,
-                      isLoading: controller.isLoading,
-                      onPrev: controller.prevPage,
-                      onNext: controller.nextPage,
-                      pageLabel: 'explore_page'.tr,
-                      ofLabel: 'explore_of'.tr,
-                      nextLabel: 'explore_next'.tr,
                     ),
                   ],
                 ),
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _bottomLoader({required bool isLoading}) {
+    if (!isLoading) return const SizedBox.shrink();
+    return Padding(
+      padding: EdgeInsets.only(top: 12.h, bottom: 4.h),
+      child: Center(
+        child: SizedBox(
+          width: 20.w,
+          height: 20.w,
+          child: const CircularProgressIndicator(strokeWidth: 2),
         ),
       ),
     );

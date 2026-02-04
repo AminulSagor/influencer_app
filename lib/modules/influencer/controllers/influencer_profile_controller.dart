@@ -261,11 +261,16 @@ class InfluencerProfileController extends GetxController {
   Future<bool> updateSocialLinks(List<InfluencerSocialLink> links) async {
     isUpdating.value = true;
 
-    final result = await _profileService.updateSocialLinks(links);
+    final address = profile.value?.primaryAddress;
 
-    if (result.isSuccess && result.data != null) {
-      profile.value = result.data;
-    }
+    final result = await _profileService.updateSocialLinks(
+      links,
+      thana: address?.thana,
+      zilla: address?.zilla,
+      fullAddress: address?.fullAddress,
+    );
+
+    if (result.isSuccess && result.data != null) profile.value = result.data;
 
     isUpdating.value = false;
     return result.isSuccess;
@@ -275,11 +280,16 @@ class InfluencerProfileController extends GetxController {
   Future<bool> updateWebsite(String? website) async {
     isUpdating.value = true;
 
-    final result = await _profileService.updateWebsite(website);
+    final address = profile.value?.primaryAddress;
 
-    if (result.isSuccess && result.data != null) {
-      profile.value = result.data;
-    }
+    final result = await _profileService.updateWebsite(
+      website,
+      thana: address?.thana,
+      zilla: address?.zilla,
+      fullAddress: address?.fullAddress,
+    );
+
+    if (result.isSuccess && result.data != null) profile.value = result.data;
 
     isUpdating.value = false;
     return result.isSuccess;
@@ -293,15 +303,18 @@ class InfluencerProfileController extends GetxController {
   }) async {
     isUpdating.value = true;
 
+    final address = profile.value?.primaryAddress;
+
     final result = await _profileService.submitNidVerification(
       nidNumber: nidNumber,
       nidFrontImg: nidFrontImg,
       nidBackImg: nidBackImg,
+      thana: address?.thana,
+      zilla: address?.zilla,
+      fullAddress: address?.fullAddress,
     );
 
-    if (result.isSuccess && result.data != null) {
-      profile.value = result.data;
-    }
+    if (result.isSuccess && result.data != null) profile.value = result.data;
 
     isUpdating.value = false;
     return result.isSuccess;

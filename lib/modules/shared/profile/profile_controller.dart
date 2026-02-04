@@ -1,14 +1,19 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path/path.dart' as path;
 import 'package:influencer_app/core/services/account_type_service.dart';
 import 'package:influencer_app/core/services/api_client.dart';
+import 'package:influencer_app/core/services/token_service.dart';
 import 'package:influencer_app/core/theme/app_palette.dart';
+import 'package:influencer_app/modules/ad_agency/services/upload_service.dart';
 import 'package:influencer_app/modules/influencer/models/influencer_profile_model.dart';
 import 'package:influencer_app/modules/influencer/services/influencer_profile_service.dart';
+import 'package:influencer_app/modules/brand/services/brand_onboarding_services.dart';
 
 import 'models/brand_asset.dart';
 import 'models/user_location.dart';
@@ -96,9 +101,9 @@ class ProfileController extends GetxController {
 
   final profileStatus = ProfileStatus.verified.obs;
 
-  final profileName = 'Grow Big'.obs;
+  final profileName = ''.obs;
   final profileLocation = 'Dhaka, Bangladesh'.obs;
-  final brandName = 'StyleCo.'.obs;
+  final brandName = ''.obs;
   final profileRating = 4.5.obs;
   final profileRatingCount = 32.obs;
 
@@ -107,7 +112,16 @@ class ProfileController extends GetxController {
 
   // Text values
   final bioText = ''.obs;
-  final serviceFeeText = '15'.obs; // "15%" when filled
+  final serviceFeeText = ''.obs; // "15%" when filled
+
+  // Profile image
+  final Rx<File?> profileImageFile = Rx<File?>(null);
+  final profileImageUrl = ''.obs;
+
+  // From token / profile
+  final userEmail = ''.obs;
+  final userPhone = ''.obs;
+  final brandWebsite = ''.obs;
 
   // ---------------------------------------------------------------------------
   // EXPANSION STATE
@@ -131,6 +145,12 @@ class ProfileController extends GetxController {
   final verificationInprogressItems = <VerificationInprogressItem>[].obs;
   final payoutMethods = <PayoutMethod>[].obs;
 
+  // Editable field buffers
+  final RxMap<String, String> profileFieldValues = <String, String>{}.obs;
+  final RxMap<String, String> socialHandleEdits = <String, String>{}.obs;
+
+  final isSavingProfile = false.obs;
+
   /// Loading state for profile fetch
   final isLoadingProfile = false.obs;
 
@@ -140,13 +160,15 @@ class ProfileController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    profileName.value = accountTypeService.isBrand ? 'Salman Khan' : 'Grow Big';
+    brandWebsiteController.addListener(_syncBrandWebsiteFromController);
     _fetchProfileData();
   }
 
   /// Fetches profile data from API based on account type
   Future<void> _fetchProfileData() async {
     isLoadingProfile.value = true;
+
+    await _loadUserFromToken();
 
     if (accountTypeService.isInfluencer) {
       await _fetchInfluencerProfile();
@@ -192,6 +214,8 @@ class ProfileController extends GetxController {
         ? ProfileStatus.verified
         : ProfileStatus.unverified;
     bioText.value = profile.bio ?? '';
+    profileImageUrl.value = profile.displayImage ?? '';
+    profileImageFile.value = null;
     profileRating.value = profile.averageRating;
     profileRatingCount.value = profile.totalReviews;
 
@@ -225,6 +249,7 @@ class ProfileController extends GetxController {
     } else {
       socialAccounts.clear();
     }
+    _syncSocialHandleDefaults();
 
     // Niches
     if (profile.niches != null && profile.niches!.isNotEmpty) {
@@ -335,7 +360,7 @@ class ProfileController extends GetxController {
       ProfileField(
         label: 'Email Address',
         hintText: 'Enter Email Address',
-        value: '', // Email is on User model, not profile
+        value: userEmail.value, // Email is on User model / token
         isRequired: true,
       ),
       ProfileField(
@@ -345,6 +370,59 @@ class ProfileController extends GetxController {
         isRequired: false,
       ),
     ]);
+    _syncProfileFieldDefaults();
+  }
+
+  void _syncProfileFieldDefaults() {
+    final updated = <String, String>{};
+    for (final field in profileFields) {
+      updated[field.label] = field.value;
+    }
+    profileFieldValues.assignAll(updated);
+  }
+
+  void _syncSocialHandleDefaults() {
+    final updated = <String, String>{};
+    for (final social in socialAccounts) {
+      updated[social.platform.toLowerCase()] = social.handle;
+    }
+    socialHandleEdits.assignAll(updated);
+  }
+
+  UserLocation? _primaryLocationForOnboarding() {
+    if (locations.isNotEmpty) return locations.first;
+    final addr = influencerProfile.value?.primaryAddress;
+    if (addr == null) return null;
+    return UserLocation(
+      name: addr.addressName ?? '',
+      thana: addr.thana ?? '',
+      zilla: addr.zilla ?? '',
+      fullAddress: addr.fullAddress ?? '',
+    );
+  }
+
+  bool _hasValidOnboardingAddress(UserLocation? location) {
+    if (location == null) return false;
+    return location.thana.trim().isNotEmpty &&
+        location.zilla.trim().isNotEmpty &&
+        location.fullAddress.trim().isNotEmpty;
+  }
+
+  String profileFieldValue(String label, String fallback) {
+    return profileFieldValues[label] ?? fallback;
+  }
+
+  void setProfileFieldValue(String label, String value) {
+    profileFieldValues[label] = value;
+  }
+
+  String socialHandleValue(String platform, String fallback) {
+    final key = platform.toLowerCase();
+    return socialHandleEdits[key] ?? fallback;
+  }
+
+  void setSocialHandle(String platform, String value) {
+    socialHandleEdits[platform.toLowerCase()] = value;
   }
 
   /// Get NID verification state from profile
@@ -386,6 +464,95 @@ class ProfileController extends GetxController {
     return text[0].toUpperCase() + text.substring(1).toLowerCase();
   }
 
+  void _syncBrandWebsiteFromController() {
+    brandWebsite.value = brandWebsiteController.text.trim();
+  }
+
+  void _setBrandWebsite(String? website) {
+    final value = website?.trim() ?? '';
+    brandWebsite.value = value;
+    if (brandWebsiteController.text.trim() != value) {
+      brandWebsiteController.text = value;
+    }
+  }
+
+  Future<void> _loadUserFromToken() async {
+    final token = await TokenService().getAccessToken();
+    if (token == null || token.trim().isEmpty) return;
+
+    final payload = _decodeJwtPayload(token);
+    if (payload == null) return;
+
+    final email = _stringOrNull(payload['email']);
+    final phone = _stringOrNull(payload['phone']);
+
+    if (email != null) userEmail.value = email;
+    if (phone != null) userPhone.value = phone;
+  }
+
+  Map<String, dynamic>? _decodeJwtPayload(String token) {
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) return null;
+      final normalized = base64Url.normalize(parts[1]);
+      final payloadBytes = base64Url.decode(normalized);
+      final payloadString = utf8.decode(payloadBytes);
+      final payloadJson = jsonDecode(payloadString);
+      if (payloadJson is Map<String, dynamic>) return payloadJson;
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _applyContactFromJson(Map<String, dynamic> json) {
+    final email =
+        _stringOrNull(json['email']) ??
+        _stringOrNull((json['user'] as Map?)?['email']);
+    final phone =
+        _stringOrNull(json['phone']) ??
+        _stringOrNull((json['user'] as Map?)?['phone']);
+
+    if (email != null) userEmail.value = email;
+    if (phone != null) userPhone.value = phone;
+  }
+
+  String? _stringOrNull(dynamic value) {
+    if (value == null) return null;
+    final text = value.toString().trim();
+    return text.isEmpty ? null : text;
+  }
+
+  BrandHandlePlatform? _brandPlatformFromString(dynamic platform) {
+    final value = platform?.toString().toLowerCase().trim();
+    switch (value) {
+      case 'facebook':
+        return BrandHandlePlatform.facebook;
+      case 'instagram':
+        return BrandHandlePlatform.instagram;
+      case 'tiktok':
+        return BrandHandlePlatform.tiktok;
+      case 'youtube':
+        return BrandHandlePlatform.youtube;
+      case 'x':
+      case 'twitter':
+        return BrandHandlePlatform.x;
+      case 'linkedin':
+        return BrandHandlePlatform.linkedin;
+      case 'website':
+        return BrandHandlePlatform.website;
+      default:
+        return null;
+    }
+  }
+
+  void _replaceBrandAssets(List<BrandAssetItem> items) {
+    for (final item in brandAssets) {
+      item.controller.dispose();
+    }
+    brandAssets.assignAll(items);
+  }
+
   /// Fetches agency profile from API and populates UI fields
   Future<void> _fetchAgencyProfile() async {
     final apiClient = Get.find<ApiClient>();
@@ -424,6 +591,7 @@ class ProfileController extends GetxController {
 
   /// Populates controller fields from Agency profile JSON
   void _populateFromAgencyJson(Map<String, dynamic> json) {
+    _applyContactFromJson(json);
     final isComplete = json['isOnboardingComplete'] as bool? ?? false;
 
     // Basic info
@@ -438,6 +606,8 @@ class ProfileController extends GetxController {
         : ProfileStatus.unverified;
     bioText.value = json['agencyBio'] as String? ?? '';
     serviceFeeText.value = json['serviceFee']?.toString() ?? '';
+    profileImageUrl.value = _stringOrNull(json['logo']) ?? '';
+    profileImageFile.value = null;
 
     // Rating
     final rating = json['averageRating'];
@@ -480,6 +650,7 @@ class ProfileController extends GetxController {
     } else {
       socialAccounts.clear();
     }
+    _syncSocialHandleDefaults();
 
     // Niches
     final niches_ = json['niches'] as List?;
@@ -634,6 +805,13 @@ class ProfileController extends GetxController {
         value: lastName,
         isRequired: true,
       ),
+      if (userEmail.value.isNotEmpty)
+        ProfileField(
+          label: 'Email Address',
+          hintText: 'Enter Email Address',
+          value: userEmail.value,
+          isRequired: true,
+        ),
       ProfileField(
         label: 'Website',
         hintText: 'Enter Website URL',
@@ -641,10 +819,12 @@ class ProfileController extends GetxController {
         isRequired: false,
       ),
     ]);
+    _syncProfileFieldDefaults();
   }
 
   /// Populates controller fields from Brand profile JSON
   void _populateFromBrandJson(Map<String, dynamic> json) {
+    _applyContactFromJson(json);
     // Brand uses similar structure - reuse agency logic with slight modifications
     final isComplete = json['isOnboardingComplete'] as bool? ?? false;
 
@@ -659,6 +839,9 @@ class ProfileController extends GetxController {
         ? ProfileStatus.verified
         : ProfileStatus.unverified;
     bioText.value = json['bio'] as String? ?? '';
+    _setBrandWebsite(_stringOrNull(json['website']));
+    profileImageUrl.value = _stringOrNull(json['logo']) ?? '';
+    profileImageFile.value = null;
 
     // Rating
     final rating = json['averageRating'];
@@ -692,14 +875,39 @@ class ProfileController extends GetxController {
             iconPath: _getIconPathForPlatform(
               linkMap['platform'] as String? ?? '',
             ),
-            handle: linkMap['url'] as String? ?? '',
+            handle:
+                (linkMap['profileUrl'] ?? linkMap['url'] ?? linkMap['link'])
+                    ?.toString() ??
+                '',
             isVerified: linkMap['status'] == 'verified',
           );
         }).toList(),
       );
+
+      final brandItems = <BrandAssetItem>[];
+      for (final link in socialLinks) {
+        if (link is! Map<String, dynamic>) continue;
+        final platform = _brandPlatformFromString(link['platform']);
+        if (platform == null || platform == BrandHandlePlatform.website) {
+          continue;
+        }
+        final linkValue =
+            (link['profileUrl'] ?? link['url'] ?? link['link'])?.toString() ??
+            '';
+        if (linkValue.trim().isEmpty) continue;
+        brandItems.add(
+          BrandAssetItem(
+            platform: platform,
+            controller: TextEditingController(text: linkValue),
+          ),
+        );
+      }
+      _replaceBrandAssets(brandItems);
     } else {
       socialAccounts.clear();
+      _replaceBrandAssets(const []);
     }
+    _syncSocialHandleDefaults();
 
     // Locations/Addresses
     final addresses =
@@ -824,6 +1032,13 @@ class ProfileController extends GetxController {
         value: lastName,
         isRequired: true,
       ),
+      if (userEmail.value.isNotEmpty)
+        ProfileField(
+          label: 'Email Address',
+          hintText: 'Enter Email Address',
+          value: userEmail.value,
+          isRequired: true,
+        ),
       ProfileField(
         label: 'Website',
         hintText: 'Enter Website URL',
@@ -831,6 +1046,7 @@ class ProfileController extends GetxController {
         isRequired: false,
       ),
     ]);
+    _syncProfileFieldDefaults();
   }
 
   /// Helper to get verification state from JSON verification object
@@ -866,6 +1082,7 @@ class ProfileController extends GetxController {
     bKashHolderNameController.dispose();
     bKashAccountTypeController.dispose();
 
+    brandWebsiteController.removeListener(_syncBrandWebsiteFromController);
     brandWebsiteController.dispose();
     brandNewLinkController.dispose();
     for (final item in brandAssets) {
@@ -945,6 +1162,96 @@ class ProfileController extends GetxController {
       debugPrint("Failed to pick image: $e");
       // Get.snackbar("Error", "Failed to pick image: $e");
       return null;
+    }
+  }
+
+  String _getContentType(String extension) {
+    switch (extension.toLowerCase()) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'pdf':
+        return 'application/pdf';
+      default:
+        return 'image/jpeg';
+    }
+  }
+
+  Future<String> _uploadFile({
+    required File file,
+    required String module,
+  }) async {
+    final apiClient = Get.find<ApiClient>();
+    final uploadService = UploadService(apiClient);
+    final fileName = path.basename(file.path);
+    final extension = path.extension(fileName).replaceFirst('.', '');
+    final normalizedExtension = extension.isEmpty
+        ? 'jpg'
+        : extension.toLowerCase();
+    final contentType = _getContentType(normalizedExtension);
+
+    final signedUrl = await uploadService.createSignedUrl(
+      fileName: fileName,
+      fileType: contentType,
+      module: module,
+    );
+
+    await uploadService.uploadFileToSignedUrl(
+      uploadUrl: signedUrl.uploadUrl,
+      file: file,
+      contentType: contentType,
+    );
+
+    return signedUrl.fileUrl;
+  }
+
+  Future<void> changeProfilePhoto() async {
+    final picked = await pickImage();
+    if (picked == null) return;
+    profileImageFile.value = picked;
+
+    try {
+      final module = accountTypeService.isInfluencer
+          ? 'influencer-profile'
+          : accountTypeService.isAdAgency
+          ? 'agency-profile'
+          : 'brand-profile';
+      final url = await _uploadFile(file: picked, module: module);
+      profileImageUrl.value = url;
+
+      if (accountTypeService.isInfluencer) {
+        final apiClient = Get.find<ApiClient>();
+        final service = InfluencerProfileService(apiClient);
+        await service.updateBasicInfo(profileImage: url, bio: bioText.value);
+      } else if (accountTypeService.isAdAgency) {
+        final apiClient = Get.find<ApiClient>();
+        await apiClient.dio.patch(
+          '/agency/profile/basic-info',
+          data: {'logo': url},
+        );
+      } else if (accountTypeService.isBrand) {
+        final apiClient = Get.find<ApiClient>();
+        await apiClient.dio.patch('/client/profile', data: {'logo': url});
+      }
+    } catch (e) {
+      debugPrint('Failed to update profile photo: $e');
+    }
+  }
+
+  Future<void> removeProfilePhoto() async {
+    profileImageFile.value = null;
+    profileImageUrl.value = '';
+
+    try {
+      if (accountTypeService.isInfluencer) {
+        final apiClient = Get.find<ApiClient>();
+        final service = InfluencerProfileService(apiClient);
+        await service.removeProfileImage();
+      }
+    } catch (e) {
+      debugPrint('Failed to remove profile photo: $e');
     }
   }
 
@@ -1038,6 +1345,8 @@ class ProfileController extends GetxController {
     profileCompletion.value = 0.35;
     bioText.value = '';
     serviceFeeText.value = '';
+    profileImageUrl.value = '';
+    profileImageFile.value = null;
 
     socialAccounts.assignAll(const [
       SocialAccount(
@@ -1099,13 +1408,13 @@ class ProfileController extends GetxController {
       ProfileField(
         label: 'Email Address',
         hintText: 'Enter Email Address',
-        value: '',
+        value: userEmail.value,
         isRequired: true,
       ),
       ProfileField(
         label: 'Phone Number',
         hintText: 'Enter Phone Number',
-        value: '',
+        value: userPhone.value,
         isRequired: true,
       ),
       ProfileField(
@@ -1115,6 +1424,7 @@ class ProfileController extends GetxController {
         isRequired: false,
       ),
     ]);
+    _syncProfileFieldDefaults();
 
     verificationInprogressItems.assignAll(const [
       VerificationInprogressItem(
@@ -1214,6 +1524,8 @@ class ProfileController extends GetxController {
     bioText.value =
         'I\'m a lifestyle & fashion influencer helping brands grow with authentic content across multiple social platforms.';
     serviceFeeText.value = '15%';
+    profileImageUrl.value = '';
+    profileImageFile.value = null;
 
     socialAccounts.assignAll(const [
       SocialAccount(
@@ -1287,6 +1599,7 @@ class ProfileController extends GetxController {
         isRequired: false,
       ),
     ]);
+    _syncProfileFieldDefaults();
 
     verificationInprogressItems.assignAll(const [
       VerificationInprogressItem(
@@ -1613,6 +1926,223 @@ class ProfileController extends GetxController {
 
   // Placeholder: save verification methods changes
   Future<void> onSaveVerificationMethods() async {
-    debugPrint('Save verification methods tapped');
+    if (isSavingProfile.value) return;
+    isSavingProfile.value = true;
+
+    try {
+      if (accountTypeService.isInfluencer) {
+        final apiClient = Get.find<ApiClient>();
+        final service = InfluencerProfileService(apiClient);
+
+        await service.updateBasicInfo(bio: bioText.value);
+
+        if (skills.isNotEmpty) {
+          await service.updateSkills(skills.toList());
+        }
+
+        if (socialAccounts.isNotEmpty) {
+          final existing = influencerProfile.value?.socialLinks ?? [];
+          final updatedLinks = existing.isNotEmpty
+              ? existing
+                    .map(
+                      (link) => InfluencerSocialLink(
+                        platform: link.platform,
+                        url:
+                            socialHandleEdits[link.platform.toLowerCase()] ??
+                            link.url,
+                        status: link.status,
+                      ),
+                    )
+                    .toList()
+              : socialAccounts
+                    .map(
+                      (social) => InfluencerSocialLink(
+                        platform: social.platform.toLowerCase(),
+                        url:
+                            socialHandleEdits[social.platform.toLowerCase()] ??
+                            social.handle,
+                      ),
+                    )
+                    .toList();
+
+          final address = _primaryLocationForOnboarding();
+          if (!_hasValidOnboardingAddress(address)) {
+            Get.snackbar(
+              'error'.tr,
+              'locations_required_error'.tr,
+              snackPosition: SnackPosition.BOTTOM,
+            );
+            return;
+          }
+          await service.updateSocialLinks(
+            updatedLinks,
+            thana: address?.thana,
+            zilla: address?.zilla,
+            fullAddress: address?.fullAddress,
+          );
+        }
+
+        final address = _primaryLocationForOnboarding();
+        if (!_hasValidOnboardingAddress(address)) {
+          Get.snackbar(
+            'error'.tr,
+            'locations_required_error'.tr,
+            snackPosition: SnackPosition.BOTTOM,
+          );
+          return;
+        }
+        final nidNumber = nidNumberController.text.trim();
+        if (nidNumber.isNotEmpty &&
+            nidFrontPic.value != null &&
+            nidBackPic.value != null) {
+          final frontUrl = await _uploadFile(
+            file: nidFrontPic.value!,
+            module: 'influencer-kyc',
+          );
+          final backUrl = await _uploadFile(
+            file: nidBackPic.value!,
+            module: 'influencer-kyc',
+          );
+          await service.submitNidVerification(
+            nidNumber: nidNumber,
+            nidFrontImg: frontUrl,
+            nidBackImg: backUrl,
+            thana: address?.thana,
+            zilla: address?.zilla,
+            fullAddress: address?.fullAddress,
+          );
+        }
+      } else if (accountTypeService.isBrand) {
+        final apiClient = Get.find<ApiClient>();
+        final brandService = BrandOnboardingService(apiClient);
+
+        final brandNameValue =
+            profileFieldValues['Company Name'] ?? brandName.value;
+        final firstNameValue = profileFieldValues['First Name'] ?? '';
+        final lastNameValue = profileFieldValues['Last Name'] ?? '';
+
+        if (brandNameValue.isNotEmpty ||
+            firstNameValue.isNotEmpty ||
+            lastNameValue.isNotEmpty) {
+          await brandService.updateBasicInfo(
+            brandName: brandNameValue,
+            firstName: firstNameValue,
+            lastName: lastNameValue,
+          );
+        }
+
+        final nidNumber = nidNumberController.text.trim();
+        if (nidNumber.isNotEmpty &&
+            nidFrontPic.value != null &&
+            nidBackPic.value != null) {
+          final frontUrl = await _uploadFile(
+            file: nidFrontPic.value!,
+            module: 'brand-kyc',
+          );
+          final backUrl = await _uploadFile(
+            file: nidBackPic.value!,
+            module: 'brand-kyc',
+          );
+          await brandService.updateNid(
+            nidNumber: nidNumber,
+            nidFrontImg: frontUrl,
+            nidBackImg: backUrl,
+          );
+        }
+
+        final tradeNumber = tradeNumberController.text.trim();
+        if (tradeNumber.isNotEmpty && tradeLicensePic.value != null) {
+          final tradeUrl = await _uploadFile(
+            file: tradeLicensePic.value!,
+            module: 'brand-kyc',
+          );
+          await brandService.updateTradeLicense(
+            tradeLicenseNumber: tradeNumber,
+            tradeLicenseImg: tradeUrl,
+          );
+        }
+      } else if (accountTypeService.isAdAgency) {
+        final apiClient = Get.find<ApiClient>();
+
+        final agencyNameValue =
+            profileFieldValues['Agency Name'] ?? profileName.value;
+        final firstNameValue = profileFieldValues['First Name'] ?? '';
+        final lastNameValue = profileFieldValues['Last Name'] ?? '';
+
+        if (agencyNameValue.isNotEmpty ||
+            firstNameValue.isNotEmpty ||
+            lastNameValue.isNotEmpty) {
+          await apiClient.dio.patch(
+            '/agency/profile/basic-info',
+            data: {
+              'agencyName': agencyNameValue,
+              'firstName': firstNameValue,
+              'lastName': lastNameValue,
+            },
+          );
+        }
+
+        final nidNumber = nidNumberController.text.trim();
+        if (nidNumber.isNotEmpty &&
+            nidFrontPic.value != null &&
+            nidBackPic.value != null) {
+          final frontUrl = await _uploadFile(
+            file: nidFrontPic.value!,
+            module: 'agency-kyc',
+          );
+          final backUrl = await _uploadFile(
+            file: nidBackPic.value!,
+            module: 'agency-kyc',
+          );
+          await apiClient.dio.patch(
+            '/agency/profile/nid',
+            data: {
+              'nidNumber': nidNumber,
+              'nidFrontImg': frontUrl,
+              'nidBackImg': backUrl,
+            },
+          );
+        }
+
+        final tradeNumber = tradeNumberController.text.trim();
+        if (tradeNumber.isNotEmpty && tradeLicensePic.value != null) {
+          final tradeUrl = await _uploadFile(
+            file: tradeLicensePic.value!,
+            module: 'agency-kyc',
+          );
+          await apiClient.dio.patch(
+            '/agency/profile/trade-license',
+            data: {
+              'tradeLicenseNumber': tradeNumber,
+              'tradeLicenseImg': tradeUrl,
+            },
+          );
+        }
+
+        final tinNumber = tinNumberController.text.trim();
+        if (tinNumber.isNotEmpty && tinCertificatePic.value != null) {
+          final tinUrl = await _uploadFile(
+            file: tinCertificatePic.value!,
+            module: 'agency-kyc',
+          );
+          await apiClient.dio.patch(
+            '/agency/profile/tin',
+            data: {'tinNumber': tinNumber, 'tinImage': tinUrl},
+          );
+        }
+
+        final binNumber = binNumberController.text.trim();
+        if (binNumber.isNotEmpty) {
+          await apiClient.dio.patch(
+            '/agency/profile/bin',
+            data: {'binNumber': binNumber},
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Save update failed: $e');
+    } finally {
+      isSavingProfile.value = false;
+    }
   }
 }

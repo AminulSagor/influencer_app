@@ -64,22 +64,23 @@ class VerificationSection extends StatelessWidget {
           40.h.verticalSpace,
           CustomTextFormField(
             title: 'Your TIN Number',
-            controller: controller.nidNumberController,
+            controller: controller.tinNumberController,
           ),
           12.h.verticalSpace,
           Obx(() {
             return _ImagePickerContainer(
               title: 'Upload TIN Certificate',
               onTap: () async {
-                controller.nidBackPic.value = await controller.pickImage();
+                controller.tinCertificatePic.value = await controller
+                    .pickImage();
               },
-              image: controller.nidBackPic.value,
+              image: controller.tinCertificatePic.value,
             );
           }),
           40.h.verticalSpace,
           CustomTextFormField(
             title: 'Your BIN Number',
-            controller: controller.nidNumberController,
+            controller: controller.binNumberController,
           ),
         ],
       ),

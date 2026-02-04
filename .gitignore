@@ -32,6 +32,9 @@ migrate_working_dir/
 .pub/
 /build/
 /coverage/
+/lib/modules/shared/verification_progress/
+/figma_reference/
+/BrandGuru.postman_collection.json
 
 # Symbolication related
 app.*.symbols

@@ -89,6 +89,7 @@ class ExploreMockApi {
             Icons.play_circle_fill_rounded, // youtube-like
             Icons.music_note_rounded, // tiktok-like
           ],
+          imageUrl: null,
         );
       });
     }
@@ -108,6 +109,7 @@ class ExploreMockApi {
           Icons.camera_alt_rounded,
           Icons.public_rounded,
         ],
+        imageUrl: null,
       );
     });
   }

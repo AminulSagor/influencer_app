@@ -82,6 +82,8 @@ class MilestoneDetailsController extends GetxController {
   final RxList<SubmissionUiModel> submissions = <SubmissionUiModel>[].obs;
   final RxList<BrandSubmissionUiModel> brandSubmissions =
       <BrandSubmissionUiModel>[].obs;
+  final RxBool isBrandSubmissionsLoading = false.obs;
+  final RxnInt selectedBrandSubmissionIndex = RxnInt();
 
   // bottom checkboxes
   final RxBool confirmOwnership = false.obs;
@@ -125,102 +127,7 @@ class MilestoneDetailsController extends GetxController {
     final isPaidAd = job.campaignType == CampaignType.paidAd;
 
     if (isBrand) {
-      if (isPaidAd) {
-        brandSubmissions.assignAll([
-          BrandSubmissionUiModel(
-            index: 1,
-            description: 'Description of the proof will be visible here',
-            platformTitleKey: 'brand_submission_platform_1',
-            platformLink: 'facebook.com/hania/live',
-            avgPercent: 65.4,
-            metrics: [
-              BrandSubmissionMetric(
-                labelKey: 'brand_metric_reach',
-                leftValue: '200k',
-                rightValue: '300k',
-                progress: 200 / 300,
-                targetKey: 'brand_submission_target_hit_75',
-              ),
-            ],
-            expanded: true,
-          ),
-          BrandSubmissionUiModel(
-            index: 2,
-            description: 'Description of the proof will be visible here',
-            platformTitleKey: 'brand_submission_platform_1',
-            platformLink: 'facebook.com/hania/live',
-            avgPercent: 65.4,
-            metrics: [
-              BrandSubmissionMetric(
-                labelKey: 'brand_metric_reach',
-                leftValue: '200k',
-                rightValue: '300k',
-                progress: 200 / 300,
-                targetKey: 'brand_submission_target_hit_75',
-              ),
-            ],
-            expanded: false,
-          ),
-          BrandSubmissionUiModel(
-            index: 3,
-            description: 'Description of the proof will be visible here',
-            platformTitleKey: 'brand_submission_platform_1',
-            platformLink: 'facebook.com/hania/live',
-            avgPercent: 65.4,
-            metrics: [
-              BrandSubmissionMetric(
-                labelKey: 'brand_metric_reach',
-                leftValue: '200k',
-                rightValue: '300k',
-                progress: 200 / 300,
-                targetKey: 'brand_submission_target_hit_75',
-              ),
-            ],
-            expanded: false,
-          ),
-        ]);
-      } else {
-        brandSubmissions.assignAll([
-          BrandSubmissionUiModel(
-            index: 1,
-            description: 'Description of the proof will be visible here',
-            platformTitleKey: 'brand_submission_platform_1',
-            platformLink: 'facebook.com/hania/live',
-            avgPercent: 65.4,
-            metrics: [
-              BrandSubmissionMetric(
-                labelKey: 'brand_metric_reach',
-                leftValue: '200k',
-                rightValue: '300k',
-                progress: 200 / 300,
-                targetKey: 'brand_submission_target_hit_75',
-              ),
-              BrandSubmissionMetric(
-                labelKey: 'brand_metric_likes',
-                leftValue: '50K',
-                rightValue: '50K',
-                progress: 1,
-                targetKey: 'brand_submission_target_hit_75',
-              ),
-              BrandSubmissionMetric(
-                labelKey: 'brand_metric_views',
-                leftValue: '250K',
-                rightValue: '250K',
-                progress: 1,
-                targetKey: 'brand_submission_target_hit_75',
-              ),
-              BrandSubmissionMetric(
-                labelKey: 'brand_metric_comments',
-                leftValue: '3K',
-                rightValue: '3K',
-                progress: 1,
-                targetKey: 'brand_submission_target_hit_75',
-              ),
-            ],
-            expanded: true,
-          ),
-        ]);
-      }
+      _loadBrandMilestoneDetails(isPaidAd: isPaidAd);
     }
 
     _syncLocalStatusFromModel();
@@ -286,6 +193,11 @@ class MilestoneDetailsController extends GetxController {
     reportAgainAt.value = DateTime.now().add(const Duration(days: 1));
   }
 
+  String trOr(String key, String fallback) {
+    final value = key.tr;
+    return value == key ? fallback : value;
+  }
+
   // ---------- helpers ----------
 
   void _syncLocalStatusFromModel() {
@@ -313,6 +225,328 @@ class MilestoneDetailsController extends GetxController {
     if (_accountTypeService.isInfluencer) {
       _loadInfluencerMilestoneDetails();
     }
+  }
+
+  Future<void> _loadBrandMilestoneDetails({required bool isPaidAd}) async {
+    isBrandSubmissionsLoading.value = true;
+    brandSubmissions.clear();
+    selectedBrandSubmissionIndex.value = null;
+    final milestoneId = milestone.id?.trim();
+    try {
+      if (milestoneId == null || milestoneId.isEmpty) {
+        brandSubmissions.clear();
+        selectedBrandSubmissionIndex.value = null;
+        return;
+      }
+
+      final milestoneDetails = await _fetchMilestoneDetails(milestoneId);
+      if (milestoneDetails != null) {
+        milestone = milestone.copyWith(
+          id: milestoneDetails['id']?.toString() ?? milestone.id,
+          title:
+              milestoneDetails['contentTitle']?.toString() ?? milestone.title,
+          platform:
+              milestoneDetails['platform']?.toString() ?? milestone.platform,
+          deliverable:
+              milestoneDetails['contentQuantity']?.toString() ??
+              milestone.deliverable,
+          dayIndex:
+              _intFrom(milestoneDetails['deliveryDays']) ?? milestone.dayIndex,
+          amountLabel:
+              _amountLabelFrom(milestoneDetails['amount']) ??
+              milestone.amountLabel,
+          targets: PromotionTarget(
+            reach: _intFrom(milestoneDetails['expectedReach']),
+            views: _intFrom(milestoneDetails['expectedViews']),
+            likes: _intFrom(milestoneDetails['expectedLikes']),
+            comments: _intFrom(milestoneDetails['expectedComments']),
+          ),
+          status: _parseMilestoneStatus(milestoneDetails['status']?.toString()),
+        );
+        milestoneStatus.value = _localStatusFromMilestone(milestone.status);
+      }
+
+      final submissionIds = await _fetchSubmissionIdsForMilestone(
+        campaignId: job.id?.trim(),
+        milestoneId: milestoneId,
+        fallback: milestoneDetails,
+      );
+
+      if (submissionIds.isEmpty) {
+        brandSubmissions.clear();
+        selectedBrandSubmissionIndex.value = null;
+        return;
+      }
+
+      final List<BrandSubmissionUiModel> next = [];
+      int idx = 1;
+      for (final id in submissionIds) {
+        final details = await _fetchClientSubmissionDetails(id);
+        if (details == null) continue;
+
+        next.add(
+          _mapBrandSubmission(
+            index: idx,
+            submissionId: id,
+            json: details,
+            expanded: isPaidAd ? idx == 1 : true,
+          ),
+        );
+        idx++;
+      }
+
+      if (next.isEmpty) {
+        brandSubmissions.clear();
+        selectedBrandSubmissionIndex.value = null;
+      } else {
+        brandSubmissions.assignAll(next);
+        selectedBrandSubmissionIndex.value = next.first.index;
+      }
+    } finally {
+      isBrandSubmissionsLoading.value = false;
+    }
+  }
+
+  Future<Map<String, dynamic>?> _fetchMilestoneDetails(
+    String milestoneId,
+  ) async {
+    final result = await ApiErrorHandler.call(() async {
+      final res = await _apiClient.dio.get('/campaign/milestone/$milestoneId');
+      return res.data;
+    }, showError: false);
+
+    if (!result.isSuccess || result.data == null) return null;
+    final data = result.data as Map<String, dynamic>;
+    final raw = data['data'] is Map<String, dynamic>
+        ? data['data'] as Map<String, dynamic>
+        : data;
+
+    if (raw['id'] != null) return raw;
+    if (raw['milestone'] is Map<String, dynamic>) {
+      return raw['milestone'] as Map<String, dynamic>;
+    }
+
+    return null;
+  }
+
+  Future<List<String>> _fetchSubmissionIdsForMilestone({
+    required String? campaignId,
+    required String milestoneId,
+    Map<String, dynamic>? fallback,
+  }) async {
+    final ids = <String>[];
+
+    if (fallback != null && fallback['submissions'] is List) {
+      for (final s in (fallback['submissions'] as List)) {
+        if (s is Map && (s['id']?.toString() ?? '').trim().isNotEmpty) {
+          ids.add(s['id'].toString());
+        }
+      }
+    }
+
+    if (ids.isNotEmpty || campaignId == null || campaignId.isEmpty) {
+      return ids;
+    }
+
+    final result = await ApiErrorHandler.call(() async {
+      final res = await _apiClient.dio.get('/campaign/milestones/$campaignId');
+      return res.data;
+    }, showError: false);
+
+    if (!result.isSuccess || result.data == null) return ids;
+    final data = result.data as Map<String, dynamic>;
+    final list = data['data'] as List? ?? const [];
+
+    for (final m in list) {
+      if (m is! Map) continue;
+      if ((m['id']?.toString() ?? '') != milestoneId) continue;
+      final subs = m['submissions'] as List? ?? const [];
+      for (final s in subs) {
+        if (s is Map && (s['id']?.toString() ?? '').trim().isNotEmpty) {
+          ids.add(s['id'].toString());
+        }
+      }
+      break;
+    }
+
+    if (ids.isNotEmpty) return ids;
+
+    final fallbackIds = await _fetchClientSubmissionIdsByMilestone(
+      milestoneId: milestoneId,
+    );
+    ids.addAll(fallbackIds);
+
+    return ids;
+  }
+
+  Future<List<String>> _fetchClientSubmissionIdsByMilestone({
+    required String milestoneId,
+  }) async {
+    final result = await ApiErrorHandler.call(() async {
+      final res = await _apiClient.dio.get('/campaign/client/submissions');
+      return res.data;
+    }, showError: false);
+
+    if (!result.isSuccess || result.data == null) return const [];
+    final data = result.data as Map<String, dynamic>;
+    final list = data['data'] as List? ?? const [];
+
+    final ids = <String>[];
+    for (final item in list) {
+      if (item is! Map) continue;
+      final id = item['id']?.toString() ?? '';
+      if (id.trim().isEmpty) continue;
+
+      // Try direct milestoneId if present
+      final mid = item['milestoneId']?.toString() ?? '';
+      if (mid == milestoneId) {
+        ids.add(id);
+        continue;
+      }
+
+      // Fallback by title match (if milestoneId missing in list response)
+      final title = item['milestoneTitle']?.toString().trim() ?? '';
+      if (title.isNotEmpty && title == milestone.title) {
+        ids.add(id);
+      }
+    }
+
+    return ids;
+  }
+
+  Future<Map<String, dynamic>?> _fetchClientSubmissionDetails(
+    String submissionId,
+  ) async {
+    final result = await ApiErrorHandler.call(() async {
+      final res = await _apiClient.dio.get(
+        '/campaign/client/submissions/$submissionId',
+      );
+      return res.data;
+    }, showError: false);
+
+    if (!result.isSuccess || result.data == null) return null;
+    final data = result.data as Map<String, dynamic>;
+    final raw = data['data'] is Map<String, dynamic>
+        ? data['data'] as Map<String, dynamic>
+        : data;
+    return raw is Map<String, dynamic> ? raw : null;
+  }
+
+  BrandSubmissionUiModel _mapBrandSubmission({
+    required int index,
+    required String submissionId,
+    required Map<String, dynamic> json,
+    required bool expanded,
+  }) {
+    final description = _stringOrDash(json['description']);
+
+    final liveLinks = json['liveLinks'] as List? ?? const [];
+    final platformLink = liveLinks.isNotEmpty
+        ? _stringOrDash(liveLinks.first)
+        : _stringOrDash(json['platformLink']);
+
+    final platformRaw = milestone.platform ?? json['platform'];
+    final platformTitleKey = _titleCase(_stringOrDash(platformRaw));
+
+    final metrics = <BrandSubmissionMetric>[];
+    final targets = milestone.targets ?? const PromotionTarget();
+
+    void addMetric({
+      required String labelKey,
+      required int achieved,
+      required int expected,
+    }) {
+      if (expected <= 0) return;
+      final progress = expected == 0 ? 0 : achieved / expected;
+      final pct = (progress * 100).clamp(0, 999).toStringAsFixed(0);
+      metrics.add(
+        BrandSubmissionMetric(
+          labelKey: labelKey,
+          leftValue: _compactNumber(achieved),
+          rightValue: _compactNumber(expected),
+          progress: progress.clamp(0.0, 1.0).toDouble(),
+          targetKey: 'Target $pct%',
+        ),
+      );
+    }
+
+    addMetric(
+      labelKey: 'brand_metric_reach',
+      achieved: _intFrom(json['achievedReach']) ?? 0,
+      expected: targets.reach ?? 0,
+    );
+    addMetric(
+      labelKey: 'brand_metric_views',
+      achieved: _intFrom(json['achievedViews']) ?? 0,
+      expected: targets.views ?? 0,
+    );
+    addMetric(
+      labelKey: 'brand_metric_likes',
+      achieved: _intFrom(json['achievedLikes']) ?? 0,
+      expected: targets.likes ?? 0,
+    );
+    addMetric(
+      labelKey: 'brand_metric_comments',
+      achieved: _intFrom(json['achievedComments']) ?? 0,
+      expected: targets.comments ?? 0,
+    );
+
+    double avgPercent = 0;
+    if (metrics.isNotEmpty) {
+      final sum = metrics.fold<double>(0, (s, m) => s + m.progress);
+      avgPercent = (sum / metrics.length) * 100;
+    }
+
+    return BrandSubmissionUiModel(
+      index: index,
+      serverId: submissionId,
+      description: description,
+      platformTitleKey: platformTitleKey,
+      platformLink: platformLink,
+      avgPercent: avgPercent,
+      metrics: metrics,
+      initialStatus: _mapBrandSubmissionStatus(json['status']?.toString()),
+      expanded: expanded,
+    );
+  }
+
+  BrandSubmissionStatus _mapBrandSubmissionStatus(String? raw) {
+    final v = (raw ?? '').toLowerCase();
+    if (v.contains('declined') || v.contains('rejected')) {
+      return BrandSubmissionStatus.declined;
+    }
+    if (v.contains('approved') || v.contains('completed')) {
+      return BrandSubmissionStatus.completed;
+    }
+    return BrandSubmissionStatus.inReview;
+  }
+
+  String _stringOrDash(dynamic value) {
+    final s = value?.toString().trim() ?? '';
+    return s.isEmpty ? '—' : s;
+  }
+
+  String _titleCase(String input) {
+    final t = input.trim();
+    if (t.isEmpty || t == '—') return t;
+    return t
+        .split(RegExp(r'\s+'))
+        .map(
+          (w) => w.isEmpty
+              ? w
+              : '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}',
+        )
+        .join(' ');
+  }
+
+  String _compactNumber(int value) {
+    if (value >= 1000000) {
+      return '${(value / 1000000).toStringAsFixed(1)}M';
+    }
+    if (value >= 1000) {
+      return '${(value / 1000).toStringAsFixed(1)}K';
+    }
+    return value.toString();
   }
 
   int get declinedSubmissionCount => submissions
@@ -782,10 +1016,29 @@ class MilestoneDetailsController extends GetxController {
   }
 
   BrandSubmissionUiModel? get selectedBrandSubmission {
+    final selIndex = selectedBrandSubmissionIndex.value;
+    if (selIndex != null) {
+      for (final s in brandSubmissions) {
+        if (s.index == selIndex) return s;
+      }
+    }
     for (final s in brandSubmissions) {
       if (s.isExpanded.value) return s;
     }
     return brandSubmissions.isNotEmpty ? brandSubmissions.first : null;
+  }
+
+  bool isBrandSubmissionSelected(int index) {
+    return selectedBrandSubmissionIndex.value == index;
+  }
+
+  void selectBrandSubmission(int index) {
+    selectedBrandSubmissionIndex.value = index;
+    if (job.campaignType == CampaignType.paidAd) {
+      for (final s in brandSubmissions) {
+        s.isExpanded.value = s.index == index;
+      }
+    }
   }
 
   void toggleBrandSubmissionExpanded(int index) {
@@ -796,13 +1049,14 @@ class MilestoneDetailsController extends GetxController {
         // toggle selected; but collapse others always
         final next = !s.isExpanded.value;
         s.isExpanded.value = next;
+        if (next) selectedBrandSubmissionIndex.value = index;
       } else {
         s.isExpanded.value = false;
       }
     }
   }
 
-  void approveSelectedBrandSubmission() {
+  Future<void> approveSelectedBrandSubmission() async {
     final isPaidAd = job.campaignType == CampaignType.paidAd;
     final target = selectedBrandSubmission;
 
@@ -810,6 +1064,77 @@ class MilestoneDetailsController extends GetxController {
       Get.snackbar('No submission', 'Please expand a submission first.');
       return;
     }
+
+    await _approveBrandSubmission(target, isPaidAd);
+
+    // status updates happen after API success
+  }
+
+  Future<void> declineSelectedBrandSubmission(String reason) async {
+    final target = selectedBrandSubmission;
+
+    if (target == null) {
+      Get.snackbar('No submission', 'Please expand a submission first.');
+      return;
+    }
+
+    final r = reason.trim();
+    if (r.isEmpty) {
+      Get.snackbar('Required', 'Please write a reason.');
+      return;
+    }
+
+    await _declineBrandSubmission(target, r);
+  }
+
+  String? _submissionIdForIndex(int index) {
+    for (final s in milestone.submissions) {
+      if (s.index == index && (s.id ?? '').trim().isNotEmpty) {
+        return s.id;
+      }
+    }
+    return null;
+  }
+
+  Future<bool> _reviewClientSubmission({
+    required String submissionId,
+    required bool approve,
+    String? reason,
+  }) async {
+    final payload = approve
+        ? {'report': 'Approved'}
+        : {'action': 'decline', 'reason': reason ?? 'Declined by client.'};
+
+    final result = await ApiErrorHandler.call(() {
+      return _apiClient.dio.post(
+        '/campaign/client/submission/$submissionId/review',
+        data: payload,
+      );
+    });
+
+    return result.isSuccess;
+  }
+
+  Future<void> _approveBrandSubmission(
+    BrandSubmissionUiModel target,
+    bool isPaidAd,
+  ) async {
+    final submissionId = (target.serverId ?? '').trim().isNotEmpty
+        ? target.serverId!
+        : null;
+
+    if (submissionId == null) {
+      debugPrint('Approve skipped: submissionId is null/empty.');
+      Get.snackbar('Missing data', 'Submission id not found.');
+      return;
+    }
+
+    final ok = await _reviewClientSubmission(
+      submissionId: submissionId,
+      approve: true,
+    );
+
+    if (!ok) return;
 
     target.status.value = BrandSubmissionStatus.completed;
     target.declinedReason.value = null;
@@ -827,22 +1152,30 @@ class MilestoneDetailsController extends GetxController {
     if (allDone) milestoneStatus.value = MilestoneLocalStatus.completed;
   }
 
-  void declineSelectedBrandSubmission(String reason) {
-    final target = selectedBrandSubmission;
+  Future<void> _declineBrandSubmission(
+    BrandSubmissionUiModel target,
+    String reason,
+  ) async {
+    final submissionId = (target.serverId ?? '').trim().isNotEmpty
+        ? target.serverId!
+        : null;
 
-    if (target == null) {
-      Get.snackbar('No submission', 'Please expand a submission first.');
+    if (submissionId == null) {
+      debugPrint('Decline skipped: submissionId is null/empty.');
+      Get.snackbar('Missing data', 'Submission id not found.');
       return;
     }
 
-    final r = reason.trim();
-    if (r.isEmpty) {
-      Get.snackbar('Required', 'Please write a reason.');
-      return;
-    }
+    final ok = await _reviewClientSubmission(
+      submissionId: submissionId,
+      approve: false,
+      reason: reason,
+    );
+
+    if (!ok) return;
 
     target.status.value = BrandSubmissionStatus.declined;
-    target.declinedReason.value = r;
+    target.declinedReason.value = reason;
   }
 }
 

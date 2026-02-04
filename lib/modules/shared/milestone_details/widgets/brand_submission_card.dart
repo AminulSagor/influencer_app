@@ -24,6 +24,7 @@ enum BrandSubmissionStatus { inReview, completed, declined }
 
 class BrandSubmissionUiModel {
   final int index;
+  final String? serverId;
 
   final String description;
   final String platformTitleKey;
@@ -38,6 +39,7 @@ class BrandSubmissionUiModel {
 
   BrandSubmissionUiModel({
     required this.index,
+    this.serverId,
     required this.description,
     required this.platformTitleKey,
     required this.platformLink,
@@ -64,12 +66,16 @@ class BrandSubmissionCard extends StatelessWidget {
   final BrandSubmissionUiModel submission;
   final bool isPaidAd;
   final VoidCallback? onToggle;
+  final bool isSelected;
+  final VoidCallback? onSelect;
 
   const BrandSubmissionCard({
     super.key,
     required this.submission,
     required this.isPaidAd,
     this.onToggle,
+    this.isSelected = false,
+    this.onSelect,
   });
 
   @override
@@ -95,6 +101,8 @@ class BrandSubmissionCard extends StatelessWidget {
               submission: submission,
               isPaidAd: isPaidAd,
               onToggle: isPaidAd ? onToggle : null,
+              isSelected: isSelected,
+              onSelect: onSelect,
             ),
 
             if (expanded)
@@ -215,11 +223,15 @@ class _HeaderRow extends StatelessWidget {
   final BrandSubmissionUiModel submission;
   final bool isPaidAd;
   final VoidCallback? onToggle;
+  final bool isSelected;
+  final VoidCallback? onSelect;
 
   const _HeaderRow({
     required this.submission,
     required this.isPaidAd,
     this.onToggle,
+    this.isSelected = false,
+    this.onSelect,
   });
 
   @override
@@ -254,6 +266,25 @@ class _HeaderRow extends StatelessWidget {
         padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
         child: Row(
           children: [
+            if (isPaidAd) ...[
+              GestureDetector(
+                onTap: onSelect,
+                child: Container(
+                  width: 20.w,
+                  height: 20.w,
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? AppPalette.secondary
+                        : AppPalette.border1.withOpacity(0.6),
+                    borderRadius: BorderRadius.circular(6.r),
+                  ),
+                  child: isSelected
+                      ? Icon(Icons.check, size: 14.sp, color: Colors.white)
+                      : null,
+                ),
+              ),
+              SizedBox(width: 8.w),
+            ],
             Expanded(
               child: Text(
                 title,

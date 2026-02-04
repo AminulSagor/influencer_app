@@ -9,6 +9,7 @@ class ExploreItem {
   final String subtitle;
   final double rating; // 0..5
   final List<IconData> icons; // small social icons
+  final String? imageUrl;
 
   const ExploreItem({
     required this.id,
@@ -17,6 +18,7 @@ class ExploreItem {
     required this.subtitle,
     required this.rating,
     required this.icons,
+    this.imageUrl,
   });
 }
 

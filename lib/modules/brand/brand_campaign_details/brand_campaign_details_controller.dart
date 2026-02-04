@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:file_picker/file_picker.dart';
@@ -154,34 +155,23 @@ class BrandCampaignDetailsController extends GetxController {
   }
 
   void _showDebugSnackbar(dynamic args) {
-    if (args is Map) {
-      final totalQuotations =
-          (args['totalQuotationsReceived'] as num?)?.toInt() ??
-          (args['totalQuotations'] as num?)?.toInt() ??
-          (args['totalQuotation'] as num?)?.toInt() ??
-          (args['totalQuotationsReceivedCount'] as num?)?.toInt() ??
-          0;
-      final campaign = args['campaign'] ?? args['campaignData'];
-      final client = args['client'] ?? args['clientData'];
-      final bids = args['bids'] ?? args['bid'] ?? args['quotations'];
+    // Disable debug snackbar to avoid LateInitializationError with GetX overlay
+    // Uncomment for debugging purposes only after the widget tree is fully built
+    /*
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (args is Map) {
+        final totalQuotations =
+            (args['totalQuotationsReceived'] as num?)?.toInt() ??
+            (args['totalQuotation'] as num?)?.toInt() ??
+            0;
+        final hasCampaign = _isNonEmpty(args['campaign'] ?? args['campaignData']);
+        final hasClient = _isNonEmpty(args['client'] ?? args['clientData']);
+        final hasBids = _isNonEmpty(args['bids'] ?? args['bid'] ?? args['quotations']);
 
-      final hasCampaign = _isNonEmpty(campaign);
-      final hasClient = _isNonEmpty(client);
-      final hasBids = _isNonEmpty(bids);
-
-      ScaffoldMessenger.of(Get.context!).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Brand campaign details debug\ncampaign: $hasCampaign, client: $hasClient, bids: $hasBids, totalQuotationsReceived: $totalQuotations',
-          ),
-        ),
-      );
-    } else {
-      Get.snackbar(
-        'Brand campaign details debug',
-        'campaign: false, client: false, bids: false, totalQuotationsReceived: 0',
-      );
-    }
+        debugPrint('Brand campaign details debug: campaign=$hasCampaign, client=$hasClient, bids=$hasBids, totalQuotations=$totalQuotations');
+      }
+    });
+    */
   }
 
   bool _isNonEmpty(dynamic value) {
@@ -195,41 +185,6 @@ class BrandCampaignDetailsController extends GetxController {
   // -------------------------
   // Args helpers
   // -------------------------
-
-  void _ensureDummyMilestonesIfEmpty() {
-    if (milestones.isNotEmpty) return;
-
-    milestones.assignAll(const [
-      Milestone(
-        stepLabel: '1',
-        title: 'Initial Content Creation',
-        subtitle: '2 Instagram Posts + 3 Stories',
-        dayLabel: 'DAY 1',
-        status: MilestoneStatus.approved, // ✅ Completed style
-      ),
-      Milestone(
-        stepLabel: '2',
-        title: 'YouTube Video Upload',
-        subtitle: '1 Sponsored Video (60 Sec)',
-        dayLabel: 'DAY 2',
-        status: MilestoneStatus.paid, // ✅ Completed style
-      ),
-      Milestone(
-        stepLabel: '3',
-        title: 'TikTok Campaign',
-        subtitle: '1 Sponsored Video (60 Sec)',
-        dayLabel: 'DAY 3',
-        status: MilestoneStatus.inReview, // 🟠 In Review
-      ),
-      Milestone(
-        stepLabel: '4',
-        title: 'Campaign Wrap Up',
-        subtitle: 'Final Report + 2 Stories',
-        dayLabel: 'DAY 4',
-        status: MilestoneStatus.declined, // 🔴 Declined
-      ),
-    ]);
-  }
 
   void _recomputeMilestoneStatusLabel() {
     final list = milestones.toList(growable: false);
@@ -950,7 +905,6 @@ class BrandCampaignDetailsController extends GetxController {
       );
     }
 
-    _ensureDummyMilestonesIfEmpty();
     _recomputeMilestoneStatusLabel();
   }
 
@@ -974,7 +928,10 @@ class BrandCampaignDetailsController extends GetxController {
     }
   }
 
-  void onAcceptQuote() {
+  Future<void> onAcceptQuote() async {
+    final ok = await _acceptQuoteRequest();
+    if (!ok) return;
+
     if (isPaidAd) {
       setPaidAdTab(0);
       // _openConfirmBudgetDialog(); // new UI (your screenshots 3 & 4)
@@ -993,6 +950,93 @@ class BrandCampaignDetailsController extends GetxController {
   void removeBrandAsset(int index) {
     if (index < 0 || index >= brandAssets.length) return;
     brandAssets.removeAt(index);
+  }
+
+  Future<bool> _acceptQuoteRequest() async {
+    final campaignId = _extractCampaignId(arguments);
+    if (campaignId == null || campaignId.trim().isEmpty) {
+      Get.snackbar(
+        trOr('common_error', 'Error'),
+        trOr('brand_campaign_missing_id', 'Missing campaign id.'),
+      );
+      return false;
+    }
+
+    try {
+      isLoading.value = true;
+      await _campaignService.acceptNegotiation(campaignId: campaignId);
+      await _loadFromApiIfPossible();
+      Get.snackbar(
+        trOr('brand_campaign_details_accept_quote', 'Accept Quote'),
+        trOr('brand_campaign_details_accept_quote_msg', 'Quote accepted.'),
+      );
+      return true;
+    } catch (e) {
+      Get.snackbar(trOr('common_error', 'Error'), _errorMessage(e));
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<void> _submitRequote({
+    required int proposedBaseBudget,
+    required int vatAmountValue,
+    bool closeDialog = true,
+  }) async {
+    if (proposedBaseBudget <= 0) {
+      Get.snackbar(
+        trOr('common_error', 'Error'),
+        trOr('brand_campaign_requote_invalid', 'Please enter a valid budget.'),
+      );
+      return;
+    }
+
+    final campaignId = _extractCampaignId(arguments);
+    if (campaignId == null || campaignId.trim().isEmpty) {
+      Get.snackbar(
+        trOr('common_error', 'Error'),
+        trOr('brand_campaign_missing_id', 'Missing campaign id.'),
+      );
+      return;
+    }
+
+    try {
+      isLoading.value = true;
+      await _campaignService.sendNegotiationCounterOffer(
+        campaignId: campaignId,
+        proposedBaseBudget: proposedBaseBudget,
+      );
+
+      baseBudget.value = proposedBaseBudget;
+      vatAmount.value = vatAmountValue;
+
+      if (closeDialog) Get.back();
+
+      Get.snackbar(
+        trOr('brand_campaign_details_quote', 'Quote'),
+        trOr('brand_campaign_requote_sent', 'Requote request sent to admin.'),
+      );
+
+      await _loadFromApiIfPossible();
+    } catch (e) {
+      Get.snackbar(trOr('common_error', 'Error'), _errorMessage(e));
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  String _errorMessage(Object e) {
+    if (e is DioException) {
+      final data = e.response?.data;
+      if (data is Map && data['message'] != null) {
+        final msg = data['message'].toString().trim();
+        if (msg.isNotEmpty) return msg;
+      }
+      final msg = e.message?.trim();
+      if (msg != null && msg.isNotEmpty) return msg;
+    }
+    return e.toString();
   }
 
   List<String> _lines(String text) =>
@@ -1536,6 +1580,7 @@ class BrandCampaignDetailsController extends GetxController {
     return formatCurrencyByLocale(amount);
   }
 
+  //void _openPaidAdRequoteDialog() {}
   void _openPaidAdRequoteDialog() {
     const primary = Color(0xFF2F4F1F);
     const borderGreen = Color(0xFFBFD7A5);
@@ -1591,193 +1636,190 @@ class BrandCampaignDetailsController extends GetxController {
     recalc(startBudget);
 
     Get.dialog(
-      Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: EdgeInsets.symmetric(horizontal: 18.w),
-        child: Container(
-          padding: EdgeInsets.all(16.w),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(22.r),
-            border: Border.all(color: Colors.black12),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                trOr('brand_campaign_requote_title', 'Requote'),
-                style: TextStyle(
-                  fontSize: 15.5.sp,
-                  fontWeight: FontWeight.w900,
-                  color: primary.withOpacity(.75),
-                ),
-              ),
-              8.h.verticalSpace,
-              Text(
-                trOr(
-                  'brand_campaign_requote_subtitle',
-                  'Requote your campaign budget',
-                ),
-                style: TextStyle(
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.black,
-                ),
-              ),
-              12.h.verticalSpace,
-
-              TextField(
-                controller: budgetCtrl,
-                keyboardType: TextInputType.number,
-                textAlign: TextAlign.center,
-                onChanged: (v) => recalc(_parseAmount(v)),
-                decoration: InputDecoration(
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 16.w,
-                    vertical: 14.h,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14.r),
-                    borderSide: const BorderSide(color: borderGreen),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14.r),
-                    borderSide: const BorderSide(color: primary, width: 1.4),
+      Material(
+        type: MaterialType.transparency,
+        child: Center(
+          child: Container(
+            margin: EdgeInsets.symmetric(horizontal: 18.w),
+            padding: EdgeInsets.all(16.w),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(22.r),
+              border: Border.all(color: Colors.black12),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  trOr('brand_campaign_requote_title', 'Requote'),
+                  style: TextStyle(
+                    fontSize: 15.5.sp,
+                    fontWeight: FontWeight.w900,
+                    color: primary.withOpacity(.75),
                   ),
                 ),
-                style: TextStyle(
-                  fontSize: 18.sp,
-                  fontWeight: FontWeight.w900,
-                  color: primary.withOpacity(.75),
+                8.h.verticalSpace,
+                Text(
+                  trOr(
+                    'brand_campaign_requote_subtitle',
+                    'Requote your campaign budget',
+                  ),
+                  style: TextStyle(
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.black,
+                  ),
                 ),
-              ),
+                12.h.verticalSpace,
 
-              14.h.verticalSpace,
-              Text(
-                trOr('brand_campaign_requote_overview', 'New Requote Overview'),
-                style: TextStyle(
-                  fontSize: 14.5.sp,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.black,
-                ),
-              ),
-              10.h.verticalSpace,
-
-              // Box 1: base/vat/total
-              Obx(() {
-                return Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.all(14.w),
-                  decoration: BoxDecoration(
-                    color: softFill,
-                    borderRadius: BorderRadius.circular(16.r),
-                    border: Border.all(color: borderGreen),
-                  ),
-                  child: Column(
-                    children: [
-                      _kv(
-                        left: 'Base Campaign Budget',
-                        right: _fmt(budgetRx.value),
-                        color: primary,
-                      ),
-                      8.h.verticalSpace,
-                      _kv(
-                        left: 'VAT/Tax (15%)',
-                        right: _fmt(vatRx.value),
-                        color: primary,
-                      ),
-                      12.h.verticalSpace,
-                      Divider(color: Colors.black12, height: 1),
-                      12.h.verticalSpace,
-                      _kv(
-                        left: 'Total Campaign Cost',
-                        right: _fmt(totalRx.value),
-                        color: primary,
-                        strong: true,
-                      ),
-                    ],
-                  ),
-                );
-              }),
-
-              12.h.verticalSpace,
-
-              // Box 2: agency fee range + excl + usd
-              Obx(() {
-                return Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.all(14.w),
-                  decoration: BoxDecoration(
-                    color: softFill,
-                    borderRadius: BorderRadius.circular(16.r),
-                    border: Border.all(color: borderGreen),
-                  ),
-                  child: Column(
-                    children: [
-                      _rangeKv(
-                        left: 'Agency Fee (5 - 15%)',
-                        right:
-                            '${_fmt(minFeeRx.value)} – ${_fmt(maxFeeRx.value)}',
-                        color: primary,
-                      ),
-                      10.h.verticalSpace,
-                      _rangeKv(
-                        left: 'Campaign Budget Excluding Agency Fee',
-                        right:
-                            '${_fmt(minExclRx.value)} – ${_fmt(maxExclRx.value)}',
-                        color: primary,
-                      ),
-                      10.h.verticalSpace,
-                      _rangeKv(
-                        left: 'In Dollars (Based On Avg. 122.37 BDT/\$)',
-                        right:
-                            '\$${minUsdRx.value.toStringAsFixed(2)} – \$${maxUsdRx.value.toStringAsFixed(2)}',
-                        color: primary,
-                      ),
-                    ],
-                  ),
-                );
-              }),
-
-              16.h.verticalSpace,
-              SizedBox(
-                width: double.infinity,
-                height: 46.h,
-                child: ElevatedButton(
-                  onPressed: () {
-                    if (budgetRx.value <= 0) return;
-
-                    baseBudget.value = budgetRx.value;
-                    vatAmount.value = vatRx.value;
-
-                    Get.back();
-                    Get.snackbar(
-                      trOr('brand_campaign_details_quote', 'Quote'),
-                      trOr(
-                        'brand_campaign_requote_sent',
-                        'Requote request sent to admin.',
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primary.withOpacity(.65),
-                    shape: RoundedRectangleBorder(
+                TextField(
+                  controller: budgetCtrl,
+                  keyboardType: TextInputType.number,
+                  textAlign: TextAlign.center,
+                  onChanged: (v) => recalc(_parseAmount(v)),
+                  decoration: InputDecoration(
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 16.w,
+                      vertical: 14.h,
+                    ),
+                    enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14.r),
+                      borderSide: const BorderSide(color: borderGreen),
                     ),
-                    elevation: 0,
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14.r),
+                      borderSide: const BorderSide(color: primary, width: 1.4),
+                    ),
                   ),
-                  child: Text(
-                    trOr('brand_campaign_requote_submit', 'Requote To Admin'),
-                    style: TextStyle(
-                      fontSize: 13.5.sp,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
+                  style: TextStyle(
+                    fontSize: 18.sp,
+                    fontWeight: FontWeight.w900,
+                    color: primary.withOpacity(.75),
+                  ),
+                ),
+
+                14.h.verticalSpace,
+                Text(
+                  trOr(
+                    'brand_campaign_requote_overview',
+                    'New Requote Overview',
+                  ),
+                  style: TextStyle(
+                    fontSize: 14.5.sp,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.black,
+                  ),
+                ),
+                10.h.verticalSpace,
+
+                // Box 1: base/vat/total
+                Obx(() {
+                  return Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(14.w),
+                    decoration: BoxDecoration(
+                      color: softFill,
+                      borderRadius: BorderRadius.circular(16.r),
+                      border: Border.all(color: borderGreen),
+                    ),
+                    child: Column(
+                      children: [
+                        _kv(
+                          left: 'Base Campaign Budget',
+                          right: _fmt(budgetRx.value),
+                          color: primary,
+                        ),
+                        8.h.verticalSpace,
+                        _kv(
+                          left: 'VAT/Tax (15%)',
+                          right: _fmt(vatRx.value),
+                          color: primary,
+                        ),
+                        12.h.verticalSpace,
+                        Divider(color: Colors.black12, height: 1),
+                        12.h.verticalSpace,
+                        _kv(
+                          left: 'Total Campaign Cost',
+                          right: _fmt(totalRx.value),
+                          color: primary,
+                          strong: true,
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+
+                12.h.verticalSpace,
+
+                // Box 2: agency fee range + excl + usd
+                Obx(() {
+                  return Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(14.w),
+                    decoration: BoxDecoration(
+                      color: softFill,
+                      borderRadius: BorderRadius.circular(16.r),
+                      border: Border.all(color: borderGreen),
+                    ),
+                    child: Column(
+                      children: [
+                        _rangeKv(
+                          left: 'Agency Fee (5 - 15%)',
+                          right:
+                              '${_fmt(minFeeRx.value)} – ${_fmt(maxFeeRx.value)}',
+                          color: primary,
+                        ),
+                        10.h.verticalSpace,
+                        _rangeKv(
+                          left: 'Campaign Budget Excluding Agency Fee',
+                          right:
+                              '${_fmt(minExclRx.value)} – ${_fmt(maxExclRx.value)}',
+                          color: primary,
+                        ),
+                        10.h.verticalSpace,
+                        _rangeKv(
+                          left: 'In Dollars (Based On Avg. 122.37 BDT/\$)',
+                          right:
+                              '\$${minUsdRx.value.toStringAsFixed(2)} – \$${maxUsdRx.value.toStringAsFixed(2)}',
+                          color: primary,
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+
+                16.h.verticalSpace,
+                SizedBox(
+                  width: double.infinity,
+                  height: 46.h,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      await _submitRequote(
+                        proposedBaseBudget: budgetRx.value,
+                        vatAmountValue: vatRx.value,
+                        closeDialog: true,
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primary.withOpacity(.65),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14.r),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: Text(
+                      trOr('brand_campaign_requote_submit', 'Requote To Admin'),
+                      style: TextStyle(
+                        fontSize: 13.5.sp,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -1839,177 +1881,164 @@ class BrandCampaignDetailsController extends GetxController {
     recalcFrom(budgetRx.value);
 
     Get.dialog(
-      Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: EdgeInsets.symmetric(horizontal: 18.w),
-        child: Container(
-          padding: EdgeInsets.all(16.w),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(22.r),
-            border: Border.all(color: Colors.black12),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                trOr('brand_campaign_requote_title', 'Requote'),
-                style: TextStyle(
-                  fontSize: 15.5.sp,
-                  fontWeight: FontWeight.w900,
-                  color: primary.withOpacity(.75),
-                ),
-              ),
-              8.h.verticalSpace,
-              Text(
-                trOr(
-                  'brand_campaign_requote_subtitle',
-                  'Requote your campaign budget',
-                ),
-                style: TextStyle(
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.black,
-                ),
-              ),
-              12.h.verticalSpace,
-
-              // Input
-              TextField(
-                controller: budgetCtrl,
-                keyboardType: TextInputType.number,
-                onChanged: (v) {
-                  final b = _parseAmount(v);
-                  recalcFrom(b);
-                },
-                decoration: InputDecoration(
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 16.w,
-                    vertical: 14.h,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14.r),
-                    borderSide: const BorderSide(color: borderGreen),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14.r),
-                    borderSide: const BorderSide(color: primary, width: 1.4),
+      Material(
+        type: MaterialType.transparency,
+        child: Center(
+          child: Container(
+            margin: EdgeInsets.symmetric(horizontal: 18.w),
+            padding: EdgeInsets.all(16.w),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(22.r),
+              border: Border.all(color: Colors.black12),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  trOr('brand_campaign_requote_title', 'Requote'),
+                  style: TextStyle(
+                    fontSize: 15.5.sp,
+                    fontWeight: FontWeight.w900,
+                    color: primary.withOpacity(.75),
                   ),
                 ),
-                style: TextStyle(
-                  fontSize: 18.sp,
-                  fontWeight: FontWeight.w900,
-                  color: primary.withOpacity(.75),
-                ),
-                textAlign: TextAlign.center,
-              ),
-
-              14.h.verticalSpace,
-              Text(
-                trOr('brand_campaign_requote_overview', 'New Requote Overview'),
-                style: TextStyle(
-                  fontSize: 14.5.sp,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.black,
-                ),
-              ),
-              10.h.verticalSpace,
-
-              // Overview box
-              Obx(() {
-                return Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.all(14.w),
-                  decoration: BoxDecoration(
-                    color: softFill,
-                    borderRadius: BorderRadius.circular(16.r),
-                    border: Border.all(color: borderGreen),
+                8.h.verticalSpace,
+                Text(
+                  trOr(
+                    'brand_campaign_requote_subtitle',
+                    'Requote your campaign budget',
                   ),
-                  child: Column(
-                    children: [
-                      _kv(
-                        left: trOr(
-                          'brand_campaign_requote_base',
-                          'Base Campaign Budget',
-                        ),
-                        right: _fmt(budgetRx.value),
-                        color: primary,
-                      ),
-                      8.h.verticalSpace,
-                      _kv(
-                        left: trOr(
-                          'brand_campaign_requote_vat',
-                          'VAT/Tax (15%)',
-                        ),
-                        right: _fmt(vatRx.value),
-                        color: primary,
-                      ),
-                      12.h.verticalSpace,
-                      Divider(color: Colors.black12, height: 1),
-                      12.h.verticalSpace,
-                      _kv(
-                        left: trOr(
-                          'brand_campaign_requote_total',
-                          'Total Campaign Cost',
-                        ),
-                        right: _fmt(totalRx.value),
-                        color: primary,
-                        strong: true,
-                      ),
-                    ],
+                  style: TextStyle(
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.black,
                   ),
-                );
-              }),
+                ),
+                12.h.verticalSpace,
 
-              16.h.verticalSpace,
-              SizedBox(
-                width: double.infinity,
-                height: 46.h,
-                child: ElevatedButton(
-                  onPressed: () {
-                    if (budgetRx.value <= 0) {
-                      Get.snackbar(
-                        trOr('common_error', 'Error'),
-                        trOr(
-                          'brand_campaign_requote_invalid',
-                          'Please enter a valid budget.',
-                        ),
-                      );
-                      return;
-                    }
-
-                    // Update UI numbers immediately (so user sees new quote breakdown)
-                    baseBudget.value = budgetRx.value;
-                    vatAmount.value = vatRx.value;
-
-                    Get.back();
-                    Get.snackbar(
-                      trOr('brand_campaign_details_quote'.tr, 'Quote'),
-                      trOr(
-                        'brand_campaign_requote_sent',
-                        'Requote request sent to admin.',
-                      ),
-                    );
+                // Input
+                TextField(
+                  controller: budgetCtrl,
+                  keyboardType: TextInputType.number,
+                  onChanged: (v) {
+                    final b = _parseAmount(v);
+                    recalcFrom(b);
                   },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primary.withOpacity(.65),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14.r),
+                  decoration: InputDecoration(
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 16.w,
+                      vertical: 14.h,
                     ),
-                    elevation: 0,
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14.r),
+                      borderSide: const BorderSide(color: borderGreen),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14.r),
+                      borderSide: const BorderSide(color: primary, width: 1.4),
+                    ),
                   ),
-                  child: Text(
-                    trOr('brand_campaign_requote_submit', 'Requote To Admin'),
-                    style: TextStyle(
-                      fontSize: 13.5.sp,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
+                  style: TextStyle(
+                    fontSize: 18.sp,
+                    fontWeight: FontWeight.w900,
+                    color: primary.withOpacity(.75),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+
+                14.h.verticalSpace,
+                Text(
+                  trOr(
+                    'brand_campaign_requote_overview',
+                    'New Requote Overview',
+                  ),
+                  style: TextStyle(
+                    fontSize: 14.5.sp,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.black,
+                  ),
+                ),
+                10.h.verticalSpace,
+
+                // Overview box
+                Obx(() {
+                  return Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(14.w),
+                    decoration: BoxDecoration(
+                      color: softFill,
+                      borderRadius: BorderRadius.circular(16.r),
+                      border: Border.all(color: borderGreen),
+                    ),
+                    child: Column(
+                      children: [
+                        _kv(
+                          left: trOr(
+                            'brand_campaign_requote_base',
+                            'Base Campaign Budget',
+                          ),
+                          right: _fmt(budgetRx.value),
+                          color: primary,
+                        ),
+                        8.h.verticalSpace,
+                        _kv(
+                          left: trOr(
+                            'brand_campaign_requote_vat',
+                            'VAT/Tax (15%)',
+                          ),
+                          right: _fmt(vatRx.value),
+                          color: primary,
+                        ),
+                        12.h.verticalSpace,
+                        Divider(color: Colors.black12, height: 1),
+                        12.h.verticalSpace,
+                        _kv(
+                          left: trOr(
+                            'brand_campaign_requote_total',
+                            'Total Campaign Cost',
+                          ),
+                          right: _fmt(totalRx.value),
+                          color: primary,
+                          strong: true,
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+
+                16.h.verticalSpace,
+                SizedBox(
+                  width: double.infinity,
+                  height: 46.h,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      await _submitRequote(
+                        proposedBaseBudget: budgetRx.value,
+                        vatAmountValue: vatRx.value,
+                        closeDialog: true,
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primary.withOpacity(.65),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14.r),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: Text(
+                      trOr('brand_campaign_requote_submit', 'Requote To Admin'),
+                      style: TextStyle(
+                        fontSize: 13.5.sp,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -2145,16 +2174,11 @@ class BrandCampaignDetailsController extends GetxController {
                   12.w.horizontalSpace,
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () {
-                        Get.back();
-                        Get.snackbar(
-                          trOr('brand_campaign_confirmed', 'Confirmed'),
-                          trOr(
-                            'brand_campaign_confirmed_msg',
-                            'Budget confirmed successfully.',
-                          ),
-                        );
-                        // If needed: call your API here for "accept quote"
+                      onPressed: () async {
+                        final ok = await _acceptQuoteRequest();
+                        if (ok) {
+                          Get.back();
+                        }
                       },
                       style: ElevatedButton.styleFrom(
                         minimumSize: Size(double.infinity, 46.h),

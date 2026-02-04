@@ -34,6 +34,17 @@ class ProfileSettingsSection extends StatelessWidget {
                     width: 74.w,
                     height: 74.w,
                     color: AppPalette.defaultFill,
+                    child: Obx(() {
+                      final imageFile = controller.profileImageFile.value;
+                      final imageUrl = controller.profileImageUrl.value;
+                      if (imageFile != null) {
+                        return Image.file(imageFile, fit: BoxFit.cover);
+                      }
+                      if (imageUrl.isNotEmpty) {
+                        return Image.network(imageUrl, fit: BoxFit.cover);
+                      }
+                      return const SizedBox.shrink();
+                    }),
                   ),
                 ),
               ),
@@ -42,14 +53,14 @@ class ProfileSettingsSection extends StatelessWidget {
                 child: Column(
                   children: [
                     CustomButton(
-                      onTap: () {},
+                      onTap: controller.changeProfilePhoto,
                       btnText: 'Change Photo',
                       width: double.infinity,
                       textColor: AppPalette.white,
                     ),
                     10.h.verticalSpace,
                     CustomButton(
-                      onTap: () {},
+                      onTap: controller.removeProfilePhoto,
                       btnText: 'Remove',
                       width: double.infinity,
                       btnColor: AppPalette.defaultFill,
@@ -71,7 +82,12 @@ class ProfileSettingsSection extends StatelessWidget {
                     CustomTextFormField(
                       title: field.label + (field.isRequired ? ' *' : ''),
                       hintText: field.hintText,
-                      initialValue: field.value,
+                      initialValue: controller.profileFieldValue(
+                        field.label,
+                        field.value,
+                      ),
+                      onChanged: (value) =>
+                          controller.setProfileFieldValue(field.label, value),
                       textStyle: TextStyle(
                         fontWeight: FontWeight.w300,
                         fontSize: 12.sp,

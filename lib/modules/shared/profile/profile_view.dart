@@ -48,11 +48,12 @@ class ProfileView extends GetView<ProfileController> {
               if (!isBrand) _ProfileCompletionCard(controller: controller),
               SizedBox(height: 16.h),
               if (isBrand) ...[
-                BrandContactInfoCard(
-                  email:
-                      'salman_khan@email.com', // replace with your real value
-                  phone: '+8801234567890',
-                  website: 'styleco.com',
+                Obx(
+                  () => BrandContactInfoCard(
+                    email: controller.userEmail.value,
+                    phone: controller.userPhone.value,
+                    website: controller.brandWebsite.value,
+                  ),
                 ),
                 SizedBox(height: 16.h),
               ],
@@ -387,7 +388,12 @@ class _SocialLinksSection extends StatelessWidget {
                   Expanded(
                     child: CustomTextFormField(
                       hintText: '@instragram',
-                      initialValue: account.handle,
+                      initialValue: controller.socialHandleValue(
+                        account.platform,
+                        account.handle,
+                      ),
+                      onChanged: (value) =>
+                          controller.setSocialHandle(account.platform, value),
                       textStyle: TextStyle(
                         fontWeight: FontWeight.w300,
                         fontSize: 12.sp,

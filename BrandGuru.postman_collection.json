@@ -11664,7 +11664,7 @@
                 "header": [],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\r\n    \"proposedServiceFeePercent\": 14\r\n}",
+                  "raw": "{\r\n    \"proposedServiceFeePercent\": 14,\r\n    \"proposedDollarRate\": 122.37\r\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -11681,6 +11681,108 @@
                     "agency",
                     "{{campaignId}}",
                     "requote"
+                  ]
+                }
+              },
+              "response": [
+                {
+                  "name": "14 Requote (Negotiate Budget)",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\r\n    \"proposedServiceFeePercent\": 14,\r\n    \"proposedDollarRate\": 122.37\r\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{localUrl}}/campaign/agency/{{campaignId}}/requote",
+                      "host": [
+                        "{{localUrl}}"
+                      ],
+                      "path": [
+                        "campaign",
+                        "agency",
+                        "{{campaignId}}",
+                        "requote"
+                      ]
+                    }
+                  },
+                  "status": "Forbidden",
+                  "code": 403,
+                  "_postman_previewlanguage": null,
+                  "header": [
+                    {
+                      "key": "Access-Control-Allow-Credentials",
+                      "value": "true"
+                    },
+                    {
+                      "key": "Content-Length",
+                      "value": "123"
+                    },
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    },
+                    {
+                      "key": "Date",
+                      "value": "Tue, 03 Feb 2026 09:22:51 GMT"
+                    },
+                    {
+                      "key": "Etag",
+                      "value": "W/\"7b-4KVvURlhpOHgdaQ0bHKtmwmdHnc\""
+                    },
+                    {
+                      "key": "Server",
+                      "value": "railway-edge"
+                    },
+                    {
+                      "key": "Vary",
+                      "value": "Origin"
+                    },
+                    {
+                      "key": "X-Powered-By",
+                      "value": "Express"
+                    },
+                    {
+                      "key": "X-Railway-Edge",
+                      "value": "railway/asia-southeast1-eqsg3a"
+                    },
+                    {
+                      "key": "X-Railway-Request-Id",
+                      "value": "7t9oZyKdRWCb3ZwU0ubPiw"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n    \"message\": \"Response period expired. You can only Accept or Requote within 12 hours.\",\n    \"error\": \"Forbidden\",\n    \"statusCode\": 403\n}"
+                }
+              ]
+            },
+            {
+              "name": "14.5 Requote Budget Overview",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/campaign/agency/:campaignId/requote-overview",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "campaign",
+                    "agency",
+                    ":campaignId",
+                    "requote-overview"
+                  ],
+                  "variable": [
+                    {
+                      "key": "campaignId",
+                      "value": "{{campaignId}}"
+                    }
                   ]
                 }
               },
@@ -13749,6 +13851,10 @@
                   "originalRequest": {
                     "method": "GET",
                     "header": [],
+                    "body": {
+                      "mode": "raw",
+                      "raw": ""
+                    },
                     "url": {
                       "raw": "{{localUrl}}/campaign/client/bids/{{campaignId}}",
                       "host": [
@@ -13764,7 +13870,7 @@
                   },
                   "status": "OK",
                   "code": 200,
-                  "_postman_previewlanguage": "Text",
+                  "_postman_previewlanguage": null,
                   "header": [
                     {
                       "key": "Access-Control-Allow-Credentials",
@@ -13772,7 +13878,7 @@
                     },
                     {
                       "key": "Content-Length",
-                      "value": "2162"
+                      "value": "1060"
                     },
                     {
                       "key": "Content-Type",
@@ -13780,11 +13886,11 @@
                     },
                     {
                       "key": "Date",
-                      "value": "Tue, 06 Jan 2026 08:07:03 GMT"
+                      "value": "Tue, 03 Feb 2026 09:36:36 GMT"
                     },
                     {
                       "key": "Etag",
-                      "value": "W/\"872-LhVIpdGpk8a4qR/KxVeRKCuZWUM\""
+                      "value": "W/\"424-fXM7qzgHi+O33GsVRHULqY1IpSg\""
                     },
                     {
                       "key": "Server",
@@ -13804,11 +13910,11 @@
                     },
                     {
                       "key": "X-Railway-Request-Id",
-                      "value": "oKNN49bbTTKRSKH4V7rehQ"
+                      "value": "xpnrb0piTIKPx_QgAQeqjw"
                     }
                   ],
                   "cookie": [],
-                  "body": "{\n    \"success\": true,\n    \"campaignName\": \"Winter Sale Paid Ads - LifeStyle\",\n    \"data\": [\n        {\n            \"agencyId\": \"b9262ece-2edb-4366-b471-61d37aeadd20\",\n            \"agencyName\": \"Creative Agency 1\",\n            \"logo\": null,\n            \"proposedServiceFeePercent\": \"14%\",\n            \"breakdown\": {\n                \"baseBudget\": \"110000.00\",\n                \"vatAmount\": \"16500.00\",\n                \"totalCampaignBudget\": \"126500.00\",\n                \"agencyServiceFeeAmount\": \"15400.00\",\n                \"platformFee\": \"2200.00\",\n                \"estimatedAgencyProfit\": \"13200.00\",\n                \"remainingForExecutionOfMilestones\": \"111100.00\"\n            },\n            \"hasRequoted\": true,\n            \"submittedAt\": \"2026-01-06T08:01:47.865Z\"\n        },\n        {\n            \"agencyId\": \"61b24e37-4d49-4e5b-af12-322b76fcf853\",\n            \"agencyName\": \"Creative Agency 2\",\n            \"logo\": null,\n            \"proposedServiceFeePercent\": \"15%\",\n            \"breakdown\": {\n                \"baseBudget\": \"110000.00\",\n                \"vatAmount\": \"16500.00\",\n                \"totalCampaignBudget\": \"126500.00\",\n                \"agencyServiceFeeAmount\": \"16500.00\",\n                \"platformFee\": \"2200.00\",\n                \"estimatedAgencyProfit\": \"14300.00\",\n                \"remainingForExecutionOfMilestones\": \"110000.00\"\n            },\n            \"hasRequoted\": true,\n            \"submittedAt\": \"2026-01-06T08:04:14.786Z\"\n        },\n        {\n            \"agencyId\": \"31e8d3b6-dcfb-4ad5-8716-de915dadc28a\",\n            \"agencyName\": \"Creative Agency 3\",\n            \"logo\": null,\n            \"proposedServiceFeePercent\": \"13%\",\n            \"breakdown\": {\n                \"baseBudget\": \"110000.00\",\n                \"vatAmount\": \"16500.00\",\n                \"totalCampaignBudget\": \"126500.00\",\n                \"agencyServiceFeeAmount\": \"14300.00\",\n                \"platformFee\": \"2200.00\",\n                \"estimatedAgencyProfit\": \"12100.00\",\n                \"remainingForExecutionOfMilestones\": \"112200.00\"\n            },\n            \"hasRequoted\": false,\n            \"submittedAt\": null\n        },\n        {\n            \"agencyId\": \"21d87331-e804-4004-a2e1-4033c35ab6ca\",\n            \"agencyName\": \"Creative Agency 4\",\n            \"logo\": null,\n            \"proposedServiceFeePercent\": \"13%\",\n            \"breakdown\": {\n                \"baseBudget\": \"110000.00\",\n                \"vatAmount\": \"16500.00\",\n                \"totalCampaignBudget\": \"126500.00\",\n                \"agencyServiceFeeAmount\": \"14300.00\",\n                \"platformFee\": \"2200.00\",\n                \"estimatedAgencyProfit\": \"12100.00\",\n                \"remainingForExecutionOfMilestones\": \"112200.00\"\n            },\n            \"hasRequoted\": false,\n            \"submittedAt\": null\n        },\n        {\n            \"agencyId\": \"06f858bc-02ef-4119-94eb-1fafbf388b75\",\n            \"agencyName\": \"Creative Agency 5\",\n            \"logo\": null,\n            \"proposedServiceFeePercent\": \"13%\",\n            \"breakdown\": {\n                \"baseBudget\": \"110000.00\",\n                \"vatAmount\": \"16500.00\",\n                \"totalCampaignBudget\": \"126500.00\",\n                \"agencyServiceFeeAmount\": \"14300.00\",\n                \"platformFee\": \"2200.00\",\n                \"estimatedAgencyProfit\": \"12100.00\",\n                \"remainingForExecutionOfMilestones\": \"112200.00\"\n            },\n            \"hasRequoted\": false,\n            \"submittedAt\": null\n        }\n    ]\n}"
+                  "body": "{\n    \"success\": true,\n    \"campaignName\": \"Smart Gadget X2 Launch 2027\",\n    \"data\": [\n        {\n            \"agencyId\": \"b9262ece-2edb-4366-b471-61d37aeadd20\",\n            \"agencyName\": \"Creative Agency 1\",\n            \"logo\": null,\n            \"niche\": null,\n            \"proposedServiceFeePercent\": \"14%\",\n            \"totalpayableExcludingAgencyServiceFee\": 116150,\n            \"agencyServiceFeeAmount\": \"16100.00\",\n            \"dollarRate\": \"122.37\",\n            \"totalCampaignSpentInDollar\": 949.1705483370107,\n            \"hasRequoted\": true,\n            \"submittedAt\": \"2026-02-03T07:11:55.790Z\"\n        },\n        {\n            \"agencyId\": \"31e8d3b6-dcfb-4ad5-8716-de915dadc28a\",\n            \"agencyName\": \"Creative Agency 3\",\n            \"logo\": null,\n            \"niche\": null,\n            \"proposedServiceFeePercent\": \"13%\",\n            \"totalpayableExcludingAgencyServiceFee\": 117300,\n            \"agencyServiceFeeAmount\": \"14950.00\",\n            \"dollarRate\": \"0.00\",\n            \"totalCampaignSpentInDollar\": 0,\n            \"hasRequoted\": false,\n            \"submittedAt\": null\n        },\n        {\n            \"agencyId\": \"61b24e37-4d49-4e5b-af12-322b76fcf853\",\n            \"agencyName\": \"Creative Agency 2\",\n            \"logo\": null,\n            \"niche\": null,\n            \"proposedServiceFeePercent\": \"13%\",\n            \"totalpayableExcludingAgencyServiceFee\": 117300,\n            \"agencyServiceFeeAmount\": \"14950.00\",\n            \"dollarRate\": \"0.00\",\n            \"totalCampaignSpentInDollar\": 0,\n            \"hasRequoted\": false,\n            \"submittedAt\": null\n        }\n    ]\n}"
                 }
               ]
             },

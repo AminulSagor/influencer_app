@@ -9,6 +9,7 @@ class ExploreListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final imageUrl = item.imageUrl?.trim() ?? '';
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
       decoration: BoxDecoration(
@@ -22,19 +23,46 @@ class ExploreListItem extends StatelessWidget {
       child: Row(
         children: [
           // avatar
-          Container(
-            width: 44.w,
-            height: 44.w,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                colors: [
-                  Colors.white.withOpacity(0.95),
-                  Colors.white.withOpacity(0.65),
-                ],
+          if (imageUrl.isEmpty)
+            Container(
+              width: 44.w,
+              height: 44.w,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.white.withOpacity(0.95),
+                    Colors.white.withOpacity(0.65),
+                  ],
+                ),
+              ),
+            )
+          else
+            CircleAvatar(
+              radius: 22.r,
+              backgroundColor: Colors.white,
+              child: ClipOval(
+                child: Image.network(
+                  imageUrl,
+                  width: 44.w,
+                  height: 44.w,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    width: 44.w,
+                    height: 44.w,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.white.withOpacity(0.95),
+                          Colors.white.withOpacity(0.65),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
-          ),
           12.w.horizontalSpace,
 
           // text area

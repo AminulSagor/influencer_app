@@ -157,23 +157,47 @@ class InfluencerProfileService {
 
   /// Updates social links
   Future<ApiResult<InfluencerProfile>> updateSocialLinks(
-    List<InfluencerSocialLink> socialLinks,
-  ) async {
+    List<InfluencerSocialLink> socialLinks, {
+    String? thana,
+    String? zilla,
+    String? fullAddress,
+  }) async {
     return ApiErrorHandler.call(() async {
+      final data = <String, dynamic>{
+        'socialLinks': socialLinks.map((e) => e.toJson()).toList(),
+      };
+      _applyOnboardingAddress(
+        data,
+        thana: thana,
+        zilla: zilla,
+        fullAddress: fullAddress,
+      );
       final res = await _api.dio.patch(
         '/influencer/profile/onboarding',
-        data: {'socialLinks': socialLinks.map((e) => e.toJson()).toList()},
+        data: data,
       );
       return InfluencerProfile.fromJson(res.data);
     });
   }
 
   /// Updates website URL
-  Future<ApiResult<InfluencerProfile>> updateWebsite(String? website) async {
+  Future<ApiResult<InfluencerProfile>> updateWebsite(
+    String? website, {
+    String? thana,
+    String? zilla,
+    String? fullAddress,
+  }) async {
     return ApiErrorHandler.call(() async {
+      final data = <String, dynamic>{'website': website};
+      _applyOnboardingAddress(
+        data,
+        thana: thana,
+        zilla: zilla,
+        fullAddress: fullAddress,
+      );
       final res = await _api.dio.patch(
         '/influencer/profile/onboarding',
-        data: {'website': website},
+        data: data,
       );
       return InfluencerProfile.fromJson(res.data);
     });
@@ -184,17 +208,48 @@ class InfluencerProfileService {
     required String nidNumber,
     required String nidFrontImg,
     required String nidBackImg,
+    String? thana,
+    String? zilla,
+    String? fullAddress,
   }) async {
     return ApiErrorHandler.call(() async {
+      final data = {
+        'nidNumber': nidNumber,
+        'nidFrontImg': nidFrontImg,
+        'nidBackImg': nidBackImg,
+      };
+      _applyOnboardingAddress(
+        data,
+        thana: thana,
+        zilla: zilla,
+        fullAddress: fullAddress,
+      );
       final res = await _api.dio.patch(
         '/influencer/profile/onboarding',
-        data: {
-          'nidNumber': nidNumber,
-          'nidFrontImg': nidFrontImg,
-          'nidBackImg': nidBackImg,
-        },
+        data: data,
       );
       return InfluencerProfile.fromJson(res.data);
     });
+  }
+
+  void _applyOnboardingAddress(
+    Map<String, dynamic> data, {
+    String? thana,
+    String? zilla,
+    String? fullAddress,
+  }) {
+    final safeThana = thana?.trim();
+    final safeZilla = zilla?.trim();
+    final safeFullAddress = fullAddress?.trim();
+
+    if ((safeThana ?? '').isEmpty ||
+        (safeZilla ?? '').isEmpty ||
+        (safeFullAddress ?? '').isEmpty) {
+      return;
+    }
+
+    data['thana'] = safeThana;
+    data['zilla'] = safeZilla;
+    data['fullAddress'] = safeFullAddress;
   }
 }
