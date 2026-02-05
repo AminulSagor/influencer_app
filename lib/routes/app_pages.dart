@@ -21,9 +21,9 @@ import 'package:influencer_app/modules/shared/onboarding/onboarding_controller.d
 import 'package:influencer_app/modules/shared/onboarding/onboarding_view.dart';
 import 'package:influencer_app/modules/shared/report_log/report_log_controller.dart';
 import 'package:influencer_app/modules/shared/support/support_controller.dart';
-import 'package:influencer_app/modules/shared/verification_progress/verification_in_progress_view.dart';
-import 'package:influencer_app/modules/shared/verification_progress/verification_notify_view.dart';
-import 'package:influencer_app/modules/shared/verification_progress/verification_progress_view.dart';
+// import 'package:influencer_app/modules/shared/verification_progress/verification_in_progress_view.dart';
+// import 'package:influencer_app/modules/shared/verification_progress/verification_notify_view.dart';
+// import 'package:influencer_app/modules/shared/verification_progress/verification_progress_view.dart';
 
 import '../core/controllers/language_controller.dart';
 import '../modules/shared/bottom_navbar/bottom_nav_controller.dart';
@@ -93,19 +93,19 @@ class AppPages {
       page: () => const AgencyHomeLockedView(),
       binding: AgencyHomeLockedBinding(),
     ),
-    GetPage(
-      name: AppRoutes.verificationProgress,
-      page: () => const VerificationProgressView(),
-    ),
-    GetPage(
-      name: AppRoutes.verificationInProgress,
-      page: () => const VerificationInProgressView(),
-    ),
-    GetPage(
-      name: AppRoutes.verificationNotify,
-      page: () => const VerificationNotifyView(),
-    ),
 
+    // GetPage(
+    //   name: AppRoutes.verificationProgress,
+    //   page: () => VerificationProgressView(),
+    // ),
+    // GetPage(
+    //   name: AppRoutes.verificationInProgress,
+    //   page: () => const VerificationInProgressView(),
+    // ),
+    // GetPage(
+    //   name: AppRoutes.verificationNotify,
+    //   page: () => const VerificationNotifyView(),
+    // ),
     GetPage(
       name: AppRoutes.bottomNav,
       page: () => const BottomNavView(),

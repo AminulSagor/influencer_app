@@ -20,13 +20,17 @@ class InfluencerProfileService {
     String? lastName,
     String? bio,
     String? profileImage,
+    String? website,
   }) async {
     return ApiErrorHandler.call(() async {
       final data = <String, dynamic>{};
       if (firstName != null) data['firstName'] = firstName;
       if (lastName != null) data['lastName'] = lastName;
       if (bio != null) data['bio'] = bio;
-      if (profileImage != null) data['profileImage'] = profileImage;
+      if (profileImage != null && profileImage.isNotEmpty) {
+        data['profileImage'] = profileImage;
+      }
+      if (website != null) data['website'] = website;
 
       final res = await _api.dio.patch(
         '/influencer/profile/basic-info',
@@ -157,23 +161,14 @@ class InfluencerProfileService {
 
   /// Updates social links
   Future<ApiResult<InfluencerProfile>> updateSocialLinks(
-    List<InfluencerSocialLink> socialLinks, {
-    String? thana,
-    String? zilla,
-    String? fullAddress,
-  }) async {
+    List<InfluencerSocialLink> socialLinks,
+  ) async {
     return ApiErrorHandler.call(() async {
       final data = <String, dynamic>{
         'socialLinks': socialLinks.map((e) => e.toJson()).toList(),
       };
-      _applyOnboardingAddress(
-        data,
-        thana: thana,
-        zilla: zilla,
-        fullAddress: fullAddress,
-      );
       final res = await _api.dio.patch(
-        '/influencer/profile/onboarding',
+        '/influencer/profile/edit/social-links',
         data: data,
       );
       return InfluencerProfile.fromJson(res.data);
@@ -181,23 +176,11 @@ class InfluencerProfileService {
   }
 
   /// Updates website URL
-  Future<ApiResult<InfluencerProfile>> updateWebsite(
-    String? website, {
-    String? thana,
-    String? zilla,
-    String? fullAddress,
-  }) async {
+  Future<ApiResult<InfluencerProfile>> updateWebsite(String? website) async {
     return ApiErrorHandler.call(() async {
-      final data = <String, dynamic>{'website': website};
-      _applyOnboardingAddress(
-        data,
-        thana: thana,
-        zilla: zilla,
-        fullAddress: fullAddress,
-      );
       final res = await _api.dio.patch(
-        '/influencer/profile/onboarding',
-        data: data,
+        '/influencer/profile/basic-info',
+        data: {'website': website},
       );
       return InfluencerProfile.fromJson(res.data);
     });
@@ -208,48 +191,36 @@ class InfluencerProfileService {
     required String nidNumber,
     required String nidFrontImg,
     required String nidBackImg,
-    String? thana,
-    String? zilla,
-    String? fullAddress,
   }) async {
     return ApiErrorHandler.call(() async {
-      final data = {
+      final data = <String, dynamic>{
         'nidNumber': nidNumber,
         'nidFrontImg': nidFrontImg,
         'nidBackImg': nidBackImg,
       };
-      _applyOnboardingAddress(
-        data,
-        thana: thana,
-        zilla: zilla,
-        fullAddress: fullAddress,
-      );
       final res = await _api.dio.patch(
-        '/influencer/profile/onboarding',
+        '/influencer/profile/edit/nid',
         data: data,
       );
       return InfluencerProfile.fromJson(res.data);
     });
   }
 
-  void _applyOnboardingAddress(
-    Map<String, dynamic> data, {
-    String? thana,
-    String? zilla,
-    String? fullAddress,
-  }) {
-    final safeThana = thana?.trim();
-    final safeZilla = zilla?.trim();
-    final safeFullAddress = fullAddress?.trim();
+  /// Updates payout methods (bank/mobile) in bulk
+  Future<ApiResult<InfluencerProfile>> updatePayouts({
+    List<Map<String, dynamic>>? bank,
+    List<Map<String, dynamic>>? mobileBanking,
+  }) async {
+    return ApiErrorHandler.call(() async {
+      final data = <String, dynamic>{};
+      if (bank != null) data['bank'] = bank;
+      if (mobileBanking != null) data['mobileBanking'] = mobileBanking;
 
-    if ((safeThana ?? '').isEmpty ||
-        (safeZilla ?? '').isEmpty ||
-        (safeFullAddress ?? '').isEmpty) {
-      return;
-    }
-
-    data['thana'] = safeThana;
-    data['zilla'] = safeZilla;
-    data['fullAddress'] = safeFullAddress;
+      final res = await _api.dio.patch(
+        '/influencer/profile/edit/payouts',
+        data: data,
+      );
+      return InfluencerProfile.fromJson(res.data);
+    });
   }
 }

@@ -19,6 +19,7 @@ class VerificationController extends GetxController {
   final RxBool isLoading = false.obs;
   late final String phoneNumber;
   late final AccountType accountType;
+  late final bool _isPreviewFlow;
 
   final RxBool isCodeComplete = false.obs;
 
@@ -29,9 +30,10 @@ class VerificationController extends GetxController {
     super.onInit();
     final args = Get.arguments as Map<String, dynamic>?;
 
-    phoneNumber = args?['phone'] as String? ?? '';
+    phoneNumber = args?['phone'] as String? ?? '+1 555 0100';
     accountType =
         args?['accountType'] as AccountType? ?? AccountType.influencer;
+    _isPreviewFlow = args?['preview'] as bool? ?? true;
 
     for (final c in digitControllers) {
       c.addListener(_handleCodeChange);
@@ -82,6 +84,14 @@ class VerificationController extends GetxController {
   Future<void> onContinue() async {
     if (!isCodeComplete.value) {
       Get.snackbar('error'.tr, 'otp_incomplete_error'.tr);
+      return;
+    }
+
+    if (_isPreviewFlow) {
+      Get.offAllNamed(
+        AppRoutes.phoneVerified,
+        arguments: {'phone': phoneNumber, 'accountType': accountType},
+      );
       return;
     }
 

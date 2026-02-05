@@ -12,8 +12,13 @@ import '../profile_controller.dart';
 
 class ProfileHeaderCard extends StatelessWidget {
   final ProfileController controller;
+  final VoidCallback? onStatusTap;
 
-  const ProfileHeaderCard({super.key, required this.controller});
+  const ProfileHeaderCard({
+    super.key,
+    required this.controller,
+    this.onStatusTap,
+  });
 
   String _iconForPlatform(String platform) {
     final p = platform.toLowerCase();
@@ -72,8 +77,7 @@ class ProfileHeaderCard extends StatelessWidget {
 
                     _StatusChip(
                       label: controller.profileStatusLabel,
-                      onTap:
-                          () {}, //Get.toNamed(AppRoutes.verificationProgress),
+                      onTap: onStatusTap,
                     ),
                     SizedBox(height: 10.h),
 

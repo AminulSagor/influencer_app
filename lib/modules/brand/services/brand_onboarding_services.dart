@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import '../../../core/services/api_client.dart';
 import '../models/onboarding_models.dart';
+import 'package:flutter/foundation.dart';
 
 /// Brand/Client onboarding APIs
 /// - PATCH /client/profile/onboarding
@@ -41,14 +42,14 @@ class BrandOnboardingService {
     required String firstName,
     required String lastName,
   }) async {
-    final res = await _api.dio.patch(
-      '/client/profile',
-      data: {
-        'brandName': brandName,
-        'firstName': firstName,
-        'lastName': lastName,
-      },
-    );
+    final payload = {
+      'brandName': brandName,
+      'firstName': firstName,
+      'lastName': lastName,
+    };
+
+    debugPrint('📤 PATCH /client/profile payload => $payload');
+    final res = await _api.dio.patch('/client/profile', data: payload);
 
     if (res.data is! Map) {
       throw DioException(

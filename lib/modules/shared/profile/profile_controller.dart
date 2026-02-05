@@ -8,6 +8,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as path;
 import 'package:influencer_app/core/services/account_type_service.dart';
 import 'package:influencer_app/core/services/api_client.dart';
+import 'package:influencer_app/core/services/auth_services.dart';
+import 'package:influencer_app/core/services/api_error_handler.dart';
 import 'package:influencer_app/core/services/token_service.dart';
 import 'package:influencer_app/core/theme/app_palette.dart';
 import 'package:influencer_app/modules/ad_agency/services/upload_service.dart';
@@ -134,6 +136,21 @@ class ProfileController extends GetxController {
   final settingsExpanded = true.obs;
   final verificationExpanded = true.obs;
   final payoutExpanded = true.obs;
+
+  // ---------------------------------------------------------------------------
+  // VERIFICATION FLOW STATE
+  // ---------------------------------------------------------------------------
+
+  /// 0 = Profile page, 1 = Verification progress flow
+  final verificationPageIndex = 0.obs;
+
+  /// 0 = Progress list, 1 = Email verification, 2 = Email verified success
+  final verificationFlowIndex = 0.obs;
+
+  final AuthService _authService = Get.find<AuthService>();
+  final RxBool isRequestingEmailOtp = false.obs;
+  final RxBool isResendingEmailOtp = false.obs;
+  final RxBool isVerifyingEmailOtp = false.obs;
 
   // ---------------------------------------------------------------------------
   // SECTION DATA
@@ -606,7 +623,11 @@ class ProfileController extends GetxController {
         : ProfileStatus.unverified;
     bioText.value = json['agencyBio'] as String? ?? '';
     serviceFeeText.value = json['serviceFee']?.toString() ?? '';
-    profileImageUrl.value = _stringOrNull(json['logo']) ?? '';
+    profileImageUrl.value =
+        _stringOrNull(json['profileImg']) ??
+        _stringOrNull(json['profileImage']) ??
+        _stringOrNull(json['logo']) ??
+        '';
     profileImageFile.value = null;
 
     // Rating
@@ -840,7 +861,11 @@ class ProfileController extends GetxController {
         : ProfileStatus.unverified;
     bioText.value = json['bio'] as String? ?? '';
     _setBrandWebsite(_stringOrNull(json['website']));
-    profileImageUrl.value = _stringOrNull(json['logo']) ?? '';
+    profileImageUrl.value =
+        _stringOrNull(json['profileImg']) ??
+        _stringOrNull(json['profileImage']) ??
+        _stringOrNull(json['logo']) ??
+        '';
     profileImageFile.value = null;
 
     // Rating
@@ -1219,21 +1244,27 @@ class ProfileController extends GetxController {
           ? 'agency-profile'
           : 'brand-profile';
       final url = await _uploadFile(file: picked, module: module);
+      if (url.isEmpty) return;
       profileImageUrl.value = url;
 
       if (accountTypeService.isInfluencer) {
+        debugPrint(
+          '📤 PATCH /influencer/profile/basic-info => profileImage=$url',
+        );
         final apiClient = Get.find<ApiClient>();
         final service = InfluencerProfileService(apiClient);
         await service.updateBasicInfo(profileImage: url, bio: bioText.value);
       } else if (accountTypeService.isAdAgency) {
+        debugPrint('📤 PATCH /agency/profile/basic-info => logo=$url');
         final apiClient = Get.find<ApiClient>();
         await apiClient.dio.patch(
           '/agency/profile/basic-info',
           data: {'logo': url},
         );
       } else if (accountTypeService.isBrand) {
+        //debugPrint('📤 PATCH /client/profile => logo=$url');
         final apiClient = Get.find<ApiClient>();
-        await apiClient.dio.patch('/client/profile', data: {'logo': url});
+        await apiClient.dio.patch('/client/profile', data: {'profileImg': url});
       }
     } catch (e) {
       debugPrint('Failed to update profile photo: $e');
@@ -1915,6 +1946,127 @@ class ProfileController extends GetxController {
     }
   }
 
+  void showProfilePage() {
+    verificationPageIndex.value = 0;
+    verificationFlowIndex.value = 0;
+  }
+
+  void showVerificationPage() => verificationPageIndex.value = 1;
+
+  void showVerificationList() => verificationFlowIndex.value = 0;
+
+  void showEmailVerification() => verificationFlowIndex.value = 1;
+
+  void showEmailSuccess() => verificationFlowIndex.value = 2;
+
+  void resetVerificationFlow() => verificationFlowIndex.value = 0;
+
+  String get _emailRoleSegment {
+    if (accountTypeService.isInfluencer) return 'influencer';
+    if (accountTypeService.isAdAgency) return 'agency';
+    if (accountTypeService.isBrand) return 'client';
+    return 'client';
+  }
+
+  Future<void> startEmailVerification() async {
+    if (isRequestingEmailOtp.value) return;
+
+    final email = userEmail.value.trim();
+    if (email.isEmpty) {
+      Get.snackbar('Error', 'Email not found');
+      return;
+    }
+
+    isRequestingEmailOtp.value = true;
+    final result = await ApiErrorHandler.call(
+      () => _authService.requestEmailOtp(role: _emailRoleSegment),
+    );
+    isRequestingEmailOtp.value = false;
+
+    if (result.isSuccess && result.data != null) {
+      Get.snackbar('Success', result.data!.message);
+      showEmailVerification();
+    }
+  }
+
+  Future<void> resendEmailOtp() async {
+    if (isResendingEmailOtp.value) return;
+
+    final email = userEmail.value.trim();
+    if (email.isEmpty) {
+      Get.snackbar('Error', 'Email not found');
+      return;
+    }
+
+    isResendingEmailOtp.value = true;
+    final result = await ApiErrorHandler.call(
+      () => _authService.requestEmailOtp(role: _emailRoleSegment),
+    );
+    isResendingEmailOtp.value = false;
+
+    if (result.isSuccess && result.data != null) {
+      Get.snackbar('Success', result.data!.message);
+    }
+  }
+
+  Future<void> verifyEmailOtp(String code) async {
+    if (isVerifyingEmailOtp.value) return;
+
+    final email = userEmail.value.trim();
+    if (email.isEmpty) {
+      Get.snackbar('Error', 'Email not found');
+      return;
+    }
+
+    final otp = code.trim();
+    if (otp.length != 4) {
+      Get.snackbar('Error', 'OTP must be 4 digits');
+      return;
+    }
+
+    isVerifyingEmailOtp.value = true;
+    final result = await ApiErrorHandler.call(
+      () => _authService.verifyEmailOtp(
+        role: _emailRoleSegment,
+        email: email,
+        code: otp,
+      ),
+    );
+    isVerifyingEmailOtp.value = false;
+
+    if (result.isSuccess && result.data != null) {
+      Get.snackbar('Success', result.data!.message);
+      markEmailVerified();
+      showEmailSuccess();
+    }
+  }
+
+  void markEmailVerified() {
+    final items = verificationInprogressItems;
+    final updated = items
+        .map(
+          (item) => item.title == 'Email'
+              ? VerificationInprogressItem(
+                  title: item.title,
+                  state: VerificationState.verified,
+                )
+              : item,
+        )
+        .toList();
+
+    final hasEmail = items.any((item) => item.title == 'Email');
+    if (!hasEmail) {
+      updated.add(
+        const VerificationInprogressItem(
+          title: 'Email',
+          state: VerificationState.verified,
+        ),
+      );
+    }
+
+    verificationInprogressItems.assignAll(updated);
+  }
+
   // Expansion togglers
   void toggleBio() => bioExpanded.toggle();
   void toggleServiceFee() => serviceFeeExpanded.toggle();
@@ -1965,31 +2117,7 @@ class ProfileController extends GetxController {
                     )
                     .toList();
 
-          final address = _primaryLocationForOnboarding();
-          if (!_hasValidOnboardingAddress(address)) {
-            Get.snackbar(
-              'error'.tr,
-              'locations_required_error'.tr,
-              snackPosition: SnackPosition.BOTTOM,
-            );
-            return;
-          }
-          await service.updateSocialLinks(
-            updatedLinks,
-            thana: address?.thana,
-            zilla: address?.zilla,
-            fullAddress: address?.fullAddress,
-          );
-        }
-
-        final address = _primaryLocationForOnboarding();
-        if (!_hasValidOnboardingAddress(address)) {
-          Get.snackbar(
-            'error'.tr,
-            'locations_required_error'.tr,
-            snackPosition: SnackPosition.BOTTOM,
-          );
-          return;
+          await service.updateSocialLinks(updatedLinks);
         }
         final nidNumber = nidNumberController.text.trim();
         if (nidNumber.isNotEmpty &&
@@ -2007,9 +2135,6 @@ class ProfileController extends GetxController {
             nidNumber: nidNumber,
             nidFrontImg: frontUrl,
             nidBackImg: backUrl,
-            thana: address?.thana,
-            zilla: address?.zilla,
-            fullAddress: address?.fullAddress,
           );
         }
       } else if (accountTypeService.isBrand) {

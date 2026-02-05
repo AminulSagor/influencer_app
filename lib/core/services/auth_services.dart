@@ -55,9 +55,15 @@ class AuthService {
   static const String _verifyOtpFallback =
       '/influencer/auth/verify-otp-fallback';
 
-  // ------------------------------------------------------------
+  static const String _emailVerifyBase = '/influencer/auth/email';
+
+  static String _emailRequestOtp(String role) =>
+      '$_emailVerifyBase/$role/request-otp';
+  static String _emailVerifyOtp(String role) =>
+      '$_emailVerifyBase/$role/verify';
+
   // Signup (ALL roles: influencer / brand / agency)
-  // ------------------------------------------------------------
+
   Future<SignupResult> signup({
     required String firstName,
     required String lastName,
@@ -277,6 +283,49 @@ class AuthService {
 
     await _tokenService.saveAccessToken(token);
     return TokenResult(accessToken: token, message: message);
+  }
+
+  // ------------------------------------------------------------
+  // Email Verification (request + verify)
+  // ------------------------------------------------------------
+  Future<OTPresponse> requestEmailOtp({required String role}) async {
+    final res = await _api.dio.post(_emailRequestOtp(role));
+
+    if (res.data is! Map) {
+      throw DioException(
+        requestOptions: res.requestOptions,
+        message: 'email request-otp response is not a valid format',
+      );
+    }
+
+    final data = res.data as Map;
+    final message =
+        data['message']?.toString() ?? 'Verification code sent to email';
+
+    return OTPresponse(message: message);
+  }
+
+  Future<OTPresponse> verifyEmailOtp({
+    required String role,
+    required String email,
+    required String code,
+  }) async {
+    final res = await _api.dio.post(
+      _emailVerifyOtp(role),
+      data: {'email': email, 'code': code},
+    );
+
+    if (res.data is! Map) {
+      throw DioException(
+        requestOptions: res.requestOptions,
+        message: 'email verify response is not a valid format',
+      );
+    }
+
+    final data = res.data as Map;
+    final message = data['message']?.toString() ?? 'Email verified';
+
+    return OTPresponse(message: message);
   }
 
   // ------------------------------------------------------------

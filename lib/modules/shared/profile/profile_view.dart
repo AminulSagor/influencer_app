@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:influencer_app/core/services/account_type_service.dart';
@@ -33,170 +34,207 @@ class ProfileView extends GetView<ProfileController> {
     final isInfluencer = accountTypeService.isInfluencer;
     final isAdAgency = accountTypeService.isAdAgency;
 
-    return Scaffold(
-      backgroundColor: AppPalette.background,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: EdgeInsets.fromLTRB(20.w, 12.h, 20.w, 24.h),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(height: 10.h),
-              ProfileHeaderCard(controller: controller),
-              SizedBox(height: 12.h),
-              if (!isBrand) _ProfileCompletionCard(controller: controller),
-              SizedBox(height: 16.h),
-              if (isBrand) ...[
-                Obx(
-                  () => BrandContactInfoCard(
-                    email: controller.userEmail.value,
-                    phone: controller.userPhone.value,
-                    website: controller.brandWebsite.value,
-                  ),
-                ),
-                SizedBox(height: 16.h),
-              ],
+    return Obx(() {
+      final pageIndex = controller.verificationPageIndex.value;
 
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 17.w, vertical: 20.h),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(kBorderRadius.r),
-                  border: Border.all(
-                    color: AppPalette.border1,
-                    width: kBorderWidth0_5,
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    // BIO
-                    if (!isBrand) ...[
-                      Obx(
-                        () => ExpandableSectionCard(
-                          title: 'Bio',
-                          isExpanded: controller.bioExpanded.value,
-                          onToggle: controller.toggleBio,
-                          child: _BioSection(controller: controller),
-                        ),
+      return PopScope(
+        canPop: pageIndex == 0,
+        onPopInvokedWithResult: (didPop, result) {
+          if (!didPop && pageIndex == 1) {
+            controller.showProfilePage();
+          }
+        },
+        child: Scaffold(
+          backgroundColor: AppPalette.background,
+          body: SafeArea(
+            child: IndexedStack(
+              index: pageIndex,
+              children: [
+                SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: EdgeInsets.fromLTRB(20.w, 12.h, 20.w, 24.h),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(height: 10.h),
+                      ProfileHeaderCard(
+                        controller: controller,
+                        onStatusTap: controller.showVerificationPage,
                       ),
                       SizedBox(height: 12.h),
-                    ],
+                      if (!isBrand)
+                        _ProfileCompletionCard(controller: controller),
+                      SizedBox(height: 16.h),
+                      if (isBrand) ...[
+                        Obx(
+                          () => BrandContactInfoCard(
+                            email: controller.userEmail.value,
+                            phone: controller.userPhone.value,
+                            website: controller.brandWebsite.value,
+                          ),
+                        ),
+                        SizedBox(height: 16.h),
+                      ],
 
-                    // SKILLS (Influencer only) -> under Bio
-                    if (isInfluencer) ...[
-                      SkillsSectionCard(controller: controller),
-                      SizedBox(height: 12.h),
-                    ],
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 17.w,
+                          vertical: 20.h,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(kBorderRadius.r),
+                          border: Border.all(
+                            color: AppPalette.border1,
+                            width: kBorderWidth0_5,
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            // BIO
+                            if (!isBrand) ...[
+                              Obx(
+                                () => ExpandableSectionCard(
+                                  title: 'Bio',
+                                  isExpanded: controller.bioExpanded.value,
+                                  onToggle: controller.toggleBio,
+                                  child: _BioSection(controller: controller),
+                                ),
+                              ),
+                              SizedBox(height: 12.h),
+                            ],
 
-                    // SERVICE FEE
-                    if (isAdAgency) ...[
-                      Obx(
-                        () => ExpandableSectionCard(
-                          title: 'Service Fee',
-                          isExpanded: controller.serviceFeeExpanded.value,
-                          onToggle: controller.toggleServiceFee,
-                          child:
-                              controller.profileStatus.value ==
-                                  ProfileStatus.unverified
-                              ? _ServiceFeeSection(controller: controller)
-                              : _VerifiedServiceFeeSection(
+                            // SKILLS (Influencer only) -> under Bio
+                            if (isInfluencer) ...[
+                              SkillsSectionCard(controller: controller),
+                              SizedBox(height: 12.h),
+                            ],
+
+                            // SERVICE FEE
+                            if (isAdAgency) ...[
+                              Obx(
+                                () => ExpandableSectionCard(
+                                  title: 'Service Fee',
+                                  isExpanded:
+                                      controller.serviceFeeExpanded.value,
+                                  onToggle: controller.toggleServiceFee,
+                                  child:
+                                      controller.profileStatus.value ==
+                                          ProfileStatus.unverified
+                                      ? _ServiceFeeSection(
+                                          controller: controller,
+                                        )
+                                      : _VerifiedServiceFeeSection(
+                                          controller: controller,
+                                        ),
+                                ),
+                              ),
+                              SizedBox(height: 12.h),
+                            ],
+
+                            // SOCIAL LINKS
+                            if (!isBrand) ...[
+                              Obx(
+                                () => ExpandableSectionCard(
+                                  title: 'Social Links',
+                                  isExpanded: controller.socialExpanded.value,
+                                  onToggle: controller.toggleSocial,
+                                  child: _SocialLinksSection(
+                                    controller: controller,
+                                  ),
+                                ),
+                              ),
+                              SizedBox(height: 12.h),
+                              // NICHE
+                              Obx(
+                                () => ExpandableSectionCard(
+                                  title: 'Niche',
+                                  isExpanded: controller.nicheExpanded.value,
+                                  onToggle: controller.toggleNiche,
+                                  child: _NicheSection(controller: controller),
+                                ),
+                              ),
+                              SizedBox(height: 12.h),
+                            ],
+
+                            // PROFILE SETTINGS
+                            Obx(
+                              () => ExpandableSectionCard(
+                                title: 'Profile Settings',
+                                isExpanded: controller.settingsExpanded.value,
+                                onToggle: controller.toggleSettings,
+                                child: ProfileSettingsSection(
                                   controller: controller,
                                 ),
-                        ),
-                      ),
-                      SizedBox(height: 12.h),
-                    ],
-
-                    // SOCIAL LINKS
-                    if (!isBrand) ...[
-                      Obx(
-                        () => ExpandableSectionCard(
-                          title: 'Social Links',
-                          isExpanded: controller.socialExpanded.value,
-                          onToggle: controller.toggleSocial,
-                          child: _SocialLinksSection(controller: controller),
-                        ),
-                      ),
-                      SizedBox(height: 12.h),
-                      // NICHE
-                      Obx(
-                        () => ExpandableSectionCard(
-                          title: 'Niche',
-                          isExpanded: controller.nicheExpanded.value,
-                          onToggle: controller.toggleNiche,
-                          child: _NicheSection(controller: controller),
-                        ),
-                      ),
-                      SizedBox(height: 12.h),
-                    ],
-
-                    // PROFILE SETTINGS
-                    Obx(
-                      () => ExpandableSectionCard(
-                        title: 'Profile Settings',
-                        isExpanded: controller.settingsExpanded.value,
-                        onToggle: controller.toggleSettings,
-                        child: ProfileSettingsSection(controller: controller),
-                      ),
-                    ),
-                    SizedBox(height: 12.h),
-
-                    if (isBrand) ...[
-                      const BrandAssetsSection(),
-                      SizedBox(height: 12.h),
-                    ],
-
-                    // VERIFICATION METHODS
-                    Obx(
-                      () => ExpandableSectionCard(
-                        title: 'Verification Methods',
-                        titleColor: AppPalette.complemetary,
-                        isExpanded: controller.verificationExpanded.value,
-                        onToggle: controller.toggleVerification,
-                        child:
-                            controller.profileStatus.value ==
-                                ProfileStatus.unverified
-                            ? VerificationSection(controller: controller)
-                            : VerificationInprogressSection(
-                                controller: controller,
                               ),
-                      ),
-                    ),
-                    SizedBox(height: 12.h),
+                            ),
+                            SizedBox(height: 12.h),
 
-                    // LOCATIONS
-                    if (isInfluencer) ...[
-                      LocationsSectionCard(controller: controller),
-                      SizedBox(height: 12.h),
-                    ],
+                            if (isBrand) ...[
+                              const BrandAssetsSection(),
+                              SizedBox(height: 12.h),
+                            ],
 
-                    // PAYOUT SETTINGS
-                    if (!isBrand)
-                      Obx(
-                        () => ExpandableSectionCard(
-                          title: 'Payout Settings',
-                          isExpanded: controller.payoutExpanded.value,
-                          onToggle: controller.togglePayout,
-                          child: PayoutSettingsSection(controller: controller),
+                            // VERIFICATION METHODS
+                            Obx(
+                              () => ExpandableSectionCard(
+                                title: 'Verification Methods',
+                                titleColor: AppPalette.complemetary,
+                                isExpanded:
+                                    controller.verificationExpanded.value,
+                                onToggle: controller.toggleVerification,
+                                child:
+                                    controller.profileStatus.value ==
+                                        ProfileStatus.unverified
+                                    ? VerificationSection(
+                                        controller: controller,
+                                      )
+                                    : VerificationInprogressSection(
+                                        controller: controller,
+                                      ),
+                              ),
+                            ),
+                            SizedBox(height: 12.h),
+
+                            // LOCATIONS
+                            if (isInfluencer) ...[
+                              LocationsSectionCard(controller: controller),
+                              SizedBox(height: 12.h),
+                            ],
+
+                            // PAYOUT SETTINGS
+                            if (!isBrand)
+                              Obx(
+                                () => ExpandableSectionCard(
+                                  title: 'Payout Settings',
+                                  isExpanded: controller.payoutExpanded.value,
+                                  onToggle: controller.togglePayout,
+                                  child: PayoutSettingsSection(
+                                    controller: controller,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
-                  ],
+                      SizedBox(height: 16.h),
+                      CustomButton(
+                        onTap: controller.onSaveVerificationMethods,
+                        btnText: 'Save Update',
+                        height: 56.h,
+                        width: double.infinity,
+                        textColor: AppPalette.white,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              SizedBox(height: 16.h),
-              CustomButton(
-                onTap: controller.onSaveVerificationMethods,
-                btnText: 'Save Update',
-                height: 56.h,
-                width: double.infinity,
-                textColor: AppPalette.white,
-              ),
-            ],
+                _VerificationFlowPage(controller: controller),
+              ],
+            ),
           ),
         ),
-      ),
-    );
+      );
+    });
   }
 }
 
@@ -491,6 +529,535 @@ class _NicheSection extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _VerificationFlowPage extends StatelessWidget {
+  final ProfileController controller;
+
+  const _VerificationFlowPage({required this.controller});
+
+  double _overallProgress() {
+    if (controller.verificationInprogressItems.isEmpty) return 0.0;
+    final verifiedCount = controller.verificationInprogressItems
+        .where((e) => e.state == VerificationState.verified)
+        .length;
+    return verifiedCount / controller.verificationInprogressItems.length;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final flowIndex = controller.verificationFlowIndex.value;
+
+      return PopScope(
+        canPop: flowIndex == 0,
+        onPopInvokedWithResult: (didPop, result) {
+          if (!didPop && flowIndex > 0) {
+            controller.showVerificationList();
+          }
+        },
+        child: flowIndex == 2
+            ? _EmailVerifiedSuccess(controller: controller) // STATIC
+            : SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: EdgeInsets.fromLTRB(20.w, 12.h, 20.w, 24.h),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (flowIndex == 0) ...[
+                      SizedBox(height: 10.h),
+                      ProfileHeaderCard(
+                        controller: controller,
+                        onStatusTap: controller.showProfilePage,
+                      ),
+                      SizedBox(height: 16.h),
+                    ] else
+                      SizedBox(height: 10.h),
+
+                    IndexedStack(
+                      index: flowIndex,
+                      children: [
+                        _VerificationProgressList(
+                          controller: controller,
+                          overallProgress: _overallProgress(),
+                        ),
+                        _EmailVerificationStep(controller: controller),
+                        const SizedBox(), // placeholder for index 2
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+      );
+    });
+  }
+}
+
+class _VerificationProgressList extends StatelessWidget {
+  final ProfileController controller;
+  final double overallProgress;
+
+  const _VerificationProgressList({
+    required this.controller,
+    required this.overallProgress,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(
+      () => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
+            decoration: BoxDecoration(
+              color: AppPalette.white,
+              borderRadius: BorderRadius.circular(kBorderRadius.r),
+              border: Border.all(
+                color: AppPalette.border1,
+                width: kBorderWidth0_5,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.check_circle,
+                      color: AppPalette.secondary,
+                      size: 18.sp,
+                    ),
+                    SizedBox(width: 8.w),
+                    Text(
+                      'Verification Progress',
+                      style: TextStyle(
+                        color: AppPalette.black,
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 10.h),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(999.r),
+                  child: LinearProgressIndicator(
+                    value: overallProgress,
+                    minHeight: 6.h,
+                    backgroundColor: AppPalette.border1,
+                    color: AppPalette.secondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: 16.h),
+          ...controller.verificationInprogressItems.map(
+            (item) => _VerificationItemCard(
+              title: item.title,
+              status: controller.verificationLabel(item.state),
+              statusColor: controller.verificationColor(item.state),
+              onTap: item.title == 'Email'
+                  ? controller.startEmailVerification
+                  : null,
+            ),
+          ),
+          SizedBox(height: 12.h),
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+            decoration: BoxDecoration(
+              color: AppPalette.secondary.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(10.r),
+              border: Border.all(
+                color: AppPalette.secondary.withOpacity(0.3),
+                width: 0.8,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 22.w,
+                  height: 22.w,
+                  decoration: BoxDecoration(
+                    color: AppPalette.secondary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.info, color: AppPalette.white, size: 14.sp),
+                ),
+                SizedBox(width: 10.w),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Verification In Progress',
+                        style: TextStyle(
+                          color: AppPalette.secondary,
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      SizedBox(height: 2.h),
+                      Text(
+                        'We’ll notify you once all items are verified',
+                        style: TextStyle(
+                          color: AppPalette.secondary,
+                          fontSize: 10.sp,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VerificationItemCard extends StatelessWidget {
+  final String title;
+  final String status;
+  final Color statusColor;
+  final VoidCallback? onTap;
+
+  const _VerificationItemCard({
+    required this.title,
+    required this.status,
+    required this.statusColor,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 12.h),
+      child: Material(
+        color: AppPalette.white,
+        borderRadius: BorderRadius.circular(12.r),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12.r),
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12.r),
+              border: Border.all(
+                color: AppPalette.border1,
+                width: kBorderWidth0_5,
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          color: AppPalette.black,
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      SizedBox(height: 6.h),
+                      Row(
+                        children: [
+                          Container(
+                            width: 6.w,
+                            height: 6.w,
+                            decoration: BoxDecoration(
+                              color: statusColor,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          SizedBox(width: 6.w),
+                          Text(
+                            status,
+                            style: TextStyle(
+                              color: statusColor,
+                              fontSize: 10.sp,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right,
+                  color: AppPalette.subtext,
+                  size: 18.sp,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmailVerificationStep extends StatefulWidget {
+  final ProfileController controller;
+
+  const _EmailVerificationStep({required this.controller});
+
+  @override
+  State<_EmailVerificationStep> createState() => _EmailVerificationStepState();
+}
+
+class _EmailVerificationStepState extends State<_EmailVerificationStep> {
+  final _controllers = List.generate(
+    4,
+    (_) => TextEditingController(),
+    growable: false,
+  );
+  final _focusNodes = List.generate(4, (_) => FocusNode(), growable: false);
+
+  @override
+  void dispose() {
+    for (final controller in _controllers) {
+      controller.dispose();
+    }
+    for (final node in _focusNodes) {
+      node.dispose();
+    }
+    super.dispose();
+  }
+
+  void _handleChanged(int index, String value) {
+    if (value.isNotEmpty && index < _focusNodes.length - 1) {
+      _focusNodes[index + 1].requestFocus();
+    }
+    if (value.isEmpty && index > 0) {
+      _focusNodes[index - 1].requestFocus();
+    }
+    setState(() {});
+  }
+
+  bool _isOtpComplete() {
+    return _controllers.every((controller) => controller.text.isNotEmpty);
+  }
+
+  Widget _buildOtpBox(int index) {
+    final isFilled = _controllers[index].text.isNotEmpty;
+
+    return SizedBox(
+      width: 74.w,
+      height: 80.h,
+      child: TextField(
+        controller: _controllers[index],
+        focusNode: _focusNodes[index],
+        autofocus: index == 0,
+        keyboardType: TextInputType.number,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 32.sp,
+          fontWeight: FontWeight.w600,
+          color: AppPalette.primary,
+        ),
+        decoration: InputDecoration(
+          contentPadding: EdgeInsets.zero,
+          filled: true,
+          fillColor: const Color(0xFFF9FAFB),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16.r),
+            borderSide: BorderSide(color: const Color(0xFFCDD5DF), width: 2.w),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16.r),
+            borderSide: BorderSide(color: AppPalette.primary, width: 2.w),
+          ),
+        ),
+        inputFormatters: [
+          LengthLimitingTextInputFormatter(1),
+          FilteringTextInputFormatter.digitsOnly,
+        ],
+        onChanged: (value) => _handleChanged(index, value),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 12.w),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(height: 16.h),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: GestureDetector(
+              onTap: widget.controller.showVerificationList,
+              child: Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 20.sp,
+                color: AppPalette.primary,
+              ),
+            ),
+          ),
+          SizedBox(height: 80.h),
+          Text(
+            'Verify Your Email',
+            style: TextStyle(
+              fontSize: 32.sp,
+              fontWeight: FontWeight.w500,
+              color: const Color(0xFF111827),
+              height: 1.2,
+            ),
+          ),
+          SizedBox(height: 12.h),
+          Obx(
+            () => Text(
+              'We send a code to \n ${widget.controller.userEmail.value}',
+              style: TextStyle(
+                fontSize: 16.sp,
+                color: const Color(0xFF6B7280),
+                height: 1.5,
+              ),
+            ),
+          ),
+          SizedBox(height: 40.h),
+          SizedBox(
+            height: 80.h,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: List.generate(4, (index) => _buildOtpBox(index)),
+            ),
+          ),
+          SizedBox(height: 18.h),
+          Center(
+            child: Obx(
+              () {
+                final isLoading =
+                    widget.controller.isResendingEmailOtp.value ||
+                    widget.controller.isRequestingEmailOtp.value;
+                return GestureDetector(
+                  onTap:
+                      isLoading ? null : widget.controller.resendEmailOtp,
+                  child: Text(
+                    isLoading
+                        ? 'Resending...'
+                        : 'Didn’t receive the code? Resend',
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFF6B7280),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          SizedBox(height: 40.h),
+          Obx(
+            () {
+              final isVerifying =
+                  widget.controller.isVerifyingEmailOtp.value;
+              return CustomButton(
+                onTap: isVerifying
+                    ? null
+                    : () {
+                        final code =
+                            _controllers.map((c) => c.text).join();
+                        widget.controller.verifyEmailOtp(code);
+                      },
+                btnText: isVerifying ? 'Verifying...' : 'Continue',
+                width: double.infinity,
+                height: 56.h,
+                isDisabled: !_isOtpComplete() || isVerifying,
+                textStyle: TextStyle(
+                  fontSize: 18.sp,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmailVerifiedSuccess extends StatelessWidget {
+  final ProfileController controller;
+
+  const _EmailVerifiedSuccess({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    final h = MediaQuery.of(context).size.height;
+    final topInset = MediaQuery.of(context).padding.top;
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+
+    // This is the same padding you use in _VerificationFlowPage
+    const horizontalPadding = 20.0;
+    const verticalPaddingTop = 12.0;
+    const verticalPaddingBottom = 24.0;
+
+    return SizedBox(
+      height:
+          h -
+          topInset -
+          bottomInset -
+          verticalPaddingTop -
+          verticalPaddingBottom,
+      child: Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: horizontalPadding.w),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.check_circle,
+                    color: AppPalette.primary,
+                    size: 30.sp,
+                  ),
+                  Text(
+                    ' All set!',
+                    style: TextStyle(
+                      color: AppPalette.primary,
+                      fontSize: 32.sp,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 6.h),
+              Text(
+                'Your email is verified now!',
+                style: TextStyle(color: AppPalette.black, fontSize: 15.sp),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 24.h),
+              CustomButton(
+                onTap: () {
+                  controller.resetVerificationFlow();
+                  controller.showProfilePage();
+                },
+                btnText: 'Go to Profile',
+                btnColor: AppPalette.primary,
+                textColor: AppPalette.white,
+                height: 52.h,
+                width: double.infinity,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
