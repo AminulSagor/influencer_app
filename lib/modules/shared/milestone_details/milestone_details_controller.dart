@@ -1,8 +1,12 @@
 // lib/modules/ad_agency/milestone_details/milestone_details_controller.dart
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:path/path.dart' as path;
 
+import '../../ad_agency/services/upload_service.dart';
 import '../../../core/models/job_item.dart';
 import '../../../core/services/account_type_service.dart';
 import '../../../core/services/api_client.dart';
@@ -90,6 +94,7 @@ class MilestoneDetailsController extends GetxController {
   final RxBool confirmOwnership = false.obs;
   final RxBool acceptLicense = false.obs;
   final ApiClient _apiClient = Get.find<ApiClient>();
+  final UploadService _uploadService = Get.find<UploadService>();
   bool _needsParentRefresh = false;
 
   final AccountTypeService _accountTypeService = Get.find<AccountTypeService>();
@@ -909,13 +914,18 @@ class MilestoneDetailsController extends GetxController {
       reach = value;
     }
 
+    List<String> proofAttachmentUrls;
+    try {
+      proofAttachmentUrls = await _uploadProofAttachments(ui.proofs);
+    } catch (e) {
+      Get.snackbar('Upload failed', e.toString());
+      return;
+    }
+
     final payload = {
       'description': ui.descriptionController.text.trim(),
       'liveLinks': link.isEmpty ? [] : [link],
-      'proofAttachments': ui.proofs
-          .map((f) => f.path ?? f.name)
-          .where((e) => e.trim().isNotEmpty)
-          .toList(),
+      'proofAttachments': proofAttachmentUrls,
       'achievedViews': views,
       'achievedReach': reach,
       'achievedLikes': likes,
@@ -948,6 +958,67 @@ class MilestoneDetailsController extends GetxController {
     await _loadInfluencerMilestoneDetails();
 
     Get.snackbar('Submitted', 'Milestone sent for admin review');
+  }
+
+  Future<List<String>> _uploadProofAttachments(
+    List<PlatformFile> proofs,
+  ) async {
+    final uploadedUrls = <String>[];
+
+    for (final proof in proofs) {
+      final filePath = proof.path?.trim() ?? '';
+      if (filePath.isEmpty) {
+        throw Exception('Could not access ${proof.name} for upload.');
+      }
+
+      final file = File(filePath);
+      if (!await file.exists()) {
+        throw Exception('File not found: ${proof.name}');
+      }
+
+      final fileName = proof.name.trim().isNotEmpty
+          ? proof.name.trim()
+          : path.basename(filePath);
+      final contentType = _proofContentType(fileName);
+
+      final signedUrl = await _uploadService.createSignedUrl(
+        fileName: fileName,
+        fileType: contentType,
+        module: 'milestone-proofs',
+      );
+
+      await _uploadService.uploadFileToSignedUrl(
+        uploadUrl: signedUrl.uploadUrl,
+        file: file,
+        contentType: contentType,
+      );
+
+      uploadedUrls.add(signedUrl.fileUrl);
+    }
+
+    return uploadedUrls;
+  }
+
+  String _proofContentType(String fileName) {
+    final extension = path
+        .extension(fileName)
+        .replaceFirst('.', '')
+        .toLowerCase();
+    switch (extension) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'pdf':
+        return 'application/pdf';
+      case 'mp4':
+        return 'video/mp4';
+      case 'mov':
+        return 'video/quicktime';
+      default:
+        return 'application/octet-stream';
+    }
   }
 
   MilestoneStatus _parseMilestoneStatus(String? raw) {
