@@ -71,6 +71,7 @@ class MilestoneDetailsController extends GetxController {
   late final JobItem job;
   // not final because we reassign updated copy
   late Milestone milestone;
+  final Rxn<Milestone> milestoneRx = Rxn<Milestone>();
 
   final RxBool headerExpanded = true.obs;
 
@@ -89,6 +90,7 @@ class MilestoneDetailsController extends GetxController {
   final RxBool confirmOwnership = false.obs;
   final RxBool acceptLicense = false.obs;
   final ApiClient _apiClient = Get.find<ApiClient>();
+  bool _needsParentRefresh = false;
 
   final AccountTypeService _accountTypeService = Get.find<AccountTypeService>();
   @override
@@ -98,6 +100,7 @@ class MilestoneDetailsController extends GetxController {
     if (arguments is Map) {
       final map = arguments as Map;
       milestone = map['milestone'] as Milestone;
+      milestoneRx.value = milestone;
       job = map['job'] as JobItem;
     } else {
       throw 'MilestoneDetails requires Milestone and JobItem in Get.arguments';
@@ -198,6 +201,21 @@ class MilestoneDetailsController extends GetxController {
     return value == key ? fallback : value;
   }
 
+  Milestone get currentMilestone => milestoneRx.value ?? milestone;
+
+  void _setMilestone(Milestone value) {
+    milestone = value;
+    milestoneRx.value = value;
+  }
+
+  void _markNeedsParentRefresh() {
+    _needsParentRefresh = true;
+  }
+
+  void closePage() {
+    Get.back(result: {'refresh': _needsParentRefresh, 'milestone': milestone});
+  }
+
   // ---------- helpers ----------
 
   void _syncLocalStatusFromModel() {
@@ -241,27 +259,32 @@ class MilestoneDetailsController extends GetxController {
 
       final milestoneDetails = await _fetchMilestoneDetails(milestoneId);
       if (milestoneDetails != null) {
-        milestone = milestone.copyWith(
-          id: milestoneDetails['id']?.toString() ?? milestone.id,
-          title:
-              milestoneDetails['contentTitle']?.toString() ?? milestone.title,
-          platform:
-              milestoneDetails['platform']?.toString() ?? milestone.platform,
-          deliverable:
-              milestoneDetails['contentQuantity']?.toString() ??
-              milestone.deliverable,
-          dayIndex:
-              _intFrom(milestoneDetails['deliveryDays']) ?? milestone.dayIndex,
-          amountLabel:
-              _amountLabelFrom(milestoneDetails['amount']) ??
-              milestone.amountLabel,
-          targets: PromotionTarget(
-            reach: _intFrom(milestoneDetails['expectedReach']),
-            views: _intFrom(milestoneDetails['expectedViews']),
-            likes: _intFrom(milestoneDetails['expectedLikes']),
-            comments: _intFrom(milestoneDetails['expectedComments']),
+        _setMilestone(
+          milestone.copyWith(
+            id: milestoneDetails['id']?.toString() ?? milestone.id,
+            title:
+                milestoneDetails['contentTitle']?.toString() ?? milestone.title,
+            platform:
+                milestoneDetails['platform']?.toString() ?? milestone.platform,
+            deliverable:
+                milestoneDetails['contentQuantity']?.toString() ??
+                milestone.deliverable,
+            dayIndex:
+                _intFrom(milestoneDetails['deliveryDays']) ??
+                milestone.dayIndex,
+            amountLabel:
+                _amountLabelFrom(milestoneDetails['amount']) ??
+                milestone.amountLabel,
+            targets: PromotionTarget(
+              reach: _intFrom(milestoneDetails['expectedReach']),
+              views: _intFrom(milestoneDetails['expectedViews']),
+              likes: _intFrom(milestoneDetails['expectedLikes']),
+              comments: _intFrom(milestoneDetails['expectedComments']),
+            ),
+            status: _parseMilestoneStatus(
+              milestoneDetails['status']?.toString(),
+            ),
           ),
-          status: _parseMilestoneStatus(milestoneDetails['status']?.toString()),
         );
         milestoneStatus.value = _localStatusFromMilestone(milestone.status);
       }
@@ -570,6 +593,8 @@ class MilestoneDetailsController extends GetxController {
         return '$declinedSubmissionCount Declined';
       case MilestoneLocalStatus.completed:
         return 'Completed'; // ✅
+      default:
+        return 'To Do';
     }
   }
 
@@ -777,24 +802,27 @@ class MilestoneDetailsController extends GetxController {
     final statusRaw =
         raw['status']?.toString() ?? milestoneJson['status']?.toString();
 
-    milestone = milestone.copyWith(
-      id: milestoneJson['id']?.toString() ?? milestone.id,
-      title:
-          milestoneJson['contentTitle']?.toString().trim() ?? milestone.title,
-      platform: milestoneJson['platform']?.toString() ?? milestone.platform,
-      deliverable:
-          milestoneJson['contentQuantity']?.toString() ?? milestone.deliverable,
-      dayIndex: _intFrom(milestoneJson['deliveryDays']) ?? milestone.dayIndex,
-      amountLabel: _amountLabelFrom(
-        milestoneJson['amount'] ?? milestoneJson['paidAmount'],
+    _setMilestone(
+      milestone.copyWith(
+        id: milestoneJson['id']?.toString() ?? milestone.id,
+        title:
+            milestoneJson['contentTitle']?.toString().trim() ?? milestone.title,
+        platform: milestoneJson['platform']?.toString() ?? milestone.platform,
+        deliverable:
+            milestoneJson['contentQuantity']?.toString() ??
+            milestone.deliverable,
+        dayIndex: _intFrom(milestoneJson['deliveryDays']) ?? milestone.dayIndex,
+        amountLabel: _amountLabelFrom(
+          milestoneJson['amount'] ?? milestoneJson['paidAmount'],
+        ),
+        targets: PromotionTarget(
+          reach: _intFrom(milestoneJson['expectedReach']),
+          views: _intFrom(milestoneJson['expectedViews']),
+          likes: _intFrom(milestoneJson['expectedLikes']),
+          comments: _intFrom(milestoneJson['expectedComments']),
+        ),
+        status: _parseMilestoneStatus(statusRaw),
       ),
-      targets: PromotionTarget(
-        reach: _intFrom(milestoneJson['expectedReach']),
-        views: _intFrom(milestoneJson['expectedViews']),
-        likes: _intFrom(milestoneJson['expectedLikes']),
-        comments: _intFrom(milestoneJson['expectedComments']),
-      ),
-      status: _parseMilestoneStatus(statusRaw),
     );
 
     milestoneStatus.value = _localStatusFromMilestone(milestone.status);
@@ -913,8 +941,11 @@ class MilestoneDetailsController extends GetxController {
     ui.status.value = SubmissionStatus.inReview;
     ui.isSubmitted.value = true;
     ui.isExpanded.value = false;
-    milestone = milestone.copyWith(status: MilestoneStatus.inReview);
+    _setMilestone(milestone.copyWith(status: MilestoneStatus.inReview));
     milestoneStatus.value = MilestoneLocalStatus.inReview;
+
+    _markNeedsParentRefresh();
+    await _loadInfluencerMilestoneDetails();
 
     Get.snackbar('Submitted', 'Milestone sent for admin review');
   }
@@ -1136,20 +1167,25 @@ class MilestoneDetailsController extends GetxController {
 
     if (!ok) return;
 
+    _markNeedsParentRefresh();
+    await _loadBrandMilestoneDetails(isPaidAd: isPaidAd);
+
     target.status.value = BrandSubmissionStatus.completed;
     target.declinedReason.value = null;
 
-    // ✅ non-paidAd: only one submission -> overall milestone becomes Completed
-    if (!isPaidAd) {
-      milestoneStatus.value = MilestoneLocalStatus.completed;
+    if (isPaidAd) {
+      final allDone = brandSubmissions.every(
+        (s) => s.status.value == BrandSubmissionStatus.completed,
+      );
+      if (allDone) {
+        _setMilestone(milestone.copyWith(status: MilestoneStatus.approved));
+        milestoneStatus.value = MilestoneLocalStatus.completed;
+      }
       return;
     }
 
-    // ✅ paidAd: mark expanded as completed; if all completed -> milestone completed
-    final allDone = brandSubmissions.every(
-      (s) => s.status.value == BrandSubmissionStatus.completed,
-    );
-    if (allDone) milestoneStatus.value = MilestoneLocalStatus.completed;
+    _setMilestone(milestone.copyWith(status: MilestoneStatus.approved));
+    milestoneStatus.value = MilestoneLocalStatus.completed;
   }
 
   Future<void> _declineBrandSubmission(
@@ -1174,8 +1210,15 @@ class MilestoneDetailsController extends GetxController {
 
     if (!ok) return;
 
+    _markNeedsParentRefresh();
+    await _loadBrandMilestoneDetails(
+      isPaidAd: job.campaignType == CampaignType.paidAd,
+    );
+
     target.status.value = BrandSubmissionStatus.declined;
     target.declinedReason.value = reason;
+    _setMilestone(milestone.copyWith(status: MilestoneStatus.declined));
+    milestoneStatus.value = MilestoneLocalStatus.declined;
   }
 }
 

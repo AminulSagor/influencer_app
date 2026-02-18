@@ -194,7 +194,7 @@ class ProfileController extends GetxController {
     } else if (accountTypeService.isBrand) {
       await _fetchBrandProfile();
     } else {
-      _loadMockDataForUnverified();
+      _applyEmptyProfileState();
     }
 
     isLoadingProfile.value = false;
@@ -217,7 +217,7 @@ class ProfileController extends GetxController {
       _populateFromInfluencerProfile(profile);
     } else {
       debugPrint('❌ Failed to load profile: ${result.error}');
-      _loadMockDataForUnverified();
+      _applyEmptyProfileState();
     }
   }
 
@@ -584,7 +584,7 @@ class ProfileController extends GetxController {
       _populateFromAgencyJson(json);
     } catch (e) {
       debugPrint('❌ Failed to load agency profile: $e');
-      _loadMockDataForUnverified();
+      _applyEmptyProfileState();
     }
   }
 
@@ -602,7 +602,7 @@ class ProfileController extends GetxController {
       _populateFromBrandJson(json);
     } catch (e) {
       debugPrint('❌ Failed to load brand profile: $e');
-      _loadMockDataForUnverified();
+      _applyEmptyProfileState();
     }
   }
 
@@ -1364,10 +1364,10 @@ class ProfileController extends GetxController {
   }
 
   // ---------------------------------------------------------------------------
-  // MOCK DATA FOR TWO STATES
+  // EMPTY STATE (API fallback)
   // ---------------------------------------------------------------------------
 
-  void _loadMockDataForUnverified() {
+  void _applyEmptyProfileState() {
     final isBrand = accountTypeService.isBrand;
     final isAdAgency = accountTypeService.isAdAgency;
     final isInfluencer = accountTypeService.isInfluencer;
@@ -1379,28 +1379,9 @@ class ProfileController extends GetxController {
     profileImageUrl.value = '';
     profileImageFile.value = null;
 
-    socialAccounts.assignAll(const [
-      SocialAccount(
-        platform: 'Instagram',
-        iconPath: 'assets/icons/Instagram_outline.png',
-        handle: '@growbig',
-        isVerified: false,
-      ),
-      SocialAccount(
-        platform: 'YouTube',
-        iconPath: 'assets/icons/youtube_outline.png',
-        handle: 'gb_grow',
-        isVerified: false,
-      ),
-      SocialAccount(
-        platform: 'TikTok',
-        iconPath: 'assets/icons/tiktok_outline.png',
-        handle: '@grow_it',
-        isVerified: false,
-      ),
-    ]);
-
-    niches.assignAll(const ['Lifestyle', 'Fashion', 'Tech & Gadgets']);
+    socialAccounts.clear();
+    _syncSocialHandleDefaults();
+    niches.clear();
 
     profileFields.assignAll([
       if (isAdAgency)
@@ -1492,236 +1473,34 @@ class ProfileController extends GetxController {
       ),
     ]);
 
-    payoutMethods.assignAll(const [
-      PayoutMethod.bank(
-        bankName: 'DBBL',
-        accountName: 'Bank Account No.1',
-        accountNo: '123456987859',
-        routingNumber: '123456',
-        isApproved: true,
-      ),
-      PayoutMethod.bKash(
-        bKashNo: '+8801234567890',
-        bKashName: 'Hania Amir',
-        bKashAccountType: 'Personal',
-        isApproved: true,
-      ),
-      PayoutMethod.bank(
-        bankName: 'DBBL',
-        accountName: 'Bank Account No.1',
-        accountNo: '123456987859',
-        routingNumber: '123456',
-        isApproved: false,
-      ),
-    ]);
+    payoutMethods.clear();
 
-    brandWebsiteController.text = 'styleco.com';
-    brandAssets.assignAll([
-      BrandAssetItem(
-        platform: BrandHandlePlatform.facebook,
-        controller: TextEditingController(text: 'fb.com/growbig'),
-      ),
-    ]);
+    brandWebsiteController.clear();
+    _replaceBrandAssets([]);
 
     if (isInfluencer) {
-      skills.assignAll(const [
-        'Public Speaking',
-        'Voiceovers',
-        'Podcasting',
-        'Product Photography',
-        'Conversion Optimization',
-      ]);
+      skills.clear();
     } else {
       skills.clear();
     }
 
     if (isInfluencer) {
-      locations.assignAll(const [
-        UserLocation(
-          name: 'House',
-          thana: 'Banani',
-          zilla: 'Dhaka',
-          fullAddress: 'House 61, Road 8, Block F, Banani, Dhaka 1213',
-        ),
-      ]);
+      locations.clear();
     } else {
       locations.clear();
     }
   }
 
-  void _loadMockDataForVerified() {
+  void _setVerifiedProfileState() {
     profileStatus.value = ProfileStatus.verified;
-    profileCompletion.value = 1.0;
-    bioText.value =
-        'I\'m a lifestyle & fashion influencer helping brands grow with authentic content across multiple social platforms.';
-    serviceFeeText.value = '15%';
-    profileImageUrl.value = '';
-    profileImageFile.value = null;
-
-    socialAccounts.assignAll(const [
-      SocialAccount(
-        platform: 'Instagram',
-        iconPath: 'assets/icons/Instagram_outline.png',
-        handle: '@growbig',
-        isVerified: false,
-      ),
-      SocialAccount(
-        platform: 'YouTube',
-        iconPath: 'assets/icons/youtube_outline.png',
-        handle: 'gb_grow',
-        isVerified: false,
-      ),
-      SocialAccount(
-        platform: 'TikTok',
-        iconPath: 'assets/icons/tiktok_outline.png',
-        handle: '@grow_it',
-        isVerified: false,
-      ),
-    ]);
-
-    niches.assignAll(const [
-      'Lifestyle',
-      'Fashion',
-      'Tech & Gadgets',
-      'Fitness',
-    ]);
-
-    profileFields.assignAll(const [
-      ProfileField(
-        label: 'Agency Name',
-        hintText: 'Enter Agency Name',
-        value: 'Grow Big Media',
-        isRequired: true,
-      ),
-      ProfileField(
-        label: 'First Name',
-        hintText: 'Enter First Name',
-        value: 'Riaz Uddin',
-        isRequired: true,
-      ),
-      ProfileField(
-        label: 'Last Name',
-        hintText: 'Enter Last Name',
-        value: 'Emon',
-        isRequired: true,
-      ),
-      ProfileField(
-        label: 'Full Address',
-        hintText: 'Enter Full Address',
-        value: 'Dhanmondi, Dhaka, Bangladesh',
-        isRequired: true,
-      ),
-      ProfileField(
-        label: 'Email Address',
-        hintText: 'Enter Email Address',
-        value: 'hello@growbig.com',
-        isRequired: true,
-      ),
-      ProfileField(
-        label: 'Phone Number',
-        hintText: 'Enter Phone Number',
-        value: '+880 1700 000 000',
-        isRequired: true,
-      ),
-      ProfileField(
-        label: 'Secondary Phone Number (Optional)',
-        hintText: 'Enter Secondary Phone Number',
-        value: '',
-        isRequired: false,
-      ),
-    ]);
-    _syncProfileFieldDefaults();
-
-    verificationInprogressItems.assignAll(const [
-      VerificationInprogressItem(
-        title: 'Social Profile Verification',
-        state: VerificationState.verified,
-      ),
-      VerificationInprogressItem(
-        title: 'Phone No. Verification',
-        state: VerificationState.verified,
-      ),
-      VerificationInprogressItem(
-        title: 'Payment Setup',
-        state: VerificationState.underReview,
-      ),
-      VerificationInprogressItem(
-        title: 'NID',
-        state: VerificationState.underReview,
-      ),
-      VerificationInprogressItem(
-        title: 'Trade License',
-        state: VerificationState.unverified,
-      ),
-      VerificationInprogressItem(
-        title: 'TIN',
-        state: VerificationState.unverified,
-      ),
-      VerificationInprogressItem(
-        title: 'BIN',
-        state: VerificationState.unverified,
-      ),
-      VerificationInprogressItem(
-        title: 'Email',
-        state: VerificationState.unverified,
-      ),
-    ]);
-
-    payoutMethods.assignAll(const [
-      PayoutMethod.bank(
-        bankName: 'DBBL',
-        accountName: 'Bank Account No.1',
-        accountNo: '123456987859',
-        routingNumber: '123456',
-        isApproved: true,
-      ),
-      PayoutMethod.bKash(
-        bKashNo: '+8801234567890',
-        bKashName: 'Hania Amir',
-        bKashAccountType: 'Personal',
-        isApproved: true,
-      ),
-      PayoutMethod.bank(
-        bankName: 'DBBL',
-        accountName: 'Bank Account No.1',
-        accountNo: '123456987859',
-        routingNumber: '123456',
-        isApproved: false,
-      ),
-    ]);
-
-    if (accountTypeService.isInfluencer) {
-      skills.assignAll(const [
-        'Public Speaking',
-        'Voiceovers',
-        'Podcasting',
-        'Product Photography',
-        'Conversion Optimization',
-      ]);
-    } else {
-      skills.clear();
-    }
-
-    if (accountTypeService.isInfluencer) {
-      locations.assignAll(const [
-        UserLocation(
-          name: 'House',
-          thana: 'Banani',
-          zilla: 'Dhaka',
-          fullAddress: 'House 61, Road 8, Block F, Banani, Dhaka 1213',
-        ),
-      ]);
-    } else {
-      locations.clear();
-    }
   }
 
   // You can expose this to switch state from outside if needed.
   void setProfileStatus(ProfileStatus status) {
     if (status == ProfileStatus.verified) {
-      _loadMockDataForVerified();
+      _setVerifiedProfileState();
     } else {
-      _loadMockDataForUnverified();
+      _applyEmptyProfileState();
     }
   }
 

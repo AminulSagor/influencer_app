@@ -11,7 +11,7 @@
 .svn/
 .swiftpm/
 migrate_working_dir/
-
+analysis/
 # IntelliJ related
 *.iml
 *.ipr
@@ -46,3 +46,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+
+BrandGuru.postman_collection (3).json

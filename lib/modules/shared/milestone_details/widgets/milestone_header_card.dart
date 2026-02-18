@@ -12,6 +12,7 @@ class MilestoneHeaderCard extends StatelessWidget {
   final Milestone milestone;
   final bool isExpanded;
   final VoidCallback onToggle;
+  final VoidCallback onBack;
 
   const MilestoneHeaderCard({
     super.key,
@@ -19,7 +20,28 @@ class MilestoneHeaderCard extends StatelessWidget {
     required this.milestone,
     required this.isExpanded,
     required this.onToggle,
+    required this.onBack,
   });
+
+  // String _platformLabel(String? rawPlatform) {
+  //   final platform = (rawPlatform ?? '').trim();
+  //   if (platform.isEmpty) return 'Platform';
+  //   return platform
+  //       .split(RegExp(r'[\s_-]+'))
+  //       .map(
+  //         (word) => word.isEmpty
+  //             ? word
+  //             : '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}',
+  //       )
+  //       .join(' ');
+  // }
+
+  String _metricValue(int? value) {
+    if (value == null || value <= 0) return '—';
+    if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M';
+    if (value >= 1000) return '${(value / 1000).toStringAsFixed(0)}K';
+    return value.toString();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +50,12 @@ class MilestoneHeaderCard extends StatelessWidget {
     final isInfluencer = accountTypeService.isInfluencer;
     final isBrand = accountTypeService.isBrand;
     final isPaidAd = job.campaignType == CampaignType.paidAd;
+    final targets = milestone.targets;
+    final deliverableText = (milestone.deliverable?.trim().isNotEmpty ?? false)
+        ? milestone.deliverable!.trim()
+        : ((milestone.subtitle?.trim().isNotEmpty ?? false)
+              ? milestone.subtitle!.trim()
+              : '—');
     return Container(
       padding: EdgeInsets.all(18.w),
       decoration: BoxDecoration(
@@ -45,7 +73,7 @@ class MilestoneHeaderCard extends StatelessWidget {
           Row(
             children: [
               GestureDetector(
-                onTap: () => Get.back(),
+                onTap: onBack,
                 child: Icon(
                   Icons.arrow_back,
                   size: 16.sp,
@@ -159,8 +187,7 @@ class MilestoneHeaderCard extends StatelessWidget {
             _HeaderSectionTitle(
               iconPath: 'assets/icons/requirement.png',
               title: 'Content Requirements',
-              subTitle:
-                  '• ${milestone.subtitle ?? 'Final Report + 2 Instagram Stories'}',
+              subTitle: '• $deliverableText',
             ),
             SizedBox(height: 14.h),
             Divider(color: AppPalette.border1, height: 1),
@@ -174,7 +201,8 @@ class MilestoneHeaderCard extends StatelessWidget {
             SizedBox(height: 6.h),
             if (isAgency || (isBrand && isPaidAd)) ...[
               Text(
-                'Facebook',
+                milestone.platform ??
+                    'unknown', //_platformLabel(milestone.platform),
                 style: TextStyle(
                   color: AppPalette.thirdColor,
                   fontSize: 12.sp,
@@ -182,17 +210,30 @@ class MilestoneHeaderCard extends StatelessWidget {
                 ),
               ),
               SizedBox(height: 8.h),
-              _TargetCard(title: 'Reach', value: '300K'),
+              _TargetCard(title: 'Reach', value: _metricValue(targets?.reach)),
+              if ((targets?.views ?? 0) > 0) ...[
+                SizedBox(height: 8.h),
+                _TargetCard(
+                  title: 'Views',
+                  value: _metricValue(targets?.views),
+                ),
+              ],
+              if ((targets?.likes ?? 0) > 0) ...[
+                SizedBox(height: 8.h),
+                _TargetCard(
+                  title: 'Reaction',
+                  value: _metricValue(targets?.likes),
+                ),
+              ],
+              if ((targets?.comments ?? 0) > 0) ...[
+                SizedBox(height: 8.h),
+                _TargetCard(
+                  title: 'Comment',
+                  value: _metricValue(targets?.comments),
+                ),
+              ],
 
               SizedBox(height: 18.h),
-
-              // PROMOTION GOAL
-              _HeaderSectionTitle(
-                iconPath:
-                    'assets/icons/goal.png', // or Icons.adjust_rounded etc.
-                title: 'Promotion Goal',
-                subTitle: 'Gain Page Like As Much As Possible',
-              ),
             ],
             if (isInfluencer || (isBrand && !isPaidAd))
               Center(
@@ -204,25 +245,25 @@ class MilestoneHeaderCard extends StatelessWidget {
                   children: [
                     _TargetCard(
                       title: 'Reach',
-                      value: '300K',
+                      value: _metricValue(targets?.reach),
                       width: 115.w,
                       trailingIcon: Icons.remove_red_eye_rounded,
                     ),
                     _TargetCard(
                       title: 'Views',
-                      value: '300K',
+                      value: _metricValue(targets?.views),
                       width: 115.w,
                       trailingIcon: Icons.play_arrow_rounded,
                     ),
                     _TargetCard(
                       title: 'Reaction',
-                      value: '300K',
+                      value: _metricValue(targets?.likes),
                       width: 115.w,
                       trailingIcon: Icons.favorite_rounded,
                     ),
                     _TargetCard(
                       title: 'Comment',
-                      value: '300K',
+                      value: _metricValue(targets?.comments),
                       width: 115.w,
                       trailingIcon: Icons.chat_bubble_rounded,
                     ),

@@ -829,12 +829,16 @@ class _MilestoneTile extends StatelessWidget {
     final statusText = _statusText(m.status);
     final campaignController = Get.find<BrandCampaignDetailsController>();
     return InkWell(
-      onTap: () {
-        Get.toNamed(
+      onTap: () async {
+        final result = await Get.toNamed(
           AppRoutes.milestoneDetails,
           arguments: {'milestone': m, 'job': campaignController.job},
           id: 1,
         );
+
+        if (result is Map && result['refresh'] == true) {
+          await campaignController.refreshAfterMilestoneUpdate();
+        }
       },
       child: Container(
         margin: EdgeInsets.only(bottom: 10.h),

@@ -46,7 +46,7 @@ class BrandCampaignDetailsController extends GetxController {
   /// Expect either:
   /// - Get.toNamed(..., arguments: jobItem)
   /// - Get.toNamed(..., arguments: {'job': jobItem, 'campaignType': 'paidAd', ...})
-  /// Also supports no args -> uses CreateCampaignController (if registered) -> demo fallbacks.
+  /// Also supports no args -> uses CreateCampaignController (if registered).
   final dynamic arguments;
   BrandCampaignDetailsController(this.arguments);
 
@@ -149,9 +149,12 @@ class BrandCampaignDetailsController extends GetxController {
       return;
     }
 
-    // 3) Last resort: demo defaults
-    _loadDemo();
+    // 3) Last resort: keep API-driven/empty state
     _loadFromApiIfPossible();
+  }
+
+  Future<void> refreshAfterMilestoneUpdate() async {
+    await _loadFromApiIfPossible();
   }
 
   void _showDebugSnackbar(dynamic args) {
@@ -716,195 +719,7 @@ class BrandCampaignDetailsController extends GetxController {
     if (budgetText.value.trim().isEmpty) budgetText.value = '৳11,000';
   }
 
-  void _loadDemo() {
-    campaignType.value = campaignType.value.trim().isEmpty
-        ? 'paidAd'
-        : campaignType.value;
-
-    campaignTitle.value = 'Summer Fashion Campaign';
-    budgetText.value = '৳5,000';
-
-    targetingText.value = 'Crowd';
-
-    influencers.assignAll(['Influencer A', 'Influencer B']);
-
-    platforms.assignAll(const <IconData>[
-      Icons.facebook,
-      Icons.camera_alt_outlined,
-      Icons.play_circle_outline,
-      Icons.music_note_outlined,
-    ]);
-
-    daysRemaining.value = 8;
-    deadlineDateText.value = 'Dec 15, 2025';
-
-    baseBudget.value = 15000;
-    vatAmount.value = 2000;
-
-    contentRequirements.assignAll(const [
-      'Minimum 2 Instagram Feed Posts',
-      '3 Stories (8h Swipe Up Link)',
-      '1 YouTube Short (30–60 Seconds)',
-      '3 TikTok Video (Featuring Trending Sounds)',
-    ]);
-
-    dosText.value =
-        'Show authentic usage, mention eco-friendly aspects\n'
-        'Tag @StyleCo in all posts\n'
-        'Show products in natural lighting\n'
-        'Include discount code in captions';
-
-    dontsText.value =
-        'Avoid misleading claims\n'
-        'Do not use competitor branding\n'
-        'Don’t edit product colors unrealistically\n'
-        'Don’t hide discount code';
-
-    reportingRequirements.value =
-        'Provide analytics screenshots 7 days post-publication (include reach, engagement, and click-through rates).';
-
-    usageRights.value =
-        'Brand retains rights to repost content on official channels with proper attribution.';
-
-    if (contentAssets.isEmpty) {
-      contentAssets.addAll(const [
-        JobAsset(
-          title: 'Brand Logo Pack',
-          meta: 'PNG, SVG – 2.4 MB',
-          kind: JobAssetKind.image,
-        ),
-        JobAsset(
-          title: 'Product Demo Video',
-          meta: 'MP4 – 80 MB',
-          kind: JobAssetKind.video,
-        ),
-        JobAsset(
-          title: 'Brand Guidelines',
-          meta: 'PDF – 750 KB',
-          kind: JobAssetKind.document,
-        ),
-      ]);
-    }
-
-    if (milestones.isEmpty) {
-      milestones.addAll(const [
-        Milestone(
-          stepLabel: '1',
-          title: 'Initial Brand Awareness',
-          subtitle: '2 Instagram Posts + 3 Stories',
-          dayLabel: 'DAY 1',
-          status: MilestoneStatus.todo,
-        ),
-        Milestone(
-          stepLabel: '2',
-          title: 'Lead Generation',
-          subtitle: '1 Sponsored Video (60 sec)',
-          dayLabel: 'DAY 2',
-          status: MilestoneStatus.todo,
-        ),
-        Milestone(
-          stepLabel: '3',
-          title: 'Sales Conversion',
-          subtitle: '1 Sponsored Video (60 sec)',
-          dayLabel: 'DAY 3',
-          status: MilestoneStatus.todo,
-        ),
-        Milestone(
-          stepLabel: '4',
-          title: 'Campaign Wrap Up',
-          subtitle: 'Final Report + 2 Stories',
-          dayLabel: 'DAY 4',
-          status: MilestoneStatus.todo,
-        ),
-      ]);
-    }
-
-    if (brandAssets.isEmpty) {
-      brandAssets.addAll(const [
-        BrandAssetLink(
-          title: 'Facebook Page',
-          subtitle: 'Page Link',
-          icon: Icons.facebook,
-          url: 'https://facebook.com/',
-        ),
-      ]);
-    }
-  }
-
   void _applyFallbacks() {
-    // If platforms/influencers are not provided anywhere, keep a safe default
-    if (influencers.isEmpty) {
-      influencers.assignAll(['Influencer A', 'Influencer B']);
-    }
-    if (platforms.isEmpty) {
-      platforms.assignAll(const <IconData>[
-        Icons.facebook,
-        Icons.camera_alt_outlined,
-        Icons.play_circle_outline,
-        Icons.music_note_outlined,
-      ]);
-    }
-
-    if (isPaidAd && targetingText.value.trim().isEmpty) {
-      targetingText.value = 'Crowd';
-    }
-
-    if (campaignGoals.value.trim().isEmpty) {
-      campaignGoals.value =
-          'Promote our new summer skincare line to Gen Z and millennial audiences. Focus on natural ingredients and sustainable packaging.';
-    }
-
-    if (productServiceDetails.value.trim().isEmpty) {
-      productServiceDetails.value =
-          'Promote our new summer skincare line to Gen Z and millennial audiences. Focus on natural ingredients and sustainable packaging.';
-    }
-
-    if (contentRequirements.isEmpty) {
-      contentRequirements.assignAll(const [
-        'Minimum 2 Instagram Feed Posts',
-        '3 Stories (8h Swipe Up Link)',
-        '1 YouTube Short (30–60 Seconds)',
-        '3 TikTok Video (Featuring Trending Sounds)',
-      ]);
-    }
-
-    if (dosText.value.trim().isEmpty) {
-      dosText.value =
-          'Show authentic usage, mention eco-friendly aspects\n'
-          'Tag @Brand in all posts\n'
-          'Show products in natural lighting\n'
-          'Include discount code in captions';
-    }
-
-    if (dontsText.value.trim().isEmpty) {
-      dontsText.value =
-          'Avoid misleading claims\n'
-          'Do not use competitor branding\n'
-          'Don’t edit product colors unrealistically\n'
-          'Don’t hide discount code';
-    }
-
-    if (reportingRequirements.value.trim().isEmpty) {
-      reportingRequirements.value =
-          'Provide analytics screenshots 7 days post-publication (include reach, engagement, and click-through rates).';
-    }
-
-    if (usageRights.value.trim().isEmpty) {
-      usageRights.value =
-          'Brand retains rights to repost content on official channels with proper attribution.';
-    }
-
-    // Brand assets default for PaidAd (screenshot)
-    if (isPaidAd && brandAssets.isEmpty) {
-      brandAssets.add(
-        const BrandAssetLink(
-          title: 'Facebook Page',
-          subtitle: 'Page Link',
-          icon: Icons.facebook,
-        ),
-      );
-    }
-
     _recomputeMilestoneStatusLabel();
   }
 
