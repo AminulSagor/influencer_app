@@ -22,6 +22,10 @@ class CustomButton extends StatelessWidget {
 
   final List<double>? dashPattern;
 
+  final Widget? leading;
+  final Widget? trailing;
+  final double? iconGap;
+
   final bool _isDotted;
 
   const CustomButton({
@@ -41,6 +45,9 @@ class CustomButton extends StatelessWidget {
     this.isLoading = false,
     this.isDisabled = false,
     this.gradient,
+    this.leading,
+    this.trailing,
+    this.iconGap,
   }) : _isDotted = false;
 
   const CustomButton.dotted({
@@ -60,10 +67,39 @@ class CustomButton extends StatelessWidget {
     this.isLoading = false,
     this.isDisabled = false,
     this.gradient,
+    this.leading,
+    this.trailing,
+    this.iconGap,
   }) : _isDotted = true;
 
   @override
   Widget build(BuildContext context) {
+    final gap = iconGap ?? 8.w;
+    final hasLeading = leading != null;
+    final hasTrailing = trailing != null;
+
+    final childContent = FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (hasLeading) ...[leading!, SizedBox(width: gap)],
+          Text(
+            isLoading ? 'Loading..' : btnText,
+            style:
+                textStyle ??
+                TextStyle(
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: -0.04,
+                  color: textColor ?? AppPalette.black,
+                ),
+          ),
+          if (hasTrailing) ...[SizedBox(width: gap), trailing!],
+        ],
+      ),
+    );
+
     final button = Container(
       height: height ?? 31.h,
       width: width,
@@ -87,29 +123,10 @@ class CustomButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(
               borderRadius ?? kBorderRadius.r,
             ),
-            // side: BorderSide(
-            //   color: !showBorder!
-            //       ? Colors.transparent
-            //       : borderColor ?? AppPalette.defaultStroke,
-            //   width: borderWidth ?? kBorderWidth0_5,
-            // ),
           ),
         ),
         onPressed: isDisabled ? null : onTap,
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text(
-            isLoading ? 'Loading..' : btnText,
-            style:
-                textStyle ??
-                TextStyle(
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: -0.04,
-                  color: textColor ?? AppPalette.black,
-                ),
-          ),
-        ),
+        child: childContent,
       ),
     );
 

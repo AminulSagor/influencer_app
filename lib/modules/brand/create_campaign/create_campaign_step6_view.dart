@@ -1,21 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:influencer_app/core/theme/app_palette.dart';
 
 import '../../../core/models/job_item.dart';
-import 'create_campaign_controller.dart' hide CampaignType;
+import '../../../core/utils/constants.dart';
+import '../../../core/widgets/custom_button.dart';
+import 'create_campaign_controller.dart';
+import 'widgets/top_progress_section.dart';
 
 class CreateCampaignStep6View extends GetView<CreateCampaignController> {
   const CreateCampaignStep6View({super.key});
 
-  static const _bg = Color(0xFFF6F7F7);
-  static const _primary = Color(0xFF2F4F1F);
-  static const _softBorder = Color(0xFFBFD7A5);
+  static const _bg = AppPalette.background;
+  static const _primary = AppPalette.primary;
 
   @override
   Widget build(BuildContext context) {
-    final c = controller;
-
     return Scaffold(
       backgroundColor: _bg,
       body: SafeArea(
@@ -23,136 +24,98 @@ class CreateCampaignStep6View extends GetView<CreateCampaignController> {
           children: [
             Expanded(
               child: SingleChildScrollView(
-                padding: EdgeInsets.symmetric(horizontal: 18.w),
+                padding: EdgeInsets.symmetric(horizontal: 18.w, vertical: 16.h),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    18.h.verticalSpace,
-
-                    // top header
-                    Obx(() {
-                      return Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              c.stepText,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 13.sp,
-                                color: Colors.black87,
-                              ),
-                            ),
-                          ),
-                          Text(
-                            c.progressPercentText,
-                            style: TextStyle(
-                              fontSize: 13.sp,
-                              color: Colors.black87,
-                            ),
-                          ),
-                        ],
-                      );
-                    }),
-                    10.h.verticalSpace,
-                    Obx(() {
-                      return ClipRRect(
-                        borderRadius: BorderRadius.circular(99.r),
-                        child: LinearProgressIndicator(
-                          value: c.progress,
-                          minHeight: 10.h,
-                          backgroundColor: const Color(0xFFD7E0CC),
-                          valueColor: const AlwaysStoppedAnimation(_primary),
-                        ),
-                      );
-                    }),
+                    Obx(
+                      () => TopProgressSection(
+                        onPrevious: controller.onPrevious,
+                        stepText: controller.stepText,
+                        progressPercentText: controller.progressPercentText,
+                        progress: controller.progress,
+                      ),
+                    ),
 
                     18.h.verticalSpace,
 
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'create_campaign_step6_title'.tr,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 26.sp,
-                              fontWeight: FontWeight.w800,
-                              color: _primary,
-                            ),
-                          ),
-                        ),
-                        10.w.horizontalSpace,
-                        _DraftButton(onTap: c.saveAsDraft),
-                      ],
+                    Text(
+                      'create_campaign_step6_title'.tr,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 19.sp,
+                        fontWeight: FontWeight.w600,
+                        color: _primary,
+                      ),
                     ),
                     6.h.verticalSpace,
                     Text(
                       'create_campaign_step6_subtitle'.tr,
-                      style: TextStyle(fontSize: 13.sp, color: Colors.black54),
+                      style: TextStyle(
+                        fontSize: 10.sp,
+                        color: AppPalette.black,
+                      ),
                     ),
 
                     16.h.verticalSpace,
 
-                    // green campaign details card (matching your screenshots)
-                    _GreenCampaignDetailsCard(controller: c),
+                    _CampaignOverviewCard(controller: controller),
 
                     14.h.verticalSpace,
 
                     // Campaign Brief
                     _AccordionCard(
-                      icon: Icons.description_outlined,
+                      iconPath: 'assets/icons/terms_condition.png',
                       title: 'create_campaign_step6_campaign_brief'.tr,
                       initiallyExpanded: true,
-                      child: _CampaignBriefBlock(controller: c),
+                      child: _CampaignBriefBlock(controller: controller),
                     ),
 
                     14.h.verticalSpace,
 
                     // Campaign Milestones
                     _AccordionCard(
-                      icon: Icons.flag_outlined,
+                      iconPath: 'assets/icons/mission.png',
                       title: 'create_campaign_step6_campaign_milestones'.tr,
-                      initiallyExpanded: false,
-                      child: _MilestonesBlock(controller: c),
+                      initiallyExpanded: true,
+                      child: _MilestonesBlock(controller: controller),
                     ),
 
                     14.h.verticalSpace,
 
                     // Content Assets
                     _AccordionCard(
-                      icon: Icons.download_outlined,
+                      iconPath: 'assets/icons/download.png',
                       title: 'create_campaign_step6_content_assets'.tr,
-                      initiallyExpanded: false,
-                      child: _ContentAssetsBlock(controller: c),
+                      initiallyExpanded: true,
+                      child: _ContentAssetsBlock(controller: controller),
                     ),
 
                     14.h.verticalSpace,
 
                     // Terms & Conditions
                     _AccordionCard(
-                      icon: Icons.list_alt_outlined,
+                      iconPath: 'assets/icons/terms_condition.png',
                       title: 'create_campaign_step6_terms_conditions'.tr,
-                      initiallyExpanded: false,
-                      child: _TermsBlock(controller: c),
+                      initiallyExpanded: true,
+                      child: _TermsBlock(controller: controller),
                     ),
 
                     // Paid Ad -> Brand assets
                     Obx(() {
                       final isPaid =
-                          c.selectedType.value == CampaignType.paidAd;
+                          controller.selectedType.value == CampaignType.paidAd;
                       if (!isPaid) return const SizedBox.shrink();
 
                       return Column(
                         children: [
                           14.h.verticalSpace,
                           _AccordionCard(
-                            icon: Icons.download_outlined,
+                            iconPath: 'assets/icons/download.png',
                             title: 'create_campaign_step6_brand_assets'.tr,
-                            initiallyExpanded: false,
-                            child: _BrandAssetsBlock(controller: c),
+                            initiallyExpanded: true,
+                            child: _BrandAssetsBlock(controller: controller),
                           ),
                         ],
                       );
@@ -174,40 +137,33 @@ class CreateCampaignStep6View extends GetView<CreateCampaignController> {
               child: Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton(
-                      onPressed: c.onPrevious,
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: Size(double.infinity, 46.h),
-                        side: const BorderSide(color: Colors.black12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12.r),
-                        ),
-                      ),
-                      child: Text('common_previous'.tr),
+                    child: CustomButton(
+                      btnText: 'common_previous'.tr,
+                      btnColor: AppPalette.white,
+                      borderColor: AppPalette.border1,
+                      textColor: AppPalette.black,
+                      onTap: controller.onPrevious,
                     ),
                   ),
                   12.w.horizontalSpace,
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: c.canGoNext
-                          ? c.submitAndShowPlacementConfirmedPopup
-                          : null,
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: Size(double.infinity, 46.h),
-                        backgroundColor: _primary.withOpacity(
-                          c.canGoNext ? 0.75 : 0.35,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12.r),
-                        ),
-                        elevation: 0,
+                  Obx(() {
+                    final disabled = !controller.canGoNext;
+                    return Expanded(
+                      child: CustomButton(
+                        btnText: 'create_campaign_step6_get_quote'.tr,
+                        btnColor: disabled
+                            ? AppPalette.defaultFill
+                            : AppPalette.secondary,
+                        textColor: disabled
+                            ? AppPalette.greyText
+                            : AppPalette.white,
+                        borderColor: Colors.transparent,
+                        showBorder: false,
+                        isDisabled: disabled,
+                        onTap: controller.submitAndShowPlacementConfirmedPopup,
                       ),
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text('create_campaign_step6_get_quote'.tr),
-                      ),
-                    ),
-                  ),
+                    );
+                  }),
                 ],
               ),
             ),
@@ -218,131 +174,76 @@ class CreateCampaignStep6View extends GetView<CreateCampaignController> {
   }
 }
 
-class _DraftButton extends StatelessWidget {
-  final VoidCallback onTap;
-  const _DraftButton({required this.onTap});
-
-  static const _primary = Color(0xFF2F4F1F);
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(24.r),
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
-        decoration: BoxDecoration(
-          color: _primary.withOpacity(.7),
-          borderRadius: BorderRadius.circular(999.r),
-        ),
-        child: Text(
-          'create_campaign_save_draft'.tr,
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 12.5.sp,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _GreenCampaignDetailsCard extends StatelessWidget {
+class _CampaignOverviewCard extends StatelessWidget {
   final CreateCampaignController controller;
-  const _GreenCampaignDetailsCard({required this.controller});
-
-  static const _primary = Color(0xFF2F4F1F);
-
-  String _safeTitle(CreateCampaignController c) {
-    final t = c.campaignName.value.trim();
-    if (t.isNotEmpty) return t;
-    return c.campaignNameCtrl.text.trim().isNotEmpty
-        ? c.campaignNameCtrl.text.trim()
-        : 'create_campaign_step6_campaign_title_fallback'.tr;
-  }
-
-  String _deadlineText(CreateCampaignController c) {
-    return c.deadlineLabelForStep6;
-  }
+  const _CampaignOverviewCard({required this.controller});
 
   @override
   Widget build(BuildContext context) {
-    final c = controller;
-
-    final totalBudget = c.totalBudgetText;
-    final vatLabel = '${(c.vatPercent * 100).round()}%';
+    String safeTitle() {
+      final t = controller.campaignName.value.trim();
+      if (t.isNotEmpty) return t;
+      return controller.campaignNameCtrl.text.trim().isNotEmpty
+          ? controller.campaignNameCtrl.text.trim()
+          : 'create_campaign_step6_campaign_title_fallback'.tr;
+    }
 
     return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(16.w),
+      padding: EdgeInsets.all(18.w),
       decoration: BoxDecoration(
-        color: _primary.withOpacity(.70),
-        borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: Colors.black12),
+        borderRadius: BorderRadius.circular(kBorderRadius.r),
+        border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
+        gradient: const LinearGradient(
+          colors: [AppPalette.gradient1, AppPalette.secondary],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // label
           Text(
-            'create_campaign_step6_campaign_details'.tr,
+            'campaign_details_title'.tr,
             style: TextStyle(
               color: Colors.white,
               fontSize: 14.sp,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
             ),
           ),
-          12.h.verticalSpace,
+          SizedBox(height: 18.h),
 
+          // Icon + Title + Budget
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.campaign_outlined, color: Colors.white, size: 22.sp),
-              10.w.horizontalSpace,
+              Image.asset(
+                'assets/icons/online_ads.png',
+                width: 28.w,
+                height: 28.w,
+                fit: BoxFit.cover,
+              ),
+              SizedBox(width: 12.w),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _safeTitle(c),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                      safeTitle(),
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 15.sp,
-                        fontWeight: FontWeight.w500,
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.w300,
                       ),
                     ),
-                    6.h.verticalSpace,
-                    Row(
-                      children: [
-                        FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            '৳',
-                            style: TextStyle(
-                              color: const Color(0xFFDCE8CB),
-                              fontSize: 22.sp,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        6.w.horizontalSpace,
-                        Expanded(
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              totalBudget,
-                              style: TextStyle(
-                                color: const Color(0xFFDCE8CB),
-                                fontSize: 26.sp,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                    SizedBox(height: 6.h),
+                    Text(
+                      controller.totalBudgetText,
+                      style: TextStyle(
+                        color: AppPalette.thirdColor,
+                        fontSize: 24.sp,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ],
                 ),
@@ -350,73 +251,93 @@ class _GreenCampaignDetailsCard extends StatelessWidget {
             ],
           ),
 
-          10.h.verticalSpace,
-          Divider(color: Colors.white.withOpacity(.35), height: 1),
-          10.h.verticalSpace,
+          SizedBox(height: 8.h),
+          Divider(color: AppPalette.thirdColor.withAlpha(150), height: 1),
+          SizedBox(height: 12.h),
 
+          // Platforms row
           Row(
             children: [
               Text(
                 'common_platforms'.tr,
                 style: TextStyle(
-                  color: const Color(0xFFDCE8CB),
+                  color: AppPalette.thirdColor,
                   fontSize: 12.sp,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              10.w.horizontalSpace,
-              _PlatformPill(icon: Icons.camera_alt_outlined),
-              8.w.horizontalSpace,
-              _PlatformPill(icon: Icons.play_circle_outline),
-              8.w.horizontalSpace,
-              _PlatformPill(icon: Icons.music_note_outlined),
-              const Spacer(),
-              Text(
-                'create_campaign_step6_including_vat'.trParams({
-                  'vat': vatLabel,
-                }),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: const Color(0xFFDCE8CB),
-                  fontSize: 11.5.sp,
                   fontWeight: FontWeight.w600,
                 ),
+              ),
+              12.w.horizontalSpace,
+              Image.asset(
+                'assets/icons/instagram.png',
+                width: 24.w,
+                height: 24.w,
+                fit: BoxFit.cover,
+              ),
+              SizedBox(width: 8.w),
+              Image.asset(
+                'assets/icons/youTube.png',
+                width: 24.w,
+                height: 24.w,
+                fit: BoxFit.cover,
+              ),
+              SizedBox(width: 8.w),
+              Image.asset(
+                'assets/icons/tikTok.png',
+                width: 24.w,
+                height: 24.w,
+                fit: BoxFit.cover,
               ),
             ],
           ),
 
-          14.h.verticalSpace,
+          SizedBox(height: 16.h),
 
+          // Deadline big pill
           Container(
             width: double.infinity,
             padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(.12),
-              borderRadius: BorderRadius.circular(14.r),
-              border: Border.all(color: Colors.white.withOpacity(.22)),
+              borderRadius: BorderRadius.circular(kBorderRadius.r),
+              gradient: const LinearGradient(
+                colors: [AppPalette.secondary, AppPalette.gradient1],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              border: Border.all(
+                color: AppPalette.border1,
+                width: kBorderWeight1,
+              ),
             ),
             child: Column(
               children: [
                 Text(
-                  'create_campaign_step6_deadline'.tr,
+                  'campaign_deadline'.tr,
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 12.sp,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-                8.h.verticalSpace,
-                Text(
-                  _deadlineText(c),
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18.sp,
-                    fontWeight: FontWeight.w700,
-                  ),
+                SizedBox(height: 8.h),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.access_time_filled,
+                      size: 22.sp,
+                      color: AppPalette.thirdColor,
+                    ),
+                    SizedBox(width: 6.w),
+                    Text(
+                      controller.deadlineLabelForStep6,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20.sp,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -427,47 +348,27 @@ class _GreenCampaignDetailsCard extends StatelessWidget {
   }
 }
 
-class _PlatformPill extends StatelessWidget {
-  final IconData icon;
-  const _PlatformPill({required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 26.w,
-      height: 26.w,
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(.15),
-        borderRadius: BorderRadius.circular(7.r),
-        border: Border.all(color: Colors.white.withOpacity(.20)),
-      ),
-      alignment: Alignment.center,
-      child: Icon(icon, size: 16.sp, color: Colors.white),
-    );
-  }
-}
-
 class _AccordionCard extends StatelessWidget {
-  final IconData icon;
+  final String iconPath;
   final String title;
   final bool initiallyExpanded;
   final Widget child;
 
   const _AccordionCard({
-    required this.icon,
+    required this.iconPath,
     required this.title,
     required this.initiallyExpanded,
     required this.child,
   });
 
-  static const _primary = Color(0xFF2F4F1F);
+  static const _primary = AppPalette.primary;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16.r),
+        borderRadius: BorderRadius.circular(kBorderRadius.r),
         border: Border.all(color: Colors.black12),
       ),
       child: Theme(
@@ -480,7 +381,7 @@ class _AccordionCard extends StatelessWidget {
           collapsedIconColor: _primary,
           title: Row(
             children: [
-              Icon(icon, color: _primary, size: 20.sp),
+              Image.asset(iconPath, color: _primary, width: 23.w),
               10.w.horizontalSpace,
               Expanded(
                 child: Text(
@@ -488,8 +389,8 @@ class _AccordionCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 15.sp,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w600,
                     color: _primary,
                   ),
                 ),
@@ -506,8 +407,6 @@ class _AccordionCard extends StatelessWidget {
 class _CampaignBriefBlock extends StatelessWidget {
   final CreateCampaignController controller;
   const _CampaignBriefBlock({required this.controller});
-
-  static const _primary = Color(0xFF2F4F1F);
 
   List<String> _bulletFromMilestones(CreateCampaignController c) {
     if (c.milestones.isEmpty) return [];
@@ -542,20 +441,25 @@ class _CampaignBriefBlock extends StatelessWidget {
 
     final reqs = _bulletFromMilestones(c);
 
-    Widget titleRow(IconData icon, String title) {
+    Widget titleRow(String iconPath, String title) {
       return Row(
         children: [
-          Icon(icon, size: 18.sp, color: _primary),
-          8.w.horizontalSpace,
+          Image.asset(
+            iconPath,
+            width: 20.w,
+            height: 20.w,
+            color: AppPalette.primary,
+          ),
+          6.w.horizontalSpace,
           Expanded(
             child: Text(
               title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 13.5.sp,
-                fontWeight: FontWeight.w800,
-                color: _primary,
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w500,
+                color: AppPalette.primary,
               ),
             ),
           ),
@@ -567,8 +471,8 @@ class _CampaignBriefBlock extends StatelessWidget {
       return Text(
         text.isEmpty ? '-' : text,
         style: TextStyle(
-          fontSize: 12.5.sp,
-          color: Colors.black54,
+          fontSize: 12.sp,
+          color: AppPalette.subtext,
           height: 1.35,
         ),
       );
@@ -578,7 +482,7 @@ class _CampaignBriefBlock extends StatelessWidget {
       if (lines.isEmpty) {
         return Text(
           '-',
-          style: TextStyle(fontSize: 12.5.sp, color: Colors.black54),
+          style: TextStyle(fontSize: 12.sp, color: AppPalette.subtext),
         );
       }
       return Column(
@@ -591,14 +495,14 @@ class _CampaignBriefBlock extends StatelessWidget {
               children: [
                 Text(
                   '• ',
-                  style: TextStyle(fontSize: 12.5.sp, color: Colors.black54),
+                  style: TextStyle(fontSize: 12.sp, color: AppPalette.subtext),
                 ),
                 Expanded(
                   child: Text(
                     e,
                     style: TextStyle(
-                      fontSize: 12.5.sp,
-                      color: Colors.black54,
+                      fontSize: 12.sp,
+                      color: AppPalette.subtext,
                       height: 1.35,
                     ),
                   ),
@@ -614,7 +518,7 @@ class _CampaignBriefBlock extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         titleRow(
-          Icons.track_changes_outlined,
+          'assets/icons/goal.png',
           'create_campaign_step6_campaign_goals'.tr,
         ),
         6.h.verticalSpace,
@@ -622,7 +526,7 @@ class _CampaignBriefBlock extends StatelessWidget {
         12.h.verticalSpace,
 
         titleRow(
-          Icons.local_offer_outlined,
+          'assets/icons/goal.png',
           'create_campaign_step6_product_service'.tr,
         ),
         6.h.verticalSpace,
@@ -630,7 +534,7 @@ class _CampaignBriefBlock extends StatelessWidget {
         12.h.verticalSpace,
 
         titleRow(
-          Icons.list_alt_outlined,
+          'assets/icons/requirement.png',
           'create_campaign_step6_content_requirements'.tr,
         ),
         6.h.verticalSpace,
@@ -640,9 +544,9 @@ class _CampaignBriefBlock extends StatelessWidget {
         Text(
           'create_campaign_step6_dos_donts'.tr,
           style: TextStyle(
-            fontSize: 13.sp,
-            fontWeight: FontWeight.w800,
-            color: _primary,
+            fontSize: 12.sp,
+            fontWeight: FontWeight.w500,
+            color: AppPalette.primary,
           ),
         ),
         10.h.verticalSpace,
@@ -676,18 +580,18 @@ class _DoDontBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = positive ? const Color(0xFFE8F6EA) : const Color(0xFFFFE7E7);
-    final border = positive ? const Color(0xFFBFE6C6) : const Color(0xFFF2B9B9);
+    final bg = positive ? AppPalette.color1fill : AppPalette.color2fill;
+    final border = positive ? AppPalette.color1stroke : AppPalette.color2stroke;
     final icon = positive ? Icons.check_circle_outline : Icons.cancel_outlined;
-    final accent = positive ? const Color(0xFF1C7C3E) : const Color(0xFFCC2B2B);
+    final accent = positive ? AppPalette.color1text : AppPalette.color2text;
 
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(12.w),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(14.r),
-        border: Border.all(color: border),
+        borderRadius: BorderRadius.circular(kBorderRadius.r),
+        border: Border.all(color: border, width: kBorderWidth0_5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -703,8 +607,8 @@ class _DoDontBox extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: accent,
-                    fontSize: 13.sp,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
@@ -714,10 +618,7 @@ class _DoDontBox extends StatelessWidget {
           if (lines.isEmpty)
             Text(
               '-',
-              style: TextStyle(
-                fontSize: 12.5.sp,
-                color: accent.withOpacity(.8),
-              ),
+              style: TextStyle(fontSize: 10.sp, color: accent.withOpacity(.8)),
             )
           else
             ...lines.map(
@@ -729,7 +630,7 @@ class _DoDontBox extends StatelessWidget {
                     Text(
                       '• ',
                       style: TextStyle(
-                        fontSize: 12.5.sp,
+                        fontSize: 10.sp,
                         color: accent.withOpacity(.85),
                       ),
                     ),
@@ -737,7 +638,7 @@ class _DoDontBox extends StatelessWidget {
                       child: Text(
                         e,
                         style: TextStyle(
-                          fontSize: 12.5.sp,
+                          fontSize: 10.sp,
                           color: accent.withOpacity(.85),
                           height: 1.35,
                         ),
@@ -757,8 +658,7 @@ class _MilestonesBlock extends StatelessWidget {
   final CreateCampaignController controller;
   const _MilestonesBlock({required this.controller});
 
-  static const _primary = Color(0xFF2F4F1F);
-  static const _softBorder = Color(0xFFBFD7A5);
+  static const _primary = AppPalette.primary;
 
   @override
   Widget build(BuildContext context) {
@@ -773,9 +673,14 @@ class _MilestonesBlock extends StatelessWidget {
             width: double.infinity,
             padding: EdgeInsets.all(14.w),
             decoration: BoxDecoration(
-              color: const Color(0xFFF7FAF3),
-              borderRadius: BorderRadius.circular(14.r),
-              border: Border.all(color: _softBorder),
+              borderRadius: BorderRadius.circular(kBorderRadius.r),
+              border: Border.all(
+                color: AppPalette.border1,
+                width: kBorderWidth0_5,
+              ),
+              gradient: LinearGradient(
+                colors: [AppPalette.thirdColor, AppPalette.white],
+              ),
             ),
             child: Row(
               children: [
@@ -789,37 +694,22 @@ class _MilestonesBlock extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 12.sp,
-                          color: Colors.black54,
-                          fontWeight: FontWeight.w600,
+                          color: AppPalette.black,
+                          fontWeight: FontWeight.w300,
                         ),
                       ),
                       6.h.verticalSpace,
-                      Row(
-                        children: [
-                          Text(
-                            '৳',
-                            style: TextStyle(
-                              fontSize: 18.sp,
-                              fontWeight: FontWeight.w800,
-                              color: _primary,
-                            ),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          c.totalBudgetText,
+                          style: TextStyle(
+                            fontSize: 28.sp,
+                            fontWeight: FontWeight.w600,
+                            color: _primary,
                           ),
-                          6.w.horizontalSpace,
-                          Expanded(
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                c.totalBudgetText,
-                                style: TextStyle(
-                                  fontSize: 22.sp,
-                                  fontWeight: FontWeight.w900,
-                                  color: _primary,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                       4.h.verticalSpace,
                       Text(
@@ -829,8 +719,8 @@ class _MilestonesBlock extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 11.5.sp,
-                          color: Colors.black54,
+                          fontSize: 10.sp,
+                          color: AppPalette.black,
                         ),
                       ),
                     ],
@@ -838,26 +728,35 @@ class _MilestonesBlock extends StatelessWidget {
                 ),
                 10.w.horizontalSpace,
                 Container(
-                  width: 46.w,
-                  height: 46.w,
+                  width: 56.w,
+                  height: 56.w,
                   decoration: BoxDecoration(
-                    color: _primary.withOpacity(.10),
                     shape: BoxShape.circle,
-                    border: Border.all(color: _softBorder),
+                    border: Border.all(
+                      color: AppPalette.secondary,
+                      width: kBorderWidth0_5,
+                    ),
+                    gradient: LinearGradient(
+                      colors: [AppPalette.thirdColor, AppPalette.white],
+                    ),
                   ),
                   alignment: Alignment.center,
-                  child: Text(
-                    '৳',
-                    style: TextStyle(
-                      color: _primary.withOpacity(.8),
-                      fontSize: 18.sp,
-                      fontWeight: FontWeight.w900,
+                  child: Center(
+                    child: Text(
+                      '৳',
+                      style: TextStyle(
+                        color: AppPalette.secondary,
+                        fontSize: 28.sp,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),
               ],
             ),
           ),
+          12.h.verticalSpace,
+          Divider(color: AppPalette.secondary.withAlpha(128), height: 1),
           12.h.verticalSpace,
 
           if (ms.isEmpty)
@@ -872,7 +771,7 @@ class _MilestonesBlock extends StatelessWidget {
             ...ms.map(
               (m) => Padding(
                 padding: EdgeInsets.only(bottom: 10.h),
-                child: _MilestoneTile(m: m),
+                child: _MilestoneCard(milestone: m),
               ),
             ),
         ],
@@ -881,41 +780,36 @@ class _MilestonesBlock extends StatelessWidget {
   }
 }
 
-class _MilestoneTile extends StatelessWidget {
-  final Milestone m;
-  const _MilestoneTile({required this.m});
+class _MilestoneCard extends StatelessWidget {
+  final Milestone milestone;
 
-  static const _primary = Color(0xFF2F4F1F);
-  static const _softBorder = Color(0xFFBFD7A5);
+  const _MilestoneCard({required this.milestone});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 12.h),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14.r),
-        border: Border.all(color: _softBorder),
+        color: AppPalette.white,
+        borderRadius: BorderRadius.circular(kBorderRadius.r),
+        border: Border.all(color: AppPalette.secondary, width: kBorderWidth0_5),
       ),
       child: Row(
         children: [
           Container(
-            width: 24.w,
-            height: 24.w,
+            width: 20.h,
+            height: 20.h,
+            alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: _primary.withOpacity(.15),
+              color: AppPalette.secondary,
               shape: BoxShape.circle,
             ),
-            alignment: Alignment.center,
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                m.stepLabel,
-                style: TextStyle(
-                  color: _primary.withOpacity(.85),
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w900,
-                ),
+            child: Text(
+              milestone.stepLabel,
+              style: TextStyle(
+                fontSize: 10.sp,
+                color: AppPalette.white,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ),
@@ -925,50 +819,104 @@ class _MilestoneTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  m.title,
+                  milestone.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 13.5.sp,
-                    fontWeight: FontWeight.w800,
-                    color: _primary.withOpacity(.85),
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w500,
+                    color: AppPalette.primary,
                   ),
                 ),
                 2.h.verticalSpace,
                 Text(
-                  m.subtitle ?? m.deliverable ?? '-',
+                  milestone.subtitle ?? '-',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 10.sp, color: AppPalette.greyText),
+                ),
+              ],
+            ),
+          ),
+          10.w.horizontalSpace,
+          Text(
+            milestone.dayLabel ?? '-',
+            style: TextStyle(
+              fontSize: 10.sp,
+              fontWeight: FontWeight.w400,
+              color: AppPalette.secondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AssetTile extends StatelessWidget {
+  final CreateCampaignController controller;
+  final JobAsset jobAsset;
+
+  const _AssetTile({required this.controller, required this.jobAsset});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(kBorderRadius.r),
+        border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
+        gradient: LinearGradient(
+          begin: Alignment.bottomLeft,
+          end: Alignment.topRight,
+          colors: [AppPalette.white, AppPalette.white, AppPalette.thirdColor],
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            controller.iconForAsset(jobAsset.kind),
+            color: AppPalette.secondary,
+            size: 26.sp,
+          ),
+          12.w.horizontalSpace,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  jobAsset.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 11.5.sp,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black54,
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w500,
+                    color: AppPalette.secondary,
+                  ),
+                ),
+                2.h.verticalSpace,
+                Text(
+                  jobAsset.meta,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12.sp,
+                    color: AppPalette.secondary.withAlpha(153),
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
               ],
             ),
           ),
           10.w.horizontalSpace,
-          if ((m.dayLabel ?? '').isNotEmpty)
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
-              decoration: BoxDecoration(
-                color: _primary.withOpacity(.07),
-                borderRadius: BorderRadius.circular(999.r),
-                border: Border.all(color: _softBorder),
-              ),
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  m.dayLabel!,
-                  style: TextStyle(
-                    fontSize: 10.5.sp,
-                    fontWeight: FontWeight.w800,
-                    color: _primary.withOpacity(.75),
-                  ),
-                ),
-              ),
+          InkWell(
+            onTap: () {},
+            child: Image.asset(
+              'assets/icons/download.png',
+              width: 23.w,
+              color: AppPalette.secondary,
             ),
+          ),
         ],
       ),
     );
@@ -978,10 +926,6 @@ class _MilestoneTile extends StatelessWidget {
 class _ContentAssetsBlock extends StatelessWidget {
   final CreateCampaignController controller;
   const _ContentAssetsBlock({required this.controller});
-
-  static const _primary = Color(0xFF2F4F1F);
-  static const _softBorder = Color(0xFFBFD7A5);
-  static const _softBg = Color(0xFFF7FAF3);
 
   @override
   Widget build(BuildContext context) {
@@ -1003,59 +947,8 @@ class _ContentAssetsBlock extends StatelessWidget {
       return Column(
         children: list.map((a) {
           return Padding(
-            padding: EdgeInsets.only(bottom: 10.h),
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
-              decoration: BoxDecoration(
-                color: _softBg,
-                borderRadius: BorderRadius.circular(14.r),
-                border: Border.all(color: _softBorder),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    c.iconForAsset(a.kind),
-                    color: _primary.withOpacity(.75),
-                    size: 24.sp,
-                  ),
-                  12.w.horizontalSpace,
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          a.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 13.5.sp,
-                            fontWeight: FontWeight.w800,
-                            color: _primary.withOpacity(.80),
-                          ),
-                        ),
-                        2.h.verticalSpace,
-                        Text(
-                          a.meta,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 11.5.sp,
-                            color: _primary.withOpacity(.55),
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  10.w.horizontalSpace,
-                  Icon(
-                    Icons.file_download_outlined,
-                    color: _primary.withOpacity(.55),
-                    size: 22.sp,
-                  ),
-                ],
-              ),
-            ),
+            padding: EdgeInsets.only(bottom: 8.h),
+            child: _AssetTile(controller: c, jobAsset: a),
           );
         }).toList(),
       );
@@ -1067,17 +960,17 @@ class _TermsBlock extends StatelessWidget {
   final CreateCampaignController controller;
   const _TermsBlock({required this.controller});
 
-  static const _primary = Color(0xFF2F4F1F);
+  static const _primary = AppPalette.primary;
 
   Widget _item({
-    required IconData icon,
+    required String iconPath,
     required String title,
     required String value,
   }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, color: _primary, size: 18.sp),
+        Image.asset(iconPath, width: 20.w, color: _primary),
         10.w.horizontalSpace,
         Expanded(
           child: Column(
@@ -1088,8 +981,8 @@ class _TermsBlock extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 13.5.sp,
-                  fontWeight: FontWeight.w800,
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w500,
                   color: _primary,
                 ),
               ),
@@ -1097,8 +990,8 @@ class _TermsBlock extends StatelessWidget {
               Text(
                 value.trim().isEmpty ? '-' : value.trim(),
                 style: TextStyle(
-                  fontSize: 12.5.sp,
-                  color: Colors.black54,
+                  fontSize: 12.sp,
+                  color: AppPalette.subtext,
                   height: 1.35,
                 ),
               ),
@@ -1116,13 +1009,13 @@ class _TermsBlock extends StatelessWidget {
     return Column(
       children: [
         _item(
-          icon: Icons.analytics_outlined,
+          iconPath: 'assets/icons/presentation.png',
           title: 'create_campaign_step6_reporting_requirements'.tr,
           value: c.reportingRequirements.value,
         ),
         12.h.verticalSpace,
         _item(
-          icon: Icons.copyright_outlined,
+          iconPath: 'assets/icons/copyright.png',
           title: 'create_campaign_step6_usage_rights'.tr,
           value: c.usageRights.value,
         ),

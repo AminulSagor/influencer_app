@@ -5,6 +5,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:influencer_app/core/theme/app_palette.dart';
+import 'package:influencer_app/core/utils/constants.dart';
+import 'package:influencer_app/core/utils/currency_formatter.dart';
 import 'package:influencer_app/routes/app_routes.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
@@ -14,7 +17,9 @@ import '../../../core/models/job_item.dart';
 import '../../../core/services/api_error_handler.dart';
 import '../../../core/services/campaign_service.dart';
 import '../../ad_agency/services/upload_service.dart';
-import 'models/lookup_models.dart';
+
+part 'widgets/create_campaign_sheets.dart';
+part 'widgets/create_campaign_dialogs.dart';
 
 class AdAgencyUiModel {
   final String id;
@@ -48,12 +53,10 @@ class CreateCampaignController extends GetxController {
   final isSavingStep = false.obs;
   final campaignId = RxnString();
 
-  /// ---------------- STEP 1 ----------------
   final campaignNameCtrl = TextEditingController();
   final campaignName = ''.obs;
   final selectedType = Rxn<CampaignType>();
 
-  /// ---------------- STEP 2 (Influencer Promotion) ----------------
   final selectedProductType = RxnString();
   final selectedNiches = <String>[].obs;
 
@@ -93,7 +96,6 @@ class CreateCampaignController extends GetxController {
   final preferredInfluencers = <String>[].obs;
   final notPreferredInfluencers = <String>[].obs;
 
-  /// ---------------- STEP 2 (Paid Ad) ----------------
   final selectedPaidAdNiche = RxnString();
   final selectedAgencyName = RxnString();
   final selectedAgencyId = RxnString();
@@ -115,7 +117,6 @@ class CreateCampaignController extends GetxController {
   final influencers = <InfluencerUiModel>[].obs;
   final isLoadingLookups = false.obs;
 
-  /// ---------------- STEP 3 (Both types) ----------------
   final campaignGoalsCtrl = TextEditingController();
   final productServiceCtrl = TextEditingController();
   final dosCtrl = TextEditingController();
@@ -137,7 +138,6 @@ class CreateCampaignController extends GetxController {
   final usageRights = ''.obs;
   final duration = ''.obs;
 
-  /// ---------------- STEP 4 (Both types) ----------------
   static const double _vatPercentConst = 0.15;
   static const int _minBudget = 25000;
 
@@ -150,6 +150,8 @@ class CreateCampaignController extends GetxController {
   final milestones = <Milestone>[].obs;
 
   final isAddingMilestone = false.obs;
+
+  final editingMilestoneIndex = RxnInt();
 
   final milestoneTitleCtrl = TextEditingController();
   final milestoneDeliverableCtrl = TextEditingController();
@@ -170,23 +172,17 @@ class CreateCampaignController extends GetxController {
   double get vatAmount => baseBudget.value * vatPercent;
   double get totalBudgetIncTax => baseBudget.value + vatAmount;
 
-  /// ---------------- STEP 5 ----------------
   final contentAssets = <JobAsset>[].obs;
 
-  // influencerPromotion
   final needToSendSample = false.obs;
   final sampleGuidelinesConfirmed = false.obs;
 
-  // paidAd
   final brandAssets = <BrandAsset>[].obs;
 
-  // dialogs/controllers
-  final _assetTitleCtrl = TextEditingController();
+  final assetTitleCtrl = TextEditingController();
+  final brandTitleCtrl = TextEditingController();
+  final brandValueCtrl = TextEditingController();
 
-  final _brandTitleCtrl = TextEditingController();
-  final _brandValueCtrl = TextEditingController();
-
-  /// ---------------- Steps ----------------
   final currentStep = 1.obs;
   int get totalSteps => 6;
 
@@ -208,35 +204,25 @@ class CreateCampaignController extends GetxController {
         ? campaignName.value.trim()
         : campaignNameCtrl.text.trim();
 
-    // Store VAT percent as 15 (not 0.15) because BrandCampaignDetailsController expects %.
     final vatPercentAs100 = vatPercent * 100;
 
     return JobItem(
       title: title.isNotEmpty ? title : 'Untitled Campaign',
-      clientName: 'Brand', // change if you have a real value
-      campaignType: type, // ✅ stored here
+      clientName: 'Brand',
+      campaignType: type,
       dateLabel: deadlineLabelForStep6,
-      budget: totalBudgetIncTax, // total including VAT
+      budget: totalBudgetIncTax,
       sharePercent: 0,
-
       dueInDays: _durationDays,
-
-      // budget breakdown
       baseBudget: baseBudget.value,
       vatPercent: vatPercentAs100,
       vatAmount: vatAmount,
       netPayableBudget: totalBudgetIncTax,
-
-      // step 5
       contentAssets: contentAssets.toList(growable: false),
       brandAssets: brandAssets.toList(growable: false),
       needToSendSample: needToSendSample.value,
       sampleGuidelinesConfirmed: sampleGuidelinesConfirmed.value,
-
-      // step 4
       milestones: milestones.toList(growable: false),
-
-      // brief
       dosText: dosText.value.trim().isNotEmpty ? dosText.value : dosCtrl.text,
       dontsText: dontsText.value.trim().isNotEmpty
           ? dontsText.value
@@ -245,7 +231,6 @@ class CreateCampaignController extends GetxController {
     );
   }
 
-  /// ---------------- Validation ----------------
   bool get canGoNext {
     final step = currentStep.value;
 
@@ -278,7 +263,6 @@ class CreateCampaignController extends GetxController {
     }
 
     if (step == 5) {
-      // influencerPromotion: if sample is needed => must confirm guidelines
       if (selectedType.value == CampaignType.influencerPromotion) {
         if (needToSendSample.value) return sampleGuidelinesConfirmed.value;
       }
@@ -393,14 +377,11 @@ class CreateCampaignController extends GetxController {
     }
   }
 
-  /// ---------------- Step 1 handlers ----------------
   void onCampaignNameChanged(String v) => campaignName.value = v;
 
   void selectType(CampaignType type) {
     selectedType.value = type;
     _resetStep2ForType(type);
-
-    // Step5 toggles reset when type changes
     needToSendSample.value = false;
     sampleGuidelinesConfirmed.value = false;
 
@@ -426,14 +407,6 @@ class CreateCampaignController extends GetxController {
     agencyQuery.value = '';
   }
 
-  List<String> get _productTypeOptionsFallback => const [
-    'Electronics',
-    'Fashion',
-    'Beauty',
-    'Food',
-    'Other',
-  ];
-
   List<String> get _nicheOptionsFallback => const [
     'Lifestyle',
     'Tech',
@@ -442,40 +415,6 @@ class CreateCampaignController extends GetxController {
     'Travel',
     'Gaming',
   ];
-
-  void openProductTypePicker() {
-    final options = productTypeOptions.isNotEmpty
-        ? productTypeOptions.toList(growable: false)
-        : _productTypeOptionsFallback;
-    Get.bottomSheet(
-      _SimplePickerSheet(
-        title: 'create_campaign_product_type_label'.tr,
-        options: options,
-        selected: selectedProductType.value,
-        onSelect: (v) {
-          selectedProductType.value = v;
-          Get.back();
-        },
-      ),
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-    );
-  }
-
-  void openNichePicker() {
-    final options = nicheOptions.isNotEmpty
-        ? nicheOptions.toList(growable: false)
-        : _nicheOptionsFallback;
-    Get.bottomSheet(
-      _MultiPickerSheet(
-        title: 'create_campaign_niche_label'.tr,
-        options: options,
-        selected: selectedNiches,
-      ),
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-    );
-  }
 
   void onPreferredTyping(String v) {
     preferredQuery.value = v;
@@ -602,58 +541,116 @@ class CreateCampaignController extends GetxController {
         .toList(growable: false);
   }
 
+  // ---------------- UI OPENERS (controller only calls) ----------------
+
   void openPaidAdNichePicker() {
     final options = nicheOptions.isNotEmpty
         ? nicheOptions.toList(growable: false)
         : _nicheOptionsFallback;
-    Get.bottomSheet(
-      _SimplePickerSheet(
-        title: 'create_campaign_niche_label'.tr,
-        options: options,
-        selected: selectedPaidAdNiche.value,
-        onSelect: (v) {
-          selectedPaidAdNiche.value = v;
-          Get.back();
-        },
-      ),
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+
+    CreateCampaignSheets.openSimplePicker(
+      title: 'create_campaign_niche_label'.tr,
+      options: options,
+      selected: selectedPaidAdNiche.value,
+      onSelect: (v) {
+        selectedPaidAdNiche.value = v;
+      },
     );
   }
 
   void openInfluencerPicker() {
-    Get.bottomSheet(
-      _InfluencerPickerSheet(
-        title: 'create_campaign_preferred_influencers_label'.tr,
-        items: influencers.toList(growable: false),
-        selectedIds: preferredInfluencerIds,
-        onToggle: (item) => _toggleInfluencer(
-          item,
-          preferredInfluencers,
-          preferredInfluencerIds,
-        ),
-      ),
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+    CreateCampaignSheets.openInfluencerPicker(
+      title: 'create_campaign_preferred_influencers_label'.tr,
+      items: influencers.toList(growable: false),
+      selectedIds: preferredInfluencerIds,
+      onToggle: (item) =>
+          _toggleInfluencer(item, preferredInfluencers, preferredInfluencerIds),
     );
   }
 
   void openNotPreferredInfluencerPicker() {
-    Get.bottomSheet(
-      _InfluencerPickerSheet(
-        title: 'create_campaign_not_preferred_influencers_label'.tr,
-        items: influencers.toList(growable: false),
-        selectedIds: notPreferredInfluencerIds,
-        onToggle: (item) => _toggleInfluencer(
-          item,
-          notPreferredInfluencers,
-          notPreferredInfluencerIds,
-        ),
+    CreateCampaignSheets.openInfluencerPicker(
+      title: 'create_campaign_not_preferred_influencers_label'.tr,
+      items: influencers.toList(growable: false),
+      selectedIds: notPreferredInfluencerIds,
+      onToggle: (item) => _toggleInfluencer(
+        item,
+        notPreferredInfluencers,
+        notPreferredInfluencerIds,
       ),
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
     );
   }
+
+  void openAddContentAssetDialog() {
+    assetTitleCtrl.clear();
+
+    CreateCampaignDialogs.openAddContentAsset(
+      controller: this,
+      onAdd: (asset) => contentAssets.add(asset),
+      guessKind: _guessAssetKind,
+      iconForKind: iconForAsset,
+      extUpper: _extUpper,
+      filenameNoExt: _filenameNoExt,
+      formatBytes: _formatBytes,
+    );
+  }
+
+  void openEditBrandAssetDialog(int index) {
+    if (index < 0 || index >= brandAssets.length) return;
+
+    final item = brandAssets[index];
+    brandTitleCtrl.text = item.title;
+    brandValueCtrl.text = item.value ?? '';
+
+    CreateCampaignDialogs.openBrandAssetEditor(
+      title: 'create_campaign_brand_assets'.tr,
+      titleCtrl: brandTitleCtrl,
+      valueCtrl: brandValueCtrl,
+      onDone: () {
+        final t = brandTitleCtrl.text.trim();
+        final v = brandValueCtrl.text.trim();
+        if (t.isEmpty) {
+          Get.snackbar(
+            'create_campaign_error_title'.tr,
+            'create_campaign_brand_asset_error'.tr,
+            snackPosition: SnackPosition.BOTTOM,
+          );
+          return;
+        }
+        brandAssets[index] = item.copyWith(title: t, value: v);
+      },
+    );
+  }
+
+  void openAddBrandAssetDialog() {
+    brandTitleCtrl.clear();
+    brandValueCtrl.clear();
+
+    CreateCampaignDialogs.openBrandAssetEditor(
+      title: 'create_campaign_add_brand_asset'.tr,
+      titleCtrl: brandTitleCtrl,
+      valueCtrl: brandValueCtrl,
+      onDone: () {
+        final t = brandTitleCtrl.text.trim();
+        final v = brandValueCtrl.text.trim();
+        if (t.isEmpty) {
+          Get.snackbar(
+            'create_campaign_error_title'.tr,
+            'create_campaign_brand_asset_error'.tr,
+            snackPosition: SnackPosition.BOTTOM,
+          );
+          return;
+        }
+        brandAssets.add(BrandAsset(title: t, value: v));
+      },
+    );
+  }
+
+  void openPlacementConfirmedDialog() {
+    CreateCampaignDialogs.openPlacementConfirmed(controller: this);
+  }
+
+  // ------------------------------------------------------------------
 
   void _toggleInfluencer(
     InfluencerUiModel item,
@@ -811,7 +808,6 @@ class CreateCampaignController extends GetxController {
     selectedAgencyId.value = agency.id;
   }
 
-  /// ---------------- Step 3 handlers ----------------
   void onCampaignGoalsChanged(String v) => campaignGoals.value = v;
   void onProductServiceChanged(String v) => productServiceDetails.value = v;
   void onReportingReqChanged(String v) => reportingRequirements.value = v;
@@ -858,7 +854,6 @@ class CreateCampaignController extends GetxController {
     return '${d.day} ${months[d.month - 1]} ${d.year}';
   }
 
-  // ✅ NEW: end date computed from startDate + duration days
   DateTime? get computedEndDate {
     final s = startDate.value;
     if (s == null) return null;
@@ -866,7 +861,6 @@ class CreateCampaignController extends GetxController {
     return s.add(Duration(days: days));
   }
 
-  // ✅ NEW: Step 6 deadline label (uses computed end date when possible)
   String get deadlineLabelForStep6 {
     final d = computedEndDate;
     if (d == null) return startDateText;
@@ -905,10 +899,9 @@ class CreateCampaignController extends GetxController {
     if (picked != null) startDate.value = picked;
   }
 
-  /// ---------------- Step 4 helpers ----------------
   void setBudgetFromSuggestion(int amount) {
     baseBudget.value = amount.toDouble();
-    budgetTextCtrl.text = _formatCurrencyInt(amount);
+    budgetTextCtrl.text = formatCurrencyByLocale(amount);
   }
 
   void onBudgetTextChanged(String raw) {
@@ -917,7 +910,7 @@ class CreateCampaignController extends GetxController {
     baseBudget.value = parsed;
 
     if (digits.isEmpty) return;
-    final formatted = _formatCurrencyInt(int.parse(digits));
+    final formatted = formatCurrencyByLocale(int.parse(digits));
     if (budgetTextCtrl.text != formatted) {
       budgetTextCtrl.value = TextEditingValue(
         text: formatted,
@@ -942,6 +935,7 @@ class CreateCampaignController extends GetxController {
 
   void startAddMilestone() {
     if (isAddingMilestone.value) return;
+    editingMilestoneIndex.value = null;
     isAddingMilestone.value = true;
 
     milestoneTitleCtrl.clear();
@@ -954,46 +948,32 @@ class CreateCampaignController extends GetxController {
     commentsCtrl.clear();
   }
 
+  void startEditMilestone(int index) {
+    if (index < 0 || index >= milestones.length) return;
+    if (isAddingMilestone.value) return;
+
+    final m = milestones[index];
+    editingMilestoneIndex.value = index;
+    isAddingMilestone.value = true;
+
+    milestoneTitleCtrl.text = m.title;
+    milestoneDeliverableCtrl.text = m.deliverable ?? m.subtitle ?? '';
+    selectedMilestonePlatform.value = m.platform;
+    selectedMilestoneDay.value = m.dayIndex;
+
+    reachCtrl.text = m.targets?.reach?.toString() ?? '';
+    viewsCtrl.text = m.targets?.views?.toString() ?? '';
+    likesCtrl.text = m.targets?.likes?.toString() ?? '';
+    commentsCtrl.text = m.targets?.comments?.toString() ?? '';
+  }
+
   void closeMilestoneEditor() {
+    final editIndex = editingMilestoneIndex.value;
+    if (editIndex != null && editIndex >= 0 && editIndex < milestones.length) {
+      milestones.removeAt(editIndex);
+    }
+    editingMilestoneIndex.value = null;
     isAddingMilestone.value = false;
-  }
-
-  void openPlatformPicker() {
-    Get.bottomSheet(
-      _SimplePickerSheet(
-        title: 'create_campaign_milestone_platform'.tr,
-        options: platformOptions,
-        selected: selectedMilestonePlatform.value,
-        onSelect: (v) {
-          selectedMilestonePlatform.value = v;
-          Get.back();
-        },
-      ),
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-    );
-  }
-
-  void openDayPicker() {
-    final opts = milestoneDayOptions.map((d) => 'DAY $d').toList();
-    final selected = selectedMilestoneDay.value == null
-        ? null
-        : 'DAY ${selectedMilestoneDay.value}';
-
-    Get.bottomSheet(
-      _SimplePickerSheet(
-        title: 'create_campaign_milestone_day'.tr,
-        options: opts,
-        selected: selected,
-        onSelect: (v) {
-          final n = int.tryParse(v.replaceAll(RegExp(r'[^0-9]'), ''));
-          selectedMilestoneDay.value = n;
-          Get.back();
-        },
-      ),
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-    );
   }
 
   void saveMilestone() {
@@ -1027,11 +1007,11 @@ class CreateCampaignController extends GetxController {
       comments: toInt(commentsCtrl),
     );
 
-    final idx = milestones.length + 1;
+    final editIndex = editingMilestoneIndex.value;
 
-    milestones.add(
-      Milestone(
-        stepLabel: '$idx',
+    if (editIndex != null && editIndex >= 0 && editIndex < milestones.length) {
+      milestones[editIndex] = Milestone(
+        stepLabel: '${editIndex + 1}',
         title: title,
         subtitle: deliverable,
         dayLabel: 'DAY $day',
@@ -1039,28 +1019,31 @@ class CreateCampaignController extends GetxController {
         platform: platform,
         deliverable: deliverable,
         targets: target,
-      ),
-    );
+      );
+    } else {
+      final idx = milestones.length + 1;
+      milestones.add(
+        Milestone(
+          stepLabel: '$idx',
+          title: title,
+          subtitle: deliverable,
+          dayLabel: 'DAY $day',
+          dayIndex: day,
+          platform: platform,
+          deliverable: deliverable,
+          targets: target,
+        ),
+      );
+    }
 
+    editingMilestoneIndex.value = null;
     isAddingMilestone.value = false;
   }
 
-  String _formatCurrencyInt(int v) {
-    final s = v.toString();
-    final b = StringBuffer();
-    for (int i = 0; i < s.length; i++) {
-      final posFromEnd = s.length - i;
-      b.write(s[i]);
-      if (posFromEnd > 1 && posFromEnd % 3 == 1) b.write(',');
-    }
-    return b.toString();
-  }
+  String get baseBudgetText => formatCurrencyByLocale(baseBudget.value);
+  String get vatAmountText => formatCurrencyByLocale(vatAmount);
+  String get totalBudgetText => formatCurrencyByLocale(totalBudgetIncTax);
 
-  String get baseBudgetText => _formatCurrencyInt(baseBudget.value.round());
-  String get vatAmountText => _formatCurrencyInt(vatAmount.round());
-  String get totalBudgetText => _formatCurrencyInt(totalBudgetIncTax.round());
-
-  /// ---------------- Step 5 actions ----------------
   IconData iconForAsset(JobAssetKind kind) {
     switch (kind) {
       case JobAssetKind.image:
@@ -1077,293 +1060,6 @@ class CreateCampaignController extends GetxController {
   void removeContentAsset(int index) {
     if (index < 0 || index >= contentAssets.length) return;
     contentAssets.removeAt(index);
-  }
-
-  void openAddContentAssetDialog() {
-    _assetTitleCtrl.clear();
-
-    final pickedName = RxnString();
-    final pickedBytes = RxnInt();
-    final pickedPath = RxnString();
-    final pickedKind = JobAssetKind.other.obs;
-    final isPicking = false.obs;
-
-    Future<void> pickFile() async {
-      try {
-        isPicking.value = true;
-
-        final result = await FilePicker.platform.pickFiles(
-          allowMultiple: false,
-          type: FileType.any,
-          withData: false, // keep false for mobile; size is still available
-        );
-
-        if (result == null || result.files.isEmpty) return;
-
-        final f = result.files.single;
-
-        pickedName.value = f.name;
-        pickedBytes.value = f.size;
-        pickedPath.value = f.path; // may be null on web
-        pickedKind.value = _guessAssetKind(f.name);
-      } finally {
-        isPicking.value = false;
-      }
-    }
-
-    final primary = const Color(0xFF2F4F1F);
-    final bg = const Color(0xFFF6F7F7);
-    final softBorder = const Color(0xFFBFD7A5);
-
-    Get.dialog(
-      Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: EdgeInsets.symmetric(horizontal: 18.w),
-        child: Container(
-          padding: EdgeInsets.all(16.w),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18.r),
-            border: Border.all(color: Colors.black12),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // header
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'create_campaign_upload_another_asset'.tr,
-                      style: TextStyle(
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w800,
-                        color: primary,
-                      ),
-                    ),
-                  ),
-                  InkWell(
-                    borderRadius: BorderRadius.circular(999.r),
-                    onTap: () => Get.back(),
-                    child: Padding(
-                      padding: EdgeInsets.all(6.w),
-                      child: Icon(
-                        Icons.close,
-                        size: 20.sp,
-                        color: primary.withOpacity(.6),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              14.h.verticalSpace,
-
-              // asset title (optional)
-              TextField(
-                controller: _assetTitleCtrl,
-                decoration: InputDecoration(
-                  hintText: 'create_campaign_asset_name_hint'.tr,
-                  filled: true,
-                  fillColor: bg,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 14.w,
-                    vertical: 12.h,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.r),
-                    borderSide: BorderSide(color: Colors.black12),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.r),
-                    borderSide: BorderSide(color: Colors.black12),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.r),
-                    borderSide: BorderSide(color: softBorder, width: 1.4),
-                  ),
-                ),
-              ),
-              12.h.verticalSpace,
-
-              // pick file button
-              Obx(() {
-                return SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: isPicking.value ? null : pickFile,
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: Size(double.infinity, 46.h),
-                      side: BorderSide(color: softBorder),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.r),
-                      ),
-                    ),
-                    icon: Icon(
-                      Icons.upload_outlined,
-                      color: primary.withOpacity(.7),
-                    ),
-                    label: Text(
-                      isPicking.value
-                          ? 'create_campaign_picking_file'.tr
-                          : 'create_campaign_pick_file'.tr,
-                      style: TextStyle(
-                        color: primary.withOpacity(.75),
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                );
-              }),
-
-              10.h.verticalSpace,
-
-              // selected file preview
-              Obx(() {
-                final name = pickedName.value;
-                final bytes = pickedBytes.value;
-
-                if (name == null || bytes == null) {
-                  return Container(
-                    width: double.infinity,
-                    padding: EdgeInsets.all(12.w),
-                    decoration: BoxDecoration(
-                      color: bg,
-                      borderRadius: BorderRadius.circular(12.r),
-                      border: Border.all(color: Colors.black12),
-                    ),
-                    child: Text(
-                      'create_campaign_no_file_selected'.tr,
-                      style: TextStyle(
-                        fontSize: 12.5.sp,
-                        color: Colors.black54,
-                      ),
-                    ),
-                  );
-                }
-
-                final ext = _extUpper(name);
-                final sizeText = _formatBytes(bytes);
-
-                return Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.all(12.w),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF7FAF3),
-                    borderRadius: BorderRadius.circular(12.r),
-                    border: Border.all(color: softBorder),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        iconForAsset(pickedKind.value),
-                        color: primary.withOpacity(.7),
-                      ),
-                      10.w.horizontalSpace,
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 13.5.sp,
-                                fontWeight: FontWeight.w800,
-                                color: primary.withOpacity(.8),
-                              ),
-                            ),
-                            2.h.verticalSpace,
-                            Text(
-                              '$ext • $sizeText',
-                              style: TextStyle(
-                                fontSize: 12.sp,
-                                fontWeight: FontWeight.w600,
-                                color: primary.withOpacity(.55),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }),
-
-              14.h.verticalSpace,
-
-              // actions
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Get.back(),
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: Size(double.infinity, 46.h),
-                        side: BorderSide(color: Colors.black12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12.r),
-                        ),
-                      ),
-                      child: Text('common_cancel'.tr),
-                    ),
-                  ),
-                  12.w.horizontalSpace,
-                  Expanded(
-                    child: Obx(() {
-                      final canSave =
-                          pickedName.value != null && pickedBytes.value != null;
-                      return ElevatedButton(
-                        onPressed: canSave
-                            ? () {
-                                final name = pickedName.value!;
-                                final bytes = pickedBytes.value!;
-                                final path = pickedPath.value;
-
-                                final ext = _extUpper(name);
-                                final meta = '$ext – ${_formatBytes(bytes)}';
-
-                                // If user doesn't provide title, use filename without extension
-                                final customTitle = _assetTitleCtrl.text.trim();
-                                final fallbackTitle = _filenameNoExt(name);
-                                final title = customTitle.isNotEmpty
-                                    ? customTitle
-                                    : fallbackTitle;
-
-                                contentAssets.add(
-                                  JobAsset(
-                                    title: title,
-                                    meta: meta,
-                                    kind: pickedKind.value,
-                                    pathOrUrl: path,
-                                  ),
-                                );
-
-                                Get.back();
-                              }
-                            : null,
-                        style: ElevatedButton.styleFrom(
-                          minimumSize: Size(double.infinity, 46.h),
-                          backgroundColor: primary.withOpacity(
-                            canSave ? .75 : .35,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12.r),
-                          ),
-                          elevation: 0,
-                        ),
-                        child: Text('common_done'.tr),
-                      );
-                    }),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-      barrierDismissible: false,
-    );
   }
 
   JobAssetKind _guessAssetKind(String filename) {
@@ -1408,7 +1104,6 @@ class CreateCampaignController extends GetxController {
   }
 
   String _formatBytes(int bytes) {
-    // 1024-based
     const k = 1024;
     if (bytes < k) return '$bytes B';
 
@@ -1427,94 +1122,6 @@ class CreateCampaignController extends GetxController {
     if (!v) sampleGuidelinesConfirmed.value = false;
   }
 
-  void openEditBrandAssetDialog(int index) {
-    if (index < 0 || index >= brandAssets.length) return;
-
-    final item = brandAssets[index];
-    _brandTitleCtrl.text = item.title;
-    _brandValueCtrl.text = item.value ?? '';
-
-    Get.defaultDialog(
-      title: 'create_campaign_brand_assets'.tr,
-      content: Column(
-        children: [
-          TextField(
-            controller: _brandTitleCtrl,
-            decoration: InputDecoration(
-              hintText: 'create_campaign_brand_asset_name_hint'.tr,
-            ),
-          ),
-          10.h.verticalSpace,
-          TextField(
-            controller: _brandValueCtrl,
-            decoration: InputDecoration(
-              hintText: 'create_campaign_brand_asset_value_hint'.tr,
-            ),
-          ),
-        ],
-      ),
-      textConfirm: 'common_done'.tr,
-      textCancel: 'common_cancel'.tr,
-      onConfirm: () {
-        final t = _brandTitleCtrl.text.trim();
-        final v = _brandValueCtrl.text.trim();
-        if (t.isEmpty) {
-          Get.snackbar(
-            'create_campaign_error_title'.tr,
-            'create_campaign_brand_asset_error'.tr,
-            snackPosition: SnackPosition.BOTTOM,
-          );
-          return;
-        }
-        brandAssets[index] = item.copyWith(title: t, value: v);
-        Get.back();
-      },
-    );
-  }
-
-  void openAddBrandAssetDialog() {
-    _brandTitleCtrl.clear();
-    _brandValueCtrl.clear();
-
-    Get.defaultDialog(
-      title: 'create_campaign_add_brand_asset'.tr,
-      content: Column(
-        children: [
-          TextField(
-            controller: _brandTitleCtrl,
-            decoration: InputDecoration(
-              hintText: 'create_campaign_brand_asset_name_hint'.tr,
-            ),
-          ),
-          10.h.verticalSpace,
-          TextField(
-            controller: _brandValueCtrl,
-            decoration: InputDecoration(
-              hintText: 'create_campaign_brand_asset_value_hint'.tr,
-            ),
-          ),
-        ],
-      ),
-      textConfirm: 'common_done'.tr,
-      textCancel: 'common_cancel'.tr,
-      onConfirm: () {
-        final t = _brandTitleCtrl.text.trim();
-        final v = _brandValueCtrl.text.trim();
-        if (t.isEmpty) {
-          Get.snackbar(
-            'create_campaign_error_title'.tr,
-            'create_campaign_brand_asset_error'.tr,
-            snackPosition: SnackPosition.BOTTOM,
-          );
-          return;
-        }
-        brandAssets.add(BrandAsset(title: t, value: v));
-        Get.back();
-      },
-    );
-  }
-
-  /// ---------------- Draft ----------------
   void saveAsDraft() {
     Get.snackbar(
       'create_campaign_draft_title'.tr,
@@ -1670,7 +1277,6 @@ class CreateCampaignController extends GetxController {
     return data;
   }
 
-  /// ---------------- Navigation ----------------
   void onPrevious() {
     if (currentStep.value > 1) {
       currentStep.value--;
@@ -1874,16 +1480,13 @@ class CreateCampaignController extends GetxController {
     likesCtrl.dispose();
     commentsCtrl.dispose();
 
-    _assetTitleCtrl.dispose();
-    _brandTitleCtrl.dispose();
-    _brandValueCtrl.dispose();
+    assetTitleCtrl.dispose();
+    brandTitleCtrl.dispose();
+    brandValueCtrl.dispose();
 
     super.onClose();
   }
 
-  // ---------------- Step 6 submit + popup ----------------
-
-  /// Call this from Step 6 "Get Quote" button
   Future<void> submitAndShowPlacementConfirmedPopup() async {
     if (isSavingStep.value) return;
     isSavingStep.value = true;
@@ -1898,47 +1501,33 @@ class CreateCampaignController extends GetxController {
     if (!result.isSuccess) return;
 
     createdJobItem.value = buildFinalJobItem();
-    _openPlacementConfirmedDialog();
+    openPlacementConfirmedDialog();
   }
 
-  void _openPlacementConfirmedDialog() {
-    Get.dialog(
-      _CampaignPlacementConfirmedDialog(controller: this),
-      barrierDismissible: false,
-    );
-  }
-
-  /// Close popup -> go back to Step 1 (pop nested nav) -> reset all fields
   void finishFlowAndReset() {
-    // close dialog if open
     if (Get.isDialogOpen ?? false) {
       Get.back();
     }
 
-    // pop all create-campaign steps (nested navigator id: 1)
     final nav = Get.nestedKey(1)?.currentState;
     if (nav != null) {
       nav.popUntil((r) => r.isFirst);
     } else {
-      // fallback (if nested navigator not available)
       Get.until((route) => route.isFirst);
     }
 
     resetAllToInitial();
   }
 
-  /// Reset controller values to the same "initial" state (including your demo prefills)
   void resetAllToInitial() {
     currentStep.value = 1;
 
     campaignId.value = null;
 
-    // STEP 1
     campaignNameCtrl.clear();
     campaignName.value = '';
     selectedType.value = null;
 
-    // STEP 2 (Influencer Promotion)
     selectedProductType.value = null;
     selectedNiches.clear();
 
@@ -1949,14 +1538,12 @@ class CreateCampaignController extends GetxController {
     preferredSuggestions.clear();
     notPreferredSuggestions.clear();
 
-    // STEP 2 (Paid Ad)
     selectedPaidAdNiche.value = null;
     selectedAgencyName.value = null;
     selectedAgencyId.value = null;
     agencySearchCtrl.clear();
     agencyQuery.value = '';
 
-    // STEP 3
     campaignGoalsCtrl.clear();
     productServiceCtrl.clear();
     dosCtrl.clear();
@@ -1977,13 +1564,13 @@ class CreateCampaignController extends GetxController {
     usageRights.value = '';
     duration.value = '';
 
-    // STEP 4
     budgetTextCtrl.clear();
     baseBudget.value = 0.0;
 
     milestonesExpanded.value = true;
     milestones.clear();
 
+    editingMilestoneIndex.value = null;
     isAddingMilestone.value = false;
     milestoneTitleCtrl.clear();
     milestoneDeliverableCtrl.clear();
@@ -1995,17 +1582,12 @@ class CreateCampaignController extends GetxController {
     likesCtrl.clear();
     commentsCtrl.clear();
 
-    // STEP 5
     needToSendSample.value = false;
     sampleGuidelinesConfirmed.value = false;
 
     contentAssets.clear();
     brandAssets.clear();
-
-    // Keep assets empty for user input
   }
-
-  // ---------------- Locale helpers (Bangla digits for ৳ amount) ----------------
 
   String localizeDigits(String input) {
     final lang = Get.locale?.languageCode.toLowerCase();
@@ -2032,465 +1614,4 @@ class CreateCampaignController extends GetxController {
   }
 
   String get localizedTotalBudgetText => localizeDigits(totalBudgetText);
-}
-
-/// ---------------- Bottom sheets ----------------
-
-class _SimplePickerSheet extends StatelessWidget {
-  final String title;
-  final List<String> options;
-  final String? selected;
-  final void Function(String) onSelect;
-
-  const _SimplePickerSheet({
-    required this.title,
-    required this.options,
-    required this.selected,
-    required this.onSelect,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Container(
-        padding: const EdgeInsets.only(top: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(18.r)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              title,
-              style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w600),
-            ),
-            12.h.verticalSpace,
-            ...options.map((e) {
-              final active = e == selected;
-              return ListTile(
-                title: Text(e, maxLines: 1, overflow: TextOverflow.ellipsis),
-                trailing: active ? Icon(Icons.check_circle, size: 20.sp) : null,
-                onTap: () => onSelect(e),
-              );
-            }),
-            8.h.verticalSpace,
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MultiPickerSheet extends StatelessWidget {
-  final String title;
-  final List<String> options;
-  final RxList<String> selected;
-
-  const _MultiPickerSheet({
-    required this.title,
-    required this.options,
-    required this.selected,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Container(
-        padding: const EdgeInsets.only(top: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(18.r)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              title,
-              style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w600),
-            ),
-            12.h.verticalSpace,
-            Obx(() {
-              final list = selected.toList(growable: false);
-              return Column(
-                children: options.map((e) {
-                  final active = list.contains(e);
-                  return CheckboxListTile(
-                    value: active,
-                    title: Text(
-                      e,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    onChanged: (_) {
-                      if (active) {
-                        selected.remove(e);
-                      } else {
-                        selected.add(e);
-                      }
-                    },
-                  );
-                }).toList(),
-              );
-            }),
-            8.h.verticalSpace,
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Get.back(),
-                  child: Text('common_done'.tr),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _InfluencerPickerSheet extends StatefulWidget {
-  final String title;
-  final List<InfluencerUiModel> items;
-  final RxList<String> selectedIds;
-  final void Function(InfluencerUiModel) onToggle;
-
-  const _InfluencerPickerSheet({
-    required this.title,
-    required this.items,
-    required this.selectedIds,
-    required this.onToggle,
-  });
-
-  @override
-  State<_InfluencerPickerSheet> createState() => _InfluencerPickerSheetState();
-}
-
-class _InfluencerPickerSheetState extends State<_InfluencerPickerSheet> {
-  final _searchCtrl = TextEditingController();
-
-  @override
-  void dispose() {
-    _searchCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final items = widget.items;
-
-    return SafeArea(
-      child: Container(
-        padding: const EdgeInsets.only(top: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(18.r)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              widget.title,
-              style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w600),
-            ),
-            12.h.verticalSpace,
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16.w),
-              child: TextField(
-                controller: _searchCtrl,
-                decoration: const InputDecoration(
-                  hintText: 'Search',
-                  prefixIcon: Icon(Icons.search),
-                ),
-                onChanged: (_) => setState(() {}),
-              ),
-            ),
-            8.h.verticalSpace,
-            Flexible(
-              child: Obx(() {
-                final selected = widget.selectedIds.toList(growable: false);
-                final query = _searchCtrl.text.trim().toLowerCase();
-                final filtered = query.isEmpty
-                    ? items
-                    : items
-                          .where((e) => e.name.toLowerCase().contains(query))
-                          .toList();
-
-                if (filtered.isEmpty) {
-                  return Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12.h),
-                    child: Text(
-                      'No results',
-                      style: TextStyle(fontSize: 12.sp, color: Colors.black54),
-                    ),
-                  );
-                }
-
-                return ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: filtered.length,
-                  itemBuilder: (_, i) {
-                    final item = filtered[i];
-                    final isSelected = selected.contains(item.id);
-                    return CheckboxListTile(
-                      value: isSelected,
-                      title: Text(
-                        item.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      subtitle: item.rating == null
-                          ? null
-                          : Text('★ ${item.rating!.toStringAsFixed(1)}'),
-                      onChanged: (_) => widget.onToggle(item),
-                    );
-                  },
-                );
-              }),
-            ),
-            8.h.verticalSpace,
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Get.back(),
-                  child: Text('common_done'.tr),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _CampaignPlacementConfirmedDialog extends StatelessWidget {
-  final CreateCampaignController controller;
-  const _CampaignPlacementConfirmedDialog({required this.controller});
-
-  static const _primary = Color(0xFF2F4F1F);
-  static const _softBorder = Color(0xFFBFD7A5);
-  static const _bg = Color(0xFFF6F7F7);
-
-  String _safeTitle() {
-    final t = controller.campaignName.value.trim();
-    if (t.isNotEmpty) return t;
-    final t2 = controller.campaignNameCtrl.text.trim();
-    if (t2.isNotEmpty) return t2;
-    return 'create_campaign_step6_campaign_title_fallback'.tr;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final title = _safeTitle();
-    final amount = controller.localizedTotalBudgetText;
-
-    return WillPopScope(
-      onWillPop: () async => false,
-      child: Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: EdgeInsets.symmetric(horizontal: 18.w),
-        child: Container(
-          padding: EdgeInsets.all(16.w),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18.r),
-            border: Border.all(color: Colors.black12),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // top row (close)
-              Row(
-                children: [
-                  const Spacer(),
-                  InkWell(
-                    borderRadius: BorderRadius.circular(999.r),
-                    onTap: controller.finishFlowAndReset,
-                    child: Padding(
-                      padding: EdgeInsets.all(6.w),
-                      child: Icon(
-                        Icons.close,
-                        size: 22.sp,
-                        color: _primary.withOpacity(.65),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              6.h.verticalSpace,
-
-              // check icon
-              Container(
-                width: 72.w,
-                height: 72.w,
-                decoration: BoxDecoration(
-                  color: _primary.withOpacity(.60),
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: Icon(Icons.check, size: 44.sp, color: Colors.white),
-              ),
-
-              14.h.verticalSpace,
-
-              Text(
-                'create_campaign_step6_popup_title'
-                    .tr, // "Campaign Placement Confirmed"
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 18.sp,
-                  fontWeight: FontWeight.w900,
-                  color: _primary,
-                ),
-              ),
-
-              8.h.verticalSpace,
-
-              Text(
-                'create_campaign_step6_popup_message'
-                    .tr, // "We will review... 3–5 business days"
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 13.sp,
-                  height: 1.35,
-                  color: _primary.withOpacity(.85),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-
-              16.h.verticalSpace,
-
-              // green summary card (like screenshot)
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.all(14.w),
-                decoration: BoxDecoration(
-                  color: _primary.withOpacity(.70),
-                  borderRadius: BorderRadius.circular(16.r),
-                  border: Border.all(color: Colors.black12),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(
-                          Icons.campaign_outlined,
-                          color: Colors.white,
-                          size: 22.sp,
-                        ),
-                        10.w.horizontalSpace,
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                title,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 15.sp,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              6.h.verticalSpace,
-                              Row(
-                                children: [
-                                  Text(
-                                    '৳',
-                                    style: TextStyle(
-                                      color: const Color(0xFFDCE8CB),
-                                      fontSize: 22.sp,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                  6.w.horizontalSpace,
-                                  Expanded(
-                                    child: FittedBox(
-                                      fit: BoxFit.scaleDown,
-                                      alignment: Alignment.centerLeft,
-                                      child: Text(
-                                        amount,
-                                        style: TextStyle(
-                                          color: const Color(0xFFDCE8CB),
-                                          fontSize: 28.sp,
-                                          fontWeight: FontWeight.w900,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    10.h.verticalSpace,
-                    Divider(color: Colors.white.withOpacity(.35), height: 1),
-                    10.h.verticalSpace,
-
-                    Row(
-                      children: [
-                        Text(
-                          'common_platforms'.tr,
-                          style: TextStyle(
-                            color: const Color(0xFFDCE8CB),
-                            fontSize: 12.sp,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        10.w.horizontalSpace,
-                        _MiniPlatform(icon: Icons.camera_alt_outlined),
-                        8.w.horizontalSpace,
-                        _MiniPlatform(icon: Icons.play_circle_outline),
-                        8.w.horizontalSpace,
-                        _MiniPlatform(icon: Icons.music_note_outlined),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              10.h.verticalSpace,
-
-              // subtle bottom spacing
-              Container(width: double.infinity, height: 1, color: _bg),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MiniPlatform extends StatelessWidget {
-  final IconData icon;
-  const _MiniPlatform({required this.icon});
-
-  static const _primary = Color(0xFF2F4F1F);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 28.w,
-      height: 28.w,
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(.15),
-        borderRadius: BorderRadius.circular(7.r),
-        border: Border.all(color: Colors.white.withOpacity(.22)),
-      ),
-      alignment: Alignment.center,
-      child: Icon(icon, size: 16.sp, color: Colors.white),
-    );
-  }
 }

@@ -29,8 +29,12 @@ class AppPalette {
   static const greenText = Color(0xFF15803D);
   static const greenBorder = Color(0xFFBBF7D0);
   static const redBg = Color(0xFFFEF2F2);
+  static const color1stroke = Color(0xFFBBF7D0);
+  static const color1text = Color(0xFF15803D);
+  static const color1fill = Color(0xFFF0FDF4);
   static const color2stroke = Color(0xFFFECACA);
   static const color2text = Color(0xFFB91C1C);
+  static const color2fill = Color(0xFFFEF2F2);
 
   static const reportFlaggedActive = Color(0xFFC62828);
   static const reportFlaggedInactive = Color(0xFFFFEBEE);

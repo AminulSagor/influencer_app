@@ -818,7 +818,7 @@ class AppTranslations extends Translations {
 
       "create_campaign_step6_total_budget": "Total Campaign Budget",
       "create_campaign_step6_budget_including_vat":
-          "+ Including VAT/Tax ({vat})",
+          "+ Including VAT/Tax (@vat)",
 
       "create_campaign_step6_reporting_requirements": "Reporting Requirements",
       "create_campaign_step6_usage_rights": "Usage Rights",

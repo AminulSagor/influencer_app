@@ -2,6 +2,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:influencer_app/core/theme/app_theme.dart';
+import 'package:influencer_app/core/widgets/custom_drop_down_menu.dart';
+import 'package:influencer_app/core/widgets/custom_multi_select_drop_down_menu.dart';
+import 'package:influencer_app/modules/brand/create_campaign/widgets/top_progress_section.dart';
 
 import '../../../core/models/job_item.dart';
 import '../../../core/theme/app_palette.dart';
@@ -27,12 +31,17 @@ class CreateCampaignStep2View extends GetView<CreateCampaignController> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    /// ✅ Progress reads Rx -> MUST be inside Obx
-                    Obx(() => _progressSectionWithBack()),
+                    Obx(
+                      () => TopProgressSection(
+                        onPrevious: controller.onPrevious,
+                        stepText: controller.stepText,
+                        progressPercentText: controller.progressPercentText,
+                        progress: controller.progress,
+                      ),
+                    ),
 
                     18.h.verticalSpace,
 
-                    /// Title + Save as draft (no Rx needed)
                     Row(
                       children: [
                         Expanded(
@@ -41,23 +50,11 @@ class CreateCampaignStep2View extends GetView<CreateCampaignController> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 26.sp,
-                              fontWeight: FontWeight.w700,
+                              fontSize: 19.sp,
+                              fontWeight: FontWeight.w600,
                               color: AppPalette.primary,
                             ),
                           ),
-                        ),
-                        12.w.horizontalSpace,
-                        CustomButton(
-                          height: 34.h,
-                          width: 132.w,
-                          borderRadius: 999,
-                          btnColor: AppPalette.secondary,
-                          borderColor: Colors.transparent,
-                          showBorder: false,
-                          textColor: AppPalette.white,
-                          btnText: 'create_campaign_save_draft'.tr,
-                          onTap: controller.saveAsDraft,
                         ),
                       ],
                     ),
@@ -67,9 +64,9 @@ class CreateCampaignStep2View extends GetView<CreateCampaignController> {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 12.sp,
+                        fontSize: 10.sp,
                         fontWeight: FontWeight.w300,
-                        color: AppPalette.greyText,
+                        color: AppPalette.black,
                       ),
                     ),
 
@@ -103,65 +100,6 @@ class CreateCampaignStep2View extends GetView<CreateCampaignController> {
           Obx(() => _bottomButtons()),
         ],
       ),
-    );
-  }
-
-  Widget _progressSectionWithBack() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            InkWell(
-              borderRadius: BorderRadius.circular(999.r),
-              onTap: controller.onPrevious,
-              child: Padding(
-                padding: EdgeInsets.all(6.w),
-                child: Icon(
-                  Icons.arrow_back_ios_new_rounded,
-                  size: 16.sp,
-                  color: AppPalette.black,
-                ),
-              ),
-            ),
-            6.w.horizontalSpace,
-            Expanded(
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  controller.stepText,
-                  style: TextStyle(
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w400,
-                    color: AppPalette.black,
-                  ),
-                ),
-              ),
-            ),
-            Text(
-              controller.progressPercentText,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w400,
-                color: AppPalette.black,
-              ),
-            ),
-          ],
-        ),
-        10.h.verticalSpace,
-        ClipRRect(
-          borderRadius: BorderRadius.circular(999.r),
-          child: LinearProgressIndicator(
-            value: controller.progress,
-            minHeight: 10.h,
-            backgroundColor: AppPalette.defaultFill,
-            color: AppPalette.primary,
-          ),
-        ),
-      ],
     );
   }
 
@@ -218,67 +156,49 @@ class _InfluencerPromotionStep2 extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         /// Product type
-        Text(
-          'create_campaign_product_type_label'.tr,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 14.sp,
-            fontWeight: FontWeight.w600,
-            color: AppPalette.primary,
-          ),
-        ),
-        10.h.verticalSpace,
         Obx(() {
-          final value = controller.selectedProductType.value; // ✅ reads Rx
-          return _SelectField(
-            text: value ?? 'create_campaign_product_type_hint'.tr,
-            isPlaceholder: value == null,
-            onTap: controller.openProductTypePicker,
+          return CustomDropDownMenu(
+            title: 'create_campaign_product_type_label'.tr,
+            titleTextStyle: AppTheme.textStyle.copyWith(
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w600,
+              color: AppPalette.primary,
+            ),
+            hintText: 'create_campaign_product_type_label'.tr,
+            options: controller.productTypeOptions,
+            value: controller.selectedProductType.value,
+            onChanged: (value) => controller.selectedProductType.value = value,
           );
         }),
 
         18.h.verticalSpace,
 
         /// Niche (multi)
-        Text(
-          'create_campaign_niche_label'.tr,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 14.sp,
-            fontWeight: FontWeight.w600,
-            color: AppPalette.primary,
-          ),
-        ),
-        10.h.verticalSpace,
         Obx(() {
-          final selected = controller.selectedNiches.toList(); // ✅ IMPORTANT
-          final text = selected.isEmpty
-              ? 'create_campaign_niche_hint'.tr
-              : selected.join(', ');
-          return _SelectField(
-            text: text,
-            isPlaceholder: selected.isEmpty,
-            onTap: controller.openNichePicker,
+          return CustomMultiSelectDropDownMenu(
+            title: 'create_campaign_niche_label'.tr,
+            titleTextStyle: AppTheme.textStyle.copyWith(
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w600,
+              color: AppPalette.primary,
+            ),
+            hintText: 'create_campaign_niche_label'.tr,
+            options: controller.nicheOptions,
+            selectedValues: controller.selectedNiches.toList(),
+            onChanged: (values) => controller.selectedNiches.value = values,
           );
         }),
 
         18.h.verticalSpace,
 
         /// Preferred influencers
-        Text(
-          'create_campaign_preferred_influencers_label'.tr,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 14.sp,
+        CustomTextFormField(
+          title: 'create_campaign_preferred_influencers_label'.tr,
+          titleTextStyle: AppTheme.textStyle.copyWith(
+            fontSize: 12.sp,
             fontWeight: FontWeight.w600,
             color: AppPalette.primary,
           ),
-        ),
-        10.h.verticalSpace,
-        CustomTextFormField(
           hintText: 'create_campaign_preferred_influencers_hint'.tr,
           controller: controller.preferredInputCtrl,
           textInputAction: TextInputAction.done,
@@ -324,18 +244,13 @@ class _InfluencerPromotionStep2 extends StatelessWidget {
         18.h.verticalSpace,
 
         /// Not preferred influencers
-        Text(
-          'create_campaign_not_preferred_influencers_label'.tr,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 14.sp,
+        CustomTextFormField(
+          title: 'create_campaign_not_preferred_influencers_label'.tr,
+          titleTextStyle: AppTheme.textStyle.copyWith(
+            fontSize: 12.sp,
             fontWeight: FontWeight.w600,
             color: AppPalette.primary,
           ),
-        ),
-        10.h.verticalSpace,
-        CustomTextFormField(
           hintText: 'create_campaign_not_preferred_influencers_hint'.tr,
           controller: controller.notPreferredInputCtrl,
           textInputAction: TextInputAction.done,

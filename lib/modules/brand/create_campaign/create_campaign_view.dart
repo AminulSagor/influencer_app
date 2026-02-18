@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:influencer_app/modules/brand/create_campaign/widgets/top_progress_section.dart';
 
 import '../../../core/models/job_item.dart';
 import '../../../core/theme/app_palette.dart';
@@ -27,7 +28,13 @@ class CreateCampaignView extends GetView<CreateCampaignController> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     /// progress depends on Rx -> wrap in Obx
-                    Obx(() => _progressSection()),
+                    Obx(
+                      () => TopProgressSection(
+                        progress: controller.progress,
+                        progressPercentText: controller.progressPercentText,
+                        stepText: controller.stepText,
+                      ),
+                    ),
 
                     18.h.verticalSpace,
 
@@ -36,8 +43,8 @@ class CreateCampaignView extends GetView<CreateCampaignController> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 26.sp,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 19.sp,
+                        fontWeight: FontWeight.w600,
                         color: AppPalette.primary,
                       ),
                     ),
@@ -47,9 +54,9 @@ class CreateCampaignView extends GetView<CreateCampaignController> {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 12.sp,
+                        fontSize: 10.sp,
                         fontWeight: FontWeight.w300,
-                        color: AppPalette.greyText,
+                        color: AppPalette.black,
                       ),
                     ),
 
@@ -57,6 +64,11 @@ class CreateCampaignView extends GetView<CreateCampaignController> {
 
                     CustomTextFormField(
                       title: 'create_campaign_name_label'.tr,
+                      titleTextStyle: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12.sp,
+                        color: AppPalette.primary,
+                      ),
                       hintText: 'create_campaign_name_hint'.tr,
                       controller: controller.campaignNameCtrl,
                       textInputAction: TextInputAction.next,
@@ -70,7 +82,7 @@ class CreateCampaignView extends GetView<CreateCampaignController> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 14.sp,
+                        fontSize: 12.sp,
                         fontWeight: FontWeight.w600,
                         color: AppPalette.primary,
                       ),
@@ -111,52 +123,6 @@ class CreateCampaignView extends GetView<CreateCampaignController> {
           Obx(() => _bottomButtons()),
         ],
       ),
-    );
-  }
-
-  Widget _progressSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  controller.stepText,
-                  style: TextStyle(
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w400,
-                    color: AppPalette.black,
-                  ),
-                ),
-              ),
-            ),
-            Text(
-              controller.progressPercentText,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w400,
-                color: AppPalette.black,
-              ),
-            ),
-          ],
-        ),
-        10.h.verticalSpace,
-        ClipRRect(
-          borderRadius: BorderRadius.circular(999.r),
-          child: LinearProgressIndicator(
-            value: controller.progress,
-            minHeight: 10.h,
-            backgroundColor: AppPalette.defaultFill,
-            color: AppPalette.primary,
-          ),
-        ),
-      ],
     );
   }
 
