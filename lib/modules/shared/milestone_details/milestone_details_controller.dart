@@ -543,6 +543,7 @@ class MilestoneDetailsController extends GetxController {
     return BrandSubmissionUiModel(
       index: index,
       serverId: submissionId,
+      requestedAmount: _intFrom(json['amount']) ?? 0,
       description: description,
       platformTitleKey: platformTitleKey,
       platformLink: platformLink,
@@ -1300,6 +1301,20 @@ class MilestoneDetailsController extends GetxController {
     );
 
     if (!ok) return;
+
+    final bonusDelta = target.requestedAmount - milestoneAmountTotal;
+    final milestoneId = milestone.id?.trim() ?? '';
+    if (job.campaignType == CampaignType.paidAd &&
+        bonusDelta > 0 &&
+        milestoneId.isNotEmpty) {
+      await ApiErrorHandler.call(
+        () => _campaignService.payClientMilestoneBonus(
+          milestoneId: milestoneId,
+          amount: bonusDelta,
+        ),
+        showError: false,
+      );
+    }
 
     _markNeedsParentRefresh();
     await _loadBrandMilestoneDetails(isPaidAd: isPaidAd);

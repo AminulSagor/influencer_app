@@ -14,12 +14,14 @@ import '../../../core/services/api_error_handler.dart';
 enum CampaignProgressStep { submitted, quoted, paid, promoting, completed }
 
 class BrandAssetLink {
+  final String? assetId;
   final String title;
   final String subtitle;
   final IconData icon;
   final String? url;
 
   const BrandAssetLink({
+    this.assetId,
     required this.title,
     required this.subtitle,
     required this.icon,
@@ -91,6 +93,7 @@ class BrandCampaignDetailsController extends GetxController {
   final budgetStatusText = 'brand_campaign_details_budget_pending'.tr.obs;
   final dueAmount = 0.obs;
   final paidAmount = 0.obs;
+  final RxnString selectedInfluencerId = RxnString();
 
   // Progress (no field in JobItem yet, keep default)
   final progressStep = CampaignProgressStep.quoted.obs;
@@ -423,6 +426,7 @@ class BrandCampaignDetailsController extends GetxController {
 
     // Rating
     rating.value = (_numToDouble(data['rating']).round()).clamp(0, 5);
+    selectedInfluencerId.value = _extractInfluencerId(data);
 
     // Quote breakdown
     final base = _numToDouble(data['baseBudget']).round();
@@ -549,6 +553,7 @@ class BrandCampaignDetailsController extends GetxController {
         final icon = _iconForBrandAsset(fileName, fileUrl);
         brand.add(
           BrandAssetLink(
+            assetId: item['id']?.toString(),
             title: fileName.isNotEmpty
                 ? fileName
                 : (assetType ?? 'Brand Asset'),
@@ -809,8 +814,29 @@ class BrandCampaignDetailsController extends GetxController {
     if (campaignId == null || campaignId.trim().isEmpty) return;
     if (next <= 0) return;
 
+    if (isPaidAd) {
+      ApiErrorHandler.call(
+        () => _campaignService.rateAgency(campaignId: campaignId, rating: next),
+        showError: false,
+      );
+      return;
+    }
+
+    final influencerId = selectedInfluencerId.value?.trim();
+    if (influencerId == null || influencerId.isEmpty) {
+      Get.snackbar(
+        trOr('common_error', 'Error'),
+        trOr('brand_campaign_missing_influencer', 'Missing influencer id.'),
+      );
+      return;
+    }
+
     ApiErrorHandler.call(
-      () => _campaignService.rateAgency(campaignId: campaignId, rating: next),
+      () => _campaignService.rateInfluencer(
+        campaignId: campaignId,
+        influencerId: influencerId,
+        rating: next,
+      ),
       showError: false,
     );
   }
@@ -870,9 +896,35 @@ class BrandCampaignDetailsController extends GetxController {
     );
   }
 
-  void removeBrandAsset(int index) {
+  Future<void> removeBrandAsset(int index) async {
     if (index < 0 || index >= brandAssets.length) return;
+    final item = brandAssets[index];
+    final assetId = item.assetId?.trim() ?? '';
+
+    if (assetId.isNotEmpty) {
+      final result = await ApiErrorHandler.call(
+        () => _campaignService.deleteCampaignAsset(assetId: assetId),
+      );
+      if (!result.isSuccess) return;
+    }
+
     brandAssets.removeAt(index);
+  }
+
+  String? _extractInfluencerId(Map<String, dynamic> data) {
+    final direct = data['influencerId']?.toString().trim();
+    if (direct != null && direct.isNotEmpty) return direct;
+
+    final assigned = data['assignedInfluencerId']?.toString().trim();
+    if (assigned != null && assigned.isNotEmpty) return assigned;
+
+    final influencer = data['influencer'];
+    if (influencer is Map) {
+      final id = influencer['id']?.toString().trim();
+      if (id != null && id.isNotEmpty) return id;
+    }
+
+    return null;
   }
 
   Future<bool> _acceptQuoteRequest() async {

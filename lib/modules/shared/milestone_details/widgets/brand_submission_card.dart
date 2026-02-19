@@ -25,6 +25,7 @@ enum BrandSubmissionStatus { inReview, completed, declined }
 class BrandSubmissionUiModel {
   final int index;
   final String? serverId;
+  final int requestedAmount;
 
   final String description;
   final String platformTitleKey;
@@ -40,6 +41,7 @@ class BrandSubmissionUiModel {
   BrandSubmissionUiModel({
     required this.index,
     this.serverId,
+    this.requestedAmount = 0,
     required this.description,
     required this.platformTitleKey,
     required this.platformLink,
