@@ -2249,11 +2249,16 @@ class ProfileController extends GetxController {
         }
       } else if (accountTypeService.isAdAgency) {
         final apiClient = Get.find<ApiClient>();
+        final agencyService = AgencyProfileService(apiClient);
 
         final agencyNameValue =
             profileFieldValues['Agency Name'] ?? profileName.value;
         final firstNameValue = profileFieldValues['First Name'] ?? '';
         final lastNameValue = profileFieldValues['Last Name'] ?? '';
+        final websiteValue =
+          (profileFieldValues['Website'] ?? '').trim().isNotEmpty
+          ? (profileFieldValues['Website'] ?? '').trim()
+          : null;
 
         if (agencyNameValue.isNotEmpty ||
             firstNameValue.isNotEmpty ||
@@ -2268,6 +2273,45 @@ class ProfileController extends GetxController {
           );
         }
 
+        if (locations.isNotEmpty) {
+          final location = locations.first;
+          if (location.thana.trim().isNotEmpty &&
+              location.zilla.trim().isNotEmpty &&
+              location.fullAddress.trim().isNotEmpty) {
+            await agencyService.updateAddress(
+              addressName: location.name.trim().isEmpty
+                  ? 'Office'
+                  : location.name.trim(),
+              thana: location.thana.trim(),
+              zilla: location.zilla.trim(),
+              fullAddress: location.fullAddress.trim(),
+            );
+          }
+        }
+
+        final socialPayload = socialAccounts
+            .map(
+              (account) => <String, dynamic>{
+                'platform': account.platform.toLowerCase().trim(),
+                'url': socialHandleValue(account.platform, account.handle)
+                    .trim(),
+              },
+            )
+            .where((item) => (item['url'] as String).isNotEmpty)
+            .toList(growable: false);
+        if (socialPayload.isNotEmpty ||
+            (websiteValue != null && websiteValue.isNotEmpty)) {
+          await agencyService.updateSocials(
+            website: websiteValue,
+            socialLinks: socialPayload,
+          );
+        }
+
+        final serviceFeeValue = serviceFeeText.value.trim();
+        if (serviceFeeValue.isNotEmpty) {
+          await agencyService.updateServiceFee(serviceFeeValue);
+        }
+
         final nidNumber = nidNumberController.text.trim();
         if (nidNumber.isNotEmpty &&
             nidFrontPic.value != null &&
@@ -2280,13 +2324,10 @@ class ProfileController extends GetxController {
             file: nidBackPic.value!,
             module: 'agency-kyc',
           );
-          await apiClient.dio.patch(
-            '/agency/profile/nid',
-            data: {
-              'nidNumber': nidNumber,
-              'nidFrontImg': frontUrl,
-              'nidBackImg': backUrl,
-            },
+          await agencyService.updateNid(
+            nidNumber: nidNumber,
+            nidFrontImg: frontUrl,
+            nidBackImg: backUrl,
           );
         }
 
@@ -2296,12 +2337,9 @@ class ProfileController extends GetxController {
             file: tradeLicensePic.value!,
             module: 'agency-kyc',
           );
-          await apiClient.dio.patch(
-            '/agency/profile/trade-license',
-            data: {
-              'tradeLicenseNumber': tradeNumber,
-              'tradeLicenseImg': tradeUrl,
-            },
+          await agencyService.updateTradeLicense(
+            tradeLicenseNumber: tradeNumber,
+            tradeLicenseImg: tradeUrl,
           );
         }
 
@@ -2311,18 +2349,12 @@ class ProfileController extends GetxController {
             file: tinCertificatePic.value!,
             module: 'agency-kyc',
           );
-          await apiClient.dio.patch(
-            '/agency/profile/tin',
-            data: {'tinNumber': tinNumber, 'tinImage': tinUrl},
-          );
+          await agencyService.updateTin(tinNumber: tinNumber, tinImage: tinUrl);
         }
 
         final binNumber = binNumberController.text.trim();
         if (binNumber.isNotEmpty) {
-          await apiClient.dio.patch(
-            '/agency/profile/bin',
-            data: {'binNumber': binNumber},
-          );
+          await agencyService.updateBin(binNumber: binNumber);
         }
       }
     } catch (e) {

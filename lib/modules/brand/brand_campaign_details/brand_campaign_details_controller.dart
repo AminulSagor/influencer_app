@@ -358,6 +358,11 @@ class BrandCampaignDetailsController extends GetxController {
       );
       _loadFromApiMap(data);
 
+      final progress = await _campaignService.fetchCampaignProgress(
+        campaignId: campaignId,
+      );
+      _loadCampaignProgress(progress);
+
       await _loadNegotiationContext(campaignId);
 
       final bids = await _campaignService.fetchClientAgencyBids(
@@ -476,6 +481,39 @@ class BrandCampaignDetailsController extends GetxController {
             .toList(growable: false),
       );
     }
+  }
+
+  void _loadCampaignProgress(Map<String, dynamic> response) {
+    final data = response['data'] is Map<String, dynamic>
+        ? response['data'] as Map<String, dynamic>
+        : response;
+
+    final rawStatus =
+        (data['status'] ?? data['campaignStatus'] ?? data['progress'])
+            ?.toString()
+            .toLowerCase()
+            .trim();
+
+    if (rawStatus == null || rawStatus.isEmpty) return;
+
+    if (rawStatus.contains('complete') || rawStatus.contains('completed')) {
+      progressStep.value = CampaignProgressStep.completed;
+      return;
+    }
+    if (rawStatus.contains('promot')) {
+      progressStep.value = CampaignProgressStep.promoting;
+      return;
+    }
+    if (rawStatus.contains('paid') || rawStatus.contains('payment')) {
+      progressStep.value = CampaignProgressStep.paid;
+      return;
+    }
+    if (rawStatus.contains('quote') || rawStatus.contains('negotiat')) {
+      progressStep.value = CampaignProgressStep.quoted;
+      return;
+    }
+
+    progressStep.value = CampaignProgressStep.submitted;
   }
 
   void _applyDeadline({String? startingDate, int? duration}) {

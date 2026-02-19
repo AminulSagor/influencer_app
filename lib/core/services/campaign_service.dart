@@ -459,6 +459,139 @@ class CampaignService {
     return _expectMap(res.data, 'update agency submission results');
   }
 
+  Future<Map<String, dynamic>> fetchAgencyRequoteOverview({
+    required String campaignId,
+  }) async {
+    final res = await _api.dio.get(
+      '/campaign/agency/$campaignId/requote-overview',
+    );
+    return _expectMap(res.data, 'agency requote overview');
+  }
+
+  Future<Map<String, dynamic>> fetchAgencyMilestones({
+    required String campaignId,
+  }) async {
+    final res = await _api.dio.get('/campaign/agency/milestones/$campaignId');
+    return _expectMap(res.data, 'agency milestones');
+  }
+
+  Future<Map<String, dynamic>> fetchAgencyStats() async {
+    final res = await _api.dio.get('/campaign/agency/stats');
+    return _expectMap(res.data, 'agency stats');
+  }
+
+  Future<Map<String, dynamic>> fetchCampaignById({
+    required String campaignId,
+  }) async {
+    final res = await _api.dio.get('/campaign/$campaignId');
+    return _expectMap(res.data, 'campaign by id');
+  }
+
+  Future<void> deleteCampaignById({required String campaignId}) async {
+    await _api.dio.delete('/campaign/$campaignId');
+  }
+
+  Future<void> deleteCampaignAsset({required String assetId}) async {
+    await _api.dio.delete('/campaign/asset/$assetId');
+  }
+
+  Future<Map<String, dynamic>> fetchCampaignSubmissionDetails({
+    required String submissionId,
+  }) async {
+    final res = await _api.dio.get('/campaign/submission/$submissionId');
+    return _expectMap(res.data, 'campaign submission details');
+  }
+
+  Future<Map<String, dynamic>> fetchSubmissionReport({
+    required String submissionId,
+  }) async {
+    final res = await _api.dio.get('/campaign/submission/$submissionId/report');
+    return _expectMap(res.data, 'submission report');
+  }
+
+  Future<Map<String, dynamic>> fetchCampaignProgress({
+    required String campaignId,
+  }) async {
+    final res = await _api.dio.post('/campaign/progress/$campaignId');
+    return _expectMap(res.data, 'campaign progress');
+  }
+
+  Future<List<Map<String, dynamic>>> searchInfluencers({
+    String? search,
+    int page = 1,
+    int limit = 10,
+  }) async {
+    final res = await _api.dio.get(
+      '/client/search/influencers',
+      queryParameters: {
+        if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
+        'page': page,
+        'limit': limit,
+      },
+    );
+    final data = _expectMap(res.data, 'search influencers');
+    final list = (data['data'] as List?) ?? const [];
+    return list
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList(growable: false);
+  }
+
+  Future<Map<String, dynamic>> fetchClientInfluencersProgress({
+    required String campaignId,
+  }) async {
+    final res = await _api.dio.get(
+      '/campaign/client/$campaignId/influencers-progress',
+    );
+    return _expectMap(res.data, 'client influencers progress');
+  }
+
+  Future<Map<String, dynamic>> rateInfluencer({
+    required String campaignId,
+    required String influencerId,
+    required int rating,
+  }) async {
+    final res = await _api.dio.post(
+      '/campaign/client/$campaignId/influencers/$influencerId/rate',
+      data: {'rating': rating},
+    );
+    return _expectMap(res.data, 'rate influencer');
+  }
+
+  Future<Map<String, dynamic>> payClientMilestoneBonus({
+    required String milestoneId,
+    required int amount,
+  }) async {
+    final res = await _api.dio.post(
+      '/campaign/client/milestone/$milestoneId/bonus',
+      data: {'amount': amount},
+    );
+    return _expectMap(res.data, 'pay client milestone bonus');
+  }
+
+  Future<Map<String, dynamic>> fetchInfluencerSubmissions({
+    String? status,
+    int page = 1,
+    int limit = 10,
+  }) async {
+    final res = await _api.dio.get(
+      '/campaign/influencer/submissions',
+      queryParameters: {
+        if (status != null && status.trim().isNotEmpty) 'status': status.trim(),
+        'page': page,
+        'limit': limit,
+      },
+    );
+    return _expectMap(res.data, 'influencer submissions');
+  }
+
+  Future<Map<String, dynamic>> fetchInfluencerSubmissionDetails({
+    required String submissionId,
+  }) async {
+    final res = await _api.dio.get('/campaign/influencer/submissions/$submissionId');
+    return _expectMap(res.data, 'influencer submission details');
+  }
+
   static String _campaignTypeToApi(CampaignType type) {
     switch (type) {
       case CampaignType.paidAd:
