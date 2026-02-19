@@ -67,6 +67,7 @@ class BrandCampaignDetailsController extends GetxController {
 
   // Type (PaidAd support)
   final campaignType = ''.obs; // e.g. "paidAd"
+  bool _didProbeInfluencersProgress = false;
   bool get isPaidAd {
     // ✅ prefer JobItem enum
     final j = job;
@@ -366,6 +367,8 @@ class BrandCampaignDetailsController extends GetxController {
       );
       _loadCampaignProgress(progress);
 
+      await _probeClientInfluencersProgress(campaignId);
+
       await _loadNegotiationContext(campaignId);
 
       final bids = await _campaignService.fetchClientAgencyBids(
@@ -381,6 +384,29 @@ class BrandCampaignDetailsController extends GetxController {
       isLoading.value = false;
       _applyFallbacks();
     }
+  }
+
+  Future<void> _probeClientInfluencersProgress(String campaignId) async {
+    if (_didProbeInfluencersProgress) return;
+
+    final result = await ApiErrorHandler.call(
+      () => _campaignService.fetchClientInfluencersProgress(campaignId: campaignId),
+      showError: false,
+    );
+
+    if (result.isSuccess) {
+      debugPrint(
+        '[API Probe] GET /campaign/client/$campaignId/influencers-progress => ${result.data}',
+      );
+      Get.snackbar('Influencer progress', 'Response captured in debug logs.');
+      _didProbeInfluencersProgress = true;
+      return;
+    }
+
+    Get.snackbar(
+      'Influencer progress',
+      result.error ?? 'Failed to capture response.',
+    );
   }
 
   void _loadAgencyBids(List<Map<String, dynamic>> bids) {

@@ -32,6 +32,8 @@ class CampaignDetailsController extends GetxController {
   final isPageRefreshing = false.obs;
   final isAcceptDeclineLoading = false.obs;
   final isRequoteLoading = false.obs;
+  bool _didProbeAgencyRequoteOverview = false;
+  bool _didProbeAgencyStats = false;
 
   final milestonesExpanded = true.obs;
   final briefExpanded = true.obs;
@@ -286,6 +288,8 @@ class CampaignDetailsController extends GetxController {
     );
     final raw = _extractDataMap(res);
 
+    await _probeAgencyPendingGetResponses(campaignId);
+
     final milestoneList = (raw['milestones'] as List?) ?? const [];
     final mappedMilestones = milestoneList
         .whereType<Map>()
@@ -341,6 +345,51 @@ class CampaignDetailsController extends GetxController {
     jobRx.value = updated;
     milestones.assignAll(mappedMilestones);
     _recalculateStatus();
+  }
+
+  Future<void> _probeAgencyPendingGetResponses(String campaignId) async {
+    if (!_didProbeAgencyRequoteOverview) {
+      final requote = await ApiErrorHandler.call(
+        () =>
+            _campaignService.fetchAgencyRequoteOverview(campaignId: campaignId),
+        showError: false,
+      );
+      if (requote.isSuccess) {
+        if (kDebugMode) {
+          debugPrint(
+            'RESPONSE DATA FROM GET /campaign/agency/$campaignId/requote-overview => ${requote.data}',
+          );
+        }
+        Get.snackbar('Requote overview', 'Response captured in debug logs.');
+        _didProbeAgencyRequoteOverview = true;
+      } else {
+        Get.snackbar(
+          'Requote overview',
+          requote.error ?? 'Failed to capture response.',
+        );
+      }
+    }
+
+    if (!_didProbeAgencyStats) {
+      final stats = await ApiErrorHandler.call(
+        () => _campaignService.fetchAgencyStats(),
+        showError: false,
+      );
+      if (stats.isSuccess) {
+        if (kDebugMode) {
+          debugPrint(
+            'RESPONSE DATA FROM GET /campaign/agency/stats => ${stats.data}',
+          );
+        }
+        Get.snackbar('Agency stats', 'Response captured in debug logs.');
+        _didProbeAgencyStats = true;
+      } else {
+        Get.snackbar(
+          'Agency stats',
+          stats.error ?? 'Failed to capture response.',
+        );
+      }
+    }
   }
 
   Future<void> openMilestoneDetails(Milestone milestone) async {

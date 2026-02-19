@@ -98,6 +98,7 @@ class MilestoneDetailsController extends GetxController {
   final CampaignService _campaignService = Get.find<CampaignService>();
   final UploadService _uploadService = Get.find<UploadService>();
   bool _needsParentRefresh = false;
+  bool _didProbeCampaignSubmissionDetails = false;
 
   final AccountTypeService _accountTypeService = Get.find<AccountTypeService>();
   @override
@@ -324,6 +325,7 @@ class MilestoneDetailsController extends GetxController {
       final List<BrandSubmissionUiModel> next = [];
       int idx = 1;
       for (final id in submissionIds) {
+        await _probeCampaignSubmissionDetails(id);
         final details = await _fetchClientSubmissionDetails(id);
         if (details == null) continue;
 
@@ -348,6 +350,31 @@ class MilestoneDetailsController extends GetxController {
     } finally {
       isBrandSubmissionsLoading.value = false;
     }
+  }
+
+  Future<void> _probeCampaignSubmissionDetails(String submissionId) async {
+    if (_didProbeCampaignSubmissionDetails) return;
+
+    final result = await ApiErrorHandler.call(
+      () => _campaignService.fetchCampaignSubmissionDetails(
+        submissionId: submissionId,
+      ),
+      showError: false,
+    );
+
+    if (result.isSuccess) {
+      debugPrint(
+        '[API Probe] GET /campaign/submission/$submissionId => ${result.data}',
+      );
+      Get.snackbar('Submission details', 'Response captured in debug logs.');
+      _didProbeCampaignSubmissionDetails = true;
+      return;
+    }
+
+    Get.snackbar(
+      'Submission details',
+      result.error ?? 'Failed to capture response.',
+    );
   }
 
   Future<Map<String, dynamic>?> _fetchMilestoneDetails(
