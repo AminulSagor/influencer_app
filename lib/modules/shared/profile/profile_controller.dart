@@ -12,6 +12,7 @@ import 'package:influencer_app/core/services/auth_services.dart';
 import 'package:influencer_app/core/services/api_error_handler.dart';
 import 'package:influencer_app/core/services/token_service.dart';
 import 'package:influencer_app/core/theme/app_palette.dart';
+import 'package:influencer_app/modules/ad_agency/services/agency_profile_service.dart';
 import 'package:influencer_app/modules/ad_agency/services/upload_service.dart';
 import 'package:influencer_app/modules/influencer/models/influencer_profile_model.dart';
 import 'package:influencer_app/modules/influencer/services/influencer_profile_service.dart';
@@ -60,6 +61,8 @@ class VerificationInprogressItem {
 }
 
 class PayoutMethod {
+  final String? payoutId;
+  final String payoutType;
   final String? bankName;
   final String? accountName;
   final String? accountNo;
@@ -73,6 +76,8 @@ class PayoutMethod {
   final bool isBank;
 
   const PayoutMethod.bank({
+    this.payoutId,
+    this.payoutType = 'bank',
     required this.bankName,
     required this.accountName,
     required this.accountNo,
@@ -84,6 +89,8 @@ class PayoutMethod {
        isBank = true;
 
   const PayoutMethod.bKash({
+    this.payoutId,
+    this.payoutType = 'mobileBanking',
     required this.bKashNo,
     required this.bKashName,
     required this.bKashAccountType,
@@ -307,6 +314,7 @@ class ProfileController extends GetxController {
       for (final bank in profile.payouts!.bankAccounts) {
         methods.add(
           PayoutMethod.bank(
+            payoutId: bank.id,
             bankName: bank.bankName,
             accountName: bank.bankAccHolderName,
             accountNo: bank.bankAccNo,
@@ -319,6 +327,7 @@ class ProfileController extends GetxController {
       for (final mobile in profile.payouts!.mobileAccounts) {
         methods.add(
           PayoutMethod.bKash(
+            payoutId: mobile.id,
             bKashNo: mobile.accountNo,
             bKashName: mobile.accountHolderName,
             bKashAccountType: mobile.accountType,
@@ -727,6 +736,7 @@ class ProfileController extends GetxController {
           final bankMap = bank as Map<String, dynamic>;
           methods.add(
             PayoutMethod.bank(
+              payoutId: bankMap['id']?.toString(),
               bankName: bankMap['bankName'] as String? ?? '',
               accountName: bankMap['bankAccHolderName'] as String? ?? '',
               accountNo: bankMap['bankAccNo'] as String? ?? '',
@@ -743,6 +753,7 @@ class ProfileController extends GetxController {
           final mobileMap = m as Map<String, dynamic>;
           methods.add(
             PayoutMethod.bKash(
+              payoutId: mobileMap['id']?.toString(),
               bKashNo: mobileMap['accountNo'] as String? ?? '',
               bKashName: mobileMap['accountHolderName'] as String? ?? '',
               bKashAccountType:
@@ -965,6 +976,7 @@ class ProfileController extends GetxController {
           final bankMap = bank as Map<String, dynamic>;
           methods.add(
             PayoutMethod.bank(
+              payoutId: bankMap['id']?.toString(),
               bankName: bankMap['bankName'] as String? ?? '',
               accountName: bankMap['bankAccHolderName'] as String? ?? '',
               accountNo: bankMap['bankAccNo'] as String? ?? '',
@@ -981,6 +993,7 @@ class ProfileController extends GetxController {
           final mobileMap = m as Map<String, dynamic>;
           methods.add(
             PayoutMethod.bKash(
+              payoutId: mobileMap['id']?.toString(),
               bKashNo: mobileMap['accountNo'] as String? ?? '',
               bKashName: mobileMap['accountHolderName'] as String? ?? '',
               bKashAccountType:
@@ -1341,26 +1354,182 @@ class ProfileController extends GetxController {
   }
 
   // Example method to simulate form submission
-  void submitNewPayoutForm() {
-    if (selectedAccountType.value == 'Bank') {
-      payoutMethods.add(
-        PayoutMethod.bank(
-          bankName: bankNameController.text.trim(),
-          accountName: accountHolderNameController.text.trim(),
-          accountNo: bankAccountNumberController.text.trim(),
-          routingNumber: routingNumberController.text.trim(),
-        ),
-      );
-    } else if (selectedAccountType.value == 'bKash') {
-      payoutMethods.add(
-        PayoutMethod.bKash(
-          bKashNo: bKashNoController.text.trim(),
-          bKashName: bKashHolderNameController.text.trim(),
-          bKashAccountType: bKashAccountTypeController.text.trim(),
-        ),
-      );
+  Future<void> submitNewPayoutForm() async {
+    if (isSavingProfile.value) return;
+    isSavingProfile.value = true;
+
+    try {
+      if (accountTypeService.isInfluencer) {
+        final apiClient = Get.find<ApiClient>();
+        final service = InfluencerProfileService(apiClient);
+
+        if (selectedAccountType.value == 'Bank') {
+          final bankName = bankNameController.text.trim();
+          final holder = accountHolderNameController.text.trim();
+          final accountNo = bankAccountNumberController.text.trim();
+          final routing = routingNumberController.text.trim();
+
+          if (bankName.isEmpty ||
+              holder.isEmpty ||
+              accountNo.isEmpty ||
+              routing.isEmpty) {
+            Get.snackbar('Error', 'Please fill all bank payout fields');
+            return;
+          }
+
+          final result = await service.addBankPayout(
+            bankName: bankName,
+            accountHolderName: holder,
+            accountNo: accountNo,
+            branchName: '',
+            routingNo: routing,
+          );
+
+          if (result.isSuccess && result.data != null) {
+            influencerProfile.value = result.data;
+            _populateFromInfluencerProfile(result.data!);
+          } else {
+            Get.snackbar('Error', result.error ?? 'Failed to add payout');
+            return;
+          }
+        } else if (selectedAccountType.value == 'bKash') {
+          final accountNo = bKashNoController.text.trim();
+          final holder = bKashHolderNameController.text.trim();
+          final accountType = bKashAccountTypeController.text.trim();
+
+          if (accountNo.isEmpty || holder.isEmpty) {
+            Get.snackbar('Error', 'Please fill all mobile payout fields');
+            return;
+          }
+
+          final result = await service.addMobilePayout(
+            accountType: accountType.isEmpty ? 'Bkash' : accountType,
+            accountHolderName: holder,
+            accountNo: accountNo,
+          );
+
+          if (result.isSuccess && result.data != null) {
+            influencerProfile.value = result.data;
+            _populateFromInfluencerProfile(result.data!);
+          } else {
+            Get.snackbar('Error', result.error ?? 'Failed to add payout');
+            return;
+          }
+        }
+      } else {
+        if (accountTypeService.isAdAgency) {
+          final apiClient = Get.find<ApiClient>();
+          final agencyService = AgencyProfileService(apiClient);
+
+          if (selectedAccountType.value == 'Bank') {
+            final bankName = bankNameController.text.trim();
+            final holder = accountHolderNameController.text.trim();
+            final accountNo = bankAccountNumberController.text.trim();
+            final routing = routingNumberController.text.trim();
+
+            if (bankName.isEmpty ||
+                holder.isEmpty ||
+                accountNo.isEmpty ||
+                routing.isEmpty) {
+              Get.snackbar('Error', 'Please fill all bank payout fields');
+              return;
+            }
+
+            await agencyService.addBankPayout(
+              bankName: bankName,
+              accountHolderName: holder,
+              accountNo: accountNo,
+              branchName: '',
+              routingNo: routing,
+            );
+          } else if (selectedAccountType.value == 'bKash') {
+            final accountNo = bKashNoController.text.trim();
+            final holder = bKashHolderNameController.text.trim();
+            final accountType = bKashAccountTypeController.text.trim();
+
+            if (accountNo.isEmpty || holder.isEmpty) {
+              Get.snackbar('Error', 'Please fill all mobile payout fields');
+              return;
+            }
+
+            await agencyService.addMobilePayout(
+              accountType: accountType.isEmpty ? 'Bkash' : accountType,
+              accountHolderName: holder,
+              accountNo: accountNo,
+            );
+          }
+        }
+
+        if (selectedAccountType.value == 'Bank') {
+          payoutMethods.add(
+            PayoutMethod.bank(
+              bankName: bankNameController.text.trim(),
+              accountName: accountHolderNameController.text.trim(),
+              accountNo: bankAccountNumberController.text.trim(),
+              routingNumber: routingNumberController.text.trim(),
+            ),
+          );
+        } else if (selectedAccountType.value == 'bKash') {
+          payoutMethods.add(
+            PayoutMethod.bKash(
+              bKashNo: bKashNoController.text.trim(),
+              bKashName: bKashHolderNameController.text.trim(),
+              bKashAccountType: bKashAccountTypeController.text.trim(),
+            ),
+          );
+        }
+      }
+
+      showNewPayoutAccountForm.value = false;
+      _clearAllFields();
+    } finally {
+      isSavingProfile.value = false;
     }
-    showNewPayoutAccountForm.value = false;
+  }
+
+  Future<void> removePayoutMethod(PayoutMethod payout) async {
+    if (isSavingProfile.value) return;
+
+    if (!accountTypeService.isInfluencer) {
+      if (accountTypeService.isAdAgency) {
+        final payoutId = payout.payoutId?.trim();
+        if (payoutId != null && payoutId.isNotEmpty) {
+          final apiClient = Get.find<ApiClient>();
+          final agencyService = AgencyProfileService(apiClient);
+          await agencyService.removePayout(
+            type: payout.isBank ? 'bank' : 'mobileBanking',
+            id: payoutId,
+          );
+        }
+      }
+
+      payoutMethods.remove(payout);
+      return;
+    }
+
+    final payoutId = payout.payoutId?.trim();
+    if (payoutId == null || payoutId.isEmpty) {
+      Get.snackbar('Error', 'Unable to remove payout: missing payout id');
+      return;
+    }
+
+    isSavingProfile.value = true;
+    try {
+      final apiClient = Get.find<ApiClient>();
+      final service = InfluencerProfileService(apiClient);
+      final result = await service.removePayout(
+        type: payout.payoutType,
+        id: payoutId,
+      );
+
+      if (result.isSuccess) {
+        payoutMethods.removeWhere((item) => item.payoutId == payoutId);
+      } else {
+        Get.snackbar('Error', result.error ?? 'Failed to remove payout');
+      }
+    } finally {
+      isSavingProfile.value = false;
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -1546,8 +1715,6 @@ class ProfileController extends GetxController {
   }
 
   Future<void> saveBrandAssets() async {
-    // hook your API here
-    // Example payload:
     final website = brandWebsiteController.text.trim();
     final handles = brandAssets
         .map(
@@ -1558,7 +1725,38 @@ class ProfileController extends GetxController {
         )
         .toList();
 
-    debugPrint('SAVE BRAND ASSETS => website: $website, handles: $handles');
+    if (!accountTypeService.isBrand) return;
+
+    final apiClient = Get.find<ApiClient>();
+    final result = await ApiErrorHandler.call(
+      () => apiClient.dio.patch(
+        '/client/profile/social',
+        data: {
+          if (website.isNotEmpty) 'website': website,
+          'socialLinks': handles,
+        },
+      ),
+    );
+
+    if (!result.isSuccess) {
+      return;
+    }
+
+    socialAccounts.assignAll(
+      handles
+          .map(
+            (item) => SocialAccount(
+              platform: _capitalizeFirst((item['platform'] ?? '').toString()),
+              iconPath: _getIconPathForPlatform(
+                (item['platform'] ?? '').toString(),
+              ),
+              handle: (item['link'] ?? '').toString(),
+            ),
+          )
+          .toList(growable: false),
+    );
+    _syncSocialHandleDefaults();
+    _setBrandWebsite(website);
 
     Get.snackbar(
       'success_title'.tr,
@@ -1662,7 +1860,7 @@ class ProfileController extends GetxController {
     editingLocationIndex.value = null;
   }
 
-  void saveLocationForm() {
+  Future<void> saveLocationForm() async {
     final name = locationNameController.text.trim();
     final thana = selectedLocationThana.value?.trim() ?? '';
     final zilla = selectedLocationZilla.value?.trim() ?? '';
@@ -1685,11 +1883,50 @@ class ProfileController extends GetxController {
       fullAddress: full,
     );
 
-    final editIndex = editingLocationIndex.value;
-    if (editIndex != null && editIndex >= 0 && editIndex < locations.length) {
-      locations[editIndex] = newLoc;
+    if (accountTypeService.isInfluencer) {
+      final apiClient = Get.find<ApiClient>();
+      final service = InfluencerProfileService(apiClient);
+
+      final result = await service.addAddress(
+        addressName: name,
+        thana: thana,
+        zilla: zilla,
+        fullAddress: full,
+      );
+
+      if (result.isSuccess && result.data != null) {
+        influencerProfile.value = result.data;
+        _populateFromInfluencerProfile(result.data!);
+      } else {
+        Get.snackbar('Error', result.error ?? 'Failed to save location');
+        return;
+      }
     } else {
-      locations.add(newLoc);
+      final apiClient = Get.find<ApiClient>();
+      if (accountTypeService.isBrand) {
+        final brandService = BrandOnboardingService(apiClient);
+        await brandService.updateAddress(
+          addressName: name,
+          thana: thana,
+          zilla: zilla,
+          fullAddress: full,
+        );
+      } else if (accountTypeService.isAdAgency) {
+        final agencyService = AgencyProfileService(apiClient);
+        await agencyService.updateAddress(
+          addressName: name,
+          thana: thana,
+          zilla: zilla,
+          fullAddress: full,
+        );
+      }
+
+      final editIndex = editingLocationIndex.value;
+      if (editIndex != null && editIndex >= 0 && editIndex < locations.length) {
+        locations[editIndex] = newLoc;
+      } else {
+        locations.add(newLoc);
+      }
     }
 
     cancelLocationForm();
@@ -1867,6 +2104,10 @@ class ProfileController extends GetxController {
 
         await service.updateBasicInfo(bio: bioText.value);
 
+        if (niches.isNotEmpty) {
+          await service.updateNiches(niches.toList(growable: false));
+        }
+
         if (skills.isNotEmpty) {
           await service.updateSkills(skills.toList());
         }
@@ -1898,6 +2139,47 @@ class ProfileController extends GetxController {
 
           await service.updateSocialLinks(updatedLinks);
         }
+
+        if (payoutMethods.isNotEmpty) {
+          final bankPayload = payoutMethods
+              .where((method) => method.isBank)
+              .map(
+                (method) => <String, dynamic>{
+                  if ((method.payoutId ?? '').isNotEmpty) 'id': method.payoutId,
+                  'bankName': method.bankName ?? '',
+                  'bankAccHolderName': method.accountName ?? '',
+                  'bankAccNo': method.accountNo ?? '',
+                  'bankBranchName': '',
+                  'bankRoutingNo': method.routingNumber ?? '',
+                },
+              )
+              .toList(growable: false);
+
+          final mobilePayload = payoutMethods
+              .where((method) => !method.isBank)
+              .map(
+                (method) => <String, dynamic>{
+                  if ((method.payoutId ?? '').isNotEmpty) 'id': method.payoutId,
+                  'accountType': (method.bKashAccountType ?? '').trim().isEmpty
+                      ? 'Bkash'
+                      : method.bKashAccountType,
+                  'accountHolderName': method.bKashName ?? '',
+                  'accountNo': method.bKashNo ?? '',
+                },
+              )
+              .toList(growable: false);
+
+          final payoutResult = await service.updatePayouts(
+            bank: bankPayload.isEmpty ? null : bankPayload,
+            mobileBanking: mobilePayload.isEmpty ? null : mobilePayload,
+          );
+
+          if (payoutResult.isSuccess && payoutResult.data != null) {
+            influencerProfile.value = payoutResult.data;
+            _populateFromInfluencerProfile(payoutResult.data!);
+          }
+        }
+
         final nidNumber = nidNumberController.text.trim();
         if (nidNumber.isNotEmpty &&
             nidFrontPic.value != null &&

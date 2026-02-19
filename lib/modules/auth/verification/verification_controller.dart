@@ -100,12 +100,22 @@ class VerificationController extends GetxController {
 
     final result = await ApiErrorHandler.call(
       () => _authService.verifyOtp(phone: phoneNumber, otp: enteredCode),
+      showError: false,
     );
+
+    final finalResult = result.isSuccess
+        ? result
+        : await ApiErrorHandler.call(
+            () => _authService.verifyOtpFallback(
+              phone: phoneNumber,
+              otp: enteredCode,
+            ),
+          );
 
     isLoading.value = false;
 
-    if (result.isSuccess) {
-      final token = result.data!.accessToken;
+    if (finalResult.isSuccess) {
+      final token = finalResult.data!.accessToken;
       final payload = JwtDecoder.decode(token);
 
       final role =

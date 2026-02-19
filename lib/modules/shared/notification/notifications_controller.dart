@@ -38,7 +38,11 @@ class NotificationsController extends GetxController {
   }
 
   String get _basePath =>
-      _accountTypeService.isBrand ? '/client/notifications' : '/notifications';
+      _accountTypeService.isBrand
+      ? '/client/notifications'
+      : _accountTypeService.isInfluencer
+      ? '/influencer/notifications'
+      : '/notifications';
 
   Future<void> loadNotifications() async {
     isLoading.value = true;
@@ -97,7 +101,7 @@ class NotificationsController extends GetxController {
 
   void markAllAsRead() {
     ApiErrorHandler.call(
-      () => _service.markAllAsRead(basePath: _basePath),
+      () => _service.markAllAsRead(basePath: '/notifications'),
       showError: false,
     ).then((_) {
       earlierItems.addAll(newItems);

@@ -11,6 +11,7 @@ import '../../../core/models/job_item.dart';
 import '../../../core/services/account_type_service.dart';
 import '../../../core/services/api_client.dart';
 import '../../../core/services/api_error_handler.dart';
+import '../../../core/services/campaign_service.dart';
 import '../../../core/theme/app_palette.dart';
 import 'widgets/brand_submission_card.dart';
 
@@ -94,6 +95,7 @@ class MilestoneDetailsController extends GetxController {
   final RxBool confirmOwnership = false.obs;
   final RxBool acceptLicense = false.obs;
   final ApiClient _apiClient = Get.find<ApiClient>();
+  final CampaignService _campaignService = Get.find<CampaignService>();
   final UploadService _uploadService = Get.find<UploadService>();
   bool _needsParentRefresh = false;
 
@@ -184,12 +186,27 @@ class MilestoneDetailsController extends GetxController {
     return '$day $mon $year, $hour:$minute $ampm';
   }
 
-  void submitAdminReport(String reason) {
+  Future<void> submitAdminReport(String reason) async {
     final r = reason.trim();
     if (r.isEmpty) {
       Get.snackbar('Required', 'Please write your reason.');
       return;
     }
+
+    final target = selectedBrandSubmission;
+    final submissionId = target?.serverId?.trim();
+    if (submissionId == null || submissionId.isEmpty) {
+      Get.snackbar('Missing data', 'Submission id not found.');
+      return;
+    }
+
+    final reportResult = await ApiErrorHandler.call(
+      () => _campaignService.reportClientSubmission(
+        submissionId: submissionId,
+        report: r,
+      ),
+    );
+    if (!reportResult.isSuccess) return;
 
     submittedReports.insert(
       0,
@@ -277,9 +294,7 @@ class MilestoneDetailsController extends GetxController {
             dayIndex:
                 _intFrom(milestoneDetails['deliveryDays']) ??
                 milestone.dayIndex,
-            amountLabel:
-                _amountLabelFrom(milestoneDetails['amount']) ??
-                milestone.amountLabel,
+            amountLabel: _amountLabelFrom(milestoneDetails['amount']),
             targets: PromotionTarget(
               reach: _intFrom(milestoneDetails['expectedReach']),
               views: _intFrom(milestoneDetails['expectedViews']),
@@ -597,7 +612,7 @@ class MilestoneDetailsController extends GetxController {
       case MilestoneLocalStatus.declined:
         return '$declinedSubmissionCount Declined';
       case MilestoneLocalStatus.completed:
-        return 'Completed'; // ✅
+        return 'Completed';
       default:
         return 'To Do';
     }
@@ -743,7 +758,11 @@ class MilestoneDetailsController extends GetxController {
     }
 
     final isInfluencer = _accountTypeService.isInfluencer;
-    if (isInfluencer && milestone.id != null && milestone.id!.isNotEmpty) {
+    final isAdAgency = _accountTypeService.isAdAgency;
+
+    if ((isInfluencer || isAdAgency) &&
+        milestone.id != null &&
+        milestone.id!.isNotEmpty) {
       _submitInfluencerMilestone(milestone.id!);
       return;
     }
@@ -932,21 +951,65 @@ class MilestoneDetailsController extends GetxController {
       'achievedComments': comments,
     };
 
-    final Future<dynamic> Function() apiCall;
-    if (ui.serverId != null && ui.status.value == SubmissionStatus.declined) {
-      apiCall = () => _apiClient.dio.patch(
-        '/campaign/influencer/submission/${ui.serverId}/resubmit',
-        data: payload,
-      );
-    } else {
-      apiCall = () => _apiClient.dio.post(
-        '/campaign/influencer/milestone/$milestoneId/submit',
-        data: payload,
-      );
-    }
+    final isAdAgency = _accountTypeService.isAdAgency;
+    final requestedAmount = _intFrom(ui.amountController.text) ?? 0;
 
-    final result = await ApiErrorHandler.call(apiCall);
-    if (!result.isSuccess) return;
+    final agencyPayload = {
+      'description': ui.descriptionController.text.trim(),
+      'liveLinks': link.isEmpty ? [] : [link],
+      'proofAttachments': proofAttachmentUrls,
+      if (requestedAmount > 0) 'requestPaymentAmount': requestedAmount,
+    };
+
+    final achievedMetrics = {
+      if (views > 0) 'achievedViews': views,
+      if (reach > 0) 'achievedReach': reach,
+      if (likes > 0) 'achievedLikes': likes,
+      if (comments > 0) 'achievedComments': comments,
+    };
+
+    final Future<dynamic> Function() apiCall;
+    if (isAdAgency) {
+      if (ui.serverId != null && ui.status.value == SubmissionStatus.declined) {
+        apiCall = () => _campaignService.resubmitAgencyMilestoneWork(
+          submissionId: ui.serverId!,
+          payload: agencyPayload,
+        );
+      } else {
+        apiCall = () => _campaignService.submitAgencyMilestoneWork(
+          milestoneId: milestoneId,
+          payload: agencyPayload,
+        );
+      }
+
+      final result = await ApiErrorHandler.call(apiCall);
+      if (!result.isSuccess) return;
+
+      if (ui.serverId != null && achievedMetrics.isNotEmpty) {
+        await ApiErrorHandler.call(
+          () => _campaignService.updateAgencySubmissionResults(
+            submissionId: ui.serverId!,
+            payload: achievedMetrics,
+          ),
+          showError: false,
+        );
+      }
+    } else {
+      if (ui.serverId != null && ui.status.value == SubmissionStatus.declined) {
+        apiCall = () => _apiClient.dio.patch(
+          '/campaign/influencer/submission/${ui.serverId}/resubmit',
+          data: payload,
+        );
+      } else {
+        apiCall = () => _apiClient.dio.post(
+          '/campaign/influencer/milestone/$milestoneId/submit',
+          data: payload,
+        );
+      }
+
+      final result = await ApiErrorHandler.call(apiCall);
+      if (!result.isSuccess) return;
+    }
 
     ui.status.value = SubmissionStatus.inReview;
     ui.isSubmitted.value = true;
@@ -955,7 +1018,9 @@ class MilestoneDetailsController extends GetxController {
     milestoneStatus.value = MilestoneLocalStatus.inReview;
 
     _markNeedsParentRefresh();
-    await _loadInfluencerMilestoneDetails();
+    if (_accountTypeService.isInfluencer) {
+      await _loadInfluencerMilestoneDetails();
+    }
 
     Get.snackbar('Submitted', 'Milestone sent for admin review');
   }
@@ -1203,16 +1268,14 @@ class MilestoneDetailsController extends GetxController {
     required bool approve,
     String? reason,
   }) async {
-    final payload = approve
-        ? {'report': 'Approved'}
-        : {'action': 'decline', 'reason': reason ?? 'Declined by client.'};
-
-    final result = await ApiErrorHandler.call(() {
-      return _apiClient.dio.post(
-        '/campaign/client/submission/$submissionId/review',
-        data: payload,
-      );
-    });
+    final result = await ApiErrorHandler.call(
+      () => _campaignService.reviewClientSubmission(
+        submissionId: submissionId,
+        action: approve ? 'approve' : 'decline',
+        report: approve ? 'Approved' : null,
+        reason: approve ? null : (reason ?? 'Declined by client.'),
+      ),
+    );
 
     return result.isSuccess;
   }

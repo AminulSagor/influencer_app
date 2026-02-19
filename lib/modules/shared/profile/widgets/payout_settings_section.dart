@@ -100,7 +100,7 @@ class PayoutSettingsSection extends StatelessWidget {
                   if (payout.isApproved) ...[
                     8.w.horizontalSpace,
                     CustomButton(
-                      onTap: () {},
+                      onTap: () => controller.removePayoutMethod(payout),
                       btnText: 'Remove',
                       textColor: AppPalette.white,
                       height: 26.h,

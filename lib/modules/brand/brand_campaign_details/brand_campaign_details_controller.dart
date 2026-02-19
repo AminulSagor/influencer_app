@@ -9,6 +9,7 @@ import '../../../core/models/job_item.dart';
 import '../../../core/services/campaign_service.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../create_campaign/create_campaign_controller.dart';
+import '../../../core/services/api_error_handler.dart';
 
 enum CampaignProgressStep { submitted, quoted, paid, promoting, completed }
 
@@ -27,9 +28,19 @@ class BrandAssetLink {
 }
 
 class PaidAdAgencyOffer {
+  final String agencyId;
   final String name;
   final int agencyFeePercent; // e.g. 10
-  const PaidAdAgencyOffer({required this.name, this.agencyFeePercent = 10});
+  final int totalPayableExcludingFee;
+  final double dollarRate;
+
+  const PaidAdAgencyOffer({
+    required this.agencyId,
+    required this.name,
+    this.agencyFeePercent = 10,
+    this.totalPayableExcludingFee = 0,
+    this.dollarRate = 0,
+  });
 }
 
 class BrandCampaignDetailsController extends GetxController {
@@ -78,6 +89,8 @@ class BrandCampaignDetailsController extends GetxController {
   final daysRemaining = 0.obs;
   final deadlineDateText = ''.obs;
   final budgetStatusText = 'brand_campaign_details_budget_pending'.tr.obs;
+  final dueAmount = 0.obs;
+  final paidAmount = 0.obs;
 
   // Progress (no field in JobItem yet, keep default)
   final progressStep = CampaignProgressStep.quoted.obs;
@@ -345,6 +358,8 @@ class BrandCampaignDetailsController extends GetxController {
       );
       _loadFromApiMap(data);
 
+      await _loadNegotiationContext(campaignId);
+
       final bids = await _campaignService.fetchClientAgencyBids(
         campaignId: campaignId,
       );
@@ -365,13 +380,25 @@ class BrandCampaignDetailsController extends GetxController {
 
     final mapped = bids
         .map((b) {
+          final agencyId = b['agencyId']?.toString().trim() ?? '';
           final name = b['agencyName']?.toString().trim();
           final percent = _parsePercent(b['proposedServiceFeePercent']);
+          final totalExcl = _numToInt(
+            b['totalpayableExcludingAgencyServiceFee'],
+          );
+          final fx = _numToDouble(b['dollarRate']);
+
+          if (agencyId.isEmpty) return null;
+
           return PaidAdAgencyOffer(
+            agencyId: agencyId,
             name: (name == null || name.isEmpty) ? 'Agency' : name,
             agencyFeePercent: percent <= 0 ? 10 : percent,
+            totalPayableExcludingFee: totalExcl,
+            dollarRate: fx,
           );
         })
+        .whereType<PaidAdAgencyOffer>()
         .toList(growable: false);
 
     if (mapped.isNotEmpty) agencyOffers.assignAll(mapped);
@@ -400,6 +427,9 @@ class BrandCampaignDetailsController extends GetxController {
 
     // Budget status
     final dueAmount = _numToDouble(data['dueAmount']);
+    final paid = _numToDouble(data['paidAmount']);
+    this.dueAmount.value = dueAmount.round();
+    paidAmount.value = paid.round();
     if (dueAmount <= 0) {
       budgetStatusText.value = trOr(
         'brand_campaign_details_budget_paid',
@@ -733,7 +763,19 @@ class BrandCampaignDetailsController extends GetxController {
   void toggleMilestones() =>
       milestonesExpanded.value = !milestonesExpanded.value;
 
-  void setRating(int v) => rating.value = v.clamp(0, 5);
+  void setRating(int v) {
+    final next = v.clamp(0, 5);
+    rating.value = next;
+
+    final campaignId = _extractCampaignId(arguments);
+    if (campaignId == null || campaignId.trim().isEmpty) return;
+    if (next <= 0) return;
+
+    ApiErrorHandler.call(
+      () => _campaignService.rateAgency(campaignId: campaignId, rating: next),
+      showError: false,
+    );
+  }
 
   void onRequestQuote() {
     if (isPaidAd) {
@@ -752,6 +794,34 @@ class BrandCampaignDetailsController extends GetxController {
       // _openConfirmBudgetDialog(); // new UI (your screenshots 3 & 4)
     } else {
       _openFundCampaignDialog(); // keep your previous one
+    }
+  }
+
+  Future<void> onAcceptAgencyOfferAndPay(PaidAdAgencyOffer offer) async {
+    final campaignId = _extractCampaignId(arguments);
+    if (campaignId == null || campaignId.trim().isEmpty) {
+      Get.snackbar(
+        trOr('common_error', 'Error'),
+        trOr('brand_campaign_missing_id', 'Missing campaign id.'),
+      );
+      return;
+    }
+
+    final accepted = await _acceptQuoteRequest();
+    if (!accepted) return;
+
+    try {
+      isLoading.value = true;
+      await _campaignService.selectAgencyForCampaign(
+        campaignId: campaignId,
+        agencyId: offer.agencyId,
+      );
+      await _loadFromApiIfPossible();
+      _openFundCampaignDialog();
+    } catch (e) {
+      Get.snackbar(trOr('common_error', 'Error'), _errorMessage(e));
+    } finally {
+      isLoading.value = false;
     }
   }
 
@@ -818,13 +888,26 @@ class BrandCampaignDetailsController extends GetxController {
 
     try {
       isLoading.value = true;
+
+      int nextVat = vatAmountValue;
+      final preview = await _campaignService.fetchBudgetPreview(
+        baseBudget: proposedBaseBudget,
+        isAgencyCampaign: isPaidAd,
+      );
+      final previewData = preview['data'] is Map
+          ? Map<String, dynamic>.from(preview['data'] as Map)
+          : null;
+      if (previewData != null) {
+        nextVat = _numToInt(previewData['vatAmount']);
+      }
+
       await _campaignService.sendNegotiationCounterOffer(
         campaignId: campaignId,
         proposedBaseBudget: proposedBaseBudget,
       );
 
       baseBudget.value = proposedBaseBudget;
-      vatAmount.value = vatAmountValue;
+      vatAmount.value = nextVat;
 
       if (closeDialog) Get.back();
 
@@ -2025,7 +2108,9 @@ class BrandCampaignDetailsController extends GetxController {
     const warnBg = Color(0xFFFFE6CF);
     const warnBorder = Color(0xFFEF9F59);
 
-    final totalDue = totalCost <= 0 ? 18000 : totalCost;
+    final totalDue = dueAmount.value > 0
+        ? dueAmount.value
+        : (totalCost <= 0 ? 18000 : totalCost);
     final minPay = (totalDue * 0.5).round();
 
     final amountRx = totalDue.obs;
@@ -2278,15 +2363,54 @@ class BrandCampaignDetailsController extends GetxController {
 
                     return ElevatedButton(
                       onPressed: canPay
-                          ? () {
-                              Get.back();
-                              Get.snackbar(
-                                trOr('brand_campaign_payment', 'Payment'),
-                                trOr(
-                                  'brand_campaign_payment_success',
-                                  'Payment initiated.',
-                                ),
-                              );
+                          ? () async {
+                              final campaignId = _extractCampaignId(arguments);
+                              if (campaignId == null ||
+                                  campaignId.trim().isEmpty) {
+                                Get.snackbar(
+                                  trOr('common_error', 'Error'),
+                                  trOr(
+                                    'brand_campaign_missing_id',
+                                    'Missing campaign id.',
+                                  ),
+                                );
+                                return;
+                              }
+
+                              final amount = amt;
+                              final isDuePayment = paidAmount.value > 0;
+
+                              try {
+                                isLoading.value = true;
+                                if (isDuePayment) {
+                                  await _campaignService.payCampaignDue(
+                                    campaignId: campaignId,
+                                    amount: amount,
+                                  );
+                                } else {
+                                  await _campaignService.payCampaignAmount(
+                                    campaignId: campaignId,
+                                    amount: amount,
+                                  );
+                                }
+
+                                await _loadFromApiIfPossible();
+                                Get.back();
+                                Get.snackbar(
+                                  trOr('brand_campaign_payment', 'Payment'),
+                                  trOr(
+                                    'brand_campaign_payment_success',
+                                    'Payment initiated.',
+                                  ),
+                                );
+                              } catch (e) {
+                                Get.snackbar(
+                                  trOr('common_error', 'Error'),
+                                  _errorMessage(e),
+                                );
+                              } finally {
+                                isLoading.value = false;
+                              }
                             }
                           : () {
                               Get.snackbar(
@@ -2347,5 +2471,37 @@ class BrandCampaignDetailsController extends GetxController {
         ),
       ),
     );
+  }
+
+  Future<void> _loadNegotiationContext(String campaignId) async {
+    final history = await _campaignService.fetchNegotiationHistory(
+      campaignId: campaignId,
+    );
+    final data = history['data'] is Map
+        ? Map<String, dynamic>.from(history['data'] as Map)
+        : const <String, dynamic>{};
+    final negotiations = (data['negotiations'] as List?) ?? const [];
+
+    if (negotiations.isEmpty) return;
+
+    final latest = negotiations.firstWhere((e) => e is Map, orElse: () => null);
+    if (latest is! Map) return;
+
+    final latestMap = Map<String, dynamic>.from(latest);
+    final latestProposedBase = _numToInt(latestMap['proposedBaseBudget']);
+    if (latestProposedBase > 0) {
+      baseBudget.value = latestProposedBase;
+      final vat =
+          _numToInt(latestMap['proposedTotalBudget']) - latestProposedBase;
+      if (vat > 0) vatAmount.value = vat;
+    }
+
+    final isRead = latestMap['isRead'] == true;
+    final negotiationId = latestMap['id']?.toString().trim() ?? '';
+    if (!isRead && negotiationId.isNotEmpty) {
+      await _campaignService.markNegotiationAsRead(
+        negotiationId: negotiationId,
+      );
+    }
   }
 }

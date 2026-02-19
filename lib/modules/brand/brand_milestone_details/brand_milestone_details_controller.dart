@@ -125,7 +125,7 @@ class BrandMilestoneDetailsController extends GetxController {
     String? reason,
   }) async {
     final payload = approve
-        ? {'report': 'Approved'}
+        ? {'action': 'approve', 'report': 'Approved'}
         : {
             'action': 'decline',
             'reason': (reason ?? 'Declined by client.').trim(),

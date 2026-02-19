@@ -35,6 +35,32 @@ class BrandOnboardingService {
     return (res.data as Map).cast<String, dynamic>();
   }
 
+  /// PATCH /client/profile/address
+  Future<Map<String, dynamic>> updateAddress({
+    required String addressName,
+    required String thana,
+    required String zilla,
+    required String fullAddress,
+  }) async {
+    final res = await _api.dio.patch(
+      '/client/profile/address',
+      data: {
+        'addressName': addressName,
+        'thana': thana,
+        'zilla': zilla,
+        'fullAddress': fullAddress,
+      },
+    );
+
+    if (res.data is! Map) {
+      throw DioException(
+        requestOptions: res.requestOptions,
+        message: 'client/profile/address response is not a valid Map',
+      );
+    }
+    return (res.data as Map).cast<String, dynamic>();
+  }
+
   /// PATCH /client/profile
   /// Basic info update (brandName, firstName, lastName).
   Future<Map<String, dynamic>> updateBasicInfo({

@@ -469,6 +469,7 @@ class SignupAgencyController extends GetxController {
     final result = await ApiErrorHandler.call(() async {
       // Submit all onboarding data in one request
       await _agencyOnboardingService.submitOnboarding(onboardingData);
+      await _agencyOnboardingService.updateNiches(niches);
       return true;
     });
 

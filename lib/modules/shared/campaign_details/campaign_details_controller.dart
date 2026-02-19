@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:influencer_app/core/services/account_type_service.dart';
-import 'package:influencer_app/core/services/api_client.dart';
+import 'package:influencer_app/core/services/campaign_service.dart';
 import 'package:influencer_app/core/services/api_error_handler.dart';
 import 'package:influencer_app/core/theme/app_palette.dart';
 import 'package:influencer_app/core/theme/app_theme.dart';
@@ -27,7 +27,7 @@ class CampaignDetailsController extends GetxController {
   double? _proposedDollarRate;
 
   final accountTypeService = Get.find<AccountTypeService>();
-  final ApiClient _apiClient = Get.find<ApiClient>();
+  final CampaignService _campaignService = Get.find<CampaignService>();
 
   final isPageRefreshing = false.obs;
   final isAcceptDeclineLoading = false.obs;
@@ -111,7 +111,7 @@ class CampaignDetailsController extends GetxController {
     isAcceptDeclineLoading.value = true;
 
     final result = await ApiErrorHandler.call(
-      () => _apiClient.dio.post('/campaign/influencer/job/$jobId/accept'),
+      () => _campaignService.acceptInfluencerJobOffer(jobId: jobId),
     );
 
     if (result.isSuccess) {
@@ -128,7 +128,7 @@ class CampaignDetailsController extends GetxController {
     isAcceptDeclineLoading.value = true;
 
     final result = await ApiErrorHandler.call(
-      () => _apiClient.dio.post('/campaign/influencer/job/$jobId/decline'),
+      () => _campaignService.declineInfluencerJobOffer(jobId: jobId),
     );
 
     if (result.isSuccess) {
@@ -143,7 +143,7 @@ class CampaignDetailsController extends GetxController {
     isAcceptDeclineLoading.value = true;
 
     final result = await ApiErrorHandler.call(
-      () => _apiClient.dio.post('/campaign/agency/$campaignId/accept'),
+      () => _campaignService.acceptAgencyOffer(campaignId: campaignId),
     );
 
     if (result.isSuccess) {
@@ -160,10 +160,7 @@ class CampaignDetailsController extends GetxController {
     isAcceptDeclineLoading.value = true;
 
     final result = await ApiErrorHandler.call(
-      () => _apiClient.dio.post(
-        '/campaign/agency/decline-offer',
-        data: {'campaignId': campaignId},
-      ),
+      () => _campaignService.declineAgencyOffer(campaignId: campaignId),
     );
 
     if (result.isSuccess) {
@@ -194,9 +191,9 @@ class CampaignDetailsController extends GetxController {
     };
 
     final result = await ApiErrorHandler.call(
-      () => _apiClient.dio.post(
-        '/campaign/agency/$campaignId/requote',
-        data: payload,
+      () => _campaignService.requestAgencyRequote(
+        campaignId: campaignId,
+        payload: payload,
       ),
     );
 
@@ -246,15 +243,15 @@ class CampaignDetailsController extends GetxController {
   }
 
   Future<void> _loadInfluencerJobDetails(String jobId) async {
-    final detailsRes = await _apiClient.dio.get(
-      '/campaign/influencer/job/$jobId',
+    final detailsRes = await _campaignService.fetchInfluencerJobDetails(
+      jobId: jobId,
     );
-    final details = _extractDataMap(detailsRes.data);
+    final details = _extractDataMap(detailsRes);
 
-    final milestonesRes = await _apiClient.dio.get(
-      '/campaign/influencer/job/$jobId/milestones',
+    final milestonesRes = await _campaignService.fetchInfluencerJobMilestones(
+      jobId: jobId,
     );
-    final milestonePayload = _extractDataMap(milestonesRes.data);
+    final milestonePayload = _extractDataMap(milestonesRes);
     final milestoneList = (milestonePayload['milestones'] as List?) ?? const [];
 
     final mappedMilestones = milestoneList
@@ -284,8 +281,10 @@ class CampaignDetailsController extends GetxController {
   }
 
   Future<void> _loadAgencyCampaignDetails(String campaignId) async {
-    final res = await _apiClient.dio.get('/campaign/agency/$campaignId');
-    final raw = _extractDataMap(res.data);
+    final res = await _campaignService.fetchAgencyCampaignDetails(
+      campaignId: campaignId,
+    );
+    final raw = _extractDataMap(res);
 
     final milestoneList = (raw['milestones'] as List?) ?? const [];
     final mappedMilestones = milestoneList

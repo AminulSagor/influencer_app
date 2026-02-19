@@ -1810,18 +1810,25 @@ class _AgencyBidsTab extends GetView<BrandCampaignDetailsController> {
             return Column(
               children: [
                 ...list.map((o) {
-                  final fee = (total * (o.agencyFeePercent / 100)).round();
-                  final excl = (total - fee).clamp(0, total);
-                  final usd = _fxRate <= 0 ? 0 : (excl / _fxRate);
+                  final hasBackendBreakdown = o.totalPayableExcludingFee > 0;
+                  final fee = hasBackendBreakdown
+                      ? (total - o.totalPayableExcludingFee).clamp(0, total)
+                      : (total * (o.agencyFeePercent / 100)).round();
+                  final excl = hasBackendBreakdown
+                      ? o.totalPayableExcludingFee
+                      : (total - fee).clamp(0, total);
+                  final fxRate = o.dollarRate > 0 ? o.dollarRate : _fxRate;
+                  final usd = fxRate <= 0 ? 0 : (excl / fxRate);
 
                   return _AgencyOfferCard(
                     name: o.name,
                     agencyFeePercent: o.agencyFeePercent,
-                    fxRate: _fxRate,
+                    fxRate: fxRate,
                     agencyFeeBdt: fee,
                     budgetExclAgencyBdt: excl,
                     usdValue: usd.toDouble(),
-                    onAcceptAndPay: controller.onAcceptQuote, // keep your flow
+                    onAcceptAndPay: () =>
+                        controller.onAcceptAgencyOfferAndPay(o),
                   );
                 }).toList(),
 
