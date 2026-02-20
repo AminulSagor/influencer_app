@@ -57,7 +57,7 @@ class InfluencerDashboardService {
     int limit = 5,
   }) async {
     final res = await _api.dio.get(
-      '/influencer/dashboard/work-in-progress',
+      '/influencer/dashboard/wip',
       queryParameters: {'page': page, 'limit': limit},
     );
     return _parsePaged(res.data);

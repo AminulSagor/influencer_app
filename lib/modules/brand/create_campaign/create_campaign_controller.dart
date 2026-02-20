@@ -89,6 +89,7 @@ class CreateCampaignController extends GetxController {
   bool _notPreferredLoading = false;
   String _preferredLastQuery = '';
   String _notPreferredLastQuery = '';
+  bool _didProbeSearchInfluencers = false;
 
   final preferredInputCtrl = TextEditingController();
   final notPreferredInputCtrl = TextEditingController();
@@ -709,6 +710,8 @@ class CreateCampaignController extends GetxController {
 
     if (q.isEmpty || !_preferredHasMore) return;
 
+    await _probeSearchInfluencersForLogs(q);
+
     _preferredLoading = true;
     final list = await _campaignService.fetchInfluencers(
       page: _preferredPage,
@@ -753,6 +756,8 @@ class CreateCampaignController extends GetxController {
 
     if (q.isEmpty || !_notPreferredHasMore) return;
 
+    await _probeSearchInfluencersForLogs(q);
+
     _notPreferredLoading = true;
     final list = await _campaignService.fetchInfluencers(
       page: _notPreferredPage,
@@ -779,6 +784,29 @@ class CreateCampaignController extends GetxController {
     }
 
     _notPreferredLoading = false;
+  }
+
+  Future<void> _probeSearchInfluencersForLogs(String query) async {
+    if (_didProbeSearchInfluencers) return;
+
+    final result = await ApiErrorHandler.call(
+      () => _campaignService.searchInfluencers(search: query, page: 1, limit: 10),
+      showError: false,
+    );
+
+    if (result.isSuccess) {
+      debugPrint(
+        '[API Probe] GET /client/search/influencers?search=$query&page=1&limit=10 => ${result.data}',
+      );
+      Get.snackbar('Search influencers', 'Response captured in debug logs.');
+      _didProbeSearchInfluencers = true;
+      return;
+    }
+
+    Get.snackbar(
+      'Search influencers',
+      result.error ?? 'Failed to capture response.',
+    );
   }
 
   void _onPreferredSuggestionScroll() {

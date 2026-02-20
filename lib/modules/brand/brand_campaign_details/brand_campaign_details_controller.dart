@@ -9,16 +9,19 @@ import '../../../core/models/job_item.dart';
 import '../../../core/services/campaign_service.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../create_campaign/create_campaign_controller.dart';
+import '../../../core/services/api_error_handler.dart';
 
 enum CampaignProgressStep { submitted, quoted, paid, promoting, completed }
 
 class BrandAssetLink {
+  final String? assetId;
   final String title;
   final String subtitle;
   final IconData icon;
   final String? url;
 
   const BrandAssetLink({
+    this.assetId,
     required this.title,
     required this.subtitle,
     required this.icon,
@@ -27,9 +30,19 @@ class BrandAssetLink {
 }
 
 class PaidAdAgencyOffer {
+  final String agencyId;
   final String name;
   final int agencyFeePercent; // e.g. 10
-  const PaidAdAgencyOffer({required this.name, this.agencyFeePercent = 10});
+  final int totalPayableExcludingFee;
+  final double dollarRate;
+
+  const PaidAdAgencyOffer({
+    required this.agencyId,
+    required this.name,
+    this.agencyFeePercent = 10,
+    this.totalPayableExcludingFee = 0,
+    this.dollarRate = 0,
+  });
 }
 
 class BrandCampaignDetailsController extends GetxController {
@@ -46,7 +59,7 @@ class BrandCampaignDetailsController extends GetxController {
   /// Expect either:
   /// - Get.toNamed(..., arguments: jobItem)
   /// - Get.toNamed(..., arguments: {'job': jobItem, 'campaignType': 'paidAd', ...})
-  /// Also supports no args -> uses CreateCampaignController (if registered) -> demo fallbacks.
+  /// Also supports no args -> uses CreateCampaignController (if registered).
   final dynamic arguments;
   BrandCampaignDetailsController(this.arguments);
 
@@ -54,6 +67,7 @@ class BrandCampaignDetailsController extends GetxController {
 
   // Type (PaidAd support)
   final campaignType = ''.obs; // e.g. "paidAd"
+  bool _didProbeInfluencersProgress = false;
   bool get isPaidAd {
     // ✅ prefer JobItem enum
     final j = job;
@@ -78,6 +92,9 @@ class BrandCampaignDetailsController extends GetxController {
   final daysRemaining = 0.obs;
   final deadlineDateText = ''.obs;
   final budgetStatusText = 'brand_campaign_details_budget_pending'.tr.obs;
+  final dueAmount = 0.obs;
+  final paidAmount = 0.obs;
+  final RxnString selectedInfluencerId = RxnString();
 
   // Progress (no field in JobItem yet, keep default)
   final progressStep = CampaignProgressStep.quoted.obs;
@@ -149,9 +166,12 @@ class BrandCampaignDetailsController extends GetxController {
       return;
     }
 
-    // 3) Last resort: demo defaults
-    _loadDemo();
+    // 3) Last resort: keep API-driven/empty state
     _loadFromApiIfPossible();
+  }
+
+  Future<void> refreshAfterMilestoneUpdate() async {
+    await _loadFromApiIfPossible();
   }
 
   void _showDebugSnackbar(dynamic args) {
@@ -342,6 +362,15 @@ class BrandCampaignDetailsController extends GetxController {
       );
       _loadFromApiMap(data);
 
+      final progress = await _campaignService.fetchCampaignProgress(
+        campaignId: campaignId,
+      );
+      _loadCampaignProgress(progress);
+
+      await _probeClientInfluencersProgress(campaignId);
+
+      await _loadNegotiationContext(campaignId);
+
       final bids = await _campaignService.fetchClientAgencyBids(
         campaignId: campaignId,
       );
@@ -357,18 +386,53 @@ class BrandCampaignDetailsController extends GetxController {
     }
   }
 
+  Future<void> _probeClientInfluencersProgress(String campaignId) async {
+    if (_didProbeInfluencersProgress) return;
+
+    final result = await ApiErrorHandler.call(
+      () => _campaignService.fetchClientInfluencersProgress(campaignId: campaignId),
+      showError: false,
+    );
+
+    if (result.isSuccess) {
+      debugPrint(
+        '[API Probe] GET /campaign/client/$campaignId/influencers-progress => ${result.data}',
+      );
+      Get.snackbar('Influencer progress', 'Response captured in debug logs.');
+      _didProbeInfluencersProgress = true;
+      return;
+    }
+
+    Get.snackbar(
+      'Influencer progress',
+      result.error ?? 'Failed to capture response.',
+    );
+  }
+
   void _loadAgencyBids(List<Map<String, dynamic>> bids) {
     if (bids.isEmpty) return;
 
     final mapped = bids
         .map((b) {
+          final agencyId = b['agencyId']?.toString().trim() ?? '';
           final name = b['agencyName']?.toString().trim();
           final percent = _parsePercent(b['proposedServiceFeePercent']);
+          final totalExcl = _numToInt(
+            b['totalpayableExcludingAgencyServiceFee'],
+          );
+          final fx = _numToDouble(b['dollarRate']);
+
+          if (agencyId.isEmpty) return null;
+
           return PaidAdAgencyOffer(
+            agencyId: agencyId,
             name: (name == null || name.isEmpty) ? 'Agency' : name,
             agencyFeePercent: percent <= 0 ? 10 : percent,
+            totalPayableExcludingFee: totalExcl,
+            dollarRate: fx,
           );
         })
+        .whereType<PaidAdAgencyOffer>()
         .toList(growable: false);
 
     if (mapped.isNotEmpty) agencyOffers.assignAll(mapped);
@@ -388,6 +452,7 @@ class BrandCampaignDetailsController extends GetxController {
 
     // Rating
     rating.value = (_numToDouble(data['rating']).round()).clamp(0, 5);
+    selectedInfluencerId.value = _extractInfluencerId(data);
 
     // Quote breakdown
     final base = _numToDouble(data['baseBudget']).round();
@@ -397,6 +462,9 @@ class BrandCampaignDetailsController extends GetxController {
 
     // Budget status
     final dueAmount = _numToDouble(data['dueAmount']);
+    final paid = _numToDouble(data['paidAmount']);
+    this.dueAmount.value = dueAmount.round();
+    paidAmount.value = paid.round();
     if (dueAmount <= 0) {
       budgetStatusText.value = trOr(
         'brand_campaign_details_budget_paid',
@@ -445,6 +513,39 @@ class BrandCampaignDetailsController extends GetxController {
     }
   }
 
+  void _loadCampaignProgress(Map<String, dynamic> response) {
+    final data = response['data'] is Map<String, dynamic>
+        ? response['data'] as Map<String, dynamic>
+        : response;
+
+    final rawStatus =
+        (data['status'] ?? data['campaignStatus'] ?? data['progress'])
+            ?.toString()
+            .toLowerCase()
+            .trim();
+
+    if (rawStatus == null || rawStatus.isEmpty) return;
+
+    if (rawStatus.contains('complete') || rawStatus.contains('completed')) {
+      progressStep.value = CampaignProgressStep.completed;
+      return;
+    }
+    if (rawStatus.contains('promot')) {
+      progressStep.value = CampaignProgressStep.promoting;
+      return;
+    }
+    if (rawStatus.contains('paid') || rawStatus.contains('payment')) {
+      progressStep.value = CampaignProgressStep.paid;
+      return;
+    }
+    if (rawStatus.contains('quote') || rawStatus.contains('negotiat')) {
+      progressStep.value = CampaignProgressStep.quoted;
+      return;
+    }
+
+    progressStep.value = CampaignProgressStep.submitted;
+  }
+
   void _applyDeadline({String? startingDate, int? duration}) {
     final start = _tryParseDate(startingDate);
     if (start == null || duration == null) return;
@@ -478,6 +579,7 @@ class BrandCampaignDetailsController extends GetxController {
         final icon = _iconForBrandAsset(fileName, fileUrl);
         brand.add(
           BrandAssetLink(
+            assetId: item['id']?.toString(),
             title: fileName.isNotEmpty
                 ? fileName
                 : (assetType ?? 'Brand Asset'),
@@ -716,195 +818,7 @@ class BrandCampaignDetailsController extends GetxController {
     if (budgetText.value.trim().isEmpty) budgetText.value = '৳11,000';
   }
 
-  void _loadDemo() {
-    campaignType.value = campaignType.value.trim().isEmpty
-        ? 'paidAd'
-        : campaignType.value;
-
-    campaignTitle.value = 'Summer Fashion Campaign';
-    budgetText.value = '৳5,000';
-
-    targetingText.value = 'Crowd';
-
-    influencers.assignAll(['Influencer A', 'Influencer B']);
-
-    platforms.assignAll(const <IconData>[
-      Icons.facebook,
-      Icons.camera_alt_outlined,
-      Icons.play_circle_outline,
-      Icons.music_note_outlined,
-    ]);
-
-    daysRemaining.value = 8;
-    deadlineDateText.value = 'Dec 15, 2025';
-
-    baseBudget.value = 15000;
-    vatAmount.value = 2000;
-
-    contentRequirements.assignAll(const [
-      'Minimum 2 Instagram Feed Posts',
-      '3 Stories (8h Swipe Up Link)',
-      '1 YouTube Short (30–60 Seconds)',
-      '3 TikTok Video (Featuring Trending Sounds)',
-    ]);
-
-    dosText.value =
-        'Show authentic usage, mention eco-friendly aspects\n'
-        'Tag @StyleCo in all posts\n'
-        'Show products in natural lighting\n'
-        'Include discount code in captions';
-
-    dontsText.value =
-        'Avoid misleading claims\n'
-        'Do not use competitor branding\n'
-        'Don’t edit product colors unrealistically\n'
-        'Don’t hide discount code';
-
-    reportingRequirements.value =
-        'Provide analytics screenshots 7 days post-publication (include reach, engagement, and click-through rates).';
-
-    usageRights.value =
-        'Brand retains rights to repost content on official channels with proper attribution.';
-
-    if (contentAssets.isEmpty) {
-      contentAssets.addAll(const [
-        JobAsset(
-          title: 'Brand Logo Pack',
-          meta: 'PNG, SVG – 2.4 MB',
-          kind: JobAssetKind.image,
-        ),
-        JobAsset(
-          title: 'Product Demo Video',
-          meta: 'MP4 – 80 MB',
-          kind: JobAssetKind.video,
-        ),
-        JobAsset(
-          title: 'Brand Guidelines',
-          meta: 'PDF – 750 KB',
-          kind: JobAssetKind.document,
-        ),
-      ]);
-    }
-
-    if (milestones.isEmpty) {
-      milestones.addAll(const [
-        Milestone(
-          stepLabel: '1',
-          title: 'Initial Brand Awareness',
-          subtitle: '2 Instagram Posts + 3 Stories',
-          dayLabel: 'DAY 1',
-          status: MilestoneStatus.todo,
-        ),
-        Milestone(
-          stepLabel: '2',
-          title: 'Lead Generation',
-          subtitle: '1 Sponsored Video (60 sec)',
-          dayLabel: 'DAY 2',
-          status: MilestoneStatus.todo,
-        ),
-        Milestone(
-          stepLabel: '3',
-          title: 'Sales Conversion',
-          subtitle: '1 Sponsored Video (60 sec)',
-          dayLabel: 'DAY 3',
-          status: MilestoneStatus.todo,
-        ),
-        Milestone(
-          stepLabel: '4',
-          title: 'Campaign Wrap Up',
-          subtitle: 'Final Report + 2 Stories',
-          dayLabel: 'DAY 4',
-          status: MilestoneStatus.todo,
-        ),
-      ]);
-    }
-
-    if (brandAssets.isEmpty) {
-      brandAssets.addAll(const [
-        BrandAssetLink(
-          title: 'Facebook Page',
-          subtitle: 'Page Link',
-          icon: Icons.facebook,
-          url: 'https://facebook.com/',
-        ),
-      ]);
-    }
-  }
-
   void _applyFallbacks() {
-    // If platforms/influencers are not provided anywhere, keep a safe default
-    if (influencers.isEmpty) {
-      influencers.assignAll(['Influencer A', 'Influencer B']);
-    }
-    if (platforms.isEmpty) {
-      platforms.assignAll(const <IconData>[
-        Icons.facebook,
-        Icons.camera_alt_outlined,
-        Icons.play_circle_outline,
-        Icons.music_note_outlined,
-      ]);
-    }
-
-    if (isPaidAd && targetingText.value.trim().isEmpty) {
-      targetingText.value = 'Crowd';
-    }
-
-    if (campaignGoals.value.trim().isEmpty) {
-      campaignGoals.value =
-          'Promote our new summer skincare line to Gen Z and millennial audiences. Focus on natural ingredients and sustainable packaging.';
-    }
-
-    if (productServiceDetails.value.trim().isEmpty) {
-      productServiceDetails.value =
-          'Promote our new summer skincare line to Gen Z and millennial audiences. Focus on natural ingredients and sustainable packaging.';
-    }
-
-    if (contentRequirements.isEmpty) {
-      contentRequirements.assignAll(const [
-        'Minimum 2 Instagram Feed Posts',
-        '3 Stories (8h Swipe Up Link)',
-        '1 YouTube Short (30–60 Seconds)',
-        '3 TikTok Video (Featuring Trending Sounds)',
-      ]);
-    }
-
-    if (dosText.value.trim().isEmpty) {
-      dosText.value =
-          'Show authentic usage, mention eco-friendly aspects\n'
-          'Tag @Brand in all posts\n'
-          'Show products in natural lighting\n'
-          'Include discount code in captions';
-    }
-
-    if (dontsText.value.trim().isEmpty) {
-      dontsText.value =
-          'Avoid misleading claims\n'
-          'Do not use competitor branding\n'
-          'Don’t edit product colors unrealistically\n'
-          'Don’t hide discount code';
-    }
-
-    if (reportingRequirements.value.trim().isEmpty) {
-      reportingRequirements.value =
-          'Provide analytics screenshots 7 days post-publication (include reach, engagement, and click-through rates).';
-    }
-
-    if (usageRights.value.trim().isEmpty) {
-      usageRights.value =
-          'Brand retains rights to repost content on official channels with proper attribution.';
-    }
-
-    // Brand assets default for PaidAd (screenshot)
-    if (isPaidAd && brandAssets.isEmpty) {
-      brandAssets.add(
-        const BrandAssetLink(
-          title: 'Facebook Page',
-          subtitle: 'Page Link',
-          icon: Icons.facebook,
-        ),
-      );
-    }
-
     _recomputeMilestoneStatusLabel();
   }
 
@@ -918,7 +832,40 @@ class BrandCampaignDetailsController extends GetxController {
   void toggleMilestones() =>
       milestonesExpanded.value = !milestonesExpanded.value;
 
-  void setRating(int v) => rating.value = v.clamp(0, 5);
+  void setRating(int v) {
+    final next = v.clamp(0, 5);
+    rating.value = next;
+
+    final campaignId = _extractCampaignId(arguments);
+    if (campaignId == null || campaignId.trim().isEmpty) return;
+    if (next <= 0) return;
+
+    if (isPaidAd) {
+      ApiErrorHandler.call(
+        () => _campaignService.rateAgency(campaignId: campaignId, rating: next),
+        showError: false,
+      );
+      return;
+    }
+
+    final influencerId = selectedInfluencerId.value?.trim();
+    if (influencerId == null || influencerId.isEmpty) {
+      Get.snackbar(
+        trOr('common_error', 'Error'),
+        trOr('brand_campaign_missing_influencer', 'Missing influencer id.'),
+      );
+      return;
+    }
+
+    ApiErrorHandler.call(
+      () => _campaignService.rateInfluencer(
+        campaignId: campaignId,
+        influencerId: influencerId,
+        rating: next,
+      ),
+      showError: false,
+    );
+  }
 
   void onRequestQuote() {
     if (isPaidAd) {
@@ -940,6 +887,34 @@ class BrandCampaignDetailsController extends GetxController {
     }
   }
 
+  Future<void> onAcceptAgencyOfferAndPay(PaidAdAgencyOffer offer) async {
+    final campaignId = _extractCampaignId(arguments);
+    if (campaignId == null || campaignId.trim().isEmpty) {
+      Get.snackbar(
+        trOr('common_error', 'Error'),
+        trOr('brand_campaign_missing_id', 'Missing campaign id.'),
+      );
+      return;
+    }
+
+    final accepted = await _acceptQuoteRequest();
+    if (!accepted) return;
+
+    try {
+      isLoading.value = true;
+      await _campaignService.selectAgencyForCampaign(
+        campaignId: campaignId,
+        agencyId: offer.agencyId,
+      );
+      await _loadFromApiIfPossible();
+      _openFundCampaignDialog();
+    } catch (e) {
+      Get.snackbar(trOr('common_error', 'Error'), _errorMessage(e));
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
   void onDownloadAsset(int index) {
     Get.snackbar(
       'brand_campaign_details_assets'.tr,
@@ -947,9 +922,35 @@ class BrandCampaignDetailsController extends GetxController {
     );
   }
 
-  void removeBrandAsset(int index) {
+  Future<void> removeBrandAsset(int index) async {
     if (index < 0 || index >= brandAssets.length) return;
+    final item = brandAssets[index];
+    final assetId = item.assetId?.trim() ?? '';
+
+    if (assetId.isNotEmpty) {
+      final result = await ApiErrorHandler.call(
+        () => _campaignService.deleteCampaignAsset(assetId: assetId),
+      );
+      if (!result.isSuccess) return;
+    }
+
     brandAssets.removeAt(index);
+  }
+
+  String? _extractInfluencerId(Map<String, dynamic> data) {
+    final direct = data['influencerId']?.toString().trim();
+    if (direct != null && direct.isNotEmpty) return direct;
+
+    final assigned = data['assignedInfluencerId']?.toString().trim();
+    if (assigned != null && assigned.isNotEmpty) return assigned;
+
+    final influencer = data['influencer'];
+    if (influencer is Map) {
+      final id = influencer['id']?.toString().trim();
+      if (id != null && id.isNotEmpty) return id;
+    }
+
+    return null;
   }
 
   Future<bool> _acceptQuoteRequest() async {
@@ -1003,13 +1004,26 @@ class BrandCampaignDetailsController extends GetxController {
 
     try {
       isLoading.value = true;
+
+      int nextVat = vatAmountValue;
+      final preview = await _campaignService.fetchBudgetPreview(
+        baseBudget: proposedBaseBudget,
+        isAgencyCampaign: isPaidAd,
+      );
+      final previewData = preview['data'] is Map
+          ? Map<String, dynamic>.from(preview['data'] as Map)
+          : null;
+      if (previewData != null) {
+        nextVat = _numToInt(previewData['vatAmount']);
+      }
+
       await _campaignService.sendNegotiationCounterOffer(
         campaignId: campaignId,
         proposedBaseBudget: proposedBaseBudget,
       );
 
       baseBudget.value = proposedBaseBudget;
-      vatAmount.value = vatAmountValue;
+      vatAmount.value = nextVat;
 
       if (closeDialog) Get.back();
 
@@ -2210,7 +2224,9 @@ class BrandCampaignDetailsController extends GetxController {
     const warnBg = Color(0xFFFFE6CF);
     const warnBorder = Color(0xFFEF9F59);
 
-    final totalDue = totalCost <= 0 ? 18000 : totalCost;
+    final totalDue = dueAmount.value > 0
+        ? dueAmount.value
+        : (totalCost <= 0 ? 18000 : totalCost);
     final minPay = (totalDue * 0.5).round();
 
     final amountRx = totalDue.obs;
@@ -2463,15 +2479,54 @@ class BrandCampaignDetailsController extends GetxController {
 
                     return ElevatedButton(
                       onPressed: canPay
-                          ? () {
-                              Get.back();
-                              Get.snackbar(
-                                trOr('brand_campaign_payment', 'Payment'),
-                                trOr(
-                                  'brand_campaign_payment_success',
-                                  'Payment initiated.',
-                                ),
-                              );
+                          ? () async {
+                              final campaignId = _extractCampaignId(arguments);
+                              if (campaignId == null ||
+                                  campaignId.trim().isEmpty) {
+                                Get.snackbar(
+                                  trOr('common_error', 'Error'),
+                                  trOr(
+                                    'brand_campaign_missing_id',
+                                    'Missing campaign id.',
+                                  ),
+                                );
+                                return;
+                              }
+
+                              final amount = amt;
+                              final isDuePayment = paidAmount.value > 0;
+
+                              try {
+                                isLoading.value = true;
+                                if (isDuePayment) {
+                                  await _campaignService.payCampaignDue(
+                                    campaignId: campaignId,
+                                    amount: amount,
+                                  );
+                                } else {
+                                  await _campaignService.payCampaignAmount(
+                                    campaignId: campaignId,
+                                    amount: amount,
+                                  );
+                                }
+
+                                await _loadFromApiIfPossible();
+                                Get.back();
+                                Get.snackbar(
+                                  trOr('brand_campaign_payment', 'Payment'),
+                                  trOr(
+                                    'brand_campaign_payment_success',
+                                    'Payment initiated.',
+                                  ),
+                                );
+                              } catch (e) {
+                                Get.snackbar(
+                                  trOr('common_error', 'Error'),
+                                  _errorMessage(e),
+                                );
+                              } finally {
+                                isLoading.value = false;
+                              }
                             }
                           : () {
                               Get.snackbar(
@@ -2532,5 +2587,37 @@ class BrandCampaignDetailsController extends GetxController {
         ),
       ),
     );
+  }
+
+  Future<void> _loadNegotiationContext(String campaignId) async {
+    final history = await _campaignService.fetchNegotiationHistory(
+      campaignId: campaignId,
+    );
+    final data = history['data'] is Map
+        ? Map<String, dynamic>.from(history['data'] as Map)
+        : const <String, dynamic>{};
+    final negotiations = (data['negotiations'] as List?) ?? const [];
+
+    if (negotiations.isEmpty) return;
+
+    final latest = negotiations.firstWhere((e) => e is Map, orElse: () => null);
+    if (latest is! Map) return;
+
+    final latestMap = Map<String, dynamic>.from(latest);
+    final latestProposedBase = _numToInt(latestMap['proposedBaseBudget']);
+    if (latestProposedBase > 0) {
+      baseBudget.value = latestProposedBase;
+      final vat =
+          _numToInt(latestMap['proposedTotalBudget']) - latestProposedBase;
+      if (vat > 0) vatAmount.value = vat;
+    }
+
+    final isRead = latestMap['isRead'] == true;
+    final negotiationId = latestMap['id']?.toString().trim() ?? '';
+    if (!isRead && negotiationId.isNotEmpty) {
+      await _campaignService.markNegotiationAsRead(
+        negotiationId: negotiationId,
+      );
+    }
   }
 }

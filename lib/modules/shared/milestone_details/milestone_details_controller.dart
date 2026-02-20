@@ -1,12 +1,17 @@
 // lib/modules/ad_agency/milestone_details/milestone_details_controller.dart
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:path/path.dart' as path;
 
+import '../../ad_agency/services/upload_service.dart';
 import '../../../core/models/job_item.dart';
 import '../../../core/services/account_type_service.dart';
 import '../../../core/services/api_client.dart';
 import '../../../core/services/api_error_handler.dart';
+import '../../../core/services/campaign_service.dart';
 import '../../../core/theme/app_palette.dart';
 import 'widgets/brand_submission_card.dart';
 
@@ -71,6 +76,7 @@ class MilestoneDetailsController extends GetxController {
   late final JobItem job;
   // not final because we reassign updated copy
   late Milestone milestone;
+  final Rxn<Milestone> milestoneRx = Rxn<Milestone>();
 
   final RxBool headerExpanded = true.obs;
 
@@ -89,6 +95,10 @@ class MilestoneDetailsController extends GetxController {
   final RxBool confirmOwnership = false.obs;
   final RxBool acceptLicense = false.obs;
   final ApiClient _apiClient = Get.find<ApiClient>();
+  final CampaignService _campaignService = Get.find<CampaignService>();
+  final UploadService _uploadService = Get.find<UploadService>();
+  bool _needsParentRefresh = false;
+  bool _didProbeCampaignSubmissionDetails = false;
 
   final AccountTypeService _accountTypeService = Get.find<AccountTypeService>();
   @override
@@ -98,6 +108,7 @@ class MilestoneDetailsController extends GetxController {
     if (arguments is Map) {
       final map = arguments as Map;
       milestone = map['milestone'] as Milestone;
+      milestoneRx.value = milestone;
       job = map['job'] as JobItem;
     } else {
       throw 'MilestoneDetails requires Milestone and JobItem in Get.arguments';
@@ -176,12 +187,27 @@ class MilestoneDetailsController extends GetxController {
     return '$day $mon $year, $hour:$minute $ampm';
   }
 
-  void submitAdminReport(String reason) {
+  Future<void> submitAdminReport(String reason) async {
     final r = reason.trim();
     if (r.isEmpty) {
       Get.snackbar('Required', 'Please write your reason.');
       return;
     }
+
+    final target = selectedBrandSubmission;
+    final submissionId = target?.serverId?.trim();
+    if (submissionId == null || submissionId.isEmpty) {
+      Get.snackbar('Missing data', 'Submission id not found.');
+      return;
+    }
+
+    final reportResult = await ApiErrorHandler.call(
+      () => _campaignService.reportClientSubmission(
+        submissionId: submissionId,
+        report: r,
+      ),
+    );
+    if (!reportResult.isSuccess) return;
 
     submittedReports.insert(
       0,
@@ -196,6 +222,21 @@ class MilestoneDetailsController extends GetxController {
   String trOr(String key, String fallback) {
     final value = key.tr;
     return value == key ? fallback : value;
+  }
+
+  Milestone get currentMilestone => milestoneRx.value ?? milestone;
+
+  void _setMilestone(Milestone value) {
+    milestone = value;
+    milestoneRx.value = value;
+  }
+
+  void _markNeedsParentRefresh() {
+    _needsParentRefresh = true;
+  }
+
+  void closePage() {
+    Get.back(result: {'refresh': _needsParentRefresh, 'milestone': milestone});
   }
 
   // ---------- helpers ----------
@@ -241,27 +282,30 @@ class MilestoneDetailsController extends GetxController {
 
       final milestoneDetails = await _fetchMilestoneDetails(milestoneId);
       if (milestoneDetails != null) {
-        milestone = milestone.copyWith(
-          id: milestoneDetails['id']?.toString() ?? milestone.id,
-          title:
-              milestoneDetails['contentTitle']?.toString() ?? milestone.title,
-          platform:
-              milestoneDetails['platform']?.toString() ?? milestone.platform,
-          deliverable:
-              milestoneDetails['contentQuantity']?.toString() ??
-              milestone.deliverable,
-          dayIndex:
-              _intFrom(milestoneDetails['deliveryDays']) ?? milestone.dayIndex,
-          amountLabel:
-              _amountLabelFrom(milestoneDetails['amount']) ??
-              milestone.amountLabel,
-          targets: PromotionTarget(
-            reach: _intFrom(milestoneDetails['expectedReach']),
-            views: _intFrom(milestoneDetails['expectedViews']),
-            likes: _intFrom(milestoneDetails['expectedLikes']),
-            comments: _intFrom(milestoneDetails['expectedComments']),
+        _setMilestone(
+          milestone.copyWith(
+            id: milestoneDetails['id']?.toString() ?? milestone.id,
+            title:
+                milestoneDetails['contentTitle']?.toString() ?? milestone.title,
+            platform:
+                milestoneDetails['platform']?.toString() ?? milestone.platform,
+            deliverable:
+                milestoneDetails['contentQuantity']?.toString() ??
+                milestone.deliverable,
+            dayIndex:
+                _intFrom(milestoneDetails['deliveryDays']) ??
+                milestone.dayIndex,
+            amountLabel: _amountLabelFrom(milestoneDetails['amount']),
+            targets: PromotionTarget(
+              reach: _intFrom(milestoneDetails['expectedReach']),
+              views: _intFrom(milestoneDetails['expectedViews']),
+              likes: _intFrom(milestoneDetails['expectedLikes']),
+              comments: _intFrom(milestoneDetails['expectedComments']),
+            ),
+            status: _parseMilestoneStatus(
+              milestoneDetails['status']?.toString(),
+            ),
           ),
-          status: _parseMilestoneStatus(milestoneDetails['status']?.toString()),
         );
         milestoneStatus.value = _localStatusFromMilestone(milestone.status);
       }
@@ -281,6 +325,7 @@ class MilestoneDetailsController extends GetxController {
       final List<BrandSubmissionUiModel> next = [];
       int idx = 1;
       for (final id in submissionIds) {
+        await _probeCampaignSubmissionDetails(id);
         final details = await _fetchClientSubmissionDetails(id);
         if (details == null) continue;
 
@@ -305,6 +350,31 @@ class MilestoneDetailsController extends GetxController {
     } finally {
       isBrandSubmissionsLoading.value = false;
     }
+  }
+
+  Future<void> _probeCampaignSubmissionDetails(String submissionId) async {
+    if (_didProbeCampaignSubmissionDetails) return;
+
+    final result = await ApiErrorHandler.call(
+      () => _campaignService.fetchCampaignSubmissionDetails(
+        submissionId: submissionId,
+      ),
+      showError: false,
+    );
+
+    if (result.isSuccess) {
+      debugPrint(
+        '[API Probe] GET /campaign/submission/$submissionId => ${result.data}',
+      );
+      Get.snackbar('Submission details', 'Response captured in debug logs.');
+      _didProbeCampaignSubmissionDetails = true;
+      return;
+    }
+
+    Get.snackbar(
+      'Submission details',
+      result.error ?? 'Failed to capture response.',
+    );
   }
 
   Future<Map<String, dynamic>?> _fetchMilestoneDetails(
@@ -500,6 +570,7 @@ class MilestoneDetailsController extends GetxController {
     return BrandSubmissionUiModel(
       index: index,
       serverId: submissionId,
+      requestedAmount: _intFrom(json['amount']) ?? 0,
       description: description,
       platformTitleKey: platformTitleKey,
       platformLink: platformLink,
@@ -569,7 +640,9 @@ class MilestoneDetailsController extends GetxController {
       case MilestoneLocalStatus.declined:
         return '$declinedSubmissionCount Declined';
       case MilestoneLocalStatus.completed:
-        return 'Completed'; // ✅
+        return 'Completed';
+      default:
+        return 'To Do';
     }
   }
 
@@ -713,7 +786,11 @@ class MilestoneDetailsController extends GetxController {
     }
 
     final isInfluencer = _accountTypeService.isInfluencer;
-    if (isInfluencer && milestone.id != null && milestone.id!.isNotEmpty) {
+    final isAdAgency = _accountTypeService.isAdAgency;
+
+    if ((isInfluencer || isAdAgency) &&
+        milestone.id != null &&
+        milestone.id!.isNotEmpty) {
       _submitInfluencerMilestone(milestone.id!);
       return;
     }
@@ -777,24 +854,27 @@ class MilestoneDetailsController extends GetxController {
     final statusRaw =
         raw['status']?.toString() ?? milestoneJson['status']?.toString();
 
-    milestone = milestone.copyWith(
-      id: milestoneJson['id']?.toString() ?? milestone.id,
-      title:
-          milestoneJson['contentTitle']?.toString().trim() ?? milestone.title,
-      platform: milestoneJson['platform']?.toString() ?? milestone.platform,
-      deliverable:
-          milestoneJson['contentQuantity']?.toString() ?? milestone.deliverable,
-      dayIndex: _intFrom(milestoneJson['deliveryDays']) ?? milestone.dayIndex,
-      amountLabel: _amountLabelFrom(
-        milestoneJson['amount'] ?? milestoneJson['paidAmount'],
+    _setMilestone(
+      milestone.copyWith(
+        id: milestoneJson['id']?.toString() ?? milestone.id,
+        title:
+            milestoneJson['contentTitle']?.toString().trim() ?? milestone.title,
+        platform: milestoneJson['platform']?.toString() ?? milestone.platform,
+        deliverable:
+            milestoneJson['contentQuantity']?.toString() ??
+            milestone.deliverable,
+        dayIndex: _intFrom(milestoneJson['deliveryDays']) ?? milestone.dayIndex,
+        amountLabel: _amountLabelFrom(
+          milestoneJson['amount'] ?? milestoneJson['paidAmount'],
+        ),
+        targets: PromotionTarget(
+          reach: _intFrom(milestoneJson['expectedReach']),
+          views: _intFrom(milestoneJson['expectedViews']),
+          likes: _intFrom(milestoneJson['expectedLikes']),
+          comments: _intFrom(milestoneJson['expectedComments']),
+        ),
+        status: _parseMilestoneStatus(statusRaw),
       ),
-      targets: PromotionTarget(
-        reach: _intFrom(milestoneJson['expectedReach']),
-        views: _intFrom(milestoneJson['expectedViews']),
-        likes: _intFrom(milestoneJson['expectedLikes']),
-        comments: _intFrom(milestoneJson['expectedComments']),
-      ),
-      status: _parseMilestoneStatus(statusRaw),
     );
 
     milestoneStatus.value = _localStatusFromMilestone(milestone.status);
@@ -881,42 +961,157 @@ class MilestoneDetailsController extends GetxController {
       reach = value;
     }
 
+    List<String> proofAttachmentUrls;
+    try {
+      proofAttachmentUrls = await _uploadProofAttachments(ui.proofs);
+    } catch (e) {
+      Get.snackbar('Upload failed', e.toString());
+      return;
+    }
+
     final payload = {
       'description': ui.descriptionController.text.trim(),
       'liveLinks': link.isEmpty ? [] : [link],
-      'proofAttachments': ui.proofs
-          .map((f) => f.path ?? f.name)
-          .where((e) => e.trim().isNotEmpty)
-          .toList(),
+      'proofAttachments': proofAttachmentUrls,
       'achievedViews': views,
       'achievedReach': reach,
       'achievedLikes': likes,
       'achievedComments': comments,
     };
 
-    final Future<dynamic> Function() apiCall;
-    if (ui.serverId != null && ui.status.value == SubmissionStatus.declined) {
-      apiCall = () => _apiClient.dio.patch(
-        '/campaign/influencer/submission/${ui.serverId}/resubmit',
-        data: payload,
-      );
-    } else {
-      apiCall = () => _apiClient.dio.post(
-        '/campaign/influencer/milestone/$milestoneId/submit',
-        data: payload,
-      );
-    }
+    final isAdAgency = _accountTypeService.isAdAgency;
+    final requestedAmount = _intFrom(ui.amountController.text) ?? 0;
 
-    final result = await ApiErrorHandler.call(apiCall);
-    if (!result.isSuccess) return;
+    final agencyPayload = {
+      'description': ui.descriptionController.text.trim(),
+      'liveLinks': link.isEmpty ? [] : [link],
+      'proofAttachments': proofAttachmentUrls,
+      if (requestedAmount > 0) 'requestPaymentAmount': requestedAmount,
+    };
+
+    final achievedMetrics = {
+      if (views > 0) 'achievedViews': views,
+      if (reach > 0) 'achievedReach': reach,
+      if (likes > 0) 'achievedLikes': likes,
+      if (comments > 0) 'achievedComments': comments,
+    };
+
+    final Future<dynamic> Function() apiCall;
+    if (isAdAgency) {
+      if (ui.serverId != null && ui.status.value == SubmissionStatus.declined) {
+        apiCall = () => _campaignService.resubmitAgencyMilestoneWork(
+          submissionId: ui.serverId!,
+          payload: agencyPayload,
+        );
+      } else {
+        apiCall = () => _campaignService.submitAgencyMilestoneWork(
+          milestoneId: milestoneId,
+          payload: agencyPayload,
+        );
+      }
+
+      final result = await ApiErrorHandler.call(apiCall);
+      if (!result.isSuccess) return;
+
+      if (ui.serverId != null && achievedMetrics.isNotEmpty) {
+        await ApiErrorHandler.call(
+          () => _campaignService.updateAgencySubmissionResults(
+            submissionId: ui.serverId!,
+            payload: achievedMetrics,
+          ),
+          showError: false,
+        );
+      }
+    } else {
+      if (ui.serverId != null && ui.status.value == SubmissionStatus.declined) {
+        apiCall = () => _apiClient.dio.patch(
+          '/campaign/influencer/submission/${ui.serverId}/resubmit',
+          data: payload,
+        );
+      } else {
+        apiCall = () => _apiClient.dio.post(
+          '/campaign/influencer/milestone/$milestoneId/submit',
+          data: payload,
+        );
+      }
+
+      final result = await ApiErrorHandler.call(apiCall);
+      if (!result.isSuccess) return;
+    }
 
     ui.status.value = SubmissionStatus.inReview;
     ui.isSubmitted.value = true;
     ui.isExpanded.value = false;
-    milestone = milestone.copyWith(status: MilestoneStatus.inReview);
+    _setMilestone(milestone.copyWith(status: MilestoneStatus.inReview));
     milestoneStatus.value = MilestoneLocalStatus.inReview;
 
+    _markNeedsParentRefresh();
+    if (_accountTypeService.isInfluencer) {
+      await _loadInfluencerMilestoneDetails();
+    }
+
     Get.snackbar('Submitted', 'Milestone sent for admin review');
+  }
+
+  Future<List<String>> _uploadProofAttachments(
+    List<PlatformFile> proofs,
+  ) async {
+    final uploadedUrls = <String>[];
+
+    for (final proof in proofs) {
+      final filePath = proof.path?.trim() ?? '';
+      if (filePath.isEmpty) {
+        throw Exception('Could not access ${proof.name} for upload.');
+      }
+
+      final file = File(filePath);
+      if (!await file.exists()) {
+        throw Exception('File not found: ${proof.name}');
+      }
+
+      final fileName = proof.name.trim().isNotEmpty
+          ? proof.name.trim()
+          : path.basename(filePath);
+      final contentType = _proofContentType(fileName);
+
+      final signedUrl = await _uploadService.createSignedUrl(
+        fileName: fileName,
+        fileType: contentType,
+        module: 'milestone-proofs',
+      );
+
+      await _uploadService.uploadFileToSignedUrl(
+        uploadUrl: signedUrl.uploadUrl,
+        file: file,
+        contentType: contentType,
+      );
+
+      uploadedUrls.add(signedUrl.fileUrl);
+    }
+
+    return uploadedUrls;
+  }
+
+  String _proofContentType(String fileName) {
+    final extension = path
+        .extension(fileName)
+        .replaceFirst('.', '')
+        .toLowerCase();
+    switch (extension) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'pdf':
+        return 'application/pdf';
+      case 'mp4':
+        return 'video/mp4';
+      case 'mov':
+        return 'video/quicktime';
+      default:
+        return 'application/octet-stream';
+    }
   }
 
   MilestoneStatus _parseMilestoneStatus(String? raw) {
@@ -1101,16 +1296,14 @@ class MilestoneDetailsController extends GetxController {
     required bool approve,
     String? reason,
   }) async {
-    final payload = approve
-        ? {'report': 'Approved'}
-        : {'action': 'decline', 'reason': reason ?? 'Declined by client.'};
-
-    final result = await ApiErrorHandler.call(() {
-      return _apiClient.dio.post(
-        '/campaign/client/submission/$submissionId/review',
-        data: payload,
-      );
-    });
+    final result = await ApiErrorHandler.call(
+      () => _campaignService.reviewClientSubmission(
+        submissionId: submissionId,
+        action: approve ? 'approve' : 'decline',
+        report: approve ? 'Approved' : null,
+        reason: approve ? null : (reason ?? 'Declined by client.'),
+      ),
+    );
 
     return result.isSuccess;
   }
@@ -1136,20 +1329,39 @@ class MilestoneDetailsController extends GetxController {
 
     if (!ok) return;
 
+    final bonusDelta = target.requestedAmount - milestoneAmountTotal;
+    final milestoneId = milestone.id?.trim() ?? '';
+    if (job.campaignType == CampaignType.paidAd &&
+        bonusDelta > 0 &&
+        milestoneId.isNotEmpty) {
+      await ApiErrorHandler.call(
+        () => _campaignService.payClientMilestoneBonus(
+          milestoneId: milestoneId,
+          amount: bonusDelta,
+        ),
+        showError: false,
+      );
+    }
+
+    _markNeedsParentRefresh();
+    await _loadBrandMilestoneDetails(isPaidAd: isPaidAd);
+
     target.status.value = BrandSubmissionStatus.completed;
     target.declinedReason.value = null;
 
-    // ✅ non-paidAd: only one submission -> overall milestone becomes Completed
-    if (!isPaidAd) {
-      milestoneStatus.value = MilestoneLocalStatus.completed;
+    if (isPaidAd) {
+      final allDone = brandSubmissions.every(
+        (s) => s.status.value == BrandSubmissionStatus.completed,
+      );
+      if (allDone) {
+        _setMilestone(milestone.copyWith(status: MilestoneStatus.approved));
+        milestoneStatus.value = MilestoneLocalStatus.completed;
+      }
       return;
     }
 
-    // ✅ paidAd: mark expanded as completed; if all completed -> milestone completed
-    final allDone = brandSubmissions.every(
-      (s) => s.status.value == BrandSubmissionStatus.completed,
-    );
-    if (allDone) milestoneStatus.value = MilestoneLocalStatus.completed;
+    _setMilestone(milestone.copyWith(status: MilestoneStatus.approved));
+    milestoneStatus.value = MilestoneLocalStatus.completed;
   }
 
   Future<void> _declineBrandSubmission(
@@ -1174,8 +1386,15 @@ class MilestoneDetailsController extends GetxController {
 
     if (!ok) return;
 
+    _markNeedsParentRefresh();
+    await _loadBrandMilestoneDetails(
+      isPaidAd: job.campaignType == CampaignType.paidAd,
+    );
+
     target.status.value = BrandSubmissionStatus.declined;
     target.declinedReason.value = reason;
+    _setMilestone(milestone.copyWith(status: MilestoneStatus.declined));
+    milestoneStatus.value = MilestoneLocalStatus.declined;
   }
 }
 

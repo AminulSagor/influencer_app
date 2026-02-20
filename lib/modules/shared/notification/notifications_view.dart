@@ -46,6 +46,7 @@ class NotificationsView extends GetView<NotificationsController> {
                   Divider(color: AppPalette.border1, thickness: kBorderWeight1),
                   Obx(
                     () => _NotificationGroupCard(
+                      controller: controller,
                       items: controller.newItems.toList(),
                       showNewDot: true,
                     ),
@@ -66,6 +67,7 @@ class NotificationsView extends GetView<NotificationsController> {
                   Divider(color: AppPalette.border1, thickness: kBorderWeight1),
                   Obx(
                     () => _NotificationGroupCard(
+                      controller: controller,
                       items: controller.earlierItems.toList(),
                       showNewDot: false,
                     ),
@@ -135,10 +137,15 @@ class _TopBar extends StatelessWidget {
 
 /// Card that holds a group of notifications (e.g. "New" or "Earlier")
 class _NotificationGroupCard extends StatelessWidget {
+  final NotificationsController controller;
   final List<NotificationItem> items;
   final bool showNewDot;
 
-  const _NotificationGroupCard({required this.items, required this.showNewDot});
+  const _NotificationGroupCard({
+    required this.controller,
+    required this.items,
+    required this.showNewDot,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -161,7 +168,11 @@ class _NotificationGroupCard extends StatelessWidget {
     return Column(
       children: List.generate(items.length, (index) {
         final item = items[index];
-        return _NotificationRow(item: item, showNewDot: showNewDot);
+        return _NotificationRow(
+          item: item,
+          showNewDot: showNewDot,
+          onTap: () => controller.markSingleAsRead(item),
+        );
       }),
     );
   }
@@ -171,8 +182,13 @@ class _NotificationGroupCard extends StatelessWidget {
 class _NotificationRow extends StatelessWidget {
   final NotificationItem item;
   final bool showNewDot;
+  final VoidCallback onTap;
 
-  const _NotificationRow({required this.item, required this.showNewDot});
+  const _NotificationRow({
+    required this.item,
+    required this.showNewDot,
+    required this.onTap,
+  });
 
   Color _accentColor() {
     switch (item.type) {
@@ -190,80 +206,92 @@ class _NotificationRow extends StatelessWidget {
     final accent = _accentColor();
     final isNegative = item.type == NotificationType.negative;
 
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 14.h),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Leading icon circle
-          Container(
-            width: 36.w,
-            height: 36.w,
-            padding: EdgeInsets.all(8.w),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: isNegative
-                  ? AppPalette.errorGradient
-                  : AppPalette.thirdColor,
-              border: Border.all(color: accent, width: kBorderWidth0_5),
-              gradient: LinearGradient(
-                begin: isNegative ? Alignment.topRight : Alignment.bottomLeft,
-                end: isNegative ? Alignment.bottomLeft : Alignment.topRight,
-                colors: [
-                  isNegative ? AppPalette.errorGradient : AppPalette.thirdColor,
-                  AppPalette.white,
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 14.h),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Leading icon circle
+            Container(
+              width: 36.w,
+              height: 36.w,
+              padding: EdgeInsets.all(8.w),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isNegative
+                    ? AppPalette.errorGradient
+                    : AppPalette.thirdColor,
+                border: Border.all(color: accent, width: kBorderWidth0_5),
+                gradient: LinearGradient(
+                  begin: isNegative ? Alignment.topRight : Alignment.bottomLeft,
+                  end: isNegative ? Alignment.bottomLeft : Alignment.topRight,
+                  colors: [
+                    isNegative
+                        ? AppPalette.errorGradient
+                        : AppPalette.thirdColor,
+                    AppPalette.white,
+                  ],
+                ),
+              ),
+              child: Image.asset(
+                item.iconPath,
+                fit: BoxFit.cover,
+                color: accent,
+              ),
+            ),
+            SizedBox(width: 12.w),
+
+            // Texts
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.title,
+                    style: TextStyle(
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w400,
+                      color: accent,
+                    ),
+                  ),
+                  SizedBox(height: 4.h),
+                  Text(
+                    item.timeLabel,
+                    style: TextStyle(
+                      fontSize: 10.sp,
+                      color: AppPalette.subtext,
+                    ),
+                  ),
                 ],
               ),
             ),
-            child: Image.asset(item.iconPath, fit: BoxFit.cover, color: accent),
-          ),
-          SizedBox(width: 12.w),
 
-          // Texts
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            // New green dot + chevron
+            Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  item.title,
-                  style: TextStyle(
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w400,
-                    color: accent,
+                if (showNewDot)
+                  Container(
+                    width: 8.w,
+                    height: 8.w,
+                    margin: EdgeInsets.only(right: 8.w, top: 4.h),
+                    decoration: const BoxDecoration(
+                      color: AppPalette.secondary,
+                      shape: BoxShape.circle,
+                    ),
                   ),
-                ),
-                SizedBox(height: 4.h),
-                Text(
-                  item.timeLabel,
-                  style: TextStyle(fontSize: 10.sp, color: AppPalette.subtext),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 16.sp,
+                  color: AppPalette.black,
                 ),
               ],
             ),
-          ),
-
-          // New green dot + chevron
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (showNewDot)
-                Container(
-                  width: 8.w,
-                  height: 8.w,
-                  margin: EdgeInsets.only(right: 8.w, top: 4.h),
-                  decoration: const BoxDecoration(
-                    color: AppPalette.secondary,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              Icon(
-                Icons.chevron_right_rounded,
-                size: 16.sp,
-                color: AppPalette.black,
-              ),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../controllers/language_controller.dart';
 import 'package:influencer_app/modules/ad_agency/services/agency_onboarding_service.dart';
 import 'package:influencer_app/modules/ad_agency/services/agency_dashboard_service.dart';
+import 'package:influencer_app/modules/ad_agency/services/agency_profile_service.dart';
 import 'package:influencer_app/modules/ad_agency/services/upload_service.dart';
 import 'package:influencer_app/modules/influencer/services/influencer_onboarding_services.dart';
 import 'package:influencer_app/modules/influencer/services/influencer_dashboard_service.dart';
@@ -50,6 +51,7 @@ class InitialBinding extends Bindings {
 
     Get.put(AgencyOnboardingService(Get.find<ApiClient>()), permanent: true);
     Get.put(AgencyDashboardService(Get.find<ApiClient>()), permanent: true);
+    Get.put(AgencyProfileService(Get.find<ApiClient>()), permanent: true);
     Get.put(InfluencerDashboardService(Get.find<ApiClient>()), permanent: true);
 
     Get.put(UploadService(Get.find<ApiClient>()), permanent: true);
@@ -59,6 +61,7 @@ class InitialBinding extends Bindings {
     Get.put(AnalyticsService(Get.find<ApiClient>()), permanent: true);
     Get.put(ReportService(Get.find<ApiClient>()), permanent: true);
     Get.put(EarningsService(Get.find<ApiClient>()), permanent: true);
+    //Get.put(LeadManagerService(Get.find<ApiClient>()), permanent: true);
     Get.lazyPut<NotificationService>(
       () => NotificationService(Get.find<ApiClient>()),
       fenix: true,

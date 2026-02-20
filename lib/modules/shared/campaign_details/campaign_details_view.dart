@@ -38,7 +38,11 @@ class CampaignDetailsView extends GetView<CampaignDetailsController> {
               // NEW OFFER ONLY: quote card
               if (controller.showQuoteCard &&
                   accountTypeService.isAdAgency) ...[
-                _QuoteDetailsCard(job: job),
+                _QuoteDetailsCard(
+                  job: job,
+                  onRequestRequote: controller.requestRequote,
+                  isRequoteLoading: controller.isRequoteLoading.value,
+                ),
                 SizedBox(height: 16.h),
               ],
 
@@ -46,6 +50,7 @@ class CampaignDetailsView extends GetView<CampaignDetailsController> {
               Obx(() {
                 return _PaymentMilestonesSection(
                   job: job,
+                  milestones: controller.milestones,
                   status: status,
                   isExpanded: controller.milestonesExpanded.value,
                   onToggle: controller.toggleMilestones,
@@ -373,8 +378,14 @@ class _CampaignOverviewCard extends StatelessWidget {
 
 class _QuoteDetailsCard extends StatelessWidget {
   final JobItem job;
+  final VoidCallback onRequestRequote;
+  final bool isRequoteLoading;
 
-  const _QuoteDetailsCard({required this.job});
+  const _QuoteDetailsCard({
+    required this.job,
+    required this.onRequestRequote,
+    required this.isRequoteLoading,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -512,10 +523,12 @@ class _QuoteDetailsCard extends StatelessWidget {
 
             // REQUEST BUTTON
             CustomButton(
-              onTap: () {},
+              onTap: isRequoteLoading ? null : onRequestRequote,
               btnText: 'campaign_request_requote'.tr,
               btnColor: AppPalette.fill2,
               width: double.infinity,
+              isLoading: isRequoteLoading,
+              isDisabled: isRequoteLoading,
             ),
           ],
         ),
@@ -1312,12 +1325,14 @@ class _ExpandableSection extends StatelessWidget {
 
 class _PaymentMilestonesSection extends StatelessWidget {
   final JobItem job;
+  final List<Milestone> milestones;
   final CampaignStatus status;
   final bool isExpanded;
   final VoidCallback onToggle;
 
   const _PaymentMilestonesSection({
     required this.job,
+    required this.milestones,
     required this.status,
     required this.isExpanded,
     required this.onToggle,
@@ -1325,7 +1340,6 @@ class _PaymentMilestonesSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final milestones = job.milestones ?? const <Milestone>[];
     final totalCount = milestones.length;
 
     final paidCount = milestones
@@ -1424,6 +1438,8 @@ class _PaymentMilestonesSection extends StatelessWidget {
                 jobTitle: job.title,
                 totalEarnings: totalEarnings,
                 status: status,
+                onWithdrawalRequest:
+                    Get.find<CampaignDetailsController>().onWithdrawalRequest,
               ),
               SizedBox(height: 8.h),
               Divider(color: AppPalette.border1),
@@ -1446,11 +1462,13 @@ class _TotalEarningsCard extends StatelessWidget {
   final String jobTitle;
   final String totalEarnings;
   final CampaignStatus status;
+  final VoidCallback onWithdrawalRequest;
 
   const _TotalEarningsCard({
     required this.totalEarnings,
     required this.status,
     required this.jobTitle,
+    required this.onWithdrawalRequest,
   });
 
   @override
@@ -1522,15 +1540,7 @@ class _TotalEarningsCard extends StatelessWidget {
                 if (accountTypeService.isInfluencer) ...[
                   4.h.verticalSpace,
                   CustomButton(
-                    onTap: () {
-                      Get.dialog(
-                        _WithdrawalSuccessDialog(
-                          title: jobTitle,
-                          amount: totalEarnings,
-                        ),
-                        barrierDismissible: true,
-                      );
-                    },
+                    onTap: onWithdrawalRequest,
                     btnText: 'campaign_withdrawal_request'.tr,
                     btnColor: AppPalette.secondary,
                     textStyle: AppTheme.textStyle.copyWith(

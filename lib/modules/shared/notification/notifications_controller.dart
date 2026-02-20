@@ -6,12 +6,14 @@ import 'package:influencer_app/core/services/notification_service.dart';
 enum NotificationType { positive, negative, neutral }
 
 class NotificationItem {
+  final String id;
   final String title;
   final String timeLabel;
   final NotificationType type;
   final String iconPath;
 
   const NotificationItem({
+    required this.id,
     required this.title,
     required this.timeLabel,
     required this.type,
@@ -38,7 +40,11 @@ class NotificationsController extends GetxController {
   }
 
   String get _basePath =>
-      _accountTypeService.isBrand ? '/client/notifications' : '/notifications';
+      _accountTypeService.isBrand
+      ? '/client/notifications'
+      : _accountTypeService.isInfluencer
+      ? '/influencer/notifications'
+      : '/notifications';
 
   Future<void> loadNotifications() async {
     isLoading.value = true;
@@ -105,6 +111,20 @@ class NotificationsController extends GetxController {
     });
   }
 
+  void markSingleAsRead(NotificationItem item) {
+    if (item.id.trim().isEmpty) return;
+
+    ApiErrorHandler.call(
+      () => _service.markSingleAsRead(id: item.id, basePath: _basePath),
+      showError: false,
+    ).then((_) {
+      newItems.removeWhere((e) => e.id == item.id);
+      if (!earlierItems.any((e) => e.id == item.id)) {
+        earlierItems.insert(0, item);
+      }
+    });
+  }
+
   // ---------------- mapping helpers ----------------
 
   NotificationItem _mapApiToUi(NotificationDto n) {
@@ -114,6 +134,7 @@ class NotificationsController extends GetxController {
     final iconPath = _iconFor(type, text);
 
     return NotificationItem(
+      id: n.id,
       title: text,
       timeLabel: _timeAgo(n.createdAt),
       type: type,

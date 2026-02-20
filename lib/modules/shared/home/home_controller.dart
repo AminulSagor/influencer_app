@@ -26,13 +26,7 @@ class HomeController extends GetxController {
       _loadAgencyDashboard();
     } else if (_accountTypeService.isInfluencer) {
       _loadInfluencerDashboard();
-    } else {
-      _loadMockData(userType);
     }
-  }
-
-  void _loadMockData(HomeUserType userType) {
-    dashboard.value = HomeDashboardModel.mockForUserType(userType);
   }
 
   HomeUserType _resolveUserType() {
