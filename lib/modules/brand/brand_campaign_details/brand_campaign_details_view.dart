@@ -572,30 +572,35 @@ class _QuoteDetailsCard extends GetView<BrandCampaignDetailsController> {
             );
           }),
           12.h.verticalSpace,
-          Row(
-            children: [
-              Expanded(
-                child: CustomButton(
-                  btnText: 'brand_campaign_details_requote'.tr,
-                  btnColor: AppPalette.white,
-                  borderColor: AppPalette.border1,
-                  textColor: AppPalette.black,
-                  onTap: controller.onRequestQuote,
+          Obx(() {
+            final disabled = !controller.canTakeNegotiationAction;
+            return Row(
+              children: [
+                Expanded(
+                  child: CustomButton(
+                    btnText: 'brand_campaign_details_requote'.tr,
+                    btnColor: AppPalette.white,
+                    borderColor: AppPalette.border1,
+                    textColor: AppPalette.black,
+                    isDisabled: disabled,
+                    onTap: controller.onRequestQuote,
+                  ),
                 ),
-              ),
-              12.w.horizontalSpace,
-              Expanded(
-                child: CustomButton(
-                  btnText: 'brand_campaign_details_accept_quote'.tr,
-                  btnColor: AppPalette.primary,
-                  borderColor: Colors.transparent,
-                  showBorder: false,
-                  textColor: AppPalette.white,
-                  onTap: controller.onAcceptQuote,
+                12.w.horizontalSpace,
+                Expanded(
+                  child: CustomButton(
+                    btnText: 'brand_campaign_details_accept_quote'.tr,
+                    btnColor: AppPalette.primary,
+                    borderColor: Colors.transparent,
+                    showBorder: false,
+                    textColor: AppPalette.white,
+                    isDisabled: disabled,
+                    onTap: controller.onAcceptQuote,
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            );
+          }),
         ],
       ),
     );

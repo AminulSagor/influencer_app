@@ -32,8 +32,7 @@ class CampaignDetailsController extends GetxController {
   final isPageRefreshing = false.obs;
   final isAcceptDeclineLoading = false.obs;
   final isRequoteLoading = false.obs;
-  bool _didProbeAgencyRequoteOverview = false;
-  bool _didProbeAgencyStats = false;
+  String _serverStatus = '';
 
   final milestonesExpanded = true.obs;
   final briefExpanded = true.obs;
@@ -44,6 +43,15 @@ class CampaignDetailsController extends GetxController {
 
   final campaignStatus = CampaignStatus.newOffer.obs;
   final milestones = <Milestone>[].obs;
+  final platformKeys = <String>[].obs;
+  final campaignGoalsText = ''.obs;
+  final contentRequirements = <String>[].obs;
+  final dosLines = <String>[].obs;
+  final dontsLines = <String>[].obs;
+  final reportingRequirementLines = <String>[].obs;
+  final usageRightLines = <String>[].obs;
+  final contentAssetsUi = <JobAsset>[].obs;
+  final brandAssetsUi = <BrandAsset>[].obs;
 
   @override
   void onInit() {
@@ -275,7 +283,11 @@ class CampaignDetailsController extends GetxController {
     );
 
     final statusRaw = details['status']?.toString();
+    _serverStatus = (statusRaw ?? '').trim().toLowerCase();
     _isNewOffer = _isNewOfferFromStatus(statusRaw, fallback: _isNewOffer);
+
+    _applyCampaignTextAndAssets(details);
+    _derivePlatformsFromMilestones(mappedMilestones);
 
     jobRx.value = updated;
     milestones.assignAll(mappedMilestones);
@@ -287,8 +299,6 @@ class CampaignDetailsController extends GetxController {
       campaignId: campaignId,
     );
     final raw = _extractDataMap(res);
-
-    await _probeAgencyPendingGetResponses(campaignId);
 
     final milestoneList = (raw['milestones'] as List?) ?? const [];
     final mappedMilestones = milestoneList
@@ -340,56 +350,15 @@ class CampaignDetailsController extends GetxController {
     );
 
     final statusRaw = raw['status']?.toString();
+    _serverStatus = (statusRaw ?? '').trim().toLowerCase();
     _isNewOffer = _isNewOfferFromStatus(statusRaw, fallback: _isNewOffer);
+
+    _applyCampaignTextAndAssets(raw);
+    _derivePlatformsFromMilestones(mappedMilestones);
 
     jobRx.value = updated;
     milestones.assignAll(mappedMilestones);
     _recalculateStatus();
-  }
-
-  Future<void> _probeAgencyPendingGetResponses(String campaignId) async {
-    if (!_didProbeAgencyRequoteOverview) {
-      final requote = await ApiErrorHandler.call(
-        () =>
-            _campaignService.fetchAgencyRequoteOverview(campaignId: campaignId),
-        showError: false,
-      );
-      if (requote.isSuccess) {
-        if (kDebugMode) {
-          debugPrint(
-            'RESPONSE DATA FROM GET /campaign/agency/$campaignId/requote-overview => ${requote.data}',
-          );
-        }
-        Get.snackbar('Requote overview', 'Response captured in debug logs.');
-        _didProbeAgencyRequoteOverview = true;
-      } else {
-        Get.snackbar(
-          'Requote overview',
-          requote.error ?? 'Failed to capture response.',
-        );
-      }
-    }
-
-    if (!_didProbeAgencyStats) {
-      final stats = await ApiErrorHandler.call(
-        () => _campaignService.fetchAgencyStats(),
-        showError: false,
-      );
-      if (stats.isSuccess) {
-        if (kDebugMode) {
-          debugPrint(
-            'RESPONSE DATA FROM GET /campaign/agency/stats => ${stats.data}',
-          );
-        }
-        Get.snackbar('Agency stats', 'Response captured in debug logs.');
-        _didProbeAgencyStats = true;
-      } else {
-        Get.snackbar(
-          'Agency stats',
-          stats.error ?? 'Failed to capture response.',
-        );
-      }
-    }
   }
 
   Future<void> openMilestoneDetails(Milestone milestone) async {
@@ -425,6 +394,17 @@ class CampaignDetailsController extends GetxController {
   void _recalculateStatus() {
     final list = milestones.toList(growable: false);
 
+    if (_serverStatus.isNotEmpty) {
+      if ({'completed', 'complete', 'closed'}.contains(_serverStatus)) {
+        campaignStatus.value = CampaignStatus.complete;
+        return;
+      }
+      if ({'declined', 'cancelled', 'rejected'}.contains(_serverStatus)) {
+        campaignStatus.value = CampaignStatus.ongoingDeclined;
+        return;
+      }
+    }
+
     if (_isNewOffer) {
       campaignStatus.value = CampaignStatus.newOffer;
       return;
@@ -459,6 +439,143 @@ class CampaignDetailsController extends GetxController {
     } else {
       campaignStatus.value = CampaignStatus.accepted;
     }
+  }
+
+  void _applyCampaignTextAndAssets(Map<String, dynamic> raw) {
+    campaignGoalsText.value =
+        (raw['campaignGoals'] ?? raw['productServiceDetails'] ?? '')
+            .toString()
+            .trim();
+
+    contentRequirements.assignAll(_contentRequirementLines(raw));
+    dosLines.assignAll(_splitLines(raw['dos']?.toString()));
+    dontsLines.assignAll(_splitLines(raw['donts']?.toString()));
+    reportingRequirementLines.assignAll(
+      _splitLines(raw['reportingRequirements']?.toString()),
+    );
+    usageRightLines.assignAll(_splitLines(raw['usageRights']?.toString()));
+
+    final assets = (raw['assets'] as List?) ?? const [];
+    final mappedContent = <JobAsset>[];
+    final mappedBrand = <BrandAsset>[];
+
+    for (final item in assets) {
+      if (item is! Map) continue;
+      final e = Map<String, dynamic>.from(item);
+      final category = e['category']?.toString().toLowerCase().trim();
+      final fileName = e['fileName']?.toString().trim();
+      final fileUrl = e['fileUrl']?.toString().trim();
+      final mime = e['mimeType']?.toString().trim();
+      final fileSize = _toInt(e['fileSize']) ?? 0;
+
+      final displayTitle = (fileName != null && fileName.isNotEmpty)
+          ? fileName
+          : (e['assetType']?.toString().trim().isNotEmpty == true
+                ? e['assetType'].toString().trim()
+                : 'Asset');
+
+      if (category == 'brand') {
+        mappedBrand.add(
+          BrandAsset(
+            title: displayTitle,
+            value: (fileUrl != null && fileUrl.isNotEmpty) ? fileUrl : null,
+          ),
+        );
+      } else {
+        mappedContent.add(
+          JobAsset(
+            title: displayTitle,
+            meta: _assetMeta(mime: mime, fileSize: fileSize),
+            kind: _assetKindFrom(mime: mime, name: fileName),
+            pathOrUrl: (fileUrl != null && fileUrl.isNotEmpty) ? fileUrl : null,
+          ),
+        );
+      }
+    }
+
+    contentAssetsUi.assignAll(mappedContent);
+    brandAssetsUi.assignAll(mappedBrand);
+  }
+
+  void _derivePlatformsFromMilestones(List<Milestone> list) {
+    final keys = list
+        .map((m) => (m.platform ?? '').trim().toLowerCase())
+        .where((p) => p.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    platformKeys.assignAll(keys);
+  }
+
+  List<String> _splitLines(String? text) {
+    if (text == null || text.trim().isEmpty) return const [];
+    return text
+        .split('\n')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  List<String> _contentRequirementLines(Map<String, dynamic> raw) {
+    final milestones = (raw['milestones'] as List?) ?? const [];
+    final lines = milestones
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .map((e) => e['contentQuantity']?.toString().trim())
+        .whereType<String>()
+        .where((e) => e.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    return lines;
+  }
+
+  String _assetMeta({String? mime, required int fileSize}) {
+    final parts = <String>[];
+    if (mime != null && mime.trim().isNotEmpty) {
+      parts.add(mime.trim().toUpperCase());
+    }
+    if (fileSize > 0) {
+      parts.add(_formatBytes(fileSize));
+    }
+    return parts.isEmpty ? '—' : parts.join(' · ');
+  }
+
+  JobAssetKind _assetKindFrom({String? mime, String? name}) {
+    final value = ((mime ?? '') + ' ' + (name ?? '')).toLowerCase();
+    if (value.contains('image') ||
+        value.endsWith('.png') ||
+        value.endsWith('.jpg') ||
+        value.endsWith('.jpeg') ||
+        value.endsWith('.webp')) {
+      return JobAssetKind.image;
+    }
+    if (value.contains('video') ||
+        value.endsWith('.mp4') ||
+        value.endsWith('.mov') ||
+        value.endsWith('.webm')) {
+      return JobAssetKind.video;
+    }
+    if (value.contains('pdf') ||
+        value.contains('document') ||
+        value.endsWith('.pdf') ||
+        value.endsWith('.doc') ||
+        value.endsWith('.docx')) {
+      return JobAssetKind.document;
+    }
+    return JobAssetKind.other;
+  }
+
+  String _formatBytes(int bytes) {
+    const k = 1024;
+    if (bytes < k) return '$bytes B';
+
+    final kb = bytes / k;
+    if (kb < k) return '${kb.toStringAsFixed(kb < 10 ? 1 : 0)} KB';
+
+    final mb = kb / k;
+    if (mb < k) return '${mb.toStringAsFixed(mb < 10 ? 1 : 0)} MB';
+
+    final gb = mb / k;
+    return '${gb.toStringAsFixed(gb < 10 ? 1 : 0)} GB';
   }
 
   String get deadlineMainText => localizeDaysRemainingFromDue(job.dueLabel);
@@ -644,6 +761,9 @@ class CampaignDetailsController extends GetxController {
       'pending_influencer',
       'invited',
       'offer_sent',
+      'received',
+      'negotiating',
+      'quoted',
     };
 
     if (pendingStatuses.contains(s)) return true;

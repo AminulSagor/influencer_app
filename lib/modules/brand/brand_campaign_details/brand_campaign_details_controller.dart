@@ -67,7 +67,7 @@ class BrandCampaignDetailsController extends GetxController {
 
   // Type (PaidAd support)
   final campaignType = ''.obs; // e.g. "paidAd"
-  bool _didProbeInfluencersProgress = false;
+  bool _didLoadInfluencersProgress = false;
   bool get isPaidAd {
     // ✅ prefer JobItem enum
     final j = job;
@@ -95,6 +95,9 @@ class BrandCampaignDetailsController extends GetxController {
   final dueAmount = 0.obs;
   final paidAmount = 0.obs;
   final RxnString selectedInfluencerId = RxnString();
+  final negotiationStatus = ''.obs;
+  final negotiationTurn = ''.obs;
+  final isYourTurn = true.obs;
 
   // Progress (no field in JobItem yet, keep default)
   final progressStep = CampaignProgressStep.quoted.obs;
@@ -103,6 +106,11 @@ class BrandCampaignDetailsController extends GetxController {
   final baseBudget = 0.obs;
   final vatAmount = 0.obs;
   int get totalCost => baseBudget.value + vatAmount.value;
+  bool get canTakeNegotiationAction {
+    final status = negotiationStatus.value.trim().toLowerCase();
+    if (status.contains('negotiat')) return isYourTurn.value;
+    return true;
+  }
 
   // Milestones
   final milestones = <Milestone>[].obs;
@@ -367,7 +375,7 @@ class BrandCampaignDetailsController extends GetxController {
       );
       _loadCampaignProgress(progress);
 
-      await _probeClientInfluencersProgress(campaignId);
+      await _loadClientInfluencersProgress(campaignId);
 
       await _loadNegotiationContext(campaignId);
 
@@ -386,20 +394,25 @@ class BrandCampaignDetailsController extends GetxController {
     }
   }
 
-  Future<void> _probeClientInfluencersProgress(String campaignId) async {
-    if (_didProbeInfluencersProgress) return;
+  Future<void> _loadClientInfluencersProgress(String campaignId) async {
+    if (_didLoadInfluencersProgress) return;
 
     final result = await ApiErrorHandler.call(
-      () => _campaignService.fetchClientInfluencersProgress(campaignId: campaignId),
+      () => _campaignService.fetchClientInfluencersProgress(
+        campaignId: campaignId,
+      ),
       showError: false,
     );
 
     if (result.isSuccess) {
+      final response = result.data;
+      if (response != null) {
+        _applyClientInfluencersProgress(response);
+      }
       debugPrint(
-        '[API Probe] GET /campaign/client/$campaignId/influencers-progress => ${result.data}',
+        '[GET] /campaign/client/$campaignId/influencers-progress => ${result.data}',
       );
-      Get.snackbar('Influencer progress', 'Response captured in debug logs.');
-      _didProbeInfluencersProgress = true;
+      _didLoadInfluencersProgress = true;
       return;
     }
 
@@ -407,6 +420,83 @@ class BrandCampaignDetailsController extends GetxController {
       'Influencer progress',
       result.error ?? 'Failed to capture response.',
     );
+  }
+
+  void _applyClientInfluencersProgress(Map<String, dynamic> response) {
+    final payload = response['data'] is Map
+        ? Map<String, dynamic>.from(response['data'] as Map)
+        : response;
+
+    final campaign = payload['campaign'];
+    if (campaign is Map) {
+      final campaignMap = Map<String, dynamic>.from(campaign);
+      _loadFromApiMap(campaignMap);
+      _loadCampaignProgress({'data': campaignMap});
+    }
+
+    final influencerList = (payload['influencers'] as List?) ?? const [];
+    final names = influencerList
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .map(_influencerNameFromProgress)
+        .where((name) => name.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+
+    influencers.assignAll(names);
+
+    final inferredInfluencerId = influencerList
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .map(_influencerIdFromProgress)
+        .firstWhere((id) => id != null && id.isNotEmpty, orElse: () => null);
+
+    if ((selectedInfluencerId.value ?? '').trim().isEmpty &&
+        inferredInfluencerId != null &&
+        inferredInfluencerId.isNotEmpty) {
+      selectedInfluencerId.value = inferredInfluencerId;
+    }
+  }
+
+  String _influencerNameFromProgress(Map<String, dynamic> item) {
+    final direct = item['name']?.toString().trim();
+    if (direct != null && direct.isNotEmpty) return direct;
+
+    final fullName = item['fullName']?.toString().trim();
+    if (fullName != null && fullName.isNotEmpty) return fullName;
+
+    final influencerName = item['influencerName']?.toString().trim();
+    if (influencerName != null && influencerName.isNotEmpty) {
+      return influencerName;
+    }
+
+    final user = item['user'];
+    if (user is Map) {
+      final userName = user['fullName']?.toString().trim();
+      if (userName != null && userName.isNotEmpty) return userName;
+      final first = user['firstName']?.toString().trim() ?? '';
+      final last = user['lastName']?.toString().trim() ?? '';
+      final combined = '$first $last'.trim();
+      if (combined.isNotEmpty) return combined;
+    }
+
+    return '';
+  }
+
+  String? _influencerIdFromProgress(Map<String, dynamic> item) {
+    final direct = item['id']?.toString().trim();
+    if (direct != null && direct.isNotEmpty) return direct;
+
+    final influencerId = item['influencerId']?.toString().trim();
+    if (influencerId != null && influencerId.isNotEmpty) return influencerId;
+
+    final user = item['user'];
+    if (user is Map) {
+      final userId = user['id']?.toString().trim();
+      if (userId != null && userId.isNotEmpty) return userId;
+    }
+
+    return null;
   }
 
   void _loadAgencyBids(List<Map<String, dynamic>> bids) {
@@ -461,17 +551,52 @@ class BrandCampaignDetailsController extends GetxController {
     if (vat > 0) vatAmount.value = vat;
 
     // Budget status
-    final dueAmount = _numToDouble(data['dueAmount']);
-    final paid = _numToDouble(data['paidAmount']);
-    this.dueAmount.value = dueAmount.round();
-    paidAmount.value = paid.round();
-    if (dueAmount <= 0) {
-      budgetStatusText.value = trOr(
-        'brand_campaign_details_budget_paid',
-        'Paid',
-      );
-    } else {
-      budgetStatusText.value = 'brand_campaign_details_budget_pending'.tr;
+    final hasDueAmount =
+        data.containsKey('dueAmount') && data['dueAmount'] != null;
+    final hasPaidAmount =
+        data.containsKey('paidAmount') && data['paidAmount'] != null;
+    final paymentStatusRaw = data['paymentStatus']
+        ?.toString()
+        .trim()
+        .toLowerCase();
+    final hasPaymentStatus =
+        paymentStatusRaw != null && paymentStatusRaw.isNotEmpty;
+
+    if (hasDueAmount) {
+      this.dueAmount.value = _numToDouble(data['dueAmount']).round();
+    }
+    if (hasPaidAmount) {
+      paidAmount.value = _numToDouble(data['paidAmount']).round();
+    }
+
+    final hasPaymentSignal = hasDueAmount || hasPaidAmount || hasPaymentStatus;
+    if (hasPaymentSignal) {
+      final due = this.dueAmount.value;
+      final paid = paidAmount.value;
+
+      final isPaidByStatus =
+          hasPaymentStatus &&
+          (paymentStatusRaw == 'paid' ||
+              paymentStatusRaw == 'completed' ||
+              paymentStatusRaw == 'success');
+
+      final isPendingByStatus =
+          hasPaymentStatus &&
+          (paymentStatusRaw == 'pending' ||
+              paymentStatusRaw == 'unpaid' ||
+              paymentStatusRaw == 'due' ||
+              paymentStatusRaw == 'received');
+
+      final isPaidByAmounts = hasDueAmount && due <= 0 && paid > 0;
+
+      if (isPaidByStatus || isPaidByAmounts) {
+        budgetStatusText.value = trOr(
+          'brand_campaign_details_budget_paid',
+          'Paid',
+        );
+      } else if (isPendingByStatus || (hasDueAmount && due > 0)) {
+        budgetStatusText.value = 'brand_campaign_details_budget_pending'.tr;
+      }
     }
 
     // Brief
@@ -868,6 +993,17 @@ class BrandCampaignDetailsController extends GetxController {
   }
 
   void onRequestQuote() {
+    if (!canTakeNegotiationAction) {
+      Get.snackbar(
+        trOr('brand_campaign_details_wait_turn_title', 'Please wait'),
+        trOr(
+          'brand_campaign_details_wait_turn_msg',
+          'You can respond when it is your turn.',
+        ),
+      );
+      return;
+    }
+
     if (isPaidAd) {
       _openPaidAdRequoteDialog(); // new UI (your screenshots 1 & 2)
     } else {
@@ -876,6 +1012,17 @@ class BrandCampaignDetailsController extends GetxController {
   }
 
   Future<void> onAcceptQuote() async {
+    if (!canTakeNegotiationAction) {
+      Get.snackbar(
+        trOr('brand_campaign_details_wait_turn_title', 'Please wait'),
+        trOr(
+          'brand_campaign_details_wait_turn_msg',
+          'You can respond when it is your turn.',
+        ),
+      );
+      return;
+    }
+
     final ok = await _acceptQuoteRequest();
     if (!ok) return;
 
@@ -2596,14 +2743,37 @@ class BrandCampaignDetailsController extends GetxController {
     final data = history['data'] is Map
         ? Map<String, dynamic>.from(history['data'] as Map)
         : const <String, dynamic>{};
+
+    final campaign = data['campaign'];
+    if (campaign is Map) {
+      final campaignMap = Map<String, dynamic>.from(campaign);
+
+      final status = campaignMap['status']?.toString().trim();
+      if (status != null && status.isNotEmpty) {
+        negotiationStatus.value = status;
+      }
+
+      final turn = campaignMap['negotiationTurn']?.toString().trim();
+      if (turn != null && turn.isNotEmpty) {
+        negotiationTurn.value = turn;
+      }
+
+      final yourTurnRaw = campaignMap['yourTurn'];
+      if (yourTurnRaw is bool) {
+        isYourTurn.value = yourTurnRaw;
+      } else if (yourTurnRaw is String) {
+        isYourTurn.value = yourTurnRaw.toLowerCase() == 'true';
+      }
+    }
+
     final negotiations = (data['negotiations'] as List?) ?? const [];
 
     if (negotiations.isEmpty) return;
 
-    final latest = negotiations.firstWhere((e) => e is Map, orElse: () => null);
+    final latest = _latestNegotiationMap(negotiations);
     if (latest is! Map) return;
 
-    final latestMap = Map<String, dynamic>.from(latest);
+    final latestMap = Map<String, dynamic>.from(latest as Map);
     final latestProposedBase = _numToInt(latestMap['proposedBaseBudget']);
     if (latestProposedBase > 0) {
       baseBudget.value = latestProposedBase;
@@ -2619,5 +2789,32 @@ class BrandCampaignDetailsController extends GetxController {
         negotiationId: negotiationId,
       );
     }
+  }
+
+  Map<String, dynamic>? _latestNegotiationMap(List<dynamic> negotiations) {
+    final mapped = negotiations
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList(growable: false);
+
+    if (mapped.isEmpty) return null;
+
+    DateTime? parseDate(Map<String, dynamic> item) {
+      final raw = item['createdAt']?.toString();
+      if (raw == null || raw.trim().isEmpty) return null;
+      return DateTime.tryParse(raw);
+    }
+
+    final sorted = mapped.toList(growable: true)
+      ..sort((a, b) {
+        final da = parseDate(a);
+        final db = parseDate(b);
+        if (da == null && db == null) return 0;
+        if (da == null) return 1;
+        if (db == null) return -1;
+        return db.compareTo(da);
+      });
+
+    return sorted.first;
   }
 }

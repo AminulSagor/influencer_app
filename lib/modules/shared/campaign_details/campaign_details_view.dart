@@ -65,7 +65,7 @@ class CampaignDetailsView extends GetView<CampaignDetailsController> {
                   iconPath: 'assets/icons/terms_condition.png',
                   isExpanded: controller.briefExpanded.value,
                   onToggle: controller.toggleBrief,
-                  child: const _CampaignBrief(),
+                  child: _CampaignBrief(),
                 ),
               ),
               SizedBox(height: 12.h),
@@ -77,7 +77,7 @@ class CampaignDetailsView extends GetView<CampaignDetailsController> {
                   iconPath: 'assets/icons/download.png',
                   isExpanded: controller.contentAssetsExpanded.value,
                   onToggle: controller.toggleContentAssets,
-                  child: const _ContentAssets(),
+                  child: _ContentAssets(),
                 ),
               ),
               SizedBox(height: 12.h),
@@ -89,7 +89,7 @@ class CampaignDetailsView extends GetView<CampaignDetailsController> {
                   iconPath: 'assets/icons/terms_condition.png',
                   isExpanded: controller.termsExpanded.value,
                   onToggle: controller.toggleTerms,
-                  child: const _TermsAndConditions(),
+                  child: _TermsAndConditions(),
                 ),
               ),
               SizedBox(height: 12.h),
@@ -101,7 +101,7 @@ class CampaignDetailsView extends GetView<CampaignDetailsController> {
                   iconPath: 'assets/icons/download.png',
                   isExpanded: controller.brandAssetsExpanded.value,
                   onToggle: controller.toggleBrandAssets,
-                  child: const _BrandAssets(),
+                  child: _BrandAssets(),
                 ),
               ),
               SizedBox(height: 24.h),
@@ -227,39 +227,44 @@ class _CampaignOverviewCard extends StatelessWidget {
           SizedBox(height: 12.h),
 
           // Platforms row
-          Row(
-            children: [
-              Text(
-                'common_platforms'.tr,
-                style: TextStyle(
-                  color: AppPalette.thirdColor,
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w600,
+          Obx(() {
+            final keys = controller.platformKeys.toList(growable: false);
+            final iconPaths = keys.isEmpty
+                ? <String>[
+                    'assets/icons/instagram.png',
+                    'assets/icons/youTube.png',
+                    'assets/icons/tikTok.png',
+                  ]
+                : keys
+                      .map(_platformAssetPath)
+                      .where((e) => e.isNotEmpty)
+                      .toList(growable: false);
+
+            return Row(
+              children: [
+                Text(
+                  'common_platforms'.tr,
+                  style: TextStyle(
+                    color: AppPalette.thirdColor,
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-              12.w.horizontalSpace,
-              Image.asset(
-                'assets/icons/instagram.png',
-                width: 24.w,
-                height: 24.w,
-                fit: BoxFit.cover,
-              ),
-              SizedBox(width: 8.w),
-              Image.asset(
-                'assets/icons/youTube.png',
-                width: 24.w,
-                height: 24.w,
-                fit: BoxFit.cover,
-              ),
-              SizedBox(width: 8.w),
-              Image.asset(
-                'assets/icons/tikTok.png',
-                width: 24.w,
-                height: 24.w,
-                fit: BoxFit.cover,
-              ),
-            ],
-          ),
+                12.w.horizontalSpace,
+                ...iconPaths.map(
+                  (path) => Padding(
+                    padding: EdgeInsets.only(right: 8.w),
+                    child: Image.asset(
+                      path,
+                      width: 24.w,
+                      height: 24.w,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }),
 
           SizedBox(height: 12.h),
           if (accountTypeService.isAdAgency) ...[
@@ -369,6 +374,20 @@ class _CampaignOverviewCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  static String _platformAssetPath(String platformKey) {
+    final key = platformKey.trim().toLowerCase();
+    if (key.contains('youtube') || key == 'yt') {
+      return 'assets/icons/youTube.png';
+    }
+    if (key.contains('tik') || key.contains('tiktok')) {
+      return 'assets/icons/tikTok.png';
+    }
+    if (key.contains('facebook')) {
+      return 'assets/icons/facebook.png';
+    }
+    return 'assets/icons/instagram.png';
   }
 }
 
@@ -718,279 +737,342 @@ class _MilestoneCard extends GetView<CampaignDetailsController> {
 // BRIEF / CONTENT ASSETS / TERMS / BRAND ASSETS / AGREEMENT
 // ---------------------------------------------------------------------------
 
-class _CampaignBrief extends StatelessWidget {
-  const _CampaignBrief();
+class _CampaignBrief extends GetView<CampaignDetailsController> {
+  _CampaignBrief();
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Image.asset(
-              'assets/icons/goal.png',
-              width: 20.w,
-              height: 20.w,
-              color: AppPalette.primary,
-            ),
-            SizedBox(width: 6.w),
-            Text(
-              'campaign_goals'.tr,
-              style: TextStyle(
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w500,
-                color: AppPalette.primary,
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: 6.h),
-        Text(
-          'campaign_goals_desc'.tr,
-          style: TextStyle(
-            fontSize: 12.sp,
-            fontWeight: FontWeight.w400,
-            color: AppPalette.subtext,
-            letterSpacing: -0.04,
-          ),
-          textAlign: TextAlign.justify,
-        ),
+    return Obx(() {
+      final goals = controller.campaignGoalsText.value.trim();
+      final requirements = controller.contentRequirements.toList(
+        growable: false,
+      );
+      final dos = controller.dosLines.toList(growable: false);
+      final donts = controller.dontsLines.toList(growable: false);
 
-        SizedBox(height: 14.h),
-        Row(
-          children: [
-            Image.asset(
-              'assets/icons/goal.png',
-              width: 20.w,
-              height: 20.w,
-              color: AppPalette.primary,
-            ),
-            SizedBox(width: 6.w),
-            Text(
-              'campaign_content_requirements'.tr,
-              style: TextStyle(
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w500,
-                color: AppPalette.primary,
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: 6.h),
-        _BulletText('campaign_req_1'.tr),
-        _BulletText('campaign_req_2'.tr),
-        _BulletText('campaign_req_3'.tr),
-
-        SizedBox(height: 14.h),
-        Text(
-          'campaign_dos_donts'.tr,
-          style: TextStyle(
-            fontSize: 12.sp,
-            fontWeight: FontWeight.w500,
-            color: AppPalette.primary,
-          ),
-        ),
-        SizedBox(height: 10.h),
-
-        // DO
-        Container(
-          padding: EdgeInsets.all(10.w),
-          decoration: BoxDecoration(
-            color: AppPalette.greenBg,
-            borderRadius: BorderRadius.circular(kBorderRadius),
-            border: Border.all(
-              color: AppPalette.greenBorder,
-              width: kBorderWeight1,
-            ),
-          ),
-          child: Column(
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  Image.asset(
-                    'assets/icons/check_mark.png',
-                    width: 20.w,
-                    height: 20.w,
-                    color: AppPalette.greenText,
-                  ),
-                  SizedBox(width: 6.w),
-                  Text(
-                    'campaign_dos'.tr,
-                    style: TextStyle(
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.w500,
+              Image.asset(
+                'assets/icons/goal.png',
+                width: 20.w,
+                height: 20.w,
+                color: AppPalette.primary,
+              ),
+              SizedBox(width: 6.w),
+              Text(
+                'campaign_goals'.tr,
+                style: TextStyle(
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w500,
+                  color: AppPalette.primary,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 6.h),
+          Text(
+            goals.isNotEmpty ? goals : 'campaign_goals_desc'.tr,
+            style: TextStyle(
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w400,
+              color: AppPalette.subtext,
+              letterSpacing: -0.04,
+            ),
+            textAlign: TextAlign.justify,
+          ),
+
+          SizedBox(height: 14.h),
+          Row(
+            children: [
+              Image.asset(
+                'assets/icons/goal.png',
+                width: 20.w,
+                height: 20.w,
+                color: AppPalette.primary,
+              ),
+              SizedBox(width: 6.w),
+              Text(
+                'campaign_content_requirements'.tr,
+                style: TextStyle(
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w500,
+                  color: AppPalette.primary,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 6.h),
+          if (requirements.isEmpty) ...[
+            _BulletText('campaign_req_1'.tr),
+            _BulletText('campaign_req_2'.tr),
+            _BulletText('campaign_req_3'.tr),
+          ] else
+            ...requirements.map((item) => _BulletText(item)),
+
+          SizedBox(height: 14.h),
+          Text(
+            'campaign_dos_donts'.tr,
+            style: TextStyle(
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w500,
+              color: AppPalette.primary,
+            ),
+          ),
+          SizedBox(height: 10.h),
+
+          // DO
+          Container(
+            padding: EdgeInsets.all(10.w),
+            decoration: BoxDecoration(
+              color: AppPalette.greenBg,
+              borderRadius: BorderRadius.circular(kBorderRadius),
+              border: Border.all(
+                color: AppPalette.greenBorder,
+                width: kBorderWeight1,
+              ),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Image.asset(
+                      'assets/icons/check_mark.png',
+                      width: 20.w,
+                      height: 20.w,
                       color: AppPalette.greenText,
                     ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 6.h),
-              _BulletText('campaign_dos_1'.tr, fontColor: AppPalette.greenText),
-              _BulletText('campaign_dos_2'.tr, fontColor: AppPalette.greenText),
-              _BulletText('campaign_dos_3'.tr, fontColor: AppPalette.greenText),
-            ],
-          ),
-        ),
-
-        SizedBox(height: 12.h),
-
-        // DONT
-        Container(
-          padding: EdgeInsets.all(10.w),
-          decoration: BoxDecoration(
-            color: AppPalette.redBg,
-            borderRadius: BorderRadius.circular(kBorderRadius),
-            border: Border.all(
-              color: AppPalette.color2stroke,
-              width: kBorderWeight1,
-            ),
-          ),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  Image.asset(
-                    'assets/icons/cancel_outline.png',
-                    width: 20.w,
-                    height: 20.w,
-                    color: AppPalette.color2text,
-                  ),
-                  SizedBox(width: 6.w),
-                  Text(
-                    'campaign_donts'.tr,
-                    style: TextStyle(
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.w500,
-                      color: AppPalette.primary,
+                    SizedBox(width: 6.w),
+                    Text(
+                      'campaign_dos'.tr,
+                      style: TextStyle(
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.w500,
+                        color: AppPalette.greenText,
+                      ),
                     ),
+                  ],
+                ),
+                SizedBox(height: 6.h),
+                if (dos.isEmpty) ...[
+                  _BulletText(
+                    'campaign_dos_1'.tr,
+                    fontColor: AppPalette.greenText,
                   ),
-                ],
+                  _BulletText(
+                    'campaign_dos_2'.tr,
+                    fontColor: AppPalette.greenText,
+                  ),
+                  _BulletText(
+                    'campaign_dos_3'.tr,
+                    fontColor: AppPalette.greenText,
+                  ),
+                ] else
+                  ...dos.map(
+                    (item) =>
+                        _BulletText(item, fontColor: AppPalette.greenText),
+                  ),
+              ],
+            ),
+          ),
+
+          SizedBox(height: 12.h),
+
+          // DONT
+          Container(
+            padding: EdgeInsets.all(10.w),
+            decoration: BoxDecoration(
+              color: AppPalette.redBg,
+              borderRadius: BorderRadius.circular(kBorderRadius),
+              border: Border.all(
+                color: AppPalette.color2stroke,
+                width: kBorderWeight1,
               ),
-              SizedBox(height: 6.h),
-              _BulletText(
-                'campaign_donts_1'.tr,
-                fontColor: AppPalette.color2text,
+            ),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Image.asset(
+                      'assets/icons/cancel_outline.png',
+                      width: 20.w,
+                      height: 20.w,
+                      color: AppPalette.color2text,
+                    ),
+                    SizedBox(width: 6.w),
+                    Text(
+                      'campaign_donts'.tr,
+                      style: TextStyle(
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.w500,
+                        color: AppPalette.primary,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 6.h),
+                if (donts.isEmpty) ...[
+                  _BulletText(
+                    'campaign_donts_1'.tr,
+                    fontColor: AppPalette.color2text,
+                  ),
+                  _BulletText(
+                    'campaign_donts_2'.tr,
+                    fontColor: AppPalette.color2text,
+                  ),
+                  _BulletText(
+                    'campaign_donts_3'.tr,
+                    fontColor: AppPalette.color2text,
+                  ),
+                ] else
+                  ...donts.map(
+                    (item) =>
+                        _BulletText(item, fontColor: AppPalette.color2text),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      );
+    });
+  }
+}
+
+class _ContentAssets extends GetView<CampaignDetailsController> {
+  _ContentAssets();
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final items = controller.contentAssetsUi.toList(growable: false);
+      if (items.isEmpty) return _BulletText('No content assets');
+
+      return Column(
+        children: [
+          ...items.map((asset) {
+            String icon = 'assets/icons/image.png';
+            if (asset.kind == JobAssetKind.video) {
+              icon = 'assets/icons/video.png';
+            } else if (asset.kind == JobAssetKind.document) {
+              icon = 'assets/icons/document.png';
+            }
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _AssetRow(
+                leadingIconPath: icon,
+                title: asset.title,
+                subtitle: asset.meta,
               ),
-              _BulletText(
-                'campaign_donts_2'.tr,
-                fontColor: AppPalette.color2text,
+            );
+          }),
+        ],
+      );
+    });
+  }
+}
+
+class _TermsAndConditions extends GetView<CampaignDetailsController> {
+  _TermsAndConditions();
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final reporting = controller.reportingRequirementLines.toList(
+        growable: false,
+      );
+      final usage = controller.usageRightLines.toList(growable: false);
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Image.asset(
+                'assets/icons/presentation.png',
+                width: 20.w,
+                height: 20.w,
+                color: AppPalette.primary,
               ),
-              _BulletText(
-                'campaign_donts_3'.tr,
-                fontColor: AppPalette.color2text,
+              SizedBox(width: 6.w),
+              Text(
+                'campaign_reporting_requirements'.tr,
+                style: TextStyle(
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w500,
+                  color: AppPalette.primary,
+                ),
               ),
             ],
           ),
-        ),
-      ],
-    );
-  }
-}
+          SizedBox(height: 6.h),
+          if (reporting.isEmpty) ...[
+            _BulletText('campaign_report_1'.tr),
+            _BulletText('campaign_report_2'.tr),
+          ] else
+            ...reporting.map((item) => _BulletText(item)),
 
-class _ContentAssets extends StatelessWidget {
-  const _ContentAssets();
+          SizedBox(height: 14.h),
 
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        _AssetRow(
-          title: 'campaign_asset_logo_pack'.tr,
-          subtitle: 'PNG, SVG · 24 MB',
-        ),
-        const SizedBox(height: 8),
-        _AssetRow(
-          leadingIconPath: 'assets/icons/video.png',
-          title: 'campaign_asset_demo_video'.tr,
-          subtitle: 'MP4 · 80 MB',
-        ),
-        const SizedBox(height: 8),
-        _AssetRow(
-          leadingIconPath: 'assets/icons/document.png',
-          title: 'campaign_asset_guidelines'.tr,
-          subtitle: 'PDF · 750 KB',
-        ),
-      ],
-    );
-  }
-}
-
-class _TermsAndConditions extends StatelessWidget {
-  const _TermsAndConditions();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Image.asset(
-              'assets/icons/presentation.png',
-              width: 20.w,
-              height: 20.w,
-              color: AppPalette.primary,
-            ),
-            SizedBox(width: 6.w),
-            Text(
-              'campaign_reporting_requirements'.tr,
-              style: TextStyle(
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w500,
+          Row(
+            children: [
+              Image.asset(
+                'assets/icons/copyright.png',
+                width: 20.w,
+                height: 20.w,
                 color: AppPalette.primary,
               ),
-            ),
-          ],
-        ),
-        SizedBox(height: 6.h),
-        _BulletText('campaign_report_1'.tr),
-        _BulletText('campaign_report_2'.tr),
-
-        SizedBox(height: 14.h),
-
-        Row(
-          children: [
-            Image.asset(
-              'assets/icons/copyright.png',
-              width: 20.w,
-              height: 20.w,
-              color: AppPalette.primary,
-            ),
-            SizedBox(width: 6.w),
-            Text(
-              'campaign_usage_rights'.tr,
-              style: TextStyle(
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w500,
-                color: AppPalette.primary,
+              SizedBox(width: 6.w),
+              Text(
+                'campaign_usage_rights'.tr,
+                style: TextStyle(
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w500,
+                  color: AppPalette.primary,
+                ),
               ),
-            ),
-          ],
-        ),
-        SizedBox(height: 6.h),
-        _BulletText('campaign_usage_1'.tr),
-        _BulletText('campaign_usage_2'.tr),
-      ],
-    );
+            ],
+          ),
+          SizedBox(height: 6.h),
+          if (usage.isEmpty) ...[
+            _BulletText('campaign_usage_1'.tr),
+            _BulletText('campaign_usage_2'.tr),
+          ] else
+            ...usage.map((item) => _BulletText(item)),
+        ],
+      );
+    });
   }
 }
 
-class _BrandAssets extends StatelessWidget {
-  const _BrandAssets();
+class _BrandAssets extends GetView<CampaignDetailsController> {
+  _BrandAssets();
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        _AssetRow(
-          leadingIconPath: 'assets/icons/facebook.png',
-          title: 'campaign_asset_facebook_page'.tr,
-          subtitle: 'campaign_asset_facebook_sub'.tr,
-          trailingIconPath: 'assets/icons/cancel_outline.png',
-        ),
-      ],
-    );
+    return Obx(() {
+      final items = controller.brandAssetsUi.toList(growable: false);
+      if (items.isEmpty) return _BulletText('No brand assets');
+
+      return Column(
+        children: [
+          ...items.map(
+            (asset) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _AssetRow(
+                leadingIconPath: 'assets/icons/facebook.png',
+                title: asset.title,
+                subtitle: (asset.value?.trim().isNotEmpty ?? false)
+                    ? asset.value!.trim()
+                    : '—',
+                trailingIconPath: 'assets/icons/cancel_outline.png',
+              ),
+            ),
+          ),
+        ],
+      );
+    });
   }
 }
 
