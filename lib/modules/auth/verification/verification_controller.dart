@@ -33,7 +33,7 @@ class VerificationController extends GetxController {
     phoneNumber = args?['phone'] as String? ?? '+1 555 0100';
     accountType =
         args?['accountType'] as AccountType? ?? AccountType.influencer;
-    _isPreviewFlow = args?['preview'] as bool? ?? true;
+    _isPreviewFlow = args?['preview'] as bool? ?? false;
 
     for (final c in digitControllers) {
       c.addListener(_handleCodeChange);

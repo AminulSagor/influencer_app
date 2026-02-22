@@ -17,6 +17,9 @@ class VerificationSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isBrand = controller.accountTypeService.isBrand;
+    final isAgency = controller.accountTypeService.isAdAgency;
+
     return Padding(
       padding: EdgeInsets.only(bottom: 10.h),
       child: Column(
@@ -34,6 +37,7 @@ class VerificationSection extends StatelessWidget {
                 controller.nidFrontPic.value = await controller.pickImage();
               },
               image: controller.nidFrontPic.value,
+              imageUrl: controller.nidFrontUploadedUrl.value,
             );
           }),
           12.h.verticalSpace,
@@ -44,44 +48,52 @@ class VerificationSection extends StatelessWidget {
                 controller.nidBackPic.value = await controller.pickImage();
               },
               image: controller.nidBackPic.value,
+              imageUrl: controller.nidBackUploadedUrl.value,
             );
           }),
-          40.h.verticalSpace,
-          CustomTextFormField(
-            title: 'Your Trade license Number',
-            controller: controller.tradeNumberController,
-          ),
-          12.h.verticalSpace,
-          Obx(() {
-            return _ImagePickerContainer(
-              title: 'Upload Trade License',
-              onTap: () async {
-                controller.tradeLicensePic.value = await controller.pickImage();
-              },
-              image: controller.tradeLicensePic.value,
-            );
-          }),
-          40.h.verticalSpace,
-          CustomTextFormField(
-            title: 'Your TIN Number',
-            controller: controller.tinNumberController,
-          ),
-          12.h.verticalSpace,
-          Obx(() {
-            return _ImagePickerContainer(
-              title: 'Upload TIN Certificate',
-              onTap: () async {
-                controller.tinCertificatePic.value = await controller
-                    .pickImage();
-              },
-              image: controller.tinCertificatePic.value,
-            );
-          }),
-          40.h.verticalSpace,
-          CustomTextFormField(
-            title: 'Your BIN Number',
-            controller: controller.binNumberController,
-          ),
+          if (isBrand || isAgency) ...[
+            40.h.verticalSpace,
+            CustomTextFormField(
+              title: 'Your Trade license Number',
+              controller: controller.tradeNumberController,
+            ),
+            12.h.verticalSpace,
+            Obx(() {
+              return _ImagePickerContainer(
+                title: 'Upload Trade License',
+                onTap: () async {
+                  controller.tradeLicensePic.value = await controller
+                      .pickImage();
+                },
+                image: controller.tradeLicensePic.value,
+                imageUrl: controller.tradeLicenseUploadedUrl.value,
+              );
+            }),
+          ],
+          if (isAgency) ...[
+            40.h.verticalSpace,
+            CustomTextFormField(
+              title: 'Your TIN Number',
+              controller: controller.tinNumberController,
+            ),
+            12.h.verticalSpace,
+            Obx(() {
+              return _ImagePickerContainer(
+                title: 'Upload TIN Certificate',
+                onTap: () async {
+                  controller.tinCertificatePic.value = await controller
+                      .pickImage();
+                },
+                image: controller.tinCertificatePic.value,
+                imageUrl: controller.tinUploadedUrl.value,
+              );
+            }),
+            40.h.verticalSpace,
+            CustomTextFormField(
+              title: 'Your BIN Number',
+              controller: controller.binNumberController,
+            ),
+          ],
         ],
       ),
     );
@@ -92,10 +104,12 @@ class _ImagePickerContainer extends StatelessWidget {
   final String title;
   final VoidCallback onTap;
   final File? image;
+  final String? imageUrl;
 
   const _ImagePickerContainer({
     required this.onTap,
     this.image,
+    this.imageUrl,
     required this.title,
   });
 
@@ -130,31 +144,51 @@ class _ImagePickerContainer extends StatelessWidget {
                 borderRadius: BorderRadius.circular(kBorderRadius.r),
               ),
               child: image == null
-                  ? Column(
-                      mainAxisSize: .min,
-                      mainAxisAlignment: .center,
-                      children: [
-                        Image.asset(
-                          'assets/icons/upward_arrow.png',
-                          width: 30.w,
-                          fit: BoxFit.cover,
-                        ),
-                        15.h.verticalSpace,
-                        Text(
-                          'PNG, JPEG (Max 2MB)',
-                          style: TextStyle(
-                            fontSize: 12.sp,
-                            fontWeight: FontWeight.w400,
-                            color: AppPalette.subtext,
-                          ),
-                        ),
-                      ],
-                    )
+                  ? ((imageUrl ?? '').trim().isNotEmpty
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(
+                              kBorderRadius.r,
+                            ),
+                            child: Image.network(
+                              imageUrl!,
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              errorBuilder: (_, __, ___) => _emptyState(),
+                            ),
+                          )
+                        : _emptyState())
                   : ClipRRect(
                       borderRadius: BorderRadius.circular(kBorderRadius.r),
-                      child: Image.file(image!, fit: BoxFit.cover),
+                      child: Image.file(
+                        image!,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                      ),
                     ),
             ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _emptyState() {
+    return Column(
+      mainAxisSize: .min,
+      mainAxisAlignment: .center,
+      children: [
+        Image.asset(
+          'assets/icons/upward_arrow.png',
+          width: 30.w,
+          fit: BoxFit.cover,
+        ),
+        15.h.verticalSpace,
+        Text(
+          'PNG, JPEG (Max 2MB)',
+          style: TextStyle(
+            fontSize: 12.sp,
+            fontWeight: FontWeight.w400,
+            color: AppPalette.subtext,
           ),
         ),
       ],

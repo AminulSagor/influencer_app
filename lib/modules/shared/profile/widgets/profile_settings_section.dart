@@ -86,6 +86,7 @@ class ProfileSettingsSection extends StatelessWidget {
                         field.label,
                         field.value,
                       ),
+                      enabled: field.label != 'Email Address',
                       onChanged: (value) =>
                           controller.setProfileFieldValue(field.label, value),
                       textStyle: TextStyle(
@@ -95,33 +96,6 @@ class ProfileSettingsSection extends StatelessWidget {
                       ),
                       maxLines: field.label.contains('Full Address') ? 5 : 1,
                     ),
-                    if (field.label.contains('Last')) ...[
-                      12.h.verticalSpace,
-
-                      /// ----- Thana -----
-                      Obx(
-                        () => CustomDropDownMenu(
-                          title: "Thana *",
-                          hintText: "Select Thana",
-                          options: controller.thanaList,
-                          value: controller.selectedThana.value,
-                          onChanged: controller.setThana,
-                        ),
-                      ),
-
-                      SizedBox(height: 20.h),
-
-                      /// ----- Zilla -----
-                      Obx(
-                        () => CustomDropDownMenu(
-                          title: "Zilla *",
-                          hintText: "Select Zilla",
-                          options: controller.zillaList,
-                          value: controller.selectedZilla.value,
-                          onChanged: controller.setZilla,
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               );

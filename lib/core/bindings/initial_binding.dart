@@ -12,6 +12,7 @@ import 'package:influencer_app/core/services/services.dart';
 import 'package:influencer_app/core/services/analytics_service.dart';
 import 'package:influencer_app/core/services/report_service.dart';
 import 'package:influencer_app/core/services/earnings_service.dart';
+import 'package:influencer_app/core/controllers/app_user_session_controller.dart';
 import 'package:influencer_app/modules/brand/services/brand_dashboard_service.dart';
 import 'package:influencer_app/modules/brand/explore/services/explore_service.dart';
 import 'package:influencer_app/modules/shared/notification/notifications_controller.dart';
@@ -65,6 +66,10 @@ class InitialBinding extends Bindings {
     Get.lazyPut<NotificationService>(
       () => NotificationService(Get.find<ApiClient>()),
       fenix: true,
+    );
+    Get.put<AppUserSessionController>(
+      AppUserSessionController(),
+      permanent: true,
     );
     Get.lazyPut<NotificationsController>(
       () => NotificationsController(service: Get.find<NotificationService>()),

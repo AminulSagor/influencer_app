@@ -5,13 +5,19 @@ class AgencyProfileService {
 
   final ApiClient _api;
 
-  Future<void> updateAddress({
+  Map<String, dynamic>? _mapFromResponseData(dynamic data) {
+    if (data is Map<String, dynamic>) return data;
+    if (data is Map) return Map<String, dynamic>.from(data);
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> updateAddress({
     required String addressName,
     required String thana,
     required String zilla,
     required String fullAddress,
   }) async {
-    await _api.dio.patch(
+    final res = await _api.dio.patch(
       '/agency/profile/address',
       data: {
         'addressName': addressName,
@@ -20,26 +26,29 @@ class AgencyProfileService {
         'fullAddress': fullAddress,
       },
     );
+    return _mapFromResponseData(res.data);
   }
 
-  Future<void> updateSocials({
+  Future<Map<String, dynamic>?> updateSocials({
     String? website,
     required List<Map<String, dynamic>> socialLinks,
   }) async {
-    await _api.dio.patch(
+    final res = await _api.dio.patch(
       '/agency/profile/socials',
       data: {
         if (website != null && website.trim().isNotEmpty) 'website': website,
         'socialLinks': socialLinks,
       },
     );
+    return _mapFromResponseData(res.data);
   }
 
-  Future<void> updateServiceFee(String serviceFee) async {
-    await _api.dio.patch(
+  Future<Map<String, dynamic>?> updateServiceFee(String serviceFee) async {
+    final res = await _api.dio.patch(
       '/agency/profile/service-fee',
       data: {'serviceFee': serviceFee},
     );
+    return _mapFromResponseData(res.data);
   }
 
   Future<void> updateDollarRate(num dollarRate) async {
@@ -51,14 +60,16 @@ class AgencyProfileService {
 
   Future<Map<String, dynamic>> getServiceFee() async {
     final res = await _api.dio.get('/agency/profile/service-fee');
-    if (res.data is Map<String, dynamic>) return res.data as Map<String, dynamic>;
+    if (res.data is Map<String, dynamic>)
+      return res.data as Map<String, dynamic>;
     if (res.data is Map) return Map<String, dynamic>.from(res.data as Map);
     return const {};
   }
 
   Future<Map<String, dynamic>> getDollarRate() async {
     final res = await _api.dio.get('/agency/profile/dollar-rate');
-    if (res.data is Map<String, dynamic>) return res.data as Map<String, dynamic>;
+    if (res.data is Map<String, dynamic>)
+      return res.data as Map<String, dynamic>;
     if (res.data is Map) return Map<String, dynamic>.from(res.data as Map);
     return const {};
   }
@@ -108,12 +119,12 @@ class AgencyProfileService {
     );
   }
 
-  Future<void> updateNid({
+  Future<Map<String, dynamic>?> updateNid({
     required String nidNumber,
     required String nidFrontImg,
     required String nidBackImg,
   }) async {
-    await _api.dio.patch(
+    final res = await _api.dio.patch(
       '/agency/profile/verification/nid',
       data: {
         'nidNumber': nidNumber,
@@ -121,35 +132,39 @@ class AgencyProfileService {
         'nidBackImg': nidBackImg,
       },
     );
+    return _mapFromResponseData(res.data);
   }
 
-  Future<void> updateTradeLicense({
+  Future<Map<String, dynamic>?> updateTradeLicense({
     required String tradeLicenseNumber,
     required String tradeLicenseImg,
   }) async {
-    await _api.dio.patch(
+    final res = await _api.dio.patch(
       '/agency/profile/verification/trade-license',
       data: {
         'tradeLicenseNumber': tradeLicenseNumber,
         'tradeLicenseImg': tradeLicenseImg,
       },
     );
+    return _mapFromResponseData(res.data);
   }
 
-  Future<void> updateTin({
+  Future<Map<String, dynamic>?> updateTin({
     required String tinNumber,
     required String tinImage,
   }) async {
-    await _api.dio.patch(
+    final res = await _api.dio.patch(
       '/agency/profile/verification/tin',
       data: {'tinNumber': tinNumber, 'tinImage': tinImage},
     );
+    return _mapFromResponseData(res.data);
   }
 
-  Future<void> updateBin({required String binNumber}) async {
-    await _api.dio.patch(
+  Future<Map<String, dynamic>?> updateBin({required String binNumber}) async {
+    final res = await _api.dio.patch(
       '/agency/profile/verification/bin',
       data: {'binNumber': binNumber},
     );
+    return _mapFromResponseData(res.data);
   }
 }

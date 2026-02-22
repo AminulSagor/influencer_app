@@ -15,7 +15,6 @@ class AppPaginationRow extends StatelessWidget {
   final VoidCallback? onPrev;
 
   final String pageLabel;
-  final String ofLabel;
   final String nextLabel;
 
   const AppPaginationRow({
@@ -26,7 +25,6 @@ class AppPaginationRow extends StatelessWidget {
     this.onPrev,
     this.isLoading,
     required this.pageLabel,
-    required this.ofLabel,
     required this.nextLabel,
   });
 
@@ -72,7 +70,7 @@ class AppPaginationRow extends StatelessWidget {
 
           8.w.horizontalSpace,
           Text(
-            '$ofLabel $total',
+            'common_of_n'.trParams({'n': total.toString()}),
             style: TextStyle(fontSize: 12.sp, color: AppPalette.subtext),
           ),
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:influencer_app/core/controllers/app_user_session_controller.dart';
 import 'package:influencer_app/core/services/account_type_service.dart';
 import 'bottom_nav_controller.dart';
 import 'package:influencer_app/routes/app_routes.dart';
@@ -46,71 +47,113 @@ class BottomNavView extends GetView<BottomNavController> {
 
   // ---------------- TOP BAR (shared) ----------------
   Widget _buildTopBar() {
+    final session = Get.find<AppUserSessionController>();
+
     // Builder gives us a context that is *below* the Scaffold,
     // so Scaffold.of(context).openEndDrawer() works.
     return Builder(
       builder: (context) {
-        return Container(
-          height: 71.h,
-          padding: EdgeInsets.only(left: 25.w, right: 20.w),
-          decoration: const BoxDecoration(color: AppPalette.primary),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'topbar_welcome_user'.tr,
-                      style: TextStyle(
-                        color: AppPalette.white,
-                        fontSize: 14.sp,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: -0.04,
+        return Obx(() {
+          final userName = session.displayName.value.trim();
+          final avatarUrl = session.profileImageUrl.value.trim();
+          final unreadCount = session.unreadNotificationCount;
+          final welcomeText = userName.isNotEmpty
+              ? 'topbar_welcome_user'.tr.replaceFirst('User', userName)
+              : 'topbar_welcome_user'.tr;
+
+          return Container(
+            height: 71.h,
+            padding: EdgeInsets.only(left: 25.w, right: 20.w),
+            decoration: const BoxDecoration(color: AppPalette.primary),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        welcomeText,
+                        style: TextStyle(
+                          color: AppPalette.white,
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: -0.04,
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 4.h),
-                    Text(
-                      'topbar_ready_to_earn'.tr,
-                      style: TextStyle(
-                        color: AppPalette.white,
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.w300,
+                      SizedBox(height: 4.h),
+                      Text(
+                        'topbar_ready_to_earn'.tr,
+                        style: TextStyle(
+                          color: AppPalette.white,
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w300,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // notifications -> push inside nested navigator (id: 1)
-              GestureDetector(
-                onTap: () => controller.openNotifications(),
-                child: Image.asset(
-                  'assets/icons/notification.png',
-                  width: 28.w,
-                  height: 28.h,
-                ),
-              ),
-
-              SizedBox(width: 14.w),
-
-              // Avatar -> open drawer
-              GestureDetector(
-                onTap: () => Scaffold.of(context).openEndDrawer(),
-                child: CircleAvatar(
-                  radius: 23.r,
-                  backgroundColor: AppPalette.background,
-                  child: CircleAvatar(
-                    radius: 21.r,
-                    backgroundColor: Colors.white,
-                    child: Icon(Icons.person, color: Colors.grey[600]),
+                    ],
                   ),
                 ),
-              ),
-            ],
-          ),
-        );
+
+                GestureDetector(
+                  onTap: () => controller.openNotifications(),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Image.asset(
+                        'assets/icons/notification.png',
+                        width: 28.w,
+                        height: 28.h,
+                      ),
+                      if (unreadCount > 0)
+                        Positioned(
+                          right: -6.w,
+                          top: -6.h,
+                          child: Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 5.w,
+                              vertical: 1.h,
+                            ),
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text(
+                              unreadCount > 99 ? '99+' : unreadCount.toString(),
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 8.sp,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+
+                SizedBox(width: 14.w),
+
+                GestureDetector(
+                  onTap: () => Scaffold.of(context).openEndDrawer(),
+                  child: CircleAvatar(
+                    radius: 23.r,
+                    backgroundColor: AppPalette.background,
+                    child: CircleAvatar(
+                      radius: 21.r,
+                      backgroundColor: Colors.white,
+                      backgroundImage: avatarUrl.isNotEmpty
+                          ? NetworkImage(avatarUrl)
+                          : null,
+                      child: avatarUrl.isEmpty
+                          ? Icon(Icons.person, color: Colors.grey[600])
+                          : null,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        });
       },
     );
   }
@@ -352,94 +395,194 @@ class _ProfileDrawer extends StatelessWidget {
 class _DrawerProfileHeader extends StatelessWidget {
   const _DrawerProfileHeader();
 
+  double _parseRating(dynamic value, {double fallback = 0.0}) {
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? fallback;
+    return fallback;
+  }
+
+  double _resolveRating(
+    AppUserSessionController session,
+    AccountTypeService accountTypeService,
+  ) {
+    if (accountTypeService.isInfluencer &&
+        session.influencerProfile.value != null) {
+      return session.influencerProfile.value!.averageRating;
+    }
+
+    if (accountTypeService.isAdAgency &&
+        session.agencyProfileJson.value != null) {
+      final agencyJson = session.agencyProfileJson.value!;
+      return _parseRating(agencyJson['averageRating']);
+    }
+
+    return 0.0;
+  }
+
+  String _resolveLocation(
+    AppUserSessionController session,
+    AccountTypeService accountTypeService,
+  ) {
+    if (accountTypeService.isInfluencer &&
+        session.influencerProfile.value != null) {
+      final address = session.influencerProfile.value!.primaryAddress;
+      final formatted = address?.formattedAddress ?? '';
+      if (formatted.trim().isNotEmpty) return formatted.trim();
+    }
+
+    if (accountTypeService.isAdAgency &&
+        session.agencyProfileJson.value != null &&
+        session.agencyProfileJson.value!['address'] is Map) {
+      final agencyJson = session.agencyProfileJson.value!;
+      final address = agencyJson['address'] as Map;
+      final thana = (address['thana'] ?? '').toString().trim();
+      final zilla = (address['zilla'] ?? '').toString().trim();
+      final fullAddress = (address['fullAddress'] ?? '').toString().trim();
+      final country = (address['country'] ?? '').toString().trim();
+      final parts = <String>[
+        if (fullAddress.isNotEmpty) fullAddress,
+        if (thana.isNotEmpty) thana,
+        if (zilla.isNotEmpty) zilla,
+        if (country.isNotEmpty) country,
+      ];
+      if (parts.isNotEmpty) return parts.join(', ');
+    }
+
+    return 'Dhaka, Bangladesh';
+  }
+
+  bool _resolveVerified(
+    AppUserSessionController session,
+    AccountTypeService accountTypeService,
+  ) {
+    if (accountTypeService.isInfluencer &&
+        session.influencerProfile.value != null) {
+      return session.influencerProfile.value!.isOnboardingComplete;
+    }
+
+    if (accountTypeService.isAdAgency &&
+        session.agencyProfileJson.value != null) {
+      final agencyJson = session.agencyProfileJson.value!;
+      return agencyJson['isOnboardingComplete'] as bool? ?? false;
+    }
+
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final session = Get.find<AppUserSessionController>();
+    final accountTypeService = Get.find<AccountTypeService>();
     double topPadding = MediaQuery.of(context).padding.top;
-    return Container(
-      padding: EdgeInsets.only(top: topPadding + 40.h, bottom: 32.h),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppPalette.gradient1, AppPalette.secondary],
-        ),
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(35.r),
-          bottomLeft: Radius.circular(35.r),
-        ),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          CircleAvatar(
-            radius: 58.r,
-            backgroundColor: AppPalette.defaultStroke,
-            child: CircleAvatar(
-              radius: 56.r,
-              backgroundColor: AppPalette.white,
-              child: Icon(Icons.person, size: 40.sp, color: Colors.grey[600]),
-            ),
+    return Obx(() {
+      final avatarUrl = session.profileImageUrl.value.trim();
+      final name = session.displayName.value.trim().isNotEmpty
+          ? session.displayName.value.trim()
+          : 'User';
+      final shouldShowRating =
+          accountTypeService.isInfluencer || accountTypeService.isAdAgency;
+      final ratingLabel = shouldShowRating
+          ? _resolveRating(session, accountTypeService).toStringAsFixed(1)
+          : '';
+      final location = _resolveLocation(session, accountTypeService);
+      final isVerified = _resolveVerified(session, accountTypeService);
+
+      return Container(
+        padding: EdgeInsets.only(top: topPadding + 40.h, bottom: 32.h),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [AppPalette.gradient1, AppPalette.secondary],
           ),
-          SizedBox(height: 24.h),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              ...List.generate(
-                4,
-                (_) => Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 2.w),
-                  child: Icon(
-                    Icons.star_rounded,
-                    size: 20.sp,
-                    color: AppPalette.starDark,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(35.r),
+            bottomLeft: Radius.circular(35.r),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircleAvatar(
+              radius: 58.r,
+              backgroundColor: AppPalette.defaultStroke,
+              child: CircleAvatar(
+                radius: 56.r,
+                backgroundColor: AppPalette.white,
+                backgroundImage: avatarUrl.isNotEmpty
+                    ? NetworkImage(avatarUrl)
+                    : null,
+                child: avatarUrl.isEmpty
+                    ? Icon(Icons.person, size: 40.sp, color: Colors.grey[600])
+                    : null,
+              ),
+            ),
+            SizedBox(height: 24.h),
+            if (shouldShowRating) ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ...List.generate(
+                    4,
+                    (_) => Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 2.w),
+                      child: Icon(
+                        Icons.star_rounded,
+                        size: 20.sp,
+                        color: AppPalette.starDark,
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 2.w),
+                    child: Icon(
+                      Icons.star_half_rounded,
+                      size: 20.sp,
+                      color: AppPalette.starDark,
+                    ),
+                  ),
+                  SizedBox(width: 8.w),
+                  Text(
+                    ratingLabel,
+                    style: TextStyle(
+                      color: AppPalette.white,
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 8.h),
+            ],
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  name,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-              ),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 2.w),
-                child: Icon(
-                  Icons.star_half_rounded,
-                  size: 20.sp,
-                  color: AppPalette.starDark,
-                ),
-              ),
-              SizedBox(width: 8.w),
-              Text(
-                '4.5',
-                style: TextStyle(
-                  color: AppPalette.white,
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 8.h),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'Grow Big',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              SizedBox(width: 6.w),
-              Icon(
-                Icons.verified_rounded,
-                size: 18.sp,
-                color: Colors.lightBlue[300],
-              ),
-            ],
-          ),
-          SizedBox(height: 6.h),
-          Text(
-            'Dhaka, Bangladesh',
-            style: TextStyle(color: AppPalette.secondary, fontSize: 16.sp),
-          ),
-        ],
-      ),
-    );
+                if (isVerified) ...[
+                  SizedBox(width: 6.w),
+                  Icon(
+                    Icons.verified_rounded,
+                    size: 18.sp,
+                    color: Colors.lightBlue[300],
+                  ),
+                ],
+              ],
+            ),
+            SizedBox(height: 6.h),
+            Text(
+              location,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppPalette.secondary, fontSize: 16.sp),
+            ),
+          ],
+        ),
+      );
+    });
   }
 }
 

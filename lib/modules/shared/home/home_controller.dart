@@ -94,6 +94,7 @@ class HomeController extends GetxController {
 
   Future<void> _loadAgencyDashboard() async {
     var current = dashboard.value;
+    var summaryIncludesOffers = false;
 
     final summaryResult = await ApiErrorHandler.call(
       () => _agencyDashboardService.fetchSummary(),
@@ -121,6 +122,7 @@ class HomeController extends GetxController {
     );
 
     if (summaryResult.isSuccess && summaryResult.data != null) {
+      summaryIncludesOffers = _hasNewOffersField(summaryResult.data!);
       current = _applyAgencySummary(current, summaryResult.data!);
     }
 
@@ -132,7 +134,7 @@ class HomeController extends GetxController {
       final count = actionRequiredResult.data!.total > 0
           ? actionRequiredResult.data!.total
           : actionRequiredResult.data!.items.length;
-      if (count > 0 && current.newOffers == 0) {
+      if (!summaryIncludesOffers && count > 0 && current.newOffers == 0) {
         current = current.copyWith(newOffers: count);
       }
     }
@@ -159,6 +161,7 @@ class HomeController extends GetxController {
 
   Future<void> _loadInfluencerDashboard() async {
     var current = dashboard.value;
+    var summaryIncludesOffers = false;
 
     final summaryResult = await ApiErrorHandler.call(
       () => _influencerDashboardService.fetchSummary(),
@@ -187,6 +190,7 @@ class HomeController extends GetxController {
     );
 
     if (summaryResult.isSuccess && summaryResult.data != null) {
+      summaryIncludesOffers = _hasNewOffersField(summaryResult.data!);
       current = _applyInfluencerSummary(current, summaryResult.data!);
       current = _applyLifetimeSummary(current, summaryResult.data!);
     }
@@ -199,7 +203,7 @@ class HomeController extends GetxController {
       final count = actionRequiredResult.data!.total > 0
           ? actionRequiredResult.data!.total
           : actionRequiredResult.data!.items.length;
-      if (count > 0 && current.newOffers == 0) {
+      if (!summaryIncludesOffers && count > 0 && current.newOffers == 0) {
         current = current.copyWith(newOffers: count);
       }
     }
@@ -425,6 +429,20 @@ class HomeController extends GetxController {
     if (data is List) return data.length;
     if (data is Map && data['count'] is int) return data['count'] as int;
     return null;
+  }
+
+  bool _hasNewOffersField(Map<String, dynamic> json) {
+    if (json.containsKey('newOffers') || json.containsKey('newOffersCount')) {
+      return true;
+    }
+
+    final data = json['data'];
+    if (data is Map<String, dynamic>) {
+      return data.containsKey('newOffers') ||
+          data.containsKey('newOffersCount');
+    }
+
+    return false;
   }
 
   int? _intFrom(dynamic value) {

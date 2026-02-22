@@ -31,7 +31,12 @@ class ProfileHeaderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Obx(
-      () => Container(
+      () {
+        final topSocials = controller.socialAccounts
+            .take(3)
+            .toList(growable: false);
+
+        return Container(
         width: double.infinity,
         padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
         decoration: BoxDecoration(
@@ -92,13 +97,15 @@ class ProfileHeaderCard extends StatelessWidget {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        SizedBox(width: 6.w),
-                        Image.asset(
-                          'assets/icons/unverified_account.png',
-                          width: 16.w,
-                          height: 16.w,
-                          fit: BoxFit.cover,
-                        ),
+                        if (!controller.isVerified) ...[
+                          SizedBox(width: 6.w),
+                          Image.asset(
+                            'assets/icons/unverified_account.png',
+                            width: 16.w,
+                            height: 16.w,
+                            fit: BoxFit.cover,
+                          ),
+                        ],
                       ],
                     ),
                     SizedBox(height: 4.h),
@@ -143,38 +150,49 @@ class ProfileHeaderCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Take first 3 socials and render like the design
-                      ...controller.socialAccounts
-                          .take(3)
-                          .map(
-                            (social) => Padding(
-                              padding: EdgeInsets.only(bottom: 8.h),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Image.asset(
-                                    _iconForPlatform(social.platform),
-                                    width: 20.w,
-                                    height: 20.w,
-                                  ),
+                      if (topSocials.isEmpty)
+                        Padding(
+                          padding: EdgeInsets.only(bottom: 8.h),
+                          child: Text(
+                            'No social links added yet',
+                            style: TextStyle(
+                              color: AppPalette.thirdColor,
+                              fontSize: 12.sp,
+                              fontWeight: FontWeight.w300,
+                            ),
+                          ),
+                        )
+                      else
+                        ...topSocials
+                            .map(
+                              (social) => Padding(
+                                padding: EdgeInsets.only(bottom: 8.h),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Image.asset(
+                                      _iconForPlatform(social.platform),
+                                      width: 20.w,
+                                      height: 20.w,
+                                    ),
 
-                                  SizedBox(width: 6.w),
-                                  Flexible(
-                                    child: Text(
-                                      social.handle,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        color: AppPalette.thirdColor,
-                                        fontSize: 12.sp,
-                                        fontWeight: FontWeight.w300,
+                                    SizedBox(width: 6.w),
+                                    Flexible(
+                                      child: Text(
+                                        social.handle,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: AppPalette.thirdColor,
+                                          fontSize: 12.sp,
+                                          fontWeight: FontWeight.w300,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ),
-                          )
-                          .toList(),
+                            )
+                            .toList(),
                       16.h.verticalSpace,
                       CustomButton(
                         onTap: () {},
@@ -191,7 +209,8 @@ class ProfileHeaderCard extends StatelessWidget {
             ],
           ],
         ),
-      ),
+      );
+      },
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:influencer_app/core/controllers/app_user_session_controller.dart';
 import 'package:influencer_app/core/services/account_type_service.dart';
 import 'package:influencer_app/core/services/api_error_handler.dart';
 import 'package:influencer_app/core/services/notification_service.dart';
@@ -27,6 +28,8 @@ class NotificationsController extends GetxController {
 
   final NotificationService _service;
   final AccountTypeService _accountTypeService = Get.find<AccountTypeService>();
+  final AppUserSessionController _appUserSession =
+      Get.find<AppUserSessionController>();
 
   final isLoading = false.obs;
 
@@ -36,11 +39,14 @@ class NotificationsController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    loadNotifications();
+    if (_appUserSession.notificationsLoaded.value) {
+      _hydrateFromAppSession();
+    } else {
+      loadNotifications();
+    }
   }
 
-  String get _basePath =>
-      _accountTypeService.isBrand
+  String get _basePath => _accountTypeService.isBrand
       ? '/client/notifications'
       : _accountTypeService.isInfluencer
       ? '/influencer/notifications'
@@ -60,8 +66,9 @@ class NotificationsController extends GetxController {
       errorTitle: 'notifications_title'.tr,
     );
 
+    List<NotificationDto> apiNew = const [];
     if (newRes.isSuccess && newRes.data != null) {
-      final apiNew = newRes.data!.data;
+      apiNew = newRes.data!.data;
       newItems.assignAll(apiNew.map(_mapApiToUi).toList(growable: false));
     } else {
       // keep UI empty state if error
@@ -71,6 +78,10 @@ class NotificationsController extends GetxController {
     // 2) Earlier (best-effort)
     final earlier = await _fetchEarlierBestEffort();
     earlierItems.assignAll(earlier.map(_mapApiToUi).toList(growable: false));
+    _appUserSession.updateNotifications(
+      newItems: apiNew,
+      earlierItems: earlier,
+    );
 
     isLoading.value = false;
   }
@@ -107,6 +118,13 @@ class NotificationsController extends GetxController {
       showError: false,
     ).then((_) {
       earlierItems.addAll(newItems);
+      _appUserSession.updateNotifications(
+        newItems: const [],
+        earlierItems: [
+          ..._appUserSession.earlierNotifications,
+          ..._appUserSession.newNotifications,
+        ],
+      );
       newItems.clear();
     });
   }
@@ -122,7 +140,39 @@ class NotificationsController extends GetxController {
       if (!earlierItems.any((e) => e.id == item.id)) {
         earlierItems.insert(0, item);
       }
+      _appUserSession.updateNotifications(
+        newItems: _appUserSession.newNotifications
+            .where((e) => e.id != item.id)
+            .toList(growable: false),
+        earlierItems: _moveSessionNotificationToEarlier(item.id),
+      );
     });
+  }
+
+  void _hydrateFromAppSession() {
+    newItems.assignAll(
+      _appUserSession.newNotifications.map(_mapApiToUi).toList(growable: false),
+    );
+    earlierItems.assignAll(
+      _appUserSession.earlierNotifications
+          .map(_mapApiToUi)
+          .toList(growable: false),
+    );
+  }
+
+  List<NotificationDto> _moveSessionNotificationToEarlier(String id) {
+    final currentEarlier = [..._appUserSession.earlierNotifications];
+    NotificationDto? moved;
+    for (final item in _appUserSession.newNotifications) {
+      if (item.id == id) {
+        moved = item;
+        break;
+      }
+    }
+    if (moved != null && !currentEarlier.any((e) => e.id == moved?.id)) {
+      currentEarlier.insert(0, moved);
+    }
+    return currentEarlier;
   }
 
   // ---------------- mapping helpers ----------------
