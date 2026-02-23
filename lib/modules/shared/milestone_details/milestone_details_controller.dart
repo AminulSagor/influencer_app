@@ -236,7 +236,10 @@ class MilestoneDetailsController extends GetxController {
   }
 
   void closePage() {
-    Get.back(result: {'refresh': _needsParentRefresh, 'milestone': milestone});
+    Get.back(
+      result: {'refresh': _needsParentRefresh, 'milestone': milestone},
+      id: 1,
+    );
   }
 
   // ---------- helpers ----------

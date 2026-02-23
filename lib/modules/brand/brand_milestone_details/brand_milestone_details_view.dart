@@ -283,91 +283,89 @@ class _StatusCard extends GetView<BrandMilestoneDetailsController> {
 class _SubmissionCard extends GetView<BrandMilestoneDetailsController> {
   @override
   Widget build(BuildContext context) {
-    return Obx(() {
-      final s = controller.currentSubmission;
-      final hasSubmission = s != null;
+    final s = controller.currentSubmission;
+    final hasSubmission = s != null;
 
-      return _CardShell(
-        child: hasSubmission
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Submission Details',
-                    style: TextStyle(
-                      fontSize: 13.5.sp,
-                      fontWeight: FontWeight.w900,
-                      color: AppPalette.primary,
-                    ),
-                  ),
-                  12.h.verticalSpace,
-
-                  _title('Description / Update'),
-                  6.h.verticalSpace,
-                  Text(
-                    s!.description.trim().isNotEmpty ? s.description : '—',
-                    style: TextStyle(
-                      fontSize: 11.5.sp,
-                      height: 1.35,
-                      color: AppPalette.greyText,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-
-                  14.h.verticalSpace,
-                  _title('Platform Link'),
-                  6.h.verticalSpace,
-                  Text(
-                    s.liveLink.trim().isNotEmpty ? s.liveLink : '—',
-                    style: TextStyle(
-                      fontSize: 11.5.sp,
-                      color: AppPalette.primary,
-                      fontWeight: FontWeight.w800,
-                      decoration: TextDecoration.underline,
-                    ),
-                  ),
-
-                  14.h.verticalSpace,
-                  _title('Metric'),
-                  6.h.verticalSpace,
-                  Text(
-                    (s.metricLabel.trim().isNotEmpty ||
-                            s.metricValue.trim().isNotEmpty)
-                        ? '${s.metricLabel}: ${s.metricValue}'
-                        : '—',
-                    style: TextStyle(
-                      fontSize: 11.5.sp,
-                      color: AppPalette.greyText,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-
-                  14.h.verticalSpace,
-                  _title('Attached Proofs'),
-                  10.h.verticalSpace,
-                  if (s.proofPaths.isEmpty)
-                    _proofBox()
-                  else
-                    ...s.proofPaths.map(
-                      (_) => Padding(
-                        padding: EdgeInsets.only(bottom: 10.h),
-                        child: _proofBox(),
-                      ),
-                    ),
-                ],
-              )
-            : Center(
-                child: Text(
-                  'No submissions',
+    return _CardShell(
+      child: hasSubmission
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Submission Details',
                   style: TextStyle(
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w600,
-                    color: AppPalette.greyText,
+                    fontSize: 13.5.sp,
+                    fontWeight: FontWeight.w900,
+                    color: AppPalette.primary,
                   ),
                 ),
+                12.h.verticalSpace,
+
+                _title('Description / Update'),
+                6.h.verticalSpace,
+                Text(
+                  s!.description.trim().isNotEmpty ? s.description : '—',
+                  style: TextStyle(
+                    fontSize: 11.5.sp,
+                    height: 1.35,
+                    color: AppPalette.greyText,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+
+                14.h.verticalSpace,
+                _title('Platform Link'),
+                6.h.verticalSpace,
+                Text(
+                  s.liveLink.trim().isNotEmpty ? s.liveLink : '—',
+                  style: TextStyle(
+                    fontSize: 11.5.sp,
+                    color: AppPalette.primary,
+                    fontWeight: FontWeight.w800,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+
+                14.h.verticalSpace,
+                _title('Metric'),
+                6.h.verticalSpace,
+                Text(
+                  (s.metricLabel.trim().isNotEmpty ||
+                          s.metricValue.trim().isNotEmpty)
+                      ? '${s.metricLabel}: ${s.metricValue}'
+                      : '—',
+                  style: TextStyle(
+                    fontSize: 11.5.sp,
+                    color: AppPalette.greyText,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+
+                14.h.verticalSpace,
+                _title('Attached Proofs'),
+                10.h.verticalSpace,
+                if (s.proofPaths.isEmpty)
+                  _proofBox()
+                else
+                  ...s.proofPaths.map(
+                    (_) => Padding(
+                      padding: EdgeInsets.only(bottom: 10.h),
+                      child: _proofBox(),
+                    ),
+                  ),
+              ],
+            )
+          : Center(
+              child: Text(
+                'No submissions',
+                style: TextStyle(
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w600,
+                  color: AppPalette.greyText,
+                ),
               ),
-      );
-    });
+            ),
+    );
   }
 
   Widget _title(String t) {
@@ -397,44 +395,42 @@ class _SubmissionCard extends GetView<BrandMilestoneDetailsController> {
 class _BottomActions extends GetView<BrandMilestoneDetailsController> {
   @override
   Widget build(BuildContext context) {
-    return Obx(() {
-      final submissionId = controller.currentSubmission?.id?.trim() ?? '';
-      final hasSubmissionId = submissionId.isNotEmpty;
-      if (!hasSubmissionId) return const SizedBox.shrink();
+    final submissionId = controller.currentSubmission?.id?.trim() ?? '';
+    final hasSubmissionId = submissionId.isNotEmpty;
+    if (!hasSubmissionId) return const SizedBox.shrink();
 
-      return Container(
-        padding: EdgeInsets.fromLTRB(14.w, 10.h, 14.w, 14.h),
-        decoration: BoxDecoration(
-          color: AppPalette.white,
-          border: Border(
-            top: BorderSide(color: AppPalette.border1, width: kBorderWidth0_5),
+    return Container(
+      padding: EdgeInsets.fromLTRB(14.w, 10.h, 14.w, 14.h),
+      decoration: BoxDecoration(
+        color: AppPalette.white,
+        border: Border(
+          top: BorderSide(color: AppPalette.border1, width: kBorderWidth0_5),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: CustomButton(
+              btnText: 'Decline',
+              btnColor: AppPalette.white,
+              borderColor: AppPalette.border1,
+              textColor: AppPalette.black,
+              onTap: hasSubmissionId ? controller.decline : null,
+            ),
           ),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: CustomButton(
-                btnText: 'Decline',
-                btnColor: AppPalette.white,
-                borderColor: AppPalette.border1,
-                textColor: AppPalette.black,
-                onTap: hasSubmissionId ? controller.decline : null,
-              ),
+          12.w.horizontalSpace,
+          Expanded(
+            child: CustomButton(
+              btnText: 'Approve',
+              btnColor: AppPalette.primary,
+              borderColor: Colors.transparent,
+              showBorder: false,
+              textColor: AppPalette.white,
+              onTap: hasSubmissionId ? controller.approve : null,
             ),
-            12.w.horizontalSpace,
-            Expanded(
-              child: CustomButton(
-                btnText: 'Approve',
-                btnColor: AppPalette.primary,
-                borderColor: Colors.transparent,
-                showBorder: false,
-                textColor: AppPalette.white,
-                onTap: hasSubmissionId ? controller.approve : null,
-              ),
-            ),
-          ],
-        ),
-      );
-    });
+          ),
+        ],
+      ),
+    );
   }
 }

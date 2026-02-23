@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:influencer_app/core/models/job_item.dart';
 import 'package:influencer_app/core/services/account_type_service.dart';
 import 'package:influencer_app/core/widgets/custom_button.dart';
+import 'package:intl/intl.dart';
 
 import '../theme/app_palette.dart';
 import '../utils/constants.dart';
@@ -34,6 +37,7 @@ class JobOfferCard extends StatelessWidget {
     final isComplete = type == 'complete';
     final isPending = type == 'pending';
     final isDeclined = type == 'declined';
+    final isQuoted = type == 'quoted';
 
     final accountTypeService = Get.find<AccountTypeService>();
     final isAdAgency = accountTypeService.isAdAgency;
@@ -85,7 +89,7 @@ class JobOfferCard extends StatelessWidget {
                 ),
               ),
 
-              if (isNew || isComplete || isPending)
+              if ((!isAdAgency && isNew) || isComplete || isPending)
                 GestureDetector(
                   onTap: onView,
                   child: Text(
@@ -191,25 +195,54 @@ class JobOfferCard extends StatelessWidget {
           ),
 
           if (isNew) ...[
+            if (isAdAgency) ...[
+              SizedBox(height: 10.h),
+              _RequoteCountdown(
+                initialMinutes: job.timeLeftToRequoteMinutes ?? 0,
+              ),
+            ],
+
             SizedBox(height: 12.h),
+
             Row(
               children: [
                 Expanded(
                   child: CustomButton(
                     onTap: onAccept,
-                    btnText: 'common_accept'.tr,
+                    btnText: isAdAgency ? 'Accept Quote' : 'common_accept'.tr,
                     textColor: AppPalette.white,
                   ),
                 ),
                 SizedBox(width: 10.w),
                 Expanded(
                   child: CustomButton(
-                    onTap: onDecline,
-                    btnText: 'common_decline'.tr,
+                    onTap: isAdAgency ? onView : onDecline,
+                    btnText: isAdAgency ? 'View Details' : 'common_decline'.tr,
                     btnColor: AppPalette.defaultFill,
                   ),
                 ),
               ],
+            ),
+
+            if (isAdAgency) ...[
+              SizedBox(height: 8.h),
+              Text(
+                _requoteHintText(job.timeLeftToRequoteMinutes),
+                style: TextStyle(
+                  fontSize: 11.sp,
+                  color: AppPalette.defaultStroke,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+            ],
+          ],
+
+          if (isQuoted) ...[
+            SizedBox(height: 12.h),
+            CustomButton(
+              onTap: onView,
+              btnText: 'View Details',
+              textColor: AppPalette.white,
             ),
           ],
 
@@ -268,4 +301,104 @@ class JobOfferCard extends StatelessWidget {
       }),
     );
   }
+}
+
+class _RequoteCountdown extends StatefulWidget {
+  final int initialMinutes;
+  const _RequoteCountdown({required this.initialMinutes});
+
+  @override
+  State<_RequoteCountdown> createState() => _RequoteCountdownState();
+}
+
+class _RequoteCountdownState extends State<_RequoteCountdown> {
+  Timer? _timer;
+  late int _remainingSeconds;
+
+  @override
+  void initState() {
+    super.initState();
+    _remainingSeconds =
+        (widget.initialMinutes <= 0 ? 0 : widget.initialMinutes) * 60;
+
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      if (_remainingSeconds <= 0) {
+        _timer?.cancel();
+        return;
+      }
+      setState(() => _remainingSeconds -= 1);
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _RequoteCountdown oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialMinutes != widget.initialMinutes) {
+      _remainingSeconds =
+          (widget.initialMinutes <= 0 ? 0 : widget.initialMinutes) * 60;
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  String _formatHHMM(int seconds) {
+    final totalMinutes = seconds ~/ 60;
+    final h = totalMinutes ~/ 60;
+    final m = totalMinutes % 60;
+    final hh = h.toString().padLeft(2, '0');
+    final mm = m.toString().padLeft(2, '0');
+    return '$hh H : $mm M';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final text = _formatHHMM(_remainingSeconds);
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          Icons.hourglass_bottom_rounded,
+          size: 16.sp,
+          color: AppPalette.complemetary,
+        ),
+        SizedBox(width: 8.w),
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: 16.sp,
+            fontWeight: FontWeight.w700,
+            color: AppPalette.complemetary,
+          ),
+        ),
+        SizedBox(width: 10.w),
+        Text(
+          'Left To Requote',
+          style: TextStyle(
+            fontSize: 14.sp,
+            fontWeight: FontWeight.w600,
+            color: AppPalette.primary,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+String _formatDeadline(DateTime dt) {
+  // Example: "12 Dec, 2025, 12:00pm"
+  final raw = DateFormat('dd MMM, yyyy, h:mma').format(dt);
+  return raw.replaceAll('AM', 'am').replaceAll('PM', 'pm');
+}
+
+String _requoteHintText(int? minutes) {
+  final m = minutes ?? 0;
+  if (m <= 0) return 'Requote window expired';
+  final deadline = DateTime.now().add(Duration(minutes: m));
+  return 'Request to requote within ${_formatDeadline(deadline)}';
 }

@@ -29,6 +29,7 @@ class CampaignService {
     int page = 1,
     int limit = 10,
     String? search,
+    String? niche,
   }) async {
     final res = await _api.dio.get(
       '/client/agencies',
@@ -36,6 +37,7 @@ class CampaignService {
         'page': page,
         'limit': limit,
         if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
+        if (niche != null && niche.trim().isNotEmpty) 'niche': niche.trim(),
       },
     );
 
@@ -522,15 +524,34 @@ class CampaignService {
     int limit = 10,
   }) async {
     final res = await _api.dio.get(
-      '/client/search/influencers',
+      '/client/influencers',
       queryParameters: {
         if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
         'page': page,
         'limit': limit,
       },
     );
-    final data = _expectMap(res.data, 'search influencers');
-    final list = (data['data'] as List?) ?? const [];
+    final raw = res.data;
+    final List<dynamic> list;
+
+    if (raw is List) {
+      list = raw;
+    } else if (raw is Map) {
+      final data = Map<String, dynamic>.from(raw);
+      final nested = data['data'];
+      if (nested is List) {
+        list = nested;
+      } else if (nested is Map && nested['influencers'] is List) {
+        list = nested['influencers'] as List;
+      } else if (data['influencers'] is List) {
+        list = data['influencers'] as List;
+      } else {
+        list = const [];
+      }
+    } else {
+      list = const [];
+    }
+
     return list
         .whereType<Map>()
         .map((e) => Map<String, dynamic>.from(e))
@@ -588,7 +609,9 @@ class CampaignService {
   Future<Map<String, dynamic>> fetchInfluencerSubmissionDetails({
     required String submissionId,
   }) async {
-    final res = await _api.dio.get('/campaign/influencer/submissions/$submissionId');
+    final res = await _api.dio.get(
+      '/campaign/influencer/submissions/$submissionId',
+    );
     return _expectMap(res.data, 'influencer submission details');
   }
 

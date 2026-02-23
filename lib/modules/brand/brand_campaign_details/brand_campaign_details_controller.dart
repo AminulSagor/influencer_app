@@ -1,8 +1,8 @@
+import 'dart:developer' as dev;
+
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/models/job_item.dart';
@@ -10,6 +10,12 @@ import '../../../core/services/campaign_service.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../create_campaign/create_campaign_controller.dart';
 import '../../../core/services/api_error_handler.dart';
+import 'widgets/confirm_budget_dialog.dart';
+import 'widgets/fund_campaign_dialog.dart';
+import 'widgets/paid_ad_requote_dialog.dart';
+import 'widgets/requote_dialog.dart';
+import 'widgets/upload_another_asset_dialog.dart';
+import 'widgets/upload_another_brand_asset_dialog.dart';
 
 enum CampaignProgressStep { submitted, quoted, paid, promoting, completed }
 
@@ -78,31 +84,41 @@ class BrandCampaignDetailsController extends GetxController {
     return v == 'paidad' || v == 'paid_ad' || v == 'paid-ad';
   }
 
+  bool get isPendingAgency {
+    return isPaidAd && campaignStatus.value.contains('pending_agency');
+  }
+
+  bool get isAgencyAccepet {
+    return isPaidAd && campaignStatus.value.contains('agency_accepted');
+  }
+
   // Top Card
   final campaignTitle = ''.obs;
   final budgetText = ''.obs;
 
-  // PaidAd: targeting row (chip)
-  final targetingText = ''.obs;
-
   // Optional: for other types
   final influencers = <String>[].obs;
-  final platforms = <IconData>[].obs;
+  final platformsImagePath = <String>['assets/icons/instagram.png'].obs;
 
   final daysRemaining = 0.obs;
   final deadlineDateText = ''.obs;
+  final campaignStatus = ''.obs;
   final budgetStatusText = 'brand_campaign_details_budget_pending'.tr.obs;
+  final paymentStatus = ''.obs;
   final dueAmount = 0.obs;
   final paidAmount = 0.obs;
   final RxnString selectedInfluencerId = RxnString();
 
   // Progress (no field in JobItem yet, keep default)
-  final progressStep = CampaignProgressStep.quoted.obs;
+  final progressStep = CampaignProgressStep.submitted.obs;
 
   // Quote
   final baseBudget = 0.obs;
   final vatAmount = 0.obs;
   int get totalCost => baseBudget.value + vatAmount.value;
+
+  final isYourTurn = false.obs;
+  final showDueButton = false.obs;
 
   // Milestones
   final milestones = <Milestone>[].obs;
@@ -150,9 +166,9 @@ class BrandCampaignDetailsController extends GetxController {
     // 1) Try to load from navigation args (JobItem or {job: JobItem})
     final argJob = _extractJob(arguments);
     if (argJob != null) {
+      dev.log('JOB FIND: $argJob');
       job = argJob;
       _loadFromJob(argJob);
-      _applyFallbacks();
       _loadFromApiIfPossible();
       return;
     }
@@ -161,7 +177,6 @@ class BrandCampaignDetailsController extends GetxController {
     if (Get.isRegistered<CreateCampaignController>()) {
       final c = Get.find<CreateCampaignController>();
       _loadFromCreateCampaign(c);
-      _applyFallbacks();
       _loadFromApiIfPossible();
       return;
     }
@@ -222,10 +237,7 @@ class BrandCampaignDetailsController extends GetxController {
       return;
     }
     if (list.any((m) => m.status == MilestoneStatus.inReview)) {
-      milestoneStatusLabel.value = trOr(
-        'brand_campaign_details_in_review',
-        'In Review',
-      );
+      milestoneStatusLabel.value = trOr('ms_in_review', 'In Review');
       return;
     }
     if (list.every((m) => m.isApproved || m.isPaid)) {
@@ -246,9 +258,6 @@ class BrandCampaignDetailsController extends GetxController {
     if (args is Map) {
       final ct = args['campaignType'];
       if (ct is String) campaignType.value = ct;
-
-      final tg = args['targeting'];
-      if (tg is String) targetingText.value = tg;
     }
   }
 
@@ -382,7 +391,6 @@ class BrandCampaignDetailsController extends GetxController {
       loadError.value = e.toString();
     } finally {
       isLoading.value = false;
-      _applyFallbacks();
     }
   }
 
@@ -390,7 +398,9 @@ class BrandCampaignDetailsController extends GetxController {
     if (_didProbeInfluencersProgress) return;
 
     final result = await ApiErrorHandler.call(
-      () => _campaignService.fetchClientInfluencersProgress(campaignId: campaignId),
+      () => _campaignService.fetchClientInfluencersProgress(
+        campaignId: campaignId,
+      ),
       showError: false,
     );
 
@@ -461,18 +471,12 @@ class BrandCampaignDetailsController extends GetxController {
     if (vat > 0) vatAmount.value = vat;
 
     // Budget status
-    final dueAmount = _numToDouble(data['dueAmount']);
-    final paid = _numToDouble(data['paidAmount']);
+    paymentStatus.value = data['paymentStatus'];
+    dueAmount.value = _numToDouble(data['paymentInfo']['dueAmount']).round();
+    final paid = _numToDouble(data['paymentInfo']['paidAmount']);
     this.dueAmount.value = dueAmount.round();
     paidAmount.value = paid.round();
-    if (dueAmount <= 0) {
-      budgetStatusText.value = trOr(
-        'brand_campaign_details_budget_paid',
-        'Paid',
-      );
-    } else {
-      budgetStatusText.value = 'brand_campaign_details_budget_pending'.tr;
-    }
+    showDueButton.value = data['paymentInfo']['showPayDueButton'];
 
     // Brief
     campaignGoals.value = (data['campaignGoals'] ?? '').toString().trim();
@@ -518,11 +522,16 @@ class BrandCampaignDetailsController extends GetxController {
         ? response['data'] as Map<String, dynamic>
         : response;
 
-    final rawStatus =
-        (data['status'] ?? data['campaignStatus'] ?? data['progress'])
-            ?.toString()
-            .toLowerCase()
-            .trim();
+    final rawStatus = (data['campaignStatus'])?.toString().toLowerCase().trim();
+    campaignStatus.value = rawStatus ?? '';
+
+    if (isPendingAgency) {
+      budgetStatusText.value =
+          'brand_campaign_details_agency_confirmation_pending'.tr;
+
+      progressStep.value = CampaignProgressStep.quoted;
+      return;
+    }
 
     if (rawStatus == null || rawStatus.isEmpty) return;
 
@@ -530,11 +539,13 @@ class BrandCampaignDetailsController extends GetxController {
       progressStep.value = CampaignProgressStep.completed;
       return;
     }
-    if (rawStatus.contains('promot')) {
+    if (rawStatus.contains('promot') ||
+        rawStatus.contains('active') ||
+        rawStatus.contains('accept')) {
       progressStep.value = CampaignProgressStep.promoting;
       return;
     }
-    if (rawStatus.contains('paid') || rawStatus.contains('payment')) {
+    if (rawStatus.contains('pending') || rawStatus.contains('active')) {
       progressStep.value = CampaignProgressStep.paid;
       return;
     }
@@ -681,12 +692,14 @@ class BrandCampaignDetailsController extends GetxController {
   }
 
   int _numToInt(dynamic value) {
+    if (value is double) return value.toInt();
     if (value is num) return value.toInt();
-    if (value is String) return int.tryParse(value) ?? 0;
+    if (value is String) return (double.tryParse(value) ?? 0.0).toInt();
     return 0;
   }
 
   double _numToDouble(dynamic value) {
+    if (value is double) return value;
     if (value is num) return value.toDouble();
     if (value is String) return double.tryParse(value) ?? 0.0;
     return 0.0;
@@ -818,9 +831,9 @@ class BrandCampaignDetailsController extends GetxController {
     if (budgetText.value.trim().isEmpty) budgetText.value = '৳11,000';
   }
 
-  void _applyFallbacks() {
-    _recomputeMilestoneStatusLabel();
-  }
+  // void _applyFallbacks() {
+  //   _recomputeMilestoneStatusLabel();
+  // }
 
   // -------------------------
   // UI Actions
@@ -835,14 +848,17 @@ class BrandCampaignDetailsController extends GetxController {
   void setRating(int v) {
     final next = v.clamp(0, 5);
     rating.value = next;
+  }
 
+  void provideRating() async {
     final campaignId = _extractCampaignId(arguments);
     if (campaignId == null || campaignId.trim().isEmpty) return;
-    if (next <= 0) return;
+    final rate = rating.value;
+    if (rate <= 0) return;
 
     if (isPaidAd) {
       ApiErrorHandler.call(
-        () => _campaignService.rateAgency(campaignId: campaignId, rating: next),
+        () => _campaignService.rateAgency(campaignId: campaignId, rating: rate),
         showError: false,
       );
       return;
@@ -861,29 +877,33 @@ class BrandCampaignDetailsController extends GetxController {
       () => _campaignService.rateInfluencer(
         campaignId: campaignId,
         influencerId: influencerId,
-        rating: next,
+        rating: rate,
       ),
       showError: false,
     );
   }
 
   void onRequestQuote() {
+    dev.log('Your turn: $isYourTurn');
+    if (!isYourTurn.value) return;
+
     if (isPaidAd) {
-      _openPaidAdRequoteDialog(); // new UI (your screenshots 1 & 2)
+      _openPaidAdRequoteDialog();
     } else {
-      _openRequoteDialog(); // keep your previous one (already in file)
+      _openRequoteDialog();
     }
   }
 
   Future<void> onAcceptQuote() async {
-    final ok = await _acceptQuoteRequest();
-    if (!ok) return;
+    if (!isYourTurn.value) return;
 
     if (isPaidAd) {
       setPaidAdTab(0);
-      // _openConfirmBudgetDialog(); // new UI (your screenshots 3 & 4)
+      _openConfirmBudgetDialog();
     } else {
-      _openFundCampaignDialog(); // keep your previous one
+      final ok = await _acceptQuoteRequest();
+      if (!ok) return;
+      openFundCampaignDialog();
     }
   }
 
@@ -907,7 +927,7 @@ class BrandCampaignDetailsController extends GetxController {
         agencyId: offer.agencyId,
       );
       await _loadFromApiIfPossible();
-      _openFundCampaignDialog();
+      openFundCampaignDialog();
     } catch (e) {
       Get.snackbar(trOr('common_error', 'Error'), _errorMessage(e));
     } finally {
@@ -1059,9 +1079,6 @@ class BrandCampaignDetailsController extends GetxController {
   List<String> get dosLines => _lines(dosText.value);
   List<String> get dontsLines => _lines(dontsText.value);
 
-  // ✅ same behavior as CreateCampaign Step 5 dialog (content assets)
-  final TextEditingController _assetTitleCtrl = TextEditingController();
-
   IconData _iconForAsset(JobAssetKind kind) {
     switch (kind) {
       case JobAssetKind.image:
@@ -1131,432 +1148,19 @@ class BrandCampaignDetailsController extends GetxController {
   }
 
   void openUploadAnotherAssetDialog() {
-    _assetTitleCtrl.clear();
-
-    final pickedName = RxnString();
-    final pickedBytes = RxnInt();
-    final pickedPath = RxnString();
-    final pickedKind = JobAssetKind.other.obs;
-    final isPicking = false.obs;
-
-    Future<void> pickFile() async {
-      try {
-        isPicking.value = true;
-
-        final result = await FilePicker.platform.pickFiles(
-          allowMultiple: false,
-          type: FileType.any,
-          withData: false,
-        );
-
-        if (result == null || result.files.isEmpty) return;
-
-        final f = result.files.single;
-        pickedName.value = f.name;
-        pickedBytes.value = f.size;
-        pickedPath.value = f.path;
-        pickedKind.value = _guessAssetKind(f.name);
-      } finally {
-        isPicking.value = false;
-      }
-    }
-
-    const primary = Color(0xFF2F4F1F);
-    const bg = Color(0xFFF6F7F7);
-    const softBorder = Color(0xFFBFD7A5);
-
-    Get.dialog(
-      Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: EdgeInsets.symmetric(horizontal: 18.w),
-        child: Container(
-          padding: EdgeInsets.all(16.w),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18.r),
-            border: Border.all(color: Colors.black12),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'brand_campaign_details_upload_another_asset'.tr,
-                      style: TextStyle(
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w800,
-                        color: primary,
-                      ),
-                    ),
-                  ),
-                  InkWell(
-                    borderRadius: BorderRadius.circular(999.r),
-                    onTap: () => Get.back(),
-                    child: Padding(
-                      padding: EdgeInsets.all(6.w),
-                      child: Icon(
-                        Icons.close,
-                        size: 20.sp,
-                        color: primary.withOpacity(.6),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              14.h.verticalSpace,
-              TextField(
-                controller: _assetTitleCtrl,
-                decoration: InputDecoration(
-                  hintText: 'create_campaign_asset_name_hint'.tr,
-                  filled: true,
-                  fillColor: bg,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 14.w,
-                    vertical: 12.h,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.r),
-                    borderSide: const BorderSide(color: Colors.black12),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.r),
-                    borderSide: const BorderSide(color: Colors.black12),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.r),
-                    borderSide: const BorderSide(color: softBorder, width: 1.4),
-                  ),
-                ),
-              ),
-              12.h.verticalSpace,
-              Obx(() {
-                return SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: isPicking.value ? null : pickFile,
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: Size(double.infinity, 46.h),
-                      side: const BorderSide(color: softBorder),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.r),
-                      ),
-                    ),
-                    icon: Icon(
-                      Icons.upload_outlined,
-                      color: primary.withOpacity(.7),
-                    ),
-                    label: Text(
-                      isPicking.value
-                          ? 'create_campaign_picking_file'.tr
-                          : 'create_campaign_pick_file'.tr,
-                      style: TextStyle(
-                        color: primary.withOpacity(.75),
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                );
-              }),
-              10.h.verticalSpace,
-              Obx(() {
-                final name = pickedName.value;
-                final bytes = pickedBytes.value;
-
-                if (name == null || bytes == null) {
-                  return Container(
-                    width: double.infinity,
-                    padding: EdgeInsets.all(12.w),
-                    decoration: BoxDecoration(
-                      color: bg,
-                      borderRadius: BorderRadius.circular(12.r),
-                      border: Border.all(color: Colors.black12),
-                    ),
-                    child: Text(
-                      'create_campaign_no_file_selected'.tr,
-                      style: TextStyle(
-                        fontSize: 12.5.sp,
-                        color: Colors.black54,
-                      ),
-                    ),
-                  );
-                }
-
-                final ext = _extUpper(name);
-                final sizeText = _formatBytes(bytes);
-
-                return Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.all(12.w),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF7FAF3),
-                    borderRadius: BorderRadius.circular(12.r),
-                    border: Border.all(color: softBorder),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        _iconForAsset(pickedKind.value),
-                        color: primary.withOpacity(.7),
-                      ),
-                      10.w.horizontalSpace,
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 13.5.sp,
-                                fontWeight: FontWeight.w800,
-                                color: primary.withOpacity(.8),
-                              ),
-                            ),
-                            2.h.verticalSpace,
-                            Text(
-                              '$ext • $sizeText',
-                              style: TextStyle(
-                                fontSize: 12.sp,
-                                fontWeight: FontWeight.w600,
-                                color: primary.withOpacity(.55),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }),
-              14.h.verticalSpace,
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Get.back(),
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: Size(double.infinity, 46.h),
-                        side: const BorderSide(color: Colors.black12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12.r),
-                        ),
-                      ),
-                      child: Text('common_cancel'.tr),
-                    ),
-                  ),
-                  12.w.horizontalSpace,
-                  Expanded(
-                    child: Obx(() {
-                      final canSave =
-                          pickedName.value != null && pickedBytes.value != null;
-
-                      return ElevatedButton(
-                        onPressed: canSave
-                            ? () {
-                                final name = pickedName.value!;
-                                final bytes = pickedBytes.value!;
-                                final path = pickedPath.value;
-
-                                final ext = _extUpper(name);
-                                final meta = '$ext – ${_formatBytes(bytes)}';
-
-                                final customTitle = _assetTitleCtrl.text.trim();
-                                final fallbackTitle = _filenameNoExt(name);
-                                final title = customTitle.isNotEmpty
-                                    ? customTitle
-                                    : fallbackTitle;
-
-                                contentAssets.add(
-                                  JobAsset(
-                                    title: title,
-                                    meta: meta,
-                                    kind: pickedKind.value,
-                                    pathOrUrl: path,
-                                  ),
-                                );
-
-                                Get.back();
-                              }
-                            : null,
-                        style: ElevatedButton.styleFrom(
-                          minimumSize: Size(double.infinity, 46.h),
-                          backgroundColor: primary.withOpacity(
-                            canSave ? .75 : .35,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12.r),
-                          ),
-                          elevation: 0,
-                        ),
-                        child: Text('common_done'.tr),
-                      );
-                    }),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-      barrierDismissible: false,
+    UploadAnotherAssetDialog.show(
+      contentAssets: contentAssets,
+      guessAssetKind: _guessAssetKind,
+      iconForAsset: _iconForAsset,
+      formatBytes: _formatBytes,
+      extUpper: _extUpper,
+      filenameNoExt: _filenameNoExt,
     );
   }
 
   // ✅ very simple "add brand asset" dialog (link-based)
   void openUploadAnotherBrandAssetDialog() {
-    final titleCtrl = TextEditingController();
-    final urlCtrl = TextEditingController();
-
-    const primary = Color(0xFF2F4F1F);
-    const bg = Color(0xFFF6F7F7);
-    const softBorder = Color(0xFFBFD7A5);
-
-    Get.dialog(
-      Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: EdgeInsets.symmetric(horizontal: 18.w),
-        child: Container(
-          padding: EdgeInsets.all(16.w),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18.r),
-            border: Border.all(color: Colors.black12),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'brand_campaign_details_upload_another_brand_asset'.tr,
-                      style: TextStyle(
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w800,
-                        color: primary,
-                      ),
-                    ),
-                  ),
-                  InkWell(
-                    borderRadius: BorderRadius.circular(999.r),
-                    onTap: () => Get.back(),
-                    child: Padding(
-                      padding: EdgeInsets.all(6.w),
-                      child: Icon(
-                        Icons.close,
-                        size: 20.sp,
-                        color: primary.withOpacity(.6),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              14.h.verticalSpace,
-              TextField(
-                controller: titleCtrl,
-                decoration: InputDecoration(
-                  hintText: 'brand_campaign_details_brand_asset_title_hint'.tr,
-                  filled: true,
-                  fillColor: bg,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 14.w,
-                    vertical: 12.h,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.r),
-                    borderSide: const BorderSide(color: Colors.black12),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.r),
-                    borderSide: const BorderSide(color: Colors.black12),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.r),
-                    borderSide: const BorderSide(color: softBorder, width: 1.4),
-                  ),
-                ),
-              ),
-              10.h.verticalSpace,
-              TextField(
-                controller: urlCtrl,
-                decoration: InputDecoration(
-                  hintText: 'brand_campaign_details_brand_asset_link_hint'.tr,
-                  filled: true,
-                  fillColor: bg,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 14.w,
-                    vertical: 12.h,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.r),
-                    borderSide: const BorderSide(color: Colors.black12),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.r),
-                    borderSide: const BorderSide(color: Colors.black12),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.r),
-                    borderSide: const BorderSide(color: softBorder, width: 1.4),
-                  ),
-                ),
-              ),
-              14.h.verticalSpace,
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Get.back(),
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: Size(double.infinity, 46.h),
-                        side: const BorderSide(color: Colors.black12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12.r),
-                        ),
-                      ),
-                      child: Text('common_cancel'.tr),
-                    ),
-                  ),
-                  12.w.horizontalSpace,
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        final t = titleCtrl.text.trim();
-                        final u = urlCtrl.text.trim();
-                        if (t.isEmpty) return;
-
-                        brandAssets.add(
-                          BrandAssetLink(
-                            title: t,
-                            subtitle: 'Page Link',
-                            icon: Icons.link_rounded,
-                            url: u.isEmpty ? null : u,
-                          ),
-                        );
-                        Get.back();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: Size(double.infinity, 46.h),
-                        backgroundColor: primary.withOpacity(.75),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12.r),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: Text('common_done'.tr),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-      barrierDismissible: false,
-    );
+    UploadAnotherBrandAssetDialog.show(brandAssets: brandAssets);
   }
 
   String trOr(String key, String fallback) {
@@ -1596,996 +1200,85 @@ class BrandCampaignDetailsController extends GetxController {
 
   //void _openPaidAdRequoteDialog() {}
   void _openPaidAdRequoteDialog() {
-    const primary = Color(0xFF2F4F1F);
-    const borderGreen = Color(0xFFBFD7A5);
-    const softFill = Color(0xFFF7FAF3);
-
-    const int vatPercent = 15;
-    const int minAgencyPercent = 5;
-    const int maxAgencyPercent = 15;
-    const double fxRate = 122.37; // avg BDT/$
-
-    final startBudget = baseBudget.value > 0 ? baseBudget.value : 100000;
-
-    final budgetRx = startBudget.obs;
-    final vatRx = 0.obs;
-    final totalRx = 0.obs;
-
-    final minFeeRx = 0.obs;
-    final maxFeeRx = 0.obs;
-
-    final minExclRx = 0.obs;
-    final maxExclRx = 0.obs;
-
-    final minUsdRx = 0.0.obs;
-    final maxUsdRx = 0.0.obs;
-
-    final budgetCtrl = TextEditingController(text: _fmt(startBudget));
-
-    void recalc(int budget) {
-      final b = budget.clamp(0, 999999999);
-      final vat = (b * vatPercent / 100).round();
-      final total = b + vat;
-
-      final minFee = (total * (minAgencyPercent / 100)).round();
-      final maxFee = (total * (maxAgencyPercent / 100)).round();
-
-      final minExcl = (total - maxFee).clamp(0, total);
-      final maxExcl = (total - minFee).clamp(0, total);
-
-      budgetRx.value = b;
-      vatRx.value = vat;
-      totalRx.value = total;
-
-      minFeeRx.value = minFee;
-      maxFeeRx.value = maxFee;
-
-      minExclRx.value = minExcl;
-      maxExclRx.value = maxExcl;
-
-      minUsdRx.value = fxRate <= 0 ? 0 : (minExcl / fxRate);
-      maxUsdRx.value = fxRate <= 0 ? 0 : (maxExcl / fxRate);
-    }
-
-    recalc(startBudget);
-
-    Get.dialog(
-      Material(
-        type: MaterialType.transparency,
-        child: Center(
-          child: Container(
-            margin: EdgeInsets.symmetric(horizontal: 18.w),
-            padding: EdgeInsets.all(16.w),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(22.r),
-              border: Border.all(color: Colors.black12),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  trOr('brand_campaign_requote_title', 'Requote'),
-                  style: TextStyle(
-                    fontSize: 15.5.sp,
-                    fontWeight: FontWeight.w900,
-                    color: primary.withOpacity(.75),
-                  ),
-                ),
-                8.h.verticalSpace,
-                Text(
-                  trOr(
-                    'brand_campaign_requote_subtitle',
-                    'Requote your campaign budget',
-                  ),
-                  style: TextStyle(
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.black,
-                  ),
-                ),
-                12.h.verticalSpace,
-
-                TextField(
-                  controller: budgetCtrl,
-                  keyboardType: TextInputType.number,
-                  textAlign: TextAlign.center,
-                  onChanged: (v) => recalc(_parseAmount(v)),
-                  decoration: InputDecoration(
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 16.w,
-                      vertical: 14.h,
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14.r),
-                      borderSide: const BorderSide(color: borderGreen),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14.r),
-                      borderSide: const BorderSide(color: primary, width: 1.4),
-                    ),
-                  ),
-                  style: TextStyle(
-                    fontSize: 18.sp,
-                    fontWeight: FontWeight.w900,
-                    color: primary.withOpacity(.75),
-                  ),
-                ),
-
-                14.h.verticalSpace,
-                Text(
-                  trOr(
-                    'brand_campaign_requote_overview',
-                    'New Requote Overview',
-                  ),
-                  style: TextStyle(
-                    fontSize: 14.5.sp,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.black,
-                  ),
-                ),
-                10.h.verticalSpace,
-
-                // Box 1: base/vat/total
-                Obx(() {
-                  return Container(
-                    width: double.infinity,
-                    padding: EdgeInsets.all(14.w),
-                    decoration: BoxDecoration(
-                      color: softFill,
-                      borderRadius: BorderRadius.circular(16.r),
-                      border: Border.all(color: borderGreen),
-                    ),
-                    child: Column(
-                      children: [
-                        _kv(
-                          left: 'Base Campaign Budget',
-                          right: _fmt(budgetRx.value),
-                          color: primary,
-                        ),
-                        8.h.verticalSpace,
-                        _kv(
-                          left: 'VAT/Tax (15%)',
-                          right: _fmt(vatRx.value),
-                          color: primary,
-                        ),
-                        12.h.verticalSpace,
-                        Divider(color: Colors.black12, height: 1),
-                        12.h.verticalSpace,
-                        _kv(
-                          left: 'Total Campaign Cost',
-                          right: _fmt(totalRx.value),
-                          color: primary,
-                          strong: true,
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-
-                12.h.verticalSpace,
-
-                // Box 2: agency fee range + excl + usd
-                Obx(() {
-                  return Container(
-                    width: double.infinity,
-                    padding: EdgeInsets.all(14.w),
-                    decoration: BoxDecoration(
-                      color: softFill,
-                      borderRadius: BorderRadius.circular(16.r),
-                      border: Border.all(color: borderGreen),
-                    ),
-                    child: Column(
-                      children: [
-                        _rangeKv(
-                          left: 'Agency Fee (5 - 15%)',
-                          right:
-                              '${_fmt(minFeeRx.value)} – ${_fmt(maxFeeRx.value)}',
-                          color: primary,
-                        ),
-                        10.h.verticalSpace,
-                        _rangeKv(
-                          left: 'Campaign Budget Excluding Agency Fee',
-                          right:
-                              '${_fmt(minExclRx.value)} – ${_fmt(maxExclRx.value)}',
-                          color: primary,
-                        ),
-                        10.h.verticalSpace,
-                        _rangeKv(
-                          left: 'In Dollars (Based On Avg. 122.37 BDT/\$)',
-                          right:
-                              '\$${minUsdRx.value.toStringAsFixed(2)} – \$${maxUsdRx.value.toStringAsFixed(2)}',
-                          color: primary,
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-
-                16.h.verticalSpace,
-                SizedBox(
-                  width: double.infinity,
-                  height: 46.h,
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      await _submitRequote(
-                        proposedBaseBudget: budgetRx.value,
-                        vatAmountValue: vatRx.value,
-                        closeDialog: true,
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primary.withOpacity(.65),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14.r),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: Text(
-                      trOr('brand_campaign_requote_submit', 'Requote To Admin'),
-                      style: TextStyle(
-                        fontSize: 13.5.sp,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-      barrierDismissible: true,
-    );
-  }
-
-  Widget _rangeKv({
-    required String left,
-    required String right,
-    required Color color,
-  }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Text(
-            left,
-            style: TextStyle(
-              fontSize: 12.sp,
-              fontWeight: FontWeight.w800,
-              color: Colors.black87,
-            ),
-          ),
-        ),
-        10.w.horizontalSpace,
-        Text(
-          right,
-          style: TextStyle(
-            fontSize: 13.sp,
-            fontWeight: FontWeight.w900,
-            color: color.withOpacity(.75),
-          ),
-        ),
-      ],
+    PaidAdRequoteDialog.show(
+      initialBaseBudget: baseBudget.value,
+      parseAmount: _parseAmount,
+      fmt: _fmt,
+      trOr: trOr,
+      onSubmit: _submitRequote,
     );
   }
 
   void _openRequoteDialog() {
-    const primary = Color(0xFF2F4F1F);
-    const borderGreen = Color(0xFFBFD7A5);
-    const softFill = Color(0xFFF7FAF3);
-
-    final vatPercent = 15;
-    final budget = baseBudget.value <= 0 ? 100000 : baseBudget.value;
-
-    final budgetRx = budget.obs;
-    final vatRx = (budget * vatPercent ~/ 100).obs;
-    final totalRx = (budgetRx.value + vatRx.value).obs;
-
-    final budgetCtrl = TextEditingController(text: _fmt(budget));
-
-    void recalcFrom(int b) {
-      budgetRx.value = b;
-      vatRx.value = (b * vatPercent / 100).round();
-      totalRx.value = b + vatRx.value;
-    }
-
-    recalcFrom(budgetRx.value);
-
-    Get.dialog(
-      Material(
-        type: MaterialType.transparency,
-        child: Center(
-          child: Container(
-            margin: EdgeInsets.symmetric(horizontal: 18.w),
-            padding: EdgeInsets.all(16.w),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(22.r),
-              border: Border.all(color: Colors.black12),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  trOr('brand_campaign_requote_title', 'Requote'),
-                  style: TextStyle(
-                    fontSize: 15.5.sp,
-                    fontWeight: FontWeight.w900,
-                    color: primary.withOpacity(.75),
-                  ),
-                ),
-                8.h.verticalSpace,
-                Text(
-                  trOr(
-                    'brand_campaign_requote_subtitle',
-                    'Requote your campaign budget',
-                  ),
-                  style: TextStyle(
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.black,
-                  ),
-                ),
-                12.h.verticalSpace,
-
-                // Input
-                TextField(
-                  controller: budgetCtrl,
-                  keyboardType: TextInputType.number,
-                  onChanged: (v) {
-                    final b = _parseAmount(v);
-                    recalcFrom(b);
-                  },
-                  decoration: InputDecoration(
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 16.w,
-                      vertical: 14.h,
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14.r),
-                      borderSide: const BorderSide(color: borderGreen),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14.r),
-                      borderSide: const BorderSide(color: primary, width: 1.4),
-                    ),
-                  ),
-                  style: TextStyle(
-                    fontSize: 18.sp,
-                    fontWeight: FontWeight.w900,
-                    color: primary.withOpacity(.75),
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-
-                14.h.verticalSpace,
-                Text(
-                  trOr(
-                    'brand_campaign_requote_overview',
-                    'New Requote Overview',
-                  ),
-                  style: TextStyle(
-                    fontSize: 14.5.sp,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.black,
-                  ),
-                ),
-                10.h.verticalSpace,
-
-                // Overview box
-                Obx(() {
-                  return Container(
-                    width: double.infinity,
-                    padding: EdgeInsets.all(14.w),
-                    decoration: BoxDecoration(
-                      color: softFill,
-                      borderRadius: BorderRadius.circular(16.r),
-                      border: Border.all(color: borderGreen),
-                    ),
-                    child: Column(
-                      children: [
-                        _kv(
-                          left: trOr(
-                            'brand_campaign_requote_base',
-                            'Base Campaign Budget',
-                          ),
-                          right: _fmt(budgetRx.value),
-                          color: primary,
-                        ),
-                        8.h.verticalSpace,
-                        _kv(
-                          left: trOr(
-                            'brand_campaign_requote_vat',
-                            'VAT/Tax (15%)',
-                          ),
-                          right: _fmt(vatRx.value),
-                          color: primary,
-                        ),
-                        12.h.verticalSpace,
-                        Divider(color: Colors.black12, height: 1),
-                        12.h.verticalSpace,
-                        _kv(
-                          left: trOr(
-                            'brand_campaign_requote_total',
-                            'Total Campaign Cost',
-                          ),
-                          right: _fmt(totalRx.value),
-                          color: primary,
-                          strong: true,
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-
-                16.h.verticalSpace,
-                SizedBox(
-                  width: double.infinity,
-                  height: 46.h,
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      await _submitRequote(
-                        proposedBaseBudget: budgetRx.value,
-                        vatAmountValue: vatRx.value,
-                        closeDialog: true,
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primary.withOpacity(.65),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14.r),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: Text(
-                      trOr('brand_campaign_requote_submit', 'Requote To Admin'),
-                      style: TextStyle(
-                        fontSize: 13.5.sp,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-      barrierDismissible: true,
-    );
-  }
-
-  Widget _kv({
-    required String left,
-    required String right,
-    required Color color,
-    bool strong = false,
-  }) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            left,
-            style: TextStyle(
-              fontSize: 12.sp,
-              fontWeight: strong ? FontWeight.w900 : FontWeight.w700,
-              color: Colors.black87,
-            ),
-          ),
-        ),
-        Text(
-          right,
-          style: TextStyle(
-            fontSize: strong ? 14.sp : 13.sp,
-            fontWeight: FontWeight.w900,
-            color: color.withOpacity(.75),
-          ),
-        ),
-      ],
+    RequoteDialog.show(
+      initialBaseBudget: baseBudget.value,
+      parseAmount: _parseAmount,
+      fmt: _fmt,
+      trOr: trOr,
+      onSubmit: _submitRequote,
     );
   }
 
   void _openConfirmBudgetDialog() {
-    const primary = Color(0xFF2F4F1F);
-    const borderGreen = Color(0xFFBFD7A5);
-    const softFill = Color(0xFFF7FAF3);
-
-    Get.dialog(
-      Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: EdgeInsets.symmetric(horizontal: 18.w),
-        child: Container(
-          padding: EdgeInsets.all(16.w),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(22.r),
-            border: Border.all(color: Colors.black12),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                trOr('brand_campaign_confirm_title', 'Confirm Budget ?'),
-                style: TextStyle(
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w900,
-                  color: primary.withOpacity(.75),
-                ),
-              ),
-              12.h.verticalSpace,
-
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.all(14.w),
-                decoration: BoxDecoration(
-                  color: softFill,
-                  borderRadius: BorderRadius.circular(16.r),
-                  border: Border.all(color: borderGreen),
-                ),
-                child: Column(
-                  children: [
-                    _kv(
-                      left: 'Base Campaign Budget',
-                      right: _fmt(baseBudget.value),
-                      color: primary,
-                    ),
-                    10.h.verticalSpace,
-                    _kv(
-                      left: 'VAT/Tax (15%)',
-                      right: _fmt(vatAmount.value),
-                      color: primary,
-                    ),
-                  ],
-                ),
-              ),
-
-              14.h.verticalSpace,
-              Text(
-                'Total Campaign Cost',
-                style: TextStyle(
-                  fontSize: 13.sp,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.black87,
-                ),
-              ),
-              6.h.verticalSpace,
-              Text(
-                _fmt(totalCost),
-                style: TextStyle(
-                  fontSize: 30.sp,
-                  fontWeight: FontWeight.w900,
-                  color: primary.withOpacity(.75),
-                ),
-              ),
-
-              18.h.verticalSpace,
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () {
-                        Get.back();
-                        _openPaidAdRequoteDialog();
-                      },
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: Size(double.infinity, 46.h),
-                        side: const BorderSide(color: Colors.black12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14.r),
-                        ),
-                      ),
-                      child: Text(
-                        trOr('brand_campaign_details_requote', 'Requote'),
-                      ),
-                    ),
-                  ),
-                  12.w.horizontalSpace,
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        final ok = await _acceptQuoteRequest();
-                        if (ok) {
-                          Get.back();
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: Size(double.infinity, 46.h),
-                        backgroundColor: primary.withOpacity(.65),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14.r),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: Text(
-                        trOr('brand_campaign_confirm_btn', 'Confirm'),
-                        style: const TextStyle(fontWeight: FontWeight.w900),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-      barrierDismissible: true,
+    ConfirmBudgetDialog.show(
+      baseBudget: baseBudget.value,
+      vatAmount: vatAmount.value,
+      totalCost: totalCost,
+      fmt: _fmt,
+      trOr: trOr,
+      onRequote: _openPaidAdRequoteDialog,
+      onConfirm: _acceptQuoteRequest,
     );
   }
 
-  void _openFundCampaignDialog() {
-    const primary = Color(0xFF2F4F1F);
-    const cardGreen = Color(0xFF5E7D3A);
-    const warnBg = Color(0xFFFFE6CF);
-    const warnBorder = Color(0xFFEF9F59);
+  void openFundCampaignDialog() {
+    final totalDue = dueAmount.value > 0 ? dueAmount.value : totalCost;
 
-    final totalDue = dueAmount.value > 0
-        ? dueAmount.value
-        : (totalCost <= 0 ? 18000 : totalCost);
-    final minPay = (totalDue * 0.5).round();
+    FundCampaignDialog.show(
+      campaignTitle: campaignTitle.value,
+      totalDue: (totalDue <= 0 ? 18000 : totalDue),
+      paidAmount: paidAmount.value,
+      trOr: trOr,
+      fmt: _fmt,
+      parseAmount: _parseAmount,
+      onPay: ({required int amount}) async {
+        final campaignId = _extractCampaignId(arguments);
+        if (campaignId == null || campaignId.trim().isEmpty) {
+          Get.snackbar(
+            trOr('common_error', 'Error'),
+            trOr('brand_campaign_missing_id', 'Missing campaign id.'),
+          );
+          return;
+        }
 
-    final amountRx = totalDue.obs;
-    final amountCtrl = TextEditingController(text: _fmt(totalDue));
-    final methodRx = 'card'.obs;
+        final isDuePayment = showDueButton.value && dueAmount.value > 0;
 
-    void setAmount(int v) {
-      amountRx.value = v;
-      amountCtrl.text = _fmt(v);
-    }
+        try {
+          isLoading.value = true;
+          if (isDuePayment) {
+            await _campaignService.payCampaignDue(
+              campaignId: campaignId,
+              amount: amount,
+            );
+          } else {
+            await _campaignService.payCampaignAmount(
+              campaignId: campaignId,
+              amount: amount,
+            );
+          }
 
-    Get.dialog(
-      Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: EdgeInsets.symmetric(horizontal: 18.w),
-        child: Container(
-          padding: EdgeInsets.all(16.w),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(22.r),
-            border: Border.all(color: Colors.black12),
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  trOr('brand_campaign_fund_title', 'Fund Your Campaign'),
-                  style: TextStyle(
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.w900,
-                    color: primary.withOpacity(.85),
-                  ),
-                ),
-                12.h.verticalSpace,
-
-                // Top green card
-                Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.all(14.w),
-                  decoration: BoxDecoration(
-                    color: cardGreen,
-                    borderRadius: BorderRadius.circular(16.r),
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.campaign_outlined,
-                            color: Colors.white.withOpacity(.9),
-                            size: 18.sp,
-                          ),
-                          10.w.horizontalSpace,
-                          Expanded(
-                            child: Text(
-                              campaignTitle.value.isEmpty
-                                  ? 'Summer Fashion Campaign'
-                                  : campaignTitle.value,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(.95),
-                                fontSize: 12.5.sp,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      10.h.verticalSpace,
-                      Text(
-                        trOr('brand_campaign_fund_total_due', 'Total Due'),
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(.85),
-                          fontSize: 11.5.sp,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      6.h.verticalSpace,
-                      Text(
-                        _fmt(totalDue),
-                        style: TextStyle(
-                          color: const Color(0xFFE9F3D8),
-                          fontSize: 22.sp,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                12.h.verticalSpace,
-
-                // Minimum warning
-                Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.all(12.w),
-                  decoration: BoxDecoration(
-                    color: warnBg,
-                    borderRadius: BorderRadius.circular(14.r),
-                    border: Border.all(color: warnBorder),
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        trOr(
-                          'brand_campaign_fund_minimum_label',
-                          'Minimum Fund Needed To Start The Campaign (50%)',
-                        ),
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: warnBorder,
-                          fontSize: 11.5.sp,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      8.h.verticalSpace,
-                      Text(
-                        _fmt(minPay),
-                        style: TextStyle(
-                          color: warnBorder,
-                          fontSize: 18.sp,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                12.h.verticalSpace,
-
-                // Amount input
-                TextField(
-                  controller: amountCtrl,
-                  keyboardType: TextInputType.number,
-                  onChanged: (v) => amountRx.value = _parseAmount(v),
-                  decoration: InputDecoration(
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 16.w,
-                      vertical: 14.h,
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14.r),
-                      borderSide: const BorderSide(color: Colors.black12),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14.r),
-                      borderSide: BorderSide(color: primary.withOpacity(.7)),
-                    ),
-                  ),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.black54,
-                  ),
-                ),
-
-                10.h.verticalSpace,
-
-                // Quick buttons
-                Row(
-                  children: [
-                    Expanded(
-                      child: _pillBtn(
-                        text: trOr(
-                          'brand_campaign_fund_full',
-                          'Pay In Full (100%)',
-                        ),
-                        onTap: () => setAmount(totalDue),
-                      ),
-                    ),
-                    10.w.horizontalSpace,
-                    Expanded(
-                      child: _pillBtn(
-                        text: trOr(
-                          'brand_campaign_fund_min',
-                          'Pay Minimum (50%)',
-                        ),
-                        onTap: () => setAmount(minPay),
-                      ),
-                    ),
-                  ],
-                ),
-                10.h.verticalSpace,
-                _pillBtn(
-                  text: trOr('brand_campaign_fund_75', 'Pay (75%)'),
-                  onTap: () => setAmount((totalDue * 0.75).round()),
-                ),
-
-                18.h.verticalSpace,
-
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    trOr('brand_campaign_fund_method', 'Payment Method'),
-                    style: TextStyle(
-                      fontSize: 13.sp,
-                      fontWeight: FontWeight.w900,
-                      color: primary.withOpacity(.85),
-                    ),
-                  ),
-                ),
-                10.h.verticalSpace,
-
-                Obx(() {
-                  return DropdownButtonFormField<String>(
-                    value: methodRx.value,
-                    items: [
-                      DropdownMenuItem(
-                        value: 'card',
-                        child: Text(
-                          trOr(
-                            'brand_campaign_fund_card',
-                            'Credit / Debit Card',
-                          ),
-                        ),
-                      ),
-                      DropdownMenuItem(
-                        value: 'bkash',
-                        child: Text(trOr('brand_campaign_fund_bkash', 'bKash')),
-                      ),
-                    ],
-                    onChanged: (v) => methodRx.value = v ?? 'card',
-                    decoration: InputDecoration(
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 14.w,
-                        vertical: 12.h,
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14.r),
-                        borderSide: const BorderSide(color: Colors.black12),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14.r),
-                        borderSide: BorderSide(color: primary.withOpacity(.7)),
-                      ),
-                    ),
-                  );
-                }),
-
-                14.h.verticalSpace,
-                SizedBox(
-                  width: double.infinity,
-                  height: 46.h,
-                  child: Obx(() {
-                    final amt = amountRx.value;
-                    final canPay = amt >= minPay && amt <= totalDue;
-
-                    return ElevatedButton(
-                      onPressed: canPay
-                          ? () async {
-                              final campaignId = _extractCampaignId(arguments);
-                              if (campaignId == null ||
-                                  campaignId.trim().isEmpty) {
-                                Get.snackbar(
-                                  trOr('common_error', 'Error'),
-                                  trOr(
-                                    'brand_campaign_missing_id',
-                                    'Missing campaign id.',
-                                  ),
-                                );
-                                return;
-                              }
-
-                              final amount = amt;
-                              final isDuePayment = paidAmount.value > 0;
-
-                              try {
-                                isLoading.value = true;
-                                if (isDuePayment) {
-                                  await _campaignService.payCampaignDue(
-                                    campaignId: campaignId,
-                                    amount: amount,
-                                  );
-                                } else {
-                                  await _campaignService.payCampaignAmount(
-                                    campaignId: campaignId,
-                                    amount: amount,
-                                  );
-                                }
-
-                                await _loadFromApiIfPossible();
-                                Get.back();
-                                Get.snackbar(
-                                  trOr('brand_campaign_payment', 'Payment'),
-                                  trOr(
-                                    'brand_campaign_payment_success',
-                                    'Payment initiated.',
-                                  ),
-                                );
-                              } catch (e) {
-                                Get.snackbar(
-                                  trOr('common_error', 'Error'),
-                                  _errorMessage(e),
-                                );
-                              } finally {
-                                isLoading.value = false;
-                              }
-                            }
-                          : () {
-                              Get.snackbar(
-                                trOr('common_error', 'Error'),
-                                trOr(
-                                  'brand_campaign_payment_invalid',
-                                  'Amount must be between minimum and total due.',
-                                ),
-                              );
-                            },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: canPay
-                            ? primary.withOpacity(.18)
-                            : Colors.black12,
-                        foregroundColor: canPay
-                            ? Colors.black87
-                            : Colors.black38,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14.r),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: Text(
-                        trOr('brand_campaign_pay_now', 'Pay Now'),
-                        style: TextStyle(fontWeight: FontWeight.w900),
-                      ),
-                    );
-                  }),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-      barrierDismissible: true,
-    );
-  }
-
-  Widget _pillBtn({required String text, required VoidCallback onTap}) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999.r),
-      child: Container(
-        height: 40.h,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: const Color(0xFFEDEDED),
-          borderRadius: BorderRadius.circular(999.r),
-        ),
-        child: Text(
-          text,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 11.5.sp,
-            fontWeight: FontWeight.w800,
-            color: Colors.black87,
-          ),
-        ),
-      ),
+          await _loadFromApiIfPossible();
+          Get.back();
+          Get.snackbar(
+            trOr('brand_campaign_payment', 'Payment'),
+            trOr('brand_campaign_payment_success', 'Payment initiated.'),
+          );
+        } catch (e) {
+          Get.snackbar(trOr('common_error', 'Error'), _errorMessage(e));
+        } finally {
+          isLoading.value = false;
+        }
+      },
     );
   }
 
@@ -2593,22 +1286,27 @@ class BrandCampaignDetailsController extends GetxController {
     final history = await _campaignService.fetchNegotiationHistory(
       campaignId: campaignId,
     );
+
     final data = history['data'] is Map
         ? Map<String, dynamic>.from(history['data'] as Map)
         : const <String, dynamic>{};
+    final campaignInfo = data['campaign'];
+
+    isYourTurn.value = campaignInfo['yourTurn'];
+
     final negotiations = (data['negotiations'] as List?) ?? const [];
 
     if (negotiations.isEmpty) return;
 
-    final latest = negotiations.firstWhere((e) => e is Map, orElse: () => null);
+    final latest = negotiations.last;
     if (latest is! Map) return;
 
     final latestMap = Map<String, dynamic>.from(latest);
     final latestProposedBase = _numToInt(latestMap['proposedBaseBudget']);
+    final proposedTotalBudget = _numToInt(latestMap['proposedTotalBudget']);
     if (latestProposedBase > 0) {
       baseBudget.value = latestProposedBase;
-      final vat =
-          _numToInt(latestMap['proposedTotalBudget']) - latestProposedBase;
+      final vat = proposedTotalBudget - latestProposedBase;
       if (vat > 0) vatAmount.value = vat;
     }
 

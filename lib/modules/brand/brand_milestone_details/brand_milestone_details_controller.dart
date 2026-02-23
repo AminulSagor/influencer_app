@@ -1,3 +1,5 @@
+import 'dart:developer' as dev;
+
 import 'package:get/get.dart';
 import '../../../core/models/job_item.dart';
 import '../../../core/services/api_client.dart';
@@ -11,12 +13,14 @@ class BrandMilestoneDetailsController extends GetxController {
 
   final selectedSubmissionIndex = 0.obs;
   final submissionStatus = SubmissionStatus.inReview.obs;
+  final dynamic args;
+  BrandMilestoneDetailsController(this.args);
 
   @override
   void onInit() {
     super.onInit();
 
-    final args = Get.arguments;
+    dev.log(args.toString());
     if (args is Map) {
       job = (args['job'] as JobItem);
       milestone = (args['milestone'] as Milestone);

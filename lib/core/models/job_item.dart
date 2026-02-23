@@ -47,6 +47,21 @@ class JobItem {
 
   final List<Milestone>? milestones;
 
+  /// ---- NEW (optional) Quote Details (Agency) ----
+  final double? platformFeePercent; // e.g. 2
+  final double? platformFeeAmount; // e.g. adminPlatformFee
+  final double?
+  estimatedProfitAmount; // e.g. estimatedAgencyProfit (before fee)
+  final double? actualProfitAmount; // estimatedProfitAmount - platformFeeAmount
+
+  /// ---- NEW (optional) Spend in USD ----
+  final double?
+  totalCampaignSpent; // use baseBudget or whatever backend provides
+  final double? dollarRate; // BDT per 1 USD (e.g. 122.37)
+  final double? campaignSpentUsd; // totalCampaignSpent / dollarRate
+
+  final int? timeLeftToRequoteMinutes;
+
   const JobItem({
     this.id,
     required this.title,
@@ -75,6 +90,16 @@ class JobItem {
     this.subTitle,
     this.dosText,
     this.dontsText,
+
+    // ✅ NEW
+    this.platformFeePercent,
+    this.platformFeeAmount,
+    this.estimatedProfitAmount,
+    this.actualProfitAmount,
+    this.totalCampaignSpent,
+    this.dollarRate,
+    this.campaignSpentUsd,
+    this.timeLeftToRequoteMinutes,
   });
 }
 
@@ -234,6 +259,7 @@ class Milestone {
   final String? platform;
   final String? deliverable;
   final PromotionTarget? targets;
+  final String? promotionGoal;
 
   /// ✅ NEW (optional) - for Milestone Details screen
   /// e.g. ["Final Report", "2 Stories"]
@@ -257,6 +283,7 @@ class Milestone {
     this.platform,
     this.deliverable,
     this.targets,
+    this.promotionGoal,
 
     /// ✅ NEW (optional)
     this.contentRequirements,
@@ -297,6 +324,7 @@ class Milestone {
     String? platform,
     String? deliverable,
     PromotionTarget? targets,
+    String? promotionGoal,
 
     /// ✅ NEW (optional)
     List<String>? contentRequirements,
@@ -318,6 +346,7 @@ class Milestone {
       platform: platform ?? this.platform,
       deliverable: deliverable ?? this.deliverable,
       targets: targets ?? this.targets,
+      promotionGoal: promotionGoal ?? this.promotionGoal,
       contentRequirements: contentRequirements ?? this.contentRequirements,
       influencerName: influencerName ?? this.influencerName,
       status: status ?? this.status,

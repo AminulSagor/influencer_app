@@ -78,6 +78,8 @@ class CustomButton extends StatelessWidget {
     final hasLeading = leading != null;
     final hasTrailing = trailing != null;
 
+    final bool disabled = isDisabled || onTap == null;
+
     final childContent = FittedBox(
       fit: BoxFit.scaleDown,
       child: Row(
@@ -87,30 +89,63 @@ class CustomButton extends StatelessWidget {
           Text(
             isLoading ? 'Loading..' : btnText,
             style:
-                textStyle ??
-                TextStyle(
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: -0.04,
-                  color: textColor ?? AppPalette.black,
-                ),
+                (textStyle ??
+                        TextStyle(
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: -0.04,
+                          color: textColor ?? AppPalette.black,
+                        ))
+                    .copyWith(
+                      // optional: keep text slightly dim when disabled
+                      color: (textStyle?.color ?? textColor ?? AppPalette.black)
+                          .withAlpha(disabled ? 180 : 255),
+                    ),
           ),
           if (hasTrailing) ...[SizedBox(width: gap), trailing!],
         ],
       ),
     );
 
+    final baseColor = btnColor ?? AppPalette.secondary;
+    final baseBorderColor = borderColor ?? AppPalette.defaultStroke;
+
+    final Color paintedColor = disabled ? baseColor.withAlpha(180) : baseColor;
+
+    final Color paintedBorderColor = disabled
+        ? baseBorderColor.withAlpha(180)
+        : baseBorderColor;
+
+    final Gradient? paintedGradient = gradient == null
+        ? null
+        : (disabled
+              ? LinearGradient(
+                  begin: (gradient is LinearGradient)
+                      ? (gradient as LinearGradient).begin
+                      : Alignment.centerLeft,
+                  end: (gradient is LinearGradient)
+                      ? (gradient as LinearGradient).end
+                      : Alignment.centerRight,
+                  colors: (gradient is LinearGradient)
+                      ? (gradient as LinearGradient).colors
+                            .map((c) => c.withAlpha(180))
+                            .toList()
+                      : const [],
+                  stops: (gradient is LinearGradient)
+                      ? (gradient as LinearGradient).stops
+                      : null,
+                )
+              : gradient);
+
     final button = Container(
       height: height ?? 31.h,
       width: width,
       decoration: BoxDecoration(
-        color: gradient == null ? btnColor ?? AppPalette.secondary : null,
-        gradient: gradient,
+        color: paintedGradient == null ? paintedColor : null,
+        gradient: paintedGradient,
         borderRadius: BorderRadius.circular(borderRadius ?? kBorderRadius.r),
         border: Border.all(
-          color: !showBorder!
-              ? Colors.transparent
-              : borderColor ?? AppPalette.defaultStroke,
+          color: !showBorder! ? Colors.transparent : paintedBorderColor,
           width: borderWidth ?? kBorderWidth0_5,
         ),
       ),
@@ -125,7 +160,7 @@ class CustomButton extends StatelessWidget {
             ),
           ),
         ),
-        onPressed: isDisabled ? null : onTap,
+        onPressed: disabled ? null : onTap,
         child: childContent,
       ),
     );
@@ -137,7 +172,9 @@ class CustomButton extends StatelessWidget {
           strokeWidth: borderWidth ?? 1,
           padding: EdgeInsets.zero,
           radius: Radius.circular(borderRadius ?? kBorderRadius.r),
-          color: borderColor ?? AppPalette.secondary,
+          color: disabled
+              ? (borderColor ?? AppPalette.secondary).withAlpha(180)
+              : (borderColor ?? AppPalette.secondary),
         ),
         child: button,
       );

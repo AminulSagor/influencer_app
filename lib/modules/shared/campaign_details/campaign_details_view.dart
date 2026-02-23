@@ -65,7 +65,7 @@ class CampaignDetailsView extends GetView<CampaignDetailsController> {
                   iconPath: 'assets/icons/terms_condition.png',
                   isExpanded: controller.briefExpanded.value,
                   onToggle: controller.toggleBrief,
-                  child: const _CampaignBrief(),
+                  child: _CampaignBrief(),
                 ),
               ),
               SizedBox(height: 12.h),
@@ -77,7 +77,7 @@ class CampaignDetailsView extends GetView<CampaignDetailsController> {
                   iconPath: 'assets/icons/download.png',
                   isExpanded: controller.contentAssetsExpanded.value,
                   onToggle: controller.toggleContentAssets,
-                  child: const _ContentAssets(),
+                  child: _ContentAssets(),
                 ),
               ),
               SizedBox(height: 12.h),
@@ -89,30 +89,35 @@ class CampaignDetailsView extends GetView<CampaignDetailsController> {
                   iconPath: 'assets/icons/terms_condition.png',
                   isExpanded: controller.termsExpanded.value,
                   onToggle: controller.toggleTerms,
-                  child: const _TermsAndConditions(),
+                  child: _TermsAndConditions(),
                 ),
               ),
               SizedBox(height: 12.h),
 
               // --------- Brand Assets ----------
-              Obx(
-                () => _ExpandableSection(
-                  title: 'campaign_brand_assets'.tr,
-                  iconPath: 'assets/icons/download.png',
-                  isExpanded: controller.brandAssetsExpanded.value,
-                  onToggle: controller.toggleBrandAssets,
-                  child: const _BrandAssets(),
+              if (controller.accountTypeService.isAdAgency)
+                Obx(
+                  () => _ExpandableSection(
+                    title: 'campaign_brand_assets'.tr,
+                    iconPath: 'assets/icons/download.png',
+                    isExpanded: controller.brandAssetsExpanded.value,
+                    onToggle: controller.toggleBrandAssets,
+                    child: _BrandAssets(),
+                  ),
                 ),
-              ),
               SizedBox(height: 24.h),
 
-              if (controller.showAgreementBar)
+              if (controller.showAgencyNegotiatingCard) ...[
+                _AgencyNegotiatingCard(),
+                SizedBox(height: 16.h),
+              ] else if (controller.showAgreementBar) ...[
                 _AgreementSection(
                   isChecked: controller.agreeToTerms.value,
                   onToggle: controller.toggleAgree,
                   onAccept: controller.onAccept,
                   onDecline: controller.onDecline,
                 ),
+              ],
             ],
           ),
         ),
@@ -227,39 +232,44 @@ class _CampaignOverviewCard extends StatelessWidget {
           SizedBox(height: 12.h),
 
           // Platforms row
-          Row(
-            children: [
-              Text(
-                'common_platforms'.tr,
-                style: TextStyle(
-                  color: AppPalette.thirdColor,
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w600,
+          Obx(() {
+            final keys = controller.platformKeys.toList(growable: false);
+            final iconPaths = keys.isEmpty
+                ? <String>[
+                    'assets/icons/instagram.png',
+                    'assets/icons/youTube.png',
+                    'assets/icons/tikTok.png',
+                  ]
+                : keys
+                      .map(_platformAssetPath)
+                      .where((e) => e.isNotEmpty)
+                      .toList(growable: false);
+
+            return Row(
+              children: [
+                Text(
+                  'common_platforms'.tr,
+                  style: TextStyle(
+                    color: AppPalette.thirdColor,
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-              12.w.horizontalSpace,
-              Image.asset(
-                'assets/icons/instagram.png',
-                width: 24.w,
-                height: 24.w,
-                fit: BoxFit.cover,
-              ),
-              SizedBox(width: 8.w),
-              Image.asset(
-                'assets/icons/youTube.png',
-                width: 24.w,
-                height: 24.w,
-                fit: BoxFit.cover,
-              ),
-              SizedBox(width: 8.w),
-              Image.asset(
-                'assets/icons/tikTok.png',
-                width: 24.w,
-                height: 24.w,
-                fit: BoxFit.cover,
-              ),
-            ],
-          ),
+                12.w.horizontalSpace,
+                ...iconPaths.map(
+                  (path) => Padding(
+                    padding: EdgeInsets.only(right: 8.w),
+                    child: Image.asset(
+                      path,
+                      width: 24.w,
+                      height: 24.w,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }),
 
           SizedBox(height: 12.h),
           if (accountTypeService.isAdAgency) ...[
@@ -370,6 +380,20 @@ class _CampaignOverviewCard extends StatelessWidget {
       ),
     );
   }
+
+  static String _platformAssetPath(String platformKey) {
+    final key = platformKey.trim().toLowerCase();
+    if (key.contains('youtube') || key == 'yt') {
+      return 'assets/icons/youTube.png';
+    }
+    if (key.contains('tik') || key.contains('tiktok')) {
+      return 'assets/icons/tikTok.png';
+    }
+    if (key.contains('facebook')) {
+      return 'assets/icons/facebook.png';
+    }
+    return 'assets/icons/instagram.png';
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -389,151 +413,225 @@ class _QuoteDetailsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String campaignBudget = formatCurrencyByLocale(job.budget);
-    final String vatLabel = job.vatLabel ?? '৳10,000';
-    final String totalCost =
-        job.totalCostLabel ?? formatCurrencyByLocale(job.budget);
-    final String profitAmount = job.profitLabel ?? '৳16,500';
+    // Values (safe fallbacks)
+    final baseBudget = job.baseBudget ?? 0;
+    final vatPercent = (job.vatPercent ?? 15).round();
+    final vatAmount = job.vatAmount ?? 0;
+    final totalPayable = job.netPayableBudget ?? job.budget;
+
+    final profitPercent = job.sharePercent; // proposedServiceFeePercent
+    final estimatedProfit =
+        job.estimatedProfitAmount ?? _tryParseCurrency(job.profitLabel) ?? 0;
+
+    final platformFeePercent = (job.platformFeePercent ?? 2).round();
+    final platformFeeAmount = job.platformFeeAmount ?? 0;
+
+    final actualProfit =
+        job.actualProfitAmount ?? (estimatedProfit - platformFeeAmount);
+
+    // Spend (optional)
+    final totalSpent = job.totalCampaignSpent;
+    final dollarRate = job.dollarRate;
+    final spentUsd = job.campaignSpentUsd;
 
     final labelStyle = TextStyle(
       fontSize: 12.sp,
-      fontWeight: FontWeight.w300,
-      color: AppPalette.black,
+      fontWeight: FontWeight.w400,
+      color: const Color(0xFF1B1B1B),
     );
 
     final valueStyle = TextStyle(
-      fontSize: 20.sp,
-      fontWeight: FontWeight.w500,
-      color: AppPalette.secondary,
+      fontSize: 12.sp,
+      fontWeight: FontWeight.w600,
+      color: const Color(0xFF5C7F2C),
     );
 
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 20.w),
-      padding: EdgeInsets.all(18.w),
+      padding: EdgeInsets.all(14.w),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(kBorderRadius.r),
-        border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
+        color: const Color(0xFFF7FCEB),
+        borderRadius: BorderRadius.circular(18.r),
+        border: Border.all(color: const Color(0xFFB9D88B), width: 1),
       ),
-      child: _SectionCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // HEADER
-            Row(
-              children: [
-                Text(
-                  'campaign_quote_details'.tr,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header row
+          Row(
+            children: [
+              Text(
+                'Quote Details',
+                style: TextStyle(
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF1B1B1B),
+                ),
+              ),
+              const Spacer(),
+              Container(
+                width: 34.w,
+                height: 34.w,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFE7F6C9),
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  '৳',
                   style: TextStyle(
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w600,
-                    color: AppPalette.primary,
+                    fontSize: 18.sp,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF5C7F2C),
                   ),
-                ),
-                const Spacer(),
-                Container(
-                  width: 40.w,
-                  height: 40.w,
-                  decoration: const BoxDecoration(
-                    color: AppPalette.thirdColor,
-                    shape: BoxShape.circle,
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    '৳',
-                    style: TextStyle(
-                      fontSize: 25.sp,
-                      fontWeight: FontWeight.w400,
-                      color: const Color(0xFF315719),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-
-            SizedBox(height: 18.h),
-
-            // TOP (Budget + VAT)
-            Container(
-              padding: EdgeInsets.only(bottom: 12.h),
-              decoration: const BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(color: AppPalette.border1, width: 1),
                 ),
               ),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text('campaign_budget'.tr, style: labelStyle),
-                      ),
-                      Text(campaignBudget, style: valueStyle),
-                    ],
-                  ),
-                  SizedBox(height: 8.h),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Row(
-                          children: [
-                            Text('campaign_vat_tax'.tr, style: labelStyle),
-                            SizedBox(width: 4.w),
-                            Text(
-                              '(${formatNumberByLocale(15)}%)',
-                              style: labelStyle,
-                            ),
-                          ],
-                        ),
-                      ),
-                      Text(vatLabel, style: valueStyle),
-                    ],
-                  ),
-                ],
-              ),
+            ],
+          ),
+
+          SizedBox(height: 12.h),
+
+          // Inner box (top)
+          Container(
+            padding: EdgeInsets.all(14.w),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF2FAD9),
+              borderRadius: BorderRadius.circular(14.r),
+              border: Border.all(color: const Color(0xFFB9D88B), width: 1),
             ),
-
-            SizedBox(height: 12.h),
-
-            // BOTTOM (Total + Profit)
-            Row(
+            child: Column(
               children: [
-                Expanded(
-                  child: Text('campaign_total_cost'.tr, style: labelStyle),
+                _row(
+                  label: 'Base Campaign Budget',
+                  value: formatCurrencyByLocale(baseBudget),
+                  labelStyle: labelStyle,
+                  valueStyle: valueStyle,
                 ),
-                Text(totalCost, style: valueStyle),
+                SizedBox(height: 8.h),
+
+                _row(
+                  label: ' + VAT/Tax ($vatPercent%)',
+                  value: formatCurrencyByLocale(vatAmount),
+                  labelStyle: labelStyle,
+                  valueStyle: valueStyle,
+                ),
+
+                SizedBox(height: 10.h),
+                Divider(
+                  color: const Color(0xFFB9D88B).withOpacity(0.8),
+                  height: 1,
+                ),
+                SizedBox(height: 10.h),
+
+                _row(
+                  label: 'Total Payable By Client',
+                  value: formatCurrencyByLocale(totalPayable),
+                  labelStyle: labelStyle.copyWith(fontWeight: FontWeight.w700),
+                  valueStyle: valueStyle.copyWith(fontWeight: FontWeight.w800),
+                ),
+
+                SizedBox(height: 10.h),
+                Divider(
+                  color: const Color(0xFFB9D88B).withOpacity(0.35),
+                  height: 1,
+                ),
+                SizedBox(height: 10.h),
+
+                _row(
+                  label: 'Your Profit ($profitPercent%)',
+                  value: formatCurrencyByLocale(estimatedProfit),
+                  labelStyle: labelStyle,
+                  valueStyle: valueStyle,
+                ),
+                SizedBox(height: 8.h),
+
+                _row(
+                  label: ' - Platform Fee ($platformFeePercent%)',
+                  value: '-${formatCurrencyByLocale(platformFeeAmount)}',
+                  labelStyle: labelStyle,
+                  valueStyle: valueStyle,
+                ),
+
+                SizedBox(height: 10.h),
+                Divider(
+                  color: const Color(0xFFB9D88B).withOpacity(0.8),
+                  height: 1,
+                ),
+                SizedBox(height: 10.h),
+
+                _row(
+                  label: 'Your Actual Profit',
+                  value: formatCurrencyByLocale(
+                    actualProfit < 0 ? 0 : actualProfit,
+                  ),
+                  labelStyle: labelStyle.copyWith(fontWeight: FontWeight.w700),
+                  valueStyle: valueStyle.copyWith(fontWeight: FontWeight.w800),
+                ),
               ],
             ),
-            SizedBox(height: 8.h),
-            Row(
+          ),
+
+          SizedBox(height: 12.h),
+
+          // Bottom box (spent)
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14.r),
+              border: Border.all(color: const Color(0xFFB9D88B), width: 1),
+            ),
+            child: Column(
               children: [
-                Expanded(
-                  child: Text(
-                    'campaign_your_profit'.trParams({
-                      'percent': formatNumberByLocale(15),
-                    }),
-                    style: labelStyle,
-                  ),
+                _row(
+                  label: 'Total Campaign Spent',
+                  value: totalSpent == null
+                      ? '—'
+                      : formatCurrencyByLocale(totalSpent),
+                  labelStyle: labelStyle,
+                  valueStyle: valueStyle,
                 ),
-                Text(profitAmount, style: valueStyle),
+                SizedBox(height: 8.h),
+
+                _row(
+                  label: dollarRate != null && dollarRate > 0
+                      ? 'Campaign Spent In Dollar (${dollarRate.toStringAsFixed(2)} BDT/\$)'
+                      : 'Campaign Spent In Dollar',
+                  value: spentUsd == null
+                      ? '—'
+                      : '\$${spentUsd.toStringAsFixed(2)}',
+                  labelStyle: labelStyle.copyWith(fontWeight: FontWeight.w700),
+                  valueStyle: valueStyle.copyWith(fontWeight: FontWeight.w800),
+                ),
               ],
             ),
+          ),
 
-            SizedBox(height: 18.h),
-
-            // REQUEST BUTTON
-            CustomButton(
-              onTap: isRequoteLoading ? null : onRequestRequote,
-              btnText: 'campaign_request_requote'.tr,
-              btnColor: AppPalette.fill2,
-              width: double.infinity,
-              isLoading: isRequoteLoading,
-              isDisabled: isRequoteLoading,
-            ),
-          ],
-        ),
+          // ❗ Screenshot has no button. If you still need requote, keep it outside
+          // the card or add a separate small text button somewhere else.
+        ],
       ),
     );
+  }
+
+  static Widget _row({
+    required String label,
+    required String value,
+    required TextStyle labelStyle,
+    required TextStyle valueStyle,
+  }) {
+    return Row(
+      children: [
+        Expanded(child: Text(label, style: labelStyle)),
+        Text(value, style: valueStyle),
+      ],
+    );
+  }
+
+  double? _tryParseCurrency(String? label) {
+    if (label == null) return null;
+    final cleaned = label.replaceAll(RegExp(r'[^0-9\.\-]'), '');
+    return double.tryParse(cleaned);
   }
 }
 
@@ -718,279 +816,342 @@ class _MilestoneCard extends GetView<CampaignDetailsController> {
 // BRIEF / CONTENT ASSETS / TERMS / BRAND ASSETS / AGREEMENT
 // ---------------------------------------------------------------------------
 
-class _CampaignBrief extends StatelessWidget {
-  const _CampaignBrief();
+class _CampaignBrief extends GetView<CampaignDetailsController> {
+  _CampaignBrief();
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Image.asset(
-              'assets/icons/goal.png',
-              width: 20.w,
-              height: 20.w,
-              color: AppPalette.primary,
-            ),
-            SizedBox(width: 6.w),
-            Text(
-              'campaign_goals'.tr,
-              style: TextStyle(
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w500,
-                color: AppPalette.primary,
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: 6.h),
-        Text(
-          'campaign_goals_desc'.tr,
-          style: TextStyle(
-            fontSize: 12.sp,
-            fontWeight: FontWeight.w400,
-            color: AppPalette.subtext,
-            letterSpacing: -0.04,
-          ),
-          textAlign: TextAlign.justify,
-        ),
+    return Obx(() {
+      final goals = controller.campaignGoalsText.value.trim();
+      final requirements = controller.contentRequirements.toList(
+        growable: false,
+      );
+      final dos = controller.dosLines.toList(growable: false);
+      final donts = controller.dontsLines.toList(growable: false);
 
-        SizedBox(height: 14.h),
-        Row(
-          children: [
-            Image.asset(
-              'assets/icons/goal.png',
-              width: 20.w,
-              height: 20.w,
-              color: AppPalette.primary,
-            ),
-            SizedBox(width: 6.w),
-            Text(
-              'campaign_content_requirements'.tr,
-              style: TextStyle(
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w500,
-                color: AppPalette.primary,
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: 6.h),
-        _BulletText('campaign_req_1'.tr),
-        _BulletText('campaign_req_2'.tr),
-        _BulletText('campaign_req_3'.tr),
-
-        SizedBox(height: 14.h),
-        Text(
-          'campaign_dos_donts'.tr,
-          style: TextStyle(
-            fontSize: 12.sp,
-            fontWeight: FontWeight.w500,
-            color: AppPalette.primary,
-          ),
-        ),
-        SizedBox(height: 10.h),
-
-        // DO
-        Container(
-          padding: EdgeInsets.all(10.w),
-          decoration: BoxDecoration(
-            color: AppPalette.greenBg,
-            borderRadius: BorderRadius.circular(kBorderRadius),
-            border: Border.all(
-              color: AppPalette.greenBorder,
-              width: kBorderWeight1,
-            ),
-          ),
-          child: Column(
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  Image.asset(
-                    'assets/icons/check_mark.png',
-                    width: 20.w,
-                    height: 20.w,
-                    color: AppPalette.greenText,
-                  ),
-                  SizedBox(width: 6.w),
-                  Text(
-                    'campaign_dos'.tr,
-                    style: TextStyle(
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.w500,
+              Image.asset(
+                'assets/icons/goal.png',
+                width: 20.w,
+                height: 20.w,
+                color: AppPalette.primary,
+              ),
+              SizedBox(width: 6.w),
+              Text(
+                'campaign_goals'.tr,
+                style: TextStyle(
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w500,
+                  color: AppPalette.primary,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 6.h),
+          Text(
+            goals.isNotEmpty ? goals : 'campaign_goals_desc'.tr,
+            style: TextStyle(
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w400,
+              color: AppPalette.subtext,
+              letterSpacing: -0.04,
+            ),
+            textAlign: TextAlign.justify,
+          ),
+
+          SizedBox(height: 14.h),
+          Row(
+            children: [
+              Image.asset(
+                'assets/icons/goal.png',
+                width: 20.w,
+                height: 20.w,
+                color: AppPalette.primary,
+              ),
+              SizedBox(width: 6.w),
+              Text(
+                'campaign_content_requirements'.tr,
+                style: TextStyle(
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w500,
+                  color: AppPalette.primary,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 6.h),
+          if (requirements.isEmpty) ...[
+            _BulletText('campaign_req_1'.tr),
+            _BulletText('campaign_req_2'.tr),
+            _BulletText('campaign_req_3'.tr),
+          ] else
+            ...requirements.map((item) => _BulletText(item)),
+
+          SizedBox(height: 14.h),
+          Text(
+            'campaign_dos_donts'.tr,
+            style: TextStyle(
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w500,
+              color: AppPalette.primary,
+            ),
+          ),
+          SizedBox(height: 10.h),
+
+          // DO
+          Container(
+            padding: EdgeInsets.all(10.w),
+            decoration: BoxDecoration(
+              color: AppPalette.greenBg,
+              borderRadius: BorderRadius.circular(kBorderRadius),
+              border: Border.all(
+                color: AppPalette.greenBorder,
+                width: kBorderWeight1,
+              ),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Image.asset(
+                      'assets/icons/check_mark.png',
+                      width: 20.w,
+                      height: 20.w,
                       color: AppPalette.greenText,
                     ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 6.h),
-              _BulletText('campaign_dos_1'.tr, fontColor: AppPalette.greenText),
-              _BulletText('campaign_dos_2'.tr, fontColor: AppPalette.greenText),
-              _BulletText('campaign_dos_3'.tr, fontColor: AppPalette.greenText),
-            ],
-          ),
-        ),
-
-        SizedBox(height: 12.h),
-
-        // DONT
-        Container(
-          padding: EdgeInsets.all(10.w),
-          decoration: BoxDecoration(
-            color: AppPalette.redBg,
-            borderRadius: BorderRadius.circular(kBorderRadius),
-            border: Border.all(
-              color: AppPalette.color2stroke,
-              width: kBorderWeight1,
-            ),
-          ),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  Image.asset(
-                    'assets/icons/cancel_outline.png',
-                    width: 20.w,
-                    height: 20.w,
-                    color: AppPalette.color2text,
-                  ),
-                  SizedBox(width: 6.w),
-                  Text(
-                    'campaign_donts'.tr,
-                    style: TextStyle(
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.w500,
-                      color: AppPalette.primary,
+                    SizedBox(width: 6.w),
+                    Text(
+                      'campaign_dos'.tr,
+                      style: TextStyle(
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.w500,
+                        color: AppPalette.greenText,
+                      ),
                     ),
+                  ],
+                ),
+                SizedBox(height: 6.h),
+                if (dos.isEmpty) ...[
+                  _BulletText(
+                    'campaign_dos_1'.tr,
+                    fontColor: AppPalette.greenText,
                   ),
-                ],
+                  _BulletText(
+                    'campaign_dos_2'.tr,
+                    fontColor: AppPalette.greenText,
+                  ),
+                  _BulletText(
+                    'campaign_dos_3'.tr,
+                    fontColor: AppPalette.greenText,
+                  ),
+                ] else
+                  ...dos.map(
+                    (item) =>
+                        _BulletText(item, fontColor: AppPalette.greenText),
+                  ),
+              ],
+            ),
+          ),
+
+          SizedBox(height: 12.h),
+
+          // DONT
+          Container(
+            padding: EdgeInsets.all(10.w),
+            decoration: BoxDecoration(
+              color: AppPalette.redBg,
+              borderRadius: BorderRadius.circular(kBorderRadius),
+              border: Border.all(
+                color: AppPalette.color2stroke,
+                width: kBorderWeight1,
               ),
-              SizedBox(height: 6.h),
-              _BulletText(
-                'campaign_donts_1'.tr,
-                fontColor: AppPalette.color2text,
+            ),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Image.asset(
+                      'assets/icons/cancel_outline.png',
+                      width: 20.w,
+                      height: 20.w,
+                      color: AppPalette.color2text,
+                    ),
+                    SizedBox(width: 6.w),
+                    Text(
+                      'campaign_donts'.tr,
+                      style: TextStyle(
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.w500,
+                        color: AppPalette.primary,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 6.h),
+                if (donts.isEmpty) ...[
+                  _BulletText(
+                    'campaign_donts_1'.tr,
+                    fontColor: AppPalette.color2text,
+                  ),
+                  _BulletText(
+                    'campaign_donts_2'.tr,
+                    fontColor: AppPalette.color2text,
+                  ),
+                  _BulletText(
+                    'campaign_donts_3'.tr,
+                    fontColor: AppPalette.color2text,
+                  ),
+                ] else
+                  ...donts.map(
+                    (item) =>
+                        _BulletText(item, fontColor: AppPalette.color2text),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      );
+    });
+  }
+}
+
+class _ContentAssets extends GetView<CampaignDetailsController> {
+  _ContentAssets();
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final items = controller.contentAssetsUi.toList(growable: false);
+      if (items.isEmpty) return _BulletText('No content assets');
+
+      return Column(
+        children: [
+          ...items.map((asset) {
+            String icon = 'assets/icons/image.png';
+            if (asset.kind == JobAssetKind.video) {
+              icon = 'assets/icons/video.png';
+            } else if (asset.kind == JobAssetKind.document) {
+              icon = 'assets/icons/document.png';
+            }
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _AssetRow(
+                leadingIconPath: icon,
+                title: asset.title,
+                subtitle: asset.meta,
               ),
-              _BulletText(
-                'campaign_donts_2'.tr,
-                fontColor: AppPalette.color2text,
+            );
+          }),
+        ],
+      );
+    });
+  }
+}
+
+class _TermsAndConditions extends GetView<CampaignDetailsController> {
+  _TermsAndConditions();
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final reporting = controller.reportingRequirementLines.toList(
+        growable: false,
+      );
+      final usage = controller.usageRightLines.toList(growable: false);
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Image.asset(
+                'assets/icons/presentation.png',
+                width: 20.w,
+                height: 20.w,
+                color: AppPalette.primary,
               ),
-              _BulletText(
-                'campaign_donts_3'.tr,
-                fontColor: AppPalette.color2text,
+              SizedBox(width: 6.w),
+              Text(
+                'campaign_reporting_requirements'.tr,
+                style: TextStyle(
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w500,
+                  color: AppPalette.primary,
+                ),
               ),
             ],
           ),
-        ),
-      ],
-    );
-  }
-}
+          SizedBox(height: 6.h),
+          if (reporting.isEmpty) ...[
+            _BulletText('campaign_report_1'.tr),
+            _BulletText('campaign_report_2'.tr),
+          ] else
+            ...reporting.map((item) => _BulletText(item)),
 
-class _ContentAssets extends StatelessWidget {
-  const _ContentAssets();
+          SizedBox(height: 14.h),
 
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        _AssetRow(
-          title: 'campaign_asset_logo_pack'.tr,
-          subtitle: 'PNG, SVG · 24 MB',
-        ),
-        const SizedBox(height: 8),
-        _AssetRow(
-          leadingIconPath: 'assets/icons/video.png',
-          title: 'campaign_asset_demo_video'.tr,
-          subtitle: 'MP4 · 80 MB',
-        ),
-        const SizedBox(height: 8),
-        _AssetRow(
-          leadingIconPath: 'assets/icons/document.png',
-          title: 'campaign_asset_guidelines'.tr,
-          subtitle: 'PDF · 750 KB',
-        ),
-      ],
-    );
-  }
-}
-
-class _TermsAndConditions extends StatelessWidget {
-  const _TermsAndConditions();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Image.asset(
-              'assets/icons/presentation.png',
-              width: 20.w,
-              height: 20.w,
-              color: AppPalette.primary,
-            ),
-            SizedBox(width: 6.w),
-            Text(
-              'campaign_reporting_requirements'.tr,
-              style: TextStyle(
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w500,
+          Row(
+            children: [
+              Image.asset(
+                'assets/icons/copyright.png',
+                width: 20.w,
+                height: 20.w,
                 color: AppPalette.primary,
               ),
-            ),
-          ],
-        ),
-        SizedBox(height: 6.h),
-        _BulletText('campaign_report_1'.tr),
-        _BulletText('campaign_report_2'.tr),
-
-        SizedBox(height: 14.h),
-
-        Row(
-          children: [
-            Image.asset(
-              'assets/icons/copyright.png',
-              width: 20.w,
-              height: 20.w,
-              color: AppPalette.primary,
-            ),
-            SizedBox(width: 6.w),
-            Text(
-              'campaign_usage_rights'.tr,
-              style: TextStyle(
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w500,
-                color: AppPalette.primary,
+              SizedBox(width: 6.w),
+              Text(
+                'campaign_usage_rights'.tr,
+                style: TextStyle(
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w500,
+                  color: AppPalette.primary,
+                ),
               ),
-            ),
-          ],
-        ),
-        SizedBox(height: 6.h),
-        _BulletText('campaign_usage_1'.tr),
-        _BulletText('campaign_usage_2'.tr),
-      ],
-    );
+            ],
+          ),
+          SizedBox(height: 6.h),
+          if (usage.isEmpty) ...[
+            _BulletText('campaign_usage_1'.tr),
+            _BulletText('campaign_usage_2'.tr),
+          ] else
+            ...usage.map((item) => _BulletText(item)),
+        ],
+      );
+    });
   }
 }
 
-class _BrandAssets extends StatelessWidget {
-  const _BrandAssets();
+class _BrandAssets extends GetView<CampaignDetailsController> {
+  _BrandAssets();
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        _AssetRow(
-          leadingIconPath: 'assets/icons/facebook.png',
-          title: 'campaign_asset_facebook_page'.tr,
-          subtitle: 'campaign_asset_facebook_sub'.tr,
-          trailingIconPath: 'assets/icons/cancel_outline.png',
-        ),
-      ],
-    );
+    return Obx(() {
+      final items = controller.brandAssetsUi.toList(growable: false);
+      if (items.isEmpty) return _BulletText('No brand assets');
+
+      return Column(
+        children: [
+          ...items.map(
+            (asset) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _AssetRow(
+                leadingIconPath: 'assets/icons/facebook.png',
+                title: asset.title,
+                subtitle: (asset.value?.trim().isNotEmpty ?? false)
+                    ? asset.value!.trim()
+                    : '—',
+                trailingIconPath: 'assets/icons/cancel_outline.png',
+              ),
+            ),
+          ),
+        ],
+      );
+    });
   }
 }
 
@@ -998,7 +1159,7 @@ class _AgreementSection extends StatelessWidget {
   final bool isChecked;
   final VoidCallback onToggle;
   final VoidCallback onAccept;
-  final VoidCallback onDecline;
+  final VoidCallback onDecline; // used for influencer only
 
   const _AgreementSection({
     required this.isChecked,
@@ -1010,6 +1171,8 @@ class _AgreementSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accountTypeService = Get.find<AccountTypeService>();
+    final controller = Get.find<CampaignDetailsController>();
+    final isAgency = accountTypeService.isAdAgency;
 
     return Material(
       color: Colors.transparent,
@@ -1031,7 +1194,67 @@ class _AgreementSection extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (accountTypeService.isAdAgency) ...[
+            if (isAgency) ...[
+              // -------- Timer row (matches screenshot) ----------
+              Obx(() {
+                final timeText = controller.requoteCountdownText;
+                final deadlineText = controller.requoteDeadlineText;
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.hourglass_empty_rounded,
+                      size: 22.sp,
+                      color: const Color(0xFFD1842A), // orange
+                    ),
+                    SizedBox(width: 10.w),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          RichText(
+                            text: TextSpan(
+                              style: TextStyle(
+                                fontSize: 18.sp,
+                                fontWeight: FontWeight.w700,
+                                height: 1.1,
+                              ),
+                              children: [
+                                TextSpan(
+                                  text: timeText,
+                                  style: const TextStyle(
+                                    color: Color(0xFFD1842A), // orange
+                                  ),
+                                ),
+                                TextSpan(
+                                  text: ' Left To Requote',
+                                  style: const TextStyle(
+                                    color: Color(0xFF3E5B1C), // deep green
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(height: 4.h),
+                          if (deadlineText.isNotEmpty)
+                            Text(
+                              'Request to requote within $deadlineText',
+                              style: TextStyle(
+                                fontSize: 11.sp,
+                                color: Colors.grey[500],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              }),
+
+              SizedBox(height: 14.h),
+
+              // -------- Agreement checkbox row ----------
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1057,47 +1280,55 @@ class _AgreementSection extends StatelessWidget {
                       text: TextSpan(
                         style: TextStyle(
                           fontSize: 12.sp,
-                          color: AppPalette.subtext,
-                          fontWeight: FontWeight.w500,
+                          color: Colors.grey[500],
+                          fontWeight: FontWeight.w600,
                           height: 1.4,
                         ),
-                        children: [
-                          TextSpan(text: 'campaign_agree_prefix'.tr),
+                        children: const [
+                          TextSpan(text: 'You accept the '),
                           TextSpan(
-                            text: 'campaign_agree_ula'.tr,
-                            style: TextStyle(
-                              color: AppPalette.secondary,
-                              fontWeight: FontWeight.w500,
-                            ),
+                            text: 'user license agreement',
+                            style: TextStyle(color: Color(0xFF7BB23B)),
                           ),
-                          TextSpan(text: 'campaign_agree_mid'.tr),
+                          TextSpan(text: ' & '),
                           TextSpan(
-                            text: 'campaign_agree_terms'.tr,
-                            style: TextStyle(
-                              color: AppPalette.secondary,
-                              fontWeight: FontWeight.w500,
-                            ),
+                            text: 'Terms and condition',
+                            style: TextStyle(color: Color(0xFF7BB23B)),
                           ),
-                          TextSpan(text: 'campaign_agree_suffix'.tr),
+                          TextSpan(text: ' of our app.'),
                         ],
                       ),
                     ),
                   ),
                 ],
               ),
+
               SizedBox(height: 16.h),
             ],
 
+            // -------- Buttons ----------
             Row(
               children: [
                 Expanded(
-                  child: CustomButton(
-                    onTap: onDecline,
-                    btnText: 'common_decline'.tr,
-                    textColor: AppPalette.black,
-                    btnColor: AppPalette.white,
-                    borderColor: AppPalette.border1,
-                  ),
+                  child: Obx(() {
+                    controller.isRequoteExpired.value;
+                    final disabled =
+                        isAgency && controller.isRequoteExpired.value;
+
+                    return CustomButton(
+                      onTap: isAgency
+                          ? (disabled ? () {} : controller.requestRequote)
+                          : onDecline,
+                      btnText: isAgency ? 'Requote' : 'common_decline'.tr,
+                      textColor: isAgency
+                          ? (disabled ? Colors.grey : AppPalette.black)
+                          : AppPalette.black,
+                      btnColor: AppPalette.white,
+                      borderColor: disabled
+                          ? Colors.grey.withOpacity(0.5)
+                          : AppPalette.border1,
+                    );
+                  }),
                 ),
                 SizedBox(width: 12.w),
                 Expanded(
@@ -1111,6 +1342,70 @@ class _AgreementSection extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _AgencyNegotiatingCard extends StatelessWidget {
+  const _AgencyNegotiatingCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 20.w),
+      padding: EdgeInsets.fromLTRB(18.w, 18.h, 18.w, 18.h),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18.r),
+        border: Border.all(color: AppPalette.border1, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Text(
+            'Once The Client Accept Your\nQuote The Deal Will Be Confirmed.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13.sp,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey[600],
+              height: 1.35,
+            ),
+          ),
+          SizedBox(height: 14.h),
+
+          // Orange pill button (disabled / informational)
+          SizedBox(
+            width: double.infinity,
+            height: 44.h,
+            child: ElevatedButton(
+              onPressed: null, // ✅ disabled (pure status)
+              style: ElevatedButton.styleFrom(
+                elevation: 0,
+                backgroundColor: const Color(0xFFD1842A),
+                disabledBackgroundColor: const Color(0xFFD1842A),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(999.r),
+                ),
+              ),
+              child: Text(
+                'Quote Sent For Client Review',
+                style: TextStyle(
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

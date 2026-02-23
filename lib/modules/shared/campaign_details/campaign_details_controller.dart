@@ -1,3 +1,18 @@
+// ✅ ALL UPDATES APPLIED AT ONCE
+// Changes:
+// 1) milestones API shape fixed: {success, data:{ milestones:[...] }}
+// 2) influencer milestones mapping uses backend `order` (0-based) for stepLabel
+// 3) influencer milestones dayLabel uses "Day X" from deliveryDays (or keeps null)
+// 4) influencer milestone platform/reach/views not present -> kept null
+// 5) milestone status null/empty -> todo
+// 6) top dueLabel = startingDate + duration (days remaining)
+// 7) top dateLabel = formatted startingDate
+// 8) safer extract of data map (handles map with data map)
+// 9) removed index-based milestone numbering for influencer (uses order)
+// 10) keeps existing agency mapping behavior
+
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -11,6 +26,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../core/models/job_item.dart';
 import '../../../routes/app_routes.dart';
 import '../../../core/utils/label_localizers.dart';
+import 'widgets/agency_requote_dialog.dart';
 
 enum CampaignStatus { newOffer, accepted, ongoing, ongoingDeclined, complete }
 
@@ -32,8 +48,7 @@ class CampaignDetailsController extends GetxController {
   final isPageRefreshing = false.obs;
   final isAcceptDeclineLoading = false.obs;
   final isRequoteLoading = false.obs;
-  bool _didProbeAgencyRequoteOverview = false;
-  bool _didProbeAgencyStats = false;
+  String _serverStatus = '';
 
   final milestonesExpanded = true.obs;
   final briefExpanded = true.obs;
@@ -44,6 +59,15 @@ class CampaignDetailsController extends GetxController {
 
   final campaignStatus = CampaignStatus.newOffer.obs;
   final milestones = <Milestone>[].obs;
+  final platformKeys = <String>[].obs;
+  final campaignGoalsText = ''.obs;
+  final contentRequirements = <String>[].obs;
+  final dosLines = <String>[].obs;
+  final dontsLines = <String>[].obs;
+  final reportingRequirementLines = <String>[].obs;
+  final usageRightLines = <String>[].obs;
+  final contentAssetsUi = <JobAsset>[].obs;
+  final brandAssetsUi = <BrandAsset>[].obs;
 
   @override
   void onInit() {
@@ -64,6 +88,85 @@ class CampaignDetailsController extends GetxController {
   void toggleTerms() => termsExpanded.toggle();
   void toggleBrandAssets() => brandAssetsExpanded.toggle();
   void toggleAgree() => agreeToTerms.toggle();
+
+  // ---------------- Requote countdown (Agency only) ----------------
+  Timer? _requoteTimer;
+  DateTime? _requoteDeadlineUtc; // updatedAt + 12h (UTC)
+
+  final requoteRemaining = Duration.zero.obs;
+  final isRequoteExpired = true.obs;
+
+  String get requoteCountdownText {
+    final d = requoteRemaining.value;
+    final hours = d.inHours.clamp(0, 999);
+    final mins = (d.inMinutes % 60).clamp(0, 59);
+    final h = hours.toString().padLeft(2, '0');
+    final m = mins.toString().padLeft(2, '0');
+    return '$h H : $m M';
+  }
+
+  String get requoteDeadlineText {
+    final dl = _requoteDeadlineUtc?.toLocal();
+    if (dl == null) return '';
+    return _formatDeadline(dl);
+  }
+
+  void _startAgencyRequoteCountdownFromUpdatedAt(DateTime updatedAtUtc) {
+    // updatedAt comes in UTC (Z)
+    _requoteDeadlineUtc = updatedAtUtc.toUtc().add(const Duration(hours: 12));
+    _requoteTimer?.cancel();
+
+    _tickRequote(); // immediate UI update
+
+    _requoteTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      _tickRequote();
+    });
+  }
+
+  void _tickRequote() {
+    final deadline = _requoteDeadlineUtc;
+    if (deadline == null) {
+      requoteRemaining.value = Duration.zero;
+      isRequoteExpired.value = true;
+      return;
+    }
+
+    final nowUtc = DateTime.now().toUtc();
+    final diff = deadline.difference(nowUtc);
+
+    if (diff <= Duration.zero) {
+      requoteRemaining.value = Duration.zero;
+      isRequoteExpired.value = true;
+      _requoteTimer?.cancel();
+      _requoteTimer = null;
+      return;
+    }
+
+    requoteRemaining.value = diff;
+    isRequoteExpired.value = false;
+  }
+
+  String _formatDeadline(DateTime dt) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    final m = months[dt.month - 1];
+    final hour12 = (dt.hour % 12 == 0) ? 12 : (dt.hour % 12);
+    final ampm = dt.hour >= 12 ? 'pm' : 'am';
+    final min = dt.minute.toString().padLeft(2, '0');
+    return '$m ${dt.day}, ${dt.year}, $hour12:$min$ampm';
+  }
 
   Future<void> onAccept() async {
     final isInfluencer = accountTypeService.isInfluencer;
@@ -173,6 +276,11 @@ class CampaignDetailsController extends GetxController {
   }
 
   Future<void> requestRequote() async {
+    if (isRequoteExpired.value) {
+      Get.snackbar('Error', 'Requote time expired.');
+      return;
+    }
+
     if (!accountTypeService.isAdAgency) return;
 
     final campaignId = job.id?.trim();
@@ -181,15 +289,42 @@ class CampaignDetailsController extends GetxController {
       return;
     }
 
+    // ----- Open dialog & get user input -----
+    final baseBudget = (job.baseBudget ?? job.totalCampaignSpent ?? job.budget)
+        .toDouble();
+
+    final initialPercent =
+        _proposedServiceFeePercent ??
+        (job.sharePercent > 0 ? job.sharePercent : 14);
+
+    final initialDollar = _proposedDollarRate ?? (job.dollarRate ?? 122.37);
+
+    final vatPercent = (job.vatPercent ?? 15).toDouble();
+    final platformFeePercent = (job.platformFeePercent ?? 2).toDouble();
+
+    final input = await Get.dialog<AgencyRequoteInput>(
+      AgencyRequoteDialog(
+        initialServiceFeePercent: initialPercent,
+        initialDollarRate: initialDollar,
+        baseBudget: baseBudget,
+        vatPercent: vatPercent,
+        platformFeePercent: platformFeePercent,
+      ),
+      barrierDismissible: true,
+    );
+
+    if (input == null) return;
+
+    // store latest
+    _proposedServiceFeePercent = input.serviceFeePercent;
+    _proposedDollarRate = input.dollarRate;
+
     if (isRequoteLoading.value) return;
     isRequoteLoading.value = true;
 
     final Map<String, dynamic> payload = {
-      'proposedServiceFeePercent':
-          _proposedServiceFeePercent ??
-          (job.sharePercent > 0 ? job.sharePercent : 14),
-      if (_proposedDollarRate != null && _proposedDollarRate! > 0)
-        'proposedDollarRate': _proposedDollarRate,
+      'proposedServiceFeePercent': input.serviceFeePercent,
+      'proposedDollarRate': input.dollarRate,
     };
 
     final result = await ApiErrorHandler.call(
@@ -244,38 +379,246 @@ class CampaignDetailsController extends GetxController {
     isPageRefreshing.value = false;
   }
 
+  // ✅ NEW: extract `{success, data:{...}}` safely (also supports raw map without data)
+  Map<String, dynamic> _extractDataMap(dynamic response) {
+    if (response is! Map) return <String, dynamic>{};
+    final map = Map<String, dynamic>.from(response as Map);
+    final data = map['data'];
+    if (data is Map) return Map<String, dynamic>.from(data as Map);
+    return map;
+  }
+
+  // ✅ UPDATED: now handles your actual milestones response:
+  // { success:true, data:{ jobId, campaignId, milestones:[...] } }
+  List<dynamic> _extractMilestonesList(dynamic response) {
+    // shapes:
+    // 1) [ {...}, {...} ]
+    // 2) { data: [ {...} ] }
+    // 3) { data: { milestones: [ {...} ] } }
+    // 4) { milestones: [ {...} ] }
+    // 5) { success:true, data:{ milestones:[...] } }  ✅ covered by (3)
+
+    if (response is List) return response;
+
+    if (response is Map) {
+      final map = Map<String, dynamic>.from(response);
+
+      final direct = map['milestones'];
+      if (direct is List) return direct;
+
+      final data = map['data'];
+      if (data is List) return data;
+
+      if (data is Map) {
+        final dm = Map<String, dynamic>.from(data);
+        final m = dm['milestones'];
+        if (m is List) return m;
+      }
+    }
+
+    return const [];
+  }
+
+  DateTime? _safeParseDate(String? iso) {
+    if (iso == null || iso.trim().isEmpty) return null;
+    return DateTime.tryParse(iso.trim());
+  }
+
+  String _buildDueLabelFromDate(DateTime deadline) {
+    final now = DateTime.now();
+    final d1 = DateTime(now.year, now.month, now.day);
+    final d2 = DateTime(deadline.year, deadline.month, deadline.day);
+    final days = d2.difference(d1).inDays;
+    if (days <= 0) return '0 days';
+    return '$days days';
+  }
+
+  String _formatDateLabel(DateTime date) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    final m = months[date.month - 1];
+    return '$m ${date.day}, ${date.year}';
+  }
+
+  Milestone _mapInfluencerMilestone(Map<String, dynamic> json) {
+    // backend uses 0-based order
+    final order = _toInt(json['order']) ?? 0;
+
+    final deliveryDays = _toInt(json['deliveryDays']);
+    final dayLabel = deliveryDays == null ? null : 'Day $deliveryDays';
+
+    final title = (json['contentTitle']?.toString().trim().isNotEmpty ?? false)
+        ? json['contentTitle'].toString().trim()
+        : 'Milestone';
+
+    return Milestone(
+      id: json['id']?.toString(),
+      stepLabel: '${order + 1}', // ✅ from backend order
+      title: title,
+      subtitle: json['promotionGoal']?.toString().trim().isEmpty == true
+          ? null
+          : json['promotionGoal']?.toString().trim(),
+      amountLabel: _amountLabelFrom(json['amount']),
+      dayIndex: deliveryDays,
+      dayLabel: dayLabel,
+      platform: json['platform']?.toString().trim(),
+      deliverable: json['contentQuantity']?.toString().trim(),
+      promotionGoal: json['promotionGoal']?.toString().trim(),
+      targets: PromotionTarget(
+        reach: _toInt(json['expectedReach']),
+        views: _toInt(json['expectedViews']),
+        likes: _toInt(json['expectedLikes']),
+        comments: _toInt(json['expectedComments']),
+      ),
+      status: _parseMilestoneStatus(json['status']?.toString()),
+      submissions:
+          const [], // campaign.milestones has `submissions: []` but you can map later if needed
+    );
+  }
+
   Future<void> _loadInfluencerJobDetails(String jobId) async {
+    // 1) Job details (this API returns: {success, data:{...job..., campaign:{...}}})
     final detailsRes = await _campaignService.fetchInfluencerJobDetails(
       jobId: jobId,
     );
-    final details = _extractDataMap(detailsRes);
+    final root = _extractDataMap(detailsRes);
 
-    final milestonesRes = await _campaignService.fetchInfluencerJobMilestones(
-      jobId: jobId,
-    );
-    final milestonePayload = _extractDataMap(milestonesRes);
-    final milestoneList = (milestonePayload['milestones'] as List?) ?? const [];
+    final campaignRaw = root['campaign'];
+    final campaign = (campaignRaw is Map)
+        ? Map<String, dynamic>.from(campaignRaw as Map)
+        : <String, dynamic>{};
+
+    // 2) Milestones:
+    // Prefer campaign.milestones (it already exists in your response)
+    final campaignMilestonesRaw = campaign['milestones'];
+    List<dynamic> milestoneList = (campaignMilestonesRaw is List)
+        ? campaignMilestonesRaw
+        : const [];
+
+    // Fallback to separate endpoint if campaign.milestones missing/empty
+    if (milestoneList.isEmpty) {
+      final milestonesRes = await _campaignService.fetchInfluencerJobMilestones(
+        jobId: jobId,
+      );
+      milestoneList = _extractMilestonesList(milestonesRes);
+    }
 
     final mappedMilestones = milestoneList
         .whereType<Map>()
         .map((e) => Map<String, dynamic>.from(e))
-        .toList(growable: false)
-        .asMap()
-        .entries
-        .map((entry) => _mapMilestone(entry.value, entry.key))
+        .map(_mapInfluencerMilestone)
         .toList(growable: false);
 
-    final updated = _copyJob(
-      job,
-      title: (details['campaignName'] as String?)?.trim(),
-      clientName: _clientNameFrom(details),
-      budget: _budgetFromInfluencer(details),
-      dueLabel: _buildDueLabel(details['deadline']?.toString()),
+    // 3) Dates
+    // ✅ startingDate + duration => dueLabel countdown
+    // ✅ dateLabel should show formatted startingDate (NOT endDate)
+    final startIso = campaign['startingDate']?.toString().trim();
+    final durationDays = _toInt(campaign['duration']) ?? 0;
+
+    final startDate = _safeParseDate(startIso);
+    final endDate = (startDate != null && durationDays > 0)
+        ? startDate.add(Duration(days: durationDays))
+        : null;
+
+    final dueLabel = endDate != null
+        ? _buildDueLabelFromDate(endDate)
+        : job.dueLabel;
+    final dateLabel = startDate != null
+        ? _formatDateLabel(startDate)
+        : job.dateLabel;
+
+    // 4) Core fields mapping (IMPORTANT)
+    final title =
+        (campaign['campaignName']?.toString().trim().isNotEmpty ?? false)
+        ? campaign['campaignName'].toString().trim()
+        : job.title;
+
+    final clientName = _clientNameFrom(campaign); // campaign.client.brandName ✅
+
+    final budget = _budgetFromInfluencer(
+      root,
+    ); // uses root.offeredAmount/totalAmount ✅
+
+    final sharePercent = (_toDouble(
+      root['percentage'],
+    )).round(); // "10.00" => 10 ✅
+
+    final campaignTypeRaw = campaign['campaignType']
+        ?.toString()
+        .trim()
+        .toLowerCase();
+    final CampaignType mappedType = campaignTypeRaw == 'influencer_promotion'
+        ? CampaignType.influencerPromotion
+        : CampaignType.paidAd;
+
+    // 5) Build updated JobItem (keeps existing optional fields)
+    final updated = JobItem(
+      id: root['id']?.toString() ?? job.id,
+      title: title,
+      subTitle: job.subTitle,
+      clientName: clientName,
+      campaignType: mappedType,
+      dateLabel: dateLabel,
+      budget: budget,
+      sharePercent: sharePercent > 0 ? sharePercent : job.sharePercent,
+      progressPercent: job.progressPercent,
+      dueInDays: job.dueInDays,
+      dueLabel: dueLabel,
+      rating: _toDouble(root['rating']).round(), // "0.0" => 0
+      profitLabel: job.profitLabel,
+      vatLabel: job.vatLabel,
+      totalCostLabel: job.totalCostLabel,
+      totalEarningsLabel: job.totalEarningsLabel,
+
+      // influencer specific
+      needToSendSample: campaign['needSampleProduct'] == true,
+      sampleGuidelinesConfirmed: job.sampleGuidelinesConfirmed,
+
       milestones: mappedMilestones,
+
+      // brief
+      dosText: campaign['dos']?.toString(),
+      dontsText: campaign['donts']?.toString(),
+
+      // keep existing quote fields etc.
+      baseBudget: job.baseBudget,
+      vatPercent: job.vatPercent,
+      vatAmount: job.vatAmount,
+      netPayableBudget: job.netPayableBudget,
+      contentAssets: job.contentAssets,
+      brandAssets: job.brandAssets,
+      platformFeePercent: job.platformFeePercent,
+      platformFeeAmount: job.platformFeeAmount,
+      estimatedProfitAmount: job.estimatedProfitAmount,
+      actualProfitAmount: job.actualProfitAmount,
+      totalCampaignSpent: job.totalCampaignSpent,
+      dollarRate: job.dollarRate,
+      campaignSpentUsd: job.campaignSpentUsd,
+      timeLeftToRequoteMinutes: job.timeLeftToRequoteMinutes,
     );
 
-    final statusRaw = details['status']?.toString();
+    // 6) Status flags (influencer job status is in root.status)
+    final statusRaw = root['status']?.toString();
+    _serverStatus = (statusRaw ?? '').trim().toLowerCase();
     _isNewOffer = _isNewOfferFromStatus(statusRaw, fallback: _isNewOffer);
+
+    // 7) Assets + brief MUST come from campaign (not root)
+    _applyCampaignTextAndAssets(campaign);
+
+    // 8) Platforms from milestones (now campaign.milestones includes platform)
+    _derivePlatformsFromMilestones(mappedMilestones);
 
     jobRx.value = updated;
     milestones.assignAll(mappedMilestones);
@@ -288,7 +631,17 @@ class CampaignDetailsController extends GetxController {
     );
     final raw = _extractDataMap(res);
 
-    await _probeAgencyPendingGetResponses(campaignId);
+    // ✅ Agency requote timer based on updatedAt (Agency only)
+    final updatedAtIso = raw['updatedAt']?.toString().trim();
+    final updatedAt = _safeParseDate(updatedAtIso);
+    if (accountTypeService.isAdAgency && updatedAt != null) {
+      _startAgencyRequoteCountdownFromUpdatedAt(updatedAt.toUtc());
+    } else if (accountTypeService.isAdAgency) {
+      // if missing, disable requote
+      _requoteDeadlineUtc = null;
+      requoteRemaining.value = Duration.zero;
+      isRequoteExpired.value = true;
+    }
 
     final milestoneList = (raw['milestones'] as List?) ?? const [];
     final mappedMilestones = milestoneList
@@ -297,99 +650,141 @@ class CampaignDetailsController extends GetxController {
         .toList(growable: false)
         .asMap()
         .entries
-        .map((entry) => _mapMilestone(entry.value, entry.key))
+        .map(
+          (entry) => _mapMilestone(entry.value, entry.key),
+        ) // keep existing agency mapper
         .toList(growable: false);
 
     final budgetBreakdown = raw['budgetBreakdown'] as Map<String, dynamic>?;
-    final totalBudget = _toDouble(
-      budgetBreakdown?['totalBudget'] ?? raw['totalBudget'],
-    );
+
+    final baseBudget = _toDouble(budgetBreakdown?['baseBudget']);
     final vatAmount = _toDouble(budgetBreakdown?['vat']);
-    final estimatedProfit = _toDouble(
+    final totalBudget = _toDouble(budgetBreakdown?['totalBudget']);
+    final platformFeeAmount = _toDouble(budgetBreakdown?['adminPlatformFee']);
+    final estimatedProfitAmount = _toDouble(
       budgetBreakdown?['estimatedAgencyProfit'],
     );
-    final totalEarnings = _toDouble(
-      budgetBreakdown?['netAvailableForAgency'] ??
-          raw['availableBudgetForExecution'],
+    final netAvailableForAgency = _toDouble(
+      budgetBreakdown?['netAvailableForAgency'],
     );
+
+    // VAT % derived from base+vat (fallback to 15 if not derivable)
+    final double vatPercent = (baseBudget > 0 && vatAmount > 0)
+        ? ((vatAmount / baseBudget) * 100)
+        : 15;
+
+    // Platform fee % derived from base+fee (fallback to 2 if not derivable)
+    final double platformFeePercent = (baseBudget > 0 && platformFeeAmount > 0)
+        ? ((platformFeeAmount / baseBudget) * 100)
+        : 2;
+
+    // ✅ Server gives "actual profit" already (profit after platform fee)
+    final actualProfitAmount = estimatedProfitAmount > 0
+        ? estimatedProfitAmount
+        : 0;
+
+    // ✅ "Your Profit" (before fee) = actual profit + platform fee
+    final yourProfitBeforeFee =
+        (actualProfitAmount) + (platformFeeAmount > 0 ? platformFeeAmount : 0);
+
+    // Dollar conversion (optional; backend currently doesn't send it in your response)
+    final dollarRate = _toDouble(
+      raw['proposedDollarRate'] ?? 122.37,
+    ); // if exists
+    final totalCampaignSpent = totalBudget > 0
+        ? totalBudget
+        : null; // best available from API now
+    final campaignSpentUsd = (totalCampaignSpent != null && dollarRate > 0)
+        ? (totalCampaignSpent / dollarRate)
+        : null;
 
     final serviceFeeRaw =
         raw['proposedServiceFeePercent'] ??
         budgetBreakdown?['proposedServiceFeePercent'];
     _proposedServiceFeePercent = _toDouble(serviceFeeRaw).round();
-    _proposedDollarRate = _toDouble(raw['proposedDollarRate']);
+    _proposedDollarRate = dollarRate > 0 ? dollarRate : null;
 
     final updated = _copyJob(
       job,
       title: (raw['campaignName'] as String?)?.trim(),
       clientName: _clientNameFrom(raw),
-      dueLabel: _buildDueLabel(raw['deadline']?.toString()),
-      budget: totalBudget > 0 ? totalBudget : null,
-      sharePercent: _proposedServiceFeePercent,
+      dueLabel: _buildDueLabel(raw['duration']?.toString()),
+
+      // main visible numbers
+      budget: totalBudget > 0 ? totalBudget : job.budget,
+      sharePercent: _proposedServiceFeePercent ?? job.sharePercent,
+
+      // existing labels (keep)
       vatLabel: vatAmount > 0 ? formatCurrencyByLocale(vatAmount) : null,
       totalCostLabel: totalBudget > 0
           ? formatCurrencyByLocale(totalBudget)
           : null,
-      profitLabel: estimatedProfit > 0
-          ? formatCurrencyByLocale(estimatedProfit)
+      profitLabel: estimatedProfitAmount > 0
+          ? formatCurrencyByLocale(estimatedProfitAmount)
           : null,
-      totalEarningsLabel: totalEarnings > 0
-          ? formatCurrencyByLocale(totalEarnings)
+      totalEarningsLabel: netAvailableForAgency > 0
+          ? formatCurrencyByLocale(netAvailableForAgency)
           : null,
+
       milestones: mappedMilestones,
     );
 
+    // ✅ Create a JobItem with new optional fields filled
+    final updatedWithQuote = JobItem(
+      id: updated.id,
+      title: updated.title,
+      subTitle: updated.subTitle,
+      clientName: updated.clientName,
+      campaignType: updated.campaignType,
+      dateLabel: updated.dateLabel,
+      budget: updated.budget,
+      sharePercent: updated.sharePercent,
+      progressPercent: updated.progressPercent,
+      dueInDays: updated.dueInDays,
+      dueLabel: updated.dueLabel,
+      rating: updated.rating,
+      profitLabel: updated.profitLabel,
+      vatLabel: updated.vatLabel,
+      totalCostLabel: updated.totalCostLabel,
+      totalEarningsLabel: updated.totalEarningsLabel,
+      baseBudget: baseBudget > 0 ? baseBudget : null,
+      vatPercent: vatPercent,
+      vatAmount: vatAmount > 0 ? vatAmount : null,
+      netPayableBudget: totalBudget > 0 ? totalBudget : null,
+      contentAssets: updated.contentAssets,
+      brandAssets: updated.brandAssets,
+      needToSendSample: updated.needToSendSample,
+      sampleGuidelinesConfirmed: updated.sampleGuidelinesConfirmed,
+      milestones: updated.milestones,
+      dosText: updated.dosText,
+      dontsText: updated.dontsText,
+
+      // ✅ NEW
+      platformFeePercent: platformFeePercent,
+      platformFeeAmount: platformFeeAmount > 0 ? platformFeeAmount : null,
+      // ✅ Your profit (before fee)
+      estimatedProfitAmount: yourProfitBeforeFee > 0
+          ? yourProfitBeforeFee.toDouble()
+          : null,
+
+      // ✅ Actual profit (after fee) from server
+      actualProfitAmount: actualProfitAmount > 0
+          ? actualProfitAmount.toDouble()
+          : null,
+      totalCampaignSpent: totalCampaignSpent,
+      dollarRate: dollarRate > 0 ? dollarRate : null,
+      campaignSpentUsd: campaignSpentUsd,
+    );
+
+    jobRx.value = updatedWithQuote;
     final statusRaw = raw['status']?.toString();
+    _serverStatus = (statusRaw ?? '').trim().toLowerCase();
     _isNewOffer = _isNewOfferFromStatus(statusRaw, fallback: _isNewOffer);
 
-    jobRx.value = updated;
+    _applyCampaignTextAndAssets(raw);
+    _derivePlatformsFromMilestones(mappedMilestones);
     milestones.assignAll(mappedMilestones);
     _recalculateStatus();
-  }
-
-  Future<void> _probeAgencyPendingGetResponses(String campaignId) async {
-    if (!_didProbeAgencyRequoteOverview) {
-      final requote = await ApiErrorHandler.call(
-        () =>
-            _campaignService.fetchAgencyRequoteOverview(campaignId: campaignId),
-        showError: false,
-      );
-      if (requote.isSuccess) {
-        if (kDebugMode) {
-          debugPrint(
-            'RESPONSE DATA FROM GET /campaign/agency/$campaignId/requote-overview => ${requote.data}',
-          );
-        }
-        Get.snackbar('Requote overview', 'Response captured in debug logs.');
-        _didProbeAgencyRequoteOverview = true;
-      } else {
-        Get.snackbar(
-          'Requote overview',
-          requote.error ?? 'Failed to capture response.',
-        );
-      }
-    }
-
-    if (!_didProbeAgencyStats) {
-      final stats = await ApiErrorHandler.call(
-        () => _campaignService.fetchAgencyStats(),
-        showError: false,
-      );
-      if (stats.isSuccess) {
-        if (kDebugMode) {
-          debugPrint(
-            'RESPONSE DATA FROM GET /campaign/agency/stats => ${stats.data}',
-          );
-        }
-        Get.snackbar('Agency stats', 'Response captured in debug logs.');
-        _didProbeAgencyStats = true;
-      } else {
-        Get.snackbar(
-          'Agency stats',
-          stats.error ?? 'Failed to capture response.',
-        );
-      }
-    }
   }
 
   Future<void> openMilestoneDetails(Milestone milestone) async {
@@ -424,6 +819,17 @@ class CampaignDetailsController extends GetxController {
 
   void _recalculateStatus() {
     final list = milestones.toList(growable: false);
+
+    if (_serverStatus.isNotEmpty) {
+      if ({'completed', 'complete', 'closed'}.contains(_serverStatus)) {
+        campaignStatus.value = CampaignStatus.complete;
+        return;
+      }
+      if ({'declined', 'cancelled', 'rejected'}.contains(_serverStatus)) {
+        campaignStatus.value = CampaignStatus.ongoingDeclined;
+        return;
+      }
+    }
 
     if (_isNewOffer) {
       campaignStatus.value = CampaignStatus.newOffer;
@@ -461,10 +867,151 @@ class CampaignDetailsController extends GetxController {
     }
   }
 
+  void _applyCampaignTextAndAssets(Map<String, dynamic> raw) {
+    campaignGoalsText.value =
+        (raw['campaignGoals'] ?? raw['productServiceDetails'] ?? '')
+            .toString()
+            .trim();
+
+    contentRequirements.assignAll(_contentRequirementLines(raw));
+    dosLines.assignAll(_splitLines(raw['dos']?.toString()));
+    dontsLines.assignAll(_splitLines(raw['donts']?.toString()));
+    reportingRequirementLines.assignAll(
+      _splitLines(raw['reportingRequirements']?.toString()),
+    );
+    usageRightLines.assignAll(_splitLines(raw['usageRights']?.toString()));
+
+    final assets = (raw['assets'] as List?) ?? const [];
+    final mappedContent = <JobAsset>[];
+    final mappedBrand = <BrandAsset>[];
+
+    for (final item in assets) {
+      if (item is! Map) continue;
+      final e = Map<String, dynamic>.from(item);
+      final category = e['category']?.toString().toLowerCase().trim();
+      final fileName = e['fileName']?.toString().trim();
+      final fileUrl = e['fileUrl']?.toString().trim();
+      final mime = e['mimeType']?.toString().trim();
+      final fileSize = _toInt(e['fileSize']) ?? 0;
+
+      final displayTitle = (fileName != null && fileName.isNotEmpty)
+          ? fileName
+          : (e['assetType']?.toString().trim().isNotEmpty == true
+                ? e['assetType'].toString().trim()
+                : 'Asset');
+
+      if (category == 'brand') {
+        mappedBrand.add(
+          BrandAsset(
+            title: displayTitle,
+            value: (fileUrl != null && fileUrl.isNotEmpty) ? fileUrl : null,
+          ),
+        );
+      } else {
+        mappedContent.add(
+          JobAsset(
+            title: displayTitle,
+            meta: _assetMeta(mime: mime, fileSize: fileSize),
+            kind: _assetKindFrom(mime: mime, name: fileName),
+            pathOrUrl: (fileUrl != null && fileUrl.isNotEmpty) ? fileUrl : null,
+          ),
+        );
+      }
+    }
+
+    contentAssetsUi.assignAll(mappedContent);
+    brandAssetsUi.assignAll(mappedBrand);
+  }
+
+  void _derivePlatformsFromMilestones(List<Milestone> list) {
+    final keys = list
+        .map((m) => (m.platform ?? '').trim().toLowerCase())
+        .where((p) => p.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    platformKeys.assignAll(keys);
+  }
+
+  List<String> _splitLines(String? text) {
+    if (text == null || text.trim().isEmpty) return const [];
+    return text
+        .split('\n')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  List<String> _contentRequirementLines(Map<String, dynamic> raw) {
+    final milestones = (raw['milestones'] as List?) ?? const [];
+    final lines = milestones
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .map((e) => e['contentQuantity']?.toString().trim())
+        .whereType<String>()
+        .where((e) => e.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    return lines;
+  }
+
+  String _assetMeta({String? mime, required int fileSize}) {
+    final parts = <String>[];
+    if (mime != null && mime.trim().isNotEmpty) {
+      parts.add(mime.trim().toUpperCase());
+    }
+    if (fileSize > 0) {
+      parts.add(_formatBytes(fileSize));
+    }
+    return parts.isEmpty ? '—' : parts.join(' · ');
+  }
+
+  JobAssetKind _assetKindFrom({String? mime, String? name}) {
+    final value = ((mime ?? '') + ' ' + (name ?? '')).toLowerCase();
+    if (value.contains('image') ||
+        value.endsWith('.png') ||
+        value.endsWith('.jpg') ||
+        value.endsWith('.jpeg') ||
+        value.endsWith('.webp')) {
+      return JobAssetKind.image;
+    }
+    if (value.contains('video') ||
+        value.endsWith('.mp4') ||
+        value.endsWith('.mov') ||
+        value.endsWith('.webm')) {
+      return JobAssetKind.video;
+    }
+    if (value.contains('pdf') ||
+        value.contains('document') ||
+        value.endsWith('.pdf') ||
+        value.endsWith('.doc') ||
+        value.endsWith('.docx')) {
+      return JobAssetKind.document;
+    }
+    return JobAssetKind.other;
+  }
+
+  String _formatBytes(int bytes) {
+    const k = 1024;
+    if (bytes < k) return '$bytes B';
+
+    final kb = bytes / k;
+    if (kb < k) return '${kb.toStringAsFixed(kb < 10 ? 1 : 0)} KB';
+
+    final mb = kb / k;
+    if (mb < k) return '${mb.toStringAsFixed(mb < 10 ? 1 : 0)} MB';
+
+    final gb = mb / k;
+    return '${gb.toStringAsFixed(gb < 10 ? 1 : 0)} GB';
+  }
+
   String get deadlineMainText => localizeDaysRemainingFromDue(job.dueLabel);
 
   bool get showQuoteCard => campaignStatus.value == CampaignStatus.newOffer;
-  bool get showAgreementBar => campaignStatus.value == CampaignStatus.newOffer;
+  bool get showAgreementBar =>
+      campaignStatus.value == CampaignStatus.newOffer &&
+      !(accountTypeService.isAdAgency && _serverStatus == 'agency_negotiating');
+  bool get showAgencyNegotiatingCard =>
+      accountTypeService.isAdAgency && _serverStatus == 'agency_negotiating';
 
   JobItem _copyJob(
     JobItem base, {
@@ -510,6 +1057,7 @@ class CampaignDetailsController extends GetxController {
     );
   }
 
+  // ✅ Keep this for agency milestones (they may include platform/reach/views)
   Milestone _mapMilestone(Map<String, dynamic> json, int index) {
     final title =
         json['title']?.toString().trim() ??
@@ -538,8 +1086,11 @@ class CampaignDetailsController extends GetxController {
     );
   }
 
+  // ✅ UPDATED: null/empty -> todo
   MilestoneStatus _parseMilestoneStatus(String? raw) {
-    final v = (raw ?? '').toLowerCase();
+    final v = (raw ?? '').trim().toLowerCase();
+    if (v.isEmpty) return MilestoneStatus.todo;
+
     switch (v) {
       case 'in_review':
       case 'inreview':
@@ -567,16 +1118,6 @@ class CampaignDetailsController extends GetxController {
     if (v > 0) return formatCurrencyByLocale(v);
     if (value is String && value.trim().isNotEmpty) return value;
     return '—';
-  }
-
-  Map<String, dynamic> _extractDataMap(dynamic response) {
-    if (response is! Map) return <String, dynamic>{};
-    final map = Map<String, dynamic>.from(response as Map);
-    final data = map['data'];
-    if (data is Map) {
-      return Map<String, dynamic>.from(data as Map);
-    }
-    return map;
   }
 
   String _clientNameFrom(Map<String, dynamic> raw) {
@@ -644,6 +1185,9 @@ class CampaignDetailsController extends GetxController {
       'pending_influencer',
       'invited',
       'offer_sent',
+      'received',
+      'negotiating',
+      'quoted',
     };
 
     if (pendingStatuses.contains(s)) return true;
@@ -669,6 +1213,13 @@ class CampaignDetailsController extends GetxController {
     if (value is Iterable) return value.isNotEmpty;
     if (value is Map) return value.isNotEmpty;
     return true;
+  }
+
+  @override
+  void onClose() {
+    _requoteTimer?.cancel();
+    _requoteTimer = null;
+    super.onClose();
   }
 }
 

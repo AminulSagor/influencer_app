@@ -1,4 +1,3 @@
-// lib/modules/brand/create_campaign/create_campaign_step2_view.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -72,7 +71,6 @@ class CreateCampaignStep2View extends GetView<CreateCampaignController> {
 
                     18.h.verticalSpace,
 
-                    /// ✅ Body switches by type -> Obx required
                     Obx(() {
                       final type = controller.selectedType.value;
 
@@ -96,7 +94,6 @@ class CreateCampaignStep2View extends GetView<CreateCampaignController> {
             ),
           ),
 
-          /// ✅ Bottom buttons depend on Rx -> Obx required
           Obx(() => _bottomButtons()),
         ],
       ),
@@ -237,7 +234,7 @@ class _InfluencerPromotionStep2 extends StatelessWidget {
         }),
         12.h.verticalSpace,
         Obx(() {
-          final items = controller.preferredInfluencers.toList(); // ✅ IMPORTANT
+          final items = controller.preferredInfluencers.toList();
           return _ChipBox(items: items, onRemove: controller.removePreferred);
         }),
 
@@ -289,8 +286,7 @@ class _InfluencerPromotionStep2 extends StatelessWidget {
         }),
         12.h.verticalSpace,
         Obx(() {
-          final items = controller.notPreferredInfluencers
-              .toList(); // ✅ IMPORTANT
+          final items = controller.notPreferredInfluencers.toList();
           return _ChipBox(
             items: items,
             onRemove: controller.removeNotPreferred,
@@ -311,75 +307,73 @@ class _PaidAdStep2 extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        /// Paid Ad Niche (single)
-        Text(
-          'create_campaign_niche_label'.tr,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 14.sp,
-            fontWeight: FontWeight.w600,
-            color: AppPalette.primary,
-          ),
-        ),
-        10.h.verticalSpace,
+        // ── Niche dropdown ──
         Obx(() {
-          final value = controller.selectedPaidAdNiche.value; // ✅ reads Rx
-          return _SelectField(
-            text: value ?? 'create_campaign_niche_hint'.tr,
-            isPlaceholder: value == null,
-            onTap: controller.openPaidAdNichePicker,
+          final value = controller.selectedPaidAdNiche.value;
+          return CustomDropDownMenu(
+            title: 'create_campaign_niche_label'.tr,
+            titleTextStyle: AppTheme.textStyle.copyWith(
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w600,
+              color: AppPalette.primary,
+            ),
+            hintText: 'create_campaign_niche_hint'.tr,
+            options: controller.nicheOptions,
+            value: value,
+            onChanged: controller.onPaidAdNicheChanged,
           );
         }),
 
         18.h.verticalSpace,
 
-        /// Recommended agencies
-        Text(
-          'create_campaign_recommended_agencies_label'.tr,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 14.sp,
-            fontWeight: FontWeight.w600,
-            color: AppPalette.primary,
-          ),
-        ),
-        12.h.verticalSpace,
-        SizedBox(
-          height: 145.h,
-          child: Obx(() {
-            final items = controller.recommendedAgencies
-                .toList(); // ✅ IMPORTANT
-            final selectedName =
-                controller.selectedAgencyName.value; // ✅ reads Rx
-            return ListView.separated(
-              controller: controller.recommendedAgencyScroll,
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              itemCount: items.length,
-              separatorBuilder: (_, __) => 12.w.horizontalSpace,
-              itemBuilder: (_, i) {
-                final a = items[i];
-                final selected = selectedName == a.name;
-                return _AgencySquareCard(
-                  name: a.name,
-                  subtitle: a.subtitle,
-                  selected: selected,
-                  onTap: () => controller.selectAgency(a),
-                );
-              },
-            );
-          }),
-        ),
-
-        18.h.verticalSpace,
-
-        /// Other agencies (vertical)
+        // ── Recommended agencies (horizontal scroll with auto-pagination) ──
         Obx(() {
-          final items = controller.otherAgencies.toList(); // ✅ IMPORTANT
-          final selectedName =
-              controller.selectedAgencyName.value; // ✅ reads Rx
+          final items = controller.recommendedAgencies.toList();
+          final selectedIds = controller.selectedAgencyIds.toList();
+          if (items.isEmpty) return const SizedBox.shrink();
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'create_campaign_recommended_agencies_label'.tr,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w600,
+                  color: AppPalette.primary,
+                ),
+              ),
+              12.h.verticalSpace,
+              SizedBox(
+                height: 120.h,
+                child: ListView.separated(
+                  controller: controller.recommendedAgencyScroll,
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: items.length,
+                  separatorBuilder: (_, __) => 12.w.horizontalSpace,
+                  itemBuilder: (_, i) {
+                    final a = items[i];
+                    final selected = selectedIds.contains(a.id);
+                    return _AgencySquareCard(
+                      name: a.name,
+                      subtitle: a.subtitle,
+                      selected: selected,
+                      onTap: () => controller.toggleAgencySelection(a),
+                    );
+                  },
+                ),
+              ),
+              18.h.verticalSpace,
+            ],
+          );
+        }),
+
+        // ── Other agencies (vertical scroll with auto-pagination) ──
+        Obx(() {
+          final items = controller.otherAgencies.toList();
+          final selectedIds = controller.selectedAgencyIds.toList();
           if (items.isEmpty) return const SizedBox.shrink();
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -389,76 +383,35 @@ class _PaidAdStep2 extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 14.sp,
+                  fontSize: 12.sp,
                   fontWeight: FontWeight.w600,
                   color: AppPalette.primary,
                 ),
               ),
               12.h.verticalSpace,
-              ...items.map((a) {
-                final selected = selectedName == a.name;
-                return Padding(
-                  padding: EdgeInsets.only(bottom: 12.h),
-                  child: _AgencyWideCard(
-                    name: a.name,
-                    subtitle: a.subtitle,
-                    selected: selected,
-                    onTap: () => controller.selectAgency(a),
-                  ),
-                );
-              }).toList(),
+              SizedBox(
+                height: 280.h,
+                child: ListView.separated(
+                  controller: controller.otherAgencyScroll,
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: items.length,
+                  separatorBuilder: (_, __) => 12.h.verticalSpace,
+                  itemBuilder: (_, i) {
+                    final a = items[i];
+                    final selected = selectedIds.contains(a.id);
+                    return _AgencyWideCard(
+                      name: a.name,
+                      subtitle: a.subtitle,
+                      selected: selected,
+                      onTap: () => controller.toggleAgencySelection(a),
+                    );
+                  },
+                ),
+              ),
             ],
           );
         }),
       ],
-    );
-  }
-}
-
-class _SelectField extends StatelessWidget {
-  final String text;
-  final bool isPlaceholder;
-  final VoidCallback onTap;
-
-  const _SelectField({
-    required this.text,
-    required this.isPlaceholder,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 14.h),
-        decoration: BoxDecoration(
-          color: AppPalette.white,
-          borderRadius: BorderRadius.circular(kBorderRadius.r),
-          border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                text,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12.sp,
-                  color: isPlaceholder ? AppPalette.subtext : AppPalette.black,
-                ),
-              ),
-            ),
-            Icon(
-              Icons.keyboard_arrow_down_rounded,
-              size: 22.sp,
-              color: AppPalette.black,
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -491,11 +444,11 @@ class _ChipBox extends StatelessWidget {
                 return Container(
                   constraints: BoxConstraints(maxWidth: 160.w),
                   padding: EdgeInsets.symmetric(
-                    horizontal: 12.w,
-                    vertical: 8.h,
+                    horizontal: 10.w,
+                    vertical: 6.h,
                   ),
                   decoration: BoxDecoration(
-                    color: AppPalette.defaultFill,
+                    color: AppPalette.thirdColor,
                     borderRadius: BorderRadius.circular(999.r),
                   ),
                   child: Row(
@@ -507,9 +460,9 @@ class _ChipBox extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 12.sp,
+                            fontSize: 10.sp,
                             color: AppPalette.primary,
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.w400,
                           ),
                         ),
                       ),
@@ -593,61 +546,100 @@ class _AgencySquareCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bg = selected
-        ? AppPalette.primary
-        : AppPalette.primary.withAlpha(210);
+        ? LinearGradient(
+            colors: [AppPalette.secondary, AppPalette.gradient1],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          )
+        : LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppPalette.secondary.withAlpha(230),
+              AppPalette.gradient1.withAlpha(230),
+            ],
+          );
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Container(
         width: 140.w,
-        height: 145.h,
         padding: EdgeInsets.all(14.w),
         decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(16.r),
+          borderRadius: BorderRadius.circular(kBorderRadius.r),
           border: Border.all(
             color: selected ? AppPalette.secondary : Colors.transparent,
-            width: 1,
+            width: selected ? 2 : 1,
           ),
+          gradient: bg,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Stack(
           children: [
-            Align(
-              alignment: Alignment.topRight,
-              child: Container(
-                width: 54.w,
-                height: 54.w,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppPalette.defaultFill.withAlpha(220),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Align(
+                  alignment: Alignment.center,
+                  child: Container(
+                    width: 45.w,
+                    height: 45.w,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppPalette.defaultFill.withAlpha(220),
+                    ),
+                  ),
+                ),
+                5.h.verticalSpace,
+                SizedBox(
+                  width: double.infinity,
+                  child: Text(
+                    name,
+                    maxLines: 1,
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTheme.textStyle.copyWith(
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                      color: AppPalette.thirdColor,
+                    ),
+                  ),
+                ),
+                2.h.verticalSpace,
+                SizedBox(
+                  width: double.infinity,
+                  child: Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 10.sp,
+                      fontWeight: FontWeight.w300,
+                      color: AppPalette.white.withAlpha(220),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (selected)
+              Positioned(
+                top: 0,
+                right: 0,
+                child: Container(
+                  width: 20.w,
+                  height: 20.w,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppPalette.white,
+                  ),
+                  child: Icon(
+                    Icons.check,
+                    size: 14.sp,
+                    color: AppPalette.secondary,
+                  ),
                 ),
               ),
-            ),
-            const Spacer(),
-            Text(
-              name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 18.sp,
-                fontWeight: FontWeight.w700,
-                color: AppPalette.white,
-                letterSpacing: -0.2,
-              ),
-            ),
-            2.h.verticalSpace,
-            Text(
-              subtitle,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w300,
-                color: AppPalette.white.withAlpha(220),
-              ),
-            ),
           ],
         ),
       ),
@@ -671,28 +663,39 @@ class _AgencyWideCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bg = selected
-        ? AppPalette.primary
-        : AppPalette.primary.withAlpha(210);
+        ? LinearGradient(
+            colors: [AppPalette.secondary, AppPalette.gradient1],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          )
+        : LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppPalette.secondary.withAlpha(230),
+              AppPalette.gradient1.withAlpha(230),
+            ],
+          );
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Container(
         width: double.infinity,
-        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
+        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
         decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(16.r),
+          gradient: bg,
+          borderRadius: BorderRadius.circular(kBorderRadius.r),
           border: Border.all(
             color: selected ? AppPalette.secondary : Colors.transparent,
-            width: 1,
+            width: selected ? 2 : 1,
           ),
         ),
         child: Row(
           children: [
             Container(
-              width: 58.w,
-              height: 58.w,
+              width: 45.w,
+              height: 45.w,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: AppPalette.defaultFill.withAlpha(220),
@@ -707,11 +710,10 @@ class _AgencyWideCard extends StatelessWidget {
                     name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 18.sp,
-                      fontWeight: FontWeight.w700,
-                      color: AppPalette.white,
-                      letterSpacing: -0.2,
+                    style: AppTheme.textStyle.copyWith(
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                      color: AppPalette.thirdColor,
                     ),
                   ),
                   2.h.verticalSpace,
@@ -720,14 +722,28 @@ class _AgencyWideCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 12.sp,
+                      fontSize: 10.sp,
                       fontWeight: FontWeight.w300,
-                      color: AppPalette.white.withAlpha(220),
+                      color: AppPalette.thirdColor,
                     ),
                   ),
                 ],
               ),
             ),
+            if (selected)
+              Container(
+                width: 24.w,
+                height: 24.w,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppPalette.white,
+                ),
+                child: Icon(
+                  Icons.check,
+                  size: 16.sp,
+                  color: AppPalette.secondary,
+                ),
+              ),
           ],
         ),
       ),

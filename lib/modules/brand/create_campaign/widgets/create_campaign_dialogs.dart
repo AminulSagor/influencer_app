@@ -279,7 +279,14 @@ class CreateCampaignDialogs {
                           ),
                           elevation: 0,
                         ),
-                        child: Text('common_done'.tr),
+                        child: Text(
+                          'common_done'.tr,
+                          style: TextStyle(
+                            color: canSave
+                                ? AppPalette.white
+                                : AppPalette.defaultFill,
+                          ),
+                        ),
                       );
                     }),
                   ),

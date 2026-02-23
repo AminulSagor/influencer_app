@@ -105,6 +105,26 @@ class JobsView extends GetView<JobsController> {
                       }
                     }
 
+                    if (controller.isAdAgency) {
+                      switch (controller.currentTabIndex.value) {
+                        case 0:
+                          return _buildNewOffersTab();
+                        case 1:
+                          return _buildQuotedTab();
+                        case 2:
+                          return _buildActiveJobsTab();
+                        case 3:
+                          return _buildCompletedJobsTab();
+                        case 4:
+                          return _buildPendingTab();
+                        case 5:
+                          return _buildDeclinedTab();
+                        default:
+                          return const SizedBox.shrink();
+                      }
+                    }
+
+                    // influencer (existing)
                     switch (controller.currentTabIndex.value) {
                       case 0:
                         return _buildNewOffersTab();
@@ -138,13 +158,22 @@ class JobsView extends GetView<JobsController> {
             'jobs_tab_draft',
             'jobs_tab_canceled',
           ]
-        : [
-            'jobs_tab_new_offers',
-            'jobs_tab_active_jobs',
-            'jobs_tab_completed',
-            'jobs_tab_pending',
-            'jobs_tab_declined',
-          ];
+        : (controller.isAdAgency
+              ? [
+                  'jobs_tab_new_offers',
+                  'Quoted',
+                  'jobs_tab_active_jobs',
+                  'jobs_tab_completed',
+                  'jobs_tab_pending',
+                  'jobs_tab_declined',
+                ]
+              : [
+                  'jobs_tab_new_offers',
+                  'jobs_tab_active_jobs',
+                  'jobs_tab_completed',
+                  'jobs_tab_pending',
+                  'jobs_tab_declined',
+                ]);
 
     return Container(
       padding: EdgeInsets.only(left: 12.w, right: 12.w, top: 12.h),
@@ -163,7 +192,8 @@ class JobsView extends GetView<JobsController> {
 
               // For influencer: last tab is declined.
               // For brand: last tab is canceled.
-              final isDangerTab = index == 4;
+              final lastIndex = labelKeys.length - 1;
+              final isDangerTab = index == lastIndex;
 
               final count = controller.getCountForTab(index);
 
@@ -353,9 +383,7 @@ class JobsView extends GetView<JobsController> {
                         }
                       },
                       onDecline: () {
-                        if (controller.isAdAgency) {
-                          controller.declineAgencyOffer(job);
-                        } else {
+                        if (!controller.isAdAgency) {
                           controller.declineInfluencerOffer(job);
                         }
                       },
@@ -372,9 +400,45 @@ class JobsView extends GetView<JobsController> {
     );
   }
 
-  Widget _buildActiveJobsTab() {
+  Widget _buildQuotedTab() {
     return SingleChildScrollView(
       controller: controller.scrollControllerForTab(1),
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _tabHeader('Quoted'), // use .tr key if needed
+          SizedBox(height: 12.h),
+          Obx(() {
+            final items = controller.filteredQuotedJobs;
+            final isLoading = controller.isLoadingQuotedJobs.value;
+
+            if (items.isEmpty && !isLoading) return _emptyState();
+
+            return Column(
+              children: [
+                ...items.map(
+                  (job) => Padding(
+                    padding: EdgeInsets.only(bottom: 12.h),
+                    child: JobOfferCard(
+                      job: job,
+                      type: 'quoted', // ✅ NEW type
+                      onView: () => controller.openJobDetails(job),
+                    ),
+                  ),
+                ),
+                _bottomLoader(isLoading: isLoading),
+              ],
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActiveJobsTab() {
+    return SingleChildScrollView(
+      controller: controller.scrollControllerForTab(2),
       physics: const BouncingScrollPhysics(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

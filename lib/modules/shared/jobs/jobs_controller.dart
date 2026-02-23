@@ -19,7 +19,14 @@ class JobsController extends GetxController {
 
   /// sort toggle (used by the "Low to High" chip)
   final isSortLowToHigh = true.obs;
-  void toggleSort() => isSortLowToHigh.value = !isSortLowToHigh.value;
+  void toggleSort() {
+    isSortLowToHigh.value = !isSortLowToHigh.value;
+
+    // ✅ Agency: server-side sort too
+    if (isAdAgency && !isBrand) {
+      _refetchCurrentAgencyTab(reset: true);
+    }
+  }
 
   /// Brand: Budgeting & Quoting chip filter
   /// 0 = All, 1 = Budget Pending, 2 = Quotation Received
@@ -36,29 +43,33 @@ class JobsController extends GetxController {
 
   final newOffers = <JobItem>[].obs;
   final activeJobs = <JobItem>[].obs;
+  final quotedJobs = <JobItem>[].obs;
   final completedJobs = <JobItem>[].obs;
   final pendingPayments = <JobItem>[].obs;
   final declinedJobs = <JobItem>[].obs;
 
-  final RxMap<String, int> influencerCounts = <String, int>{}.obs;
-
   final isLoadingNewOffers = false.obs;
   final isLoadingActiveJobs = false.obs;
+  final isLoadingQuotedJobs = false.obs;
   final isLoadingCompletedJobs = false.obs;
   final isLoadingPendingPayments = false.obs;
   final isLoadingDeclinedJobs = false.obs;
 
   final hasMoreNewOffers = true.obs;
   final hasMoreActiveJobs = true.obs;
+  final hasMoreQuotedJobs = true.obs;
   final hasMoreCompletedJobs = true.obs;
   final hasMorePendingPayments = true.obs;
   final hasMoreDeclinedJobs = true.obs;
 
   int _newOffersPage = 1;
   int _activeJobsPage = 1;
+  int _quotedJobsPage = 1;
   int _completedJobsPage = 1;
   int _pendingPaymentsPage = 1;
   int _declinedJobsPage = 1;
+
+  final RxMap<String, int> influencerCounts = <String, int>{}.obs;
 
   // ---------------- BRAND LISTS ----------------
 
@@ -90,14 +101,26 @@ class JobsController extends GetxController {
 
   final Map<int, ScrollController> _tabScrollControllers = {};
 
+  Worker? _searchWorker;
+
   @override
   void onInit() {
     super.onInit();
+
+    _searchWorker = debounce<String>(searchQuery, (_) {
+      if (isAdAgency && !isBrand) {
+        _refetchCurrentAgencyTab(reset: true);
+      }
+      // ✅ influencer/brand: local filtering happens automatically via getters
+    }, time: const Duration(milliseconds: 450));
+
     _initLoad();
   }
 
   @override
   void onClose() {
+    _searchWorker?.dispose();
+
     for (final controller in _tabScrollControllers.values) {
       controller.dispose();
     }
@@ -144,6 +167,26 @@ class JobsController extends GetxController {
       }
     }
 
+    if (isAdAgency) {
+      switch (index) {
+        case 0:
+          return hasMoreNewOffers.value && !isLoadingNewOffers.value;
+        case 1:
+          return hasMoreQuotedJobs.value && !isLoadingQuotedJobs.value;
+        case 2:
+          return hasMoreActiveJobs.value && !isLoadingActiveJobs.value;
+        case 3:
+          return hasMoreCompletedJobs.value && !isLoadingCompletedJobs.value;
+        case 4:
+          return hasMorePendingPayments.value &&
+              !isLoadingPendingPayments.value;
+        case 5:
+          return hasMoreDeclinedJobs.value && !isLoadingDeclinedJobs.value;
+        default:
+          return false;
+      }
+    }
+
     switch (index) {
       case 0:
         return hasMoreNewOffers.value && !isLoadingNewOffers.value;
@@ -173,6 +216,19 @@ class JobsController extends GetxController {
       if (isInfluencer) {
         await fetchInfluencerCounts();
       }
+
+      if (isAdAgency) {
+        await Future.wait([
+          fetchNewOffers(reset: true),
+          fetchQuotedJobs(reset: true),
+          fetchActiveJobs(reset: true),
+          fetchCompletedJobs(reset: true),
+          fetchPendingPayments(reset: true),
+          fetchDeclinedJobs(reset: true),
+        ]);
+        return;
+      }
+
       await Future.wait([
         fetchNewOffers(reset: true),
         fetchActiveJobs(reset: true),
@@ -185,8 +241,42 @@ class JobsController extends GetxController {
 
   // -------- PUBLIC API --------
 
+  String _agencySortParam() {
+    // low_to_high => low_budget, high_to_low => high_budget
+    return isSortLowToHigh.value ? 'low_budget' : 'high_budget';
+  }
+
+  void _refetchCurrentAgencyTab({required bool reset}) {
+    switch (currentTabIndex.value) {
+      case 0:
+        fetchNewOffers(reset: reset);
+        break;
+      case 1:
+        fetchQuotedJobs(reset: reset);
+        break;
+      case 2:
+        fetchActiveJobs(reset: reset);
+        break;
+      case 3:
+        fetchCompletedJobs(reset: reset);
+        break;
+      case 4:
+        fetchPendingPayments(reset: reset);
+        break;
+      case 5:
+        fetchDeclinedJobs(reset: reset);
+        break;
+    }
+  }
+
   void changeTab(int index) {
     currentTabIndex.value = index;
+
+    // reset scroll position for that tab (prevents immediate loadMore)
+    final c = _tabScrollControllers[index];
+    if (c != null && c.hasClients) {
+      c.jumpTo(0);
+    }
 
     if (isBrand) {
       switch (index) {
@@ -209,6 +299,31 @@ class JobsController extends GetxController {
       return;
     }
 
+    if (isAdAgency) {
+      switch (index) {
+        case 0:
+          if (newOffers.isEmpty) fetchNewOffers(reset: true);
+          break;
+        case 1:
+          if (quotedJobs.isEmpty) fetchQuotedJobs(reset: true);
+          break;
+        case 2:
+          if (activeJobs.isEmpty) fetchActiveJobs(reset: true);
+          break;
+        case 3:
+          if (completedJobs.isEmpty) fetchCompletedJobs(reset: true);
+          break;
+        case 4:
+          if (pendingPayments.isEmpty) fetchPendingPayments(reset: true);
+          break;
+        case 5:
+          if (declinedJobs.isEmpty) fetchDeclinedJobs(reset: true);
+          break;
+      }
+      return;
+    }
+
+    // influencer (existing 5 tabs)
     switch (index) {
       case 0:
         if (newOffers.isEmpty) fetchNewOffers(reset: true);
@@ -250,6 +365,30 @@ class JobsController extends GetxController {
       return;
     }
 
+    if (isAdAgency) {
+      switch (index) {
+        case 0:
+          await fetchNewOffers();
+          break;
+        case 1:
+          await fetchQuotedJobs();
+          break;
+        case 2:
+          await fetchActiveJobs();
+          break;
+        case 3:
+          await fetchCompletedJobs();
+          break;
+        case 4:
+          await fetchPendingPayments();
+          break;
+        case 5:
+          await fetchDeclinedJobs();
+          break;
+      }
+      return;
+    }
+
     switch (index) {
       case 0:
         await fetchNewOffers();
@@ -282,6 +421,25 @@ class JobsController extends GetxController {
           return brandDrafts.length;
         case 4:
           return brandCanceled.length;
+        default:
+          return 0;
+      }
+    }
+
+    if (isAdAgency) {
+      switch (index) {
+        case 0:
+          return newOffers.length;
+        case 1:
+          return quotedJobs.length;
+        case 2:
+          return activeJobs.length;
+        case 3:
+          return completedJobs.length;
+        case 4:
+          return pendingPayments.length;
+        case 5:
+          return declinedJobs.length;
         default:
           return 0;
       }
@@ -388,8 +546,6 @@ class JobsController extends GetxController {
 
   List<JobItem> _filterList(List<JobItem> source) {
     final q = searchQuery.value.trim().toLowerCase();
-
-    // IMPORTANT: never sort/mutate the RxList itself during build.
     final List<JobItem> base = List<JobItem>.from(source);
 
     Iterable<JobItem> filtered = base;
@@ -405,6 +561,7 @@ class JobsController extends GetxController {
 
     final out = filtered.toList();
 
+    // ✅ local sort for everyone (agency still also does server sort)
     out.sort(
       (a, b) => isSortLowToHigh.value
           ? a.budget.compareTo(b.budget)
@@ -416,6 +573,7 @@ class JobsController extends GetxController {
 
   // Influencer/Agency
   List<JobItem> get filteredNewOffers => _filterList(newOffers);
+  List<JobItem> get filteredQuotedJobs => _filterList(quotedJobs);
   List<JobItem> get filteredActiveJobs => _filterList(activeJobs);
   List<JobItem> get filteredCompletedJobs => _filterList(completedJobs);
   List<JobItem> get filteredPendingPayments => _filterList(pendingPayments);
@@ -454,288 +612,158 @@ class JobsController extends GetxController {
   // -------- INFLUENCER/AGENCY FETCH (same as before) --------
 
   Future<void> fetchNewOffers({bool reset = false}) async {
-    if (isLoadingNewOffers.value) return;
-    if (!hasMoreNewOffers.value && !reset) return;
-
-    isLoadingNewOffers.value = true;
-    if (reset) {
-      _newOffersPage = 1;
-      hasMoreNewOffers.value = true;
-      newOffers.clear();
-    }
-
-    if (isAdAgency) {
-      final result = await ApiErrorHandler.call(
-        () => _fetchAgencyCampaigns(
-          tab: _agencyTabParam(0),
-          page: _newOffersPage,
-          pageSize: _pageSize,
-        ),
-      );
-
-      if (result.isSuccess) {
-        final page = result.data!;
-        if (page.items.isEmpty) {
-          hasMoreNewOffers.value = false;
-        } else {
-          newOffers.addAll(page.items);
-          _newOffersPage++;
-          if (_newOffersPage > page.totalPages) {
-            hasMoreNewOffers.value = false;
-          }
+    await _fetchPagedJobs(
+      reset: reset,
+      isLoading: isLoadingNewOffers,
+      hasMore: hasMoreNewOffers,
+      target: newOffers,
+      getPage: () => _newOffersPage,
+      setPage: (v) => _newOffersPage = v,
+      requestPage: (page) {
+        if (isAdAgency) {
+          return _fetchAgencyCampaigns(
+            tab: _agencyTabParam(0),
+            page: page,
+            pageSize: _pageSize,
+            search: searchQuery.value.trim(),
+            sort: _agencySortParam(),
+          );
         }
-      }
-    } else {
-      final result = await ApiErrorHandler.call(
-        () => _fetchInfluencerJobs(
+        return _fetchInfluencerJobs(
           status: _influencerTabParam(0),
-          page: _newOffersPage,
+          page: page,
           pageSize: _pageSize,
-        ),
-      );
+        );
+      },
+    );
+  }
 
-      if (result.isSuccess) {
-        final page = result.data!;
-        if (page.items.isEmpty) {
-          hasMoreNewOffers.value = false;
-        } else {
-          newOffers.addAll(page.items);
-          _newOffersPage++;
-          if (_newOffersPage > page.totalPages) {
-            hasMoreNewOffers.value = false;
-          }
-        }
-      }
-    }
-    isLoadingNewOffers.value = false;
+  Future<void> fetchQuotedJobs({bool reset = false}) async {
+    await _fetchPagedJobs(
+      reset: reset,
+      isLoading: isLoadingQuotedJobs,
+      hasMore: hasMoreQuotedJobs,
+      target: quotedJobs,
+      getPage: () => _quotedJobsPage,
+      setPage: (v) => _quotedJobsPage = v,
+      requestPage: (page) {
+        return _fetchAgencyCampaigns(
+          tab: 'quoted',
+          page: page,
+          pageSize: _pageSize,
+          search: searchQuery.value.trim(),
+          sort: _agencySortParam(),
+        );
+      },
+    );
   }
 
   Future<void> fetchActiveJobs({bool reset = false}) async {
-    if (isLoadingActiveJobs.value) return;
-    if (!hasMoreActiveJobs.value && !reset) return;
-
-    isLoadingActiveJobs.value = true;
-    if (reset) {
-      _activeJobsPage = 1;
-      hasMoreActiveJobs.value = true;
-      activeJobs.clear();
-    }
-
-    if (isAdAgency) {
-      final result = await ApiErrorHandler.call(
-        () => _fetchAgencyCampaigns(
-          tab: _agencyTabParam(1),
-          page: _activeJobsPage,
-          pageSize: _pageSize,
-        ),
-      );
-
-      if (result.isSuccess) {
-        final page = result.data!;
-        if (page.items.isEmpty) {
-          hasMoreActiveJobs.value = false;
-        } else {
-          activeJobs.addAll(page.items);
-          _activeJobsPage++;
-          if (_activeJobsPage > page.totalPages) {
-            hasMoreActiveJobs.value = false;
-          }
+    await _fetchPagedJobs(
+      reset: reset,
+      isLoading: isLoadingActiveJobs,
+      hasMore: hasMoreActiveJobs,
+      target: activeJobs,
+      getPage: () => _activeJobsPage,
+      setPage: (v) => _activeJobsPage = v,
+      requestPage: (page) {
+        if (isAdAgency) {
+          return _fetchAgencyCampaigns(
+            tab: _agencyTabParam(2),
+            page: page,
+            pageSize: _pageSize,
+            search: searchQuery.value.trim(),
+            sort: _agencySortParam(),
+          );
         }
-      }
-    } else {
-      final result = await ApiErrorHandler.call(
-        () => _fetchInfluencerJobs(
+        return _fetchInfluencerJobs(
           status: _influencerTabParam(1),
-          page: _activeJobsPage,
+          page: page,
           pageSize: _pageSize,
-        ),
-      );
-
-      if (result.isSuccess) {
-        final page = result.data!;
-        if (page.items.isEmpty) {
-          hasMoreActiveJobs.value = false;
-        } else {
-          activeJobs.addAll(page.items);
-          _activeJobsPage++;
-          if (_activeJobsPage > page.totalPages) {
-            hasMoreActiveJobs.value = false;
-          }
-        }
-      }
-    }
-    isLoadingActiveJobs.value = false;
+        );
+      },
+    );
   }
 
   Future<void> fetchCompletedJobs({bool reset = false}) async {
-    if (isLoadingCompletedJobs.value) return;
-    if (!hasMoreCompletedJobs.value && !reset) return;
-
-    isLoadingCompletedJobs.value = true;
-    if (reset) {
-      _completedJobsPage = 1;
-      hasMoreCompletedJobs.value = true;
-      completedJobs.clear();
-    }
-
-    if (isAdAgency) {
-      final result = await ApiErrorHandler.call(
-        () => _fetchAgencyCampaigns(
-          tab: _agencyTabParam(2),
-          page: _completedJobsPage,
-          pageSize: _pageSize,
-        ),
-      );
-
-      if (result.isSuccess) {
-        final page = result.data!;
-        if (page.items.isEmpty) {
-          hasMoreCompletedJobs.value = false;
-        } else {
-          completedJobs.addAll(page.items);
-          _completedJobsPage++;
-          if (_completedJobsPage > page.totalPages) {
-            hasMoreCompletedJobs.value = false;
-          }
+    await _fetchPagedJobs(
+      reset: reset,
+      isLoading: isLoadingCompletedJobs,
+      hasMore: hasMoreCompletedJobs,
+      target: completedJobs,
+      getPage: () => _completedJobsPage,
+      setPage: (v) => _completedJobsPage = v,
+      requestPage: (page) {
+        if (isAdAgency) {
+          return _fetchAgencyCampaigns(
+            tab: _agencyTabParam(3),
+            page: page,
+            pageSize: _pageSize,
+            search: searchQuery.value.trim(),
+            sort: _agencySortParam(),
+          );
         }
-      }
-    } else {
-      final result = await ApiErrorHandler.call(
-        () => _fetchInfluencerJobs(
+        return _fetchInfluencerJobs(
           status: _influencerTabParam(2),
-          page: _completedJobsPage,
+          page: page,
           pageSize: _pageSize,
-        ),
-      );
-
-      if (result.isSuccess) {
-        final page = result.data!;
-        if (page.items.isEmpty) {
-          hasMoreCompletedJobs.value = false;
-        } else {
-          completedJobs.addAll(page.items);
-          _completedJobsPage++;
-          if (_completedJobsPage > page.totalPages) {
-            hasMoreCompletedJobs.value = false;
-          }
-        }
-      }
-    }
-    isLoadingCompletedJobs.value = false;
+        );
+      },
+    );
   }
 
   Future<void> fetchPendingPayments({bool reset = false}) async {
-    if (isLoadingPendingPayments.value) return;
-    if (!hasMorePendingPayments.value && !reset) return;
-
-    isLoadingPendingPayments.value = true;
-    if (reset) {
-      _pendingPaymentsPage = 1;
-      hasMorePendingPayments.value = true;
-      pendingPayments.clear();
-    }
-
-    if (isAdAgency) {
-      final result = await ApiErrorHandler.call(
-        () => _fetchAgencyCampaigns(
-          tab: _agencyTabParam(3),
-          page: _pendingPaymentsPage,
-          pageSize: _pageSize,
-        ),
-      );
-
-      if (result.isSuccess) {
-        final page = result.data!;
-        if (page.items.isEmpty) {
-          hasMorePendingPayments.value = false;
-        } else {
-          pendingPayments.addAll(page.items);
-          _pendingPaymentsPage++;
-          if (_pendingPaymentsPage > page.totalPages) {
-            hasMorePendingPayments.value = false;
-          }
+    await _fetchPagedJobs(
+      reset: reset,
+      isLoading: isLoadingPendingPayments,
+      hasMore: hasMorePendingPayments,
+      target: pendingPayments,
+      getPage: () => _pendingPaymentsPage,
+      setPage: (v) => _pendingPaymentsPage = v,
+      requestPage: (page) {
+        if (isAdAgency) {
+          return _fetchAgencyCampaigns(
+            tab: _agencyTabParam(4),
+            page: page,
+            pageSize: _pageSize,
+            search: searchQuery.value.trim(),
+            sort: _agencySortParam(),
+          );
         }
-      }
-    } else {
-      final result = await ApiErrorHandler.call(
-        () => _fetchInfluencerJobs(
+        return _fetchInfluencerJobs(
           status: _influencerTabParam(3),
-          page: _pendingPaymentsPage,
+          page: page,
           pageSize: _pageSize,
-        ),
-      );
-
-      if (result.isSuccess) {
-        final page = result.data!;
-        if (page.items.isEmpty) {
-          hasMorePendingPayments.value = false;
-        } else {
-          pendingPayments.addAll(page.items);
-          _pendingPaymentsPage++;
-          if (_pendingPaymentsPage > page.totalPages) {
-            hasMorePendingPayments.value = false;
-          }
-        }
-      }
-    }
-    isLoadingPendingPayments.value = false;
+        );
+      },
+    );
   }
 
   Future<void> fetchDeclinedJobs({bool reset = false}) async {
-    if (isLoadingDeclinedJobs.value) return;
-    if (!hasMoreDeclinedJobs.value && !reset) return;
-
-    isLoadingDeclinedJobs.value = true;
-    if (reset) {
-      _declinedJobsPage = 1;
-      hasMoreDeclinedJobs.value = true;
-      declinedJobs.clear();
-    }
-
-    if (isAdAgency) {
-      final result = await ApiErrorHandler.call(
-        () => _fetchAgencyCampaigns(
-          tab: _agencyTabParam(4),
-          page: _declinedJobsPage,
-          pageSize: _pageSize,
-        ),
-      );
-
-      if (result.isSuccess) {
-        final page = result.data!;
-        if (page.items.isEmpty) {
-          hasMoreDeclinedJobs.value = false;
-        } else {
-          declinedJobs.addAll(page.items);
-          _declinedJobsPage++;
-          if (_declinedJobsPage > page.totalPages) {
-            hasMoreDeclinedJobs.value = false;
-          }
+    await _fetchPagedJobs(
+      reset: reset,
+      isLoading: isLoadingDeclinedJobs,
+      hasMore: hasMoreDeclinedJobs,
+      target: declinedJobs,
+      getPage: () => _declinedJobsPage,
+      setPage: (v) => _declinedJobsPage = v,
+      requestPage: (page) {
+        if (isAdAgency) {
+          return _fetchAgencyCampaigns(
+            tab: _agencyTabParam(5),
+            page: page,
+            pageSize: _pageSize,
+            search: searchQuery.value.trim(),
+            sort: _agencySortParam(),
+          );
         }
-      }
-    } else {
-      final result = await ApiErrorHandler.call(
-        () => _fetchInfluencerJobs(
+        return _fetchInfluencerJobs(
           status: _influencerTabParam(4),
-          page: _declinedJobsPage,
+          page: page,
           pageSize: _pageSize,
-        ),
-      );
-
-      if (result.isSuccess) {
-        final page = result.data!;
-        if (page.items.isEmpty) {
-          hasMoreDeclinedJobs.value = false;
-        } else {
-          declinedJobs.addAll(page.items);
-          _declinedJobsPage++;
-          if (_declinedJobsPage > page.totalPages) {
-            hasMoreDeclinedJobs.value = false;
-          }
-        }
-      }
-    }
-    isLoadingDeclinedJobs.value = false;
+        );
+      },
+    );
   }
 
   // -------- AGENCY ACTIONS --------
@@ -773,174 +801,139 @@ class JobsController extends GetxController {
 
   // -------- BRAND FETCH --------
 
-  Future<void> fetchBrandActive({bool reset = false}) async {
-    if (isLoadingBrandActive.value) return;
-    if (!hasMoreBrandActive.value && !reset) return;
+  Future<void> _fetchPagedJobs({
+    required bool reset,
+    required RxBool isLoading,
+    required RxBool hasMore,
+    required RxList<JobItem> target,
+    required int Function() getPage,
+    required void Function(int) setPage,
+    required Future<_CampaignPage> Function(int page) requestPage,
+  }) async {
+    if (isLoading.value) return;
+    if (!hasMore.value && !reset) return;
 
-    isLoadingBrandActive.value = true;
-    if (reset) {
-      _brandActivePage = 1;
-      hasMoreBrandActive.value = true;
-      brandActive.clear();
+    isLoading.value = true;
+
+    try {
+      if (reset) {
+        setPage(1);
+        hasMore.value = true;
+        target.clear();
+      }
+
+      final currentPage = getPage();
+
+      final result = await ApiErrorHandler.call(
+        () => requestPage(currentPage),
+        showError: false,
+      );
+
+      if (!result.isSuccess || result.data == null) return;
+
+      final page = result.data!;
+      final items = page.items;
+
+      if (items.isEmpty) {
+        hasMore.value = false;
+        return;
+      }
+
+      target.addAll(items);
+
+      // ✅ Key fix: decide end by BOTH rules:
+      // 1) API totalPages (if provided)
+      // 2) items length < pageSize (most reliable)
+      final nextPage = currentPage + 1;
+      setPage(nextPage);
+
+      final endBySize = items.length < _pageSize;
+      final endByTotalPages = nextPage > page.totalPages;
+
+      hasMore.value = !(endBySize || endByTotalPages);
+    } finally {
+      isLoading.value = false;
     }
+  }
 
-    final result = await ApiErrorHandler.call(
-      () => _fetchBrandCampaigns(
+  Future<void> fetchBrandActive({bool reset = false}) async {
+    await _fetchPagedJobs(
+      reset: reset,
+      isLoading: isLoadingBrandActive,
+      hasMore: hasMoreBrandActive,
+      target: brandActive,
+      getPage: () => _brandActivePage,
+      setPage: (v) => _brandActivePage = v,
+      requestPage: (page) => _fetchBrandCampaigns(
         status: 'active',
-        page: _brandActivePage,
+        page: page,
         pageSize: _pageSize,
       ),
     );
-
-    if (result.isSuccess) {
-      final page = result.data!;
-      if (page.items.isEmpty) {
-        hasMoreBrandActive.value = false;
-      } else {
-        brandActive.addAll(page.items);
-        _brandActivePage++;
-        if (_brandActivePage > page.totalPages) {
-          hasMoreBrandActive.value = false;
-        }
-      }
-    }
-    isLoadingBrandActive.value = false;
   }
 
   Future<void> fetchBrandBudgeting({bool reset = false}) async {
-    if (isLoadingBrandBudgeting.value) return;
-    if (!hasMoreBrandBudgeting.value && !reset) return;
-
-    isLoadingBrandBudgeting.value = true;
-    if (reset) {
-      _brandBudgetingPage = 1;
-      hasMoreBrandBudgeting.value = true;
-      brandBudgeting.clear();
-    }
-
-    final result = await ApiErrorHandler.call(
-      () => _fetchBrandCampaigns(
+    await _fetchPagedJobs(
+      reset: reset,
+      isLoading: isLoadingBrandBudgeting,
+      hasMore: hasMoreBrandBudgeting,
+      target: brandBudgeting,
+      getPage: () => _brandBudgetingPage,
+      setPage: (v) => _brandBudgetingPage = v,
+      requestPage: (page) => _fetchBrandCampaigns(
         status: 'quoting',
-        page: _brandBudgetingPage,
+        page: page,
         pageSize: _pageSize,
       ),
     );
-
-    if (result.isSuccess) {
-      final page = result.data!;
-      if (page.items.isEmpty) {
-        hasMoreBrandBudgeting.value = false;
-      } else {
-        brandBudgeting.addAll(page.items);
-        _brandBudgetingPage++;
-        if (_brandBudgetingPage > page.totalPages) {
-          hasMoreBrandBudgeting.value = false;
-        }
-      }
-    }
-    isLoadingBrandBudgeting.value = false;
   }
 
   Future<void> fetchBrandCompleted({bool reset = false}) async {
-    if (isLoadingBrandCompleted.value) return;
-    if (!hasMoreBrandCompleted.value && !reset) return;
-
-    isLoadingBrandCompleted.value = true;
-    if (reset) {
-      _brandCompletedPage = 1;
-      hasMoreBrandCompleted.value = true;
-      brandCompleted.clear();
-    }
-
-    final result = await ApiErrorHandler.call(
-      () => _fetchBrandCampaigns(
+    await _fetchPagedJobs(
+      reset: reset,
+      isLoading: isLoadingBrandCompleted,
+      hasMore: hasMoreBrandCompleted,
+      target: brandCompleted,
+      getPage: () => _brandCompletedPage,
+      setPage: (v) => _brandCompletedPage = v,
+      requestPage: (page) => _fetchBrandCampaigns(
         status: 'completed',
-        page: _brandCompletedPage,
+        page: page,
         pageSize: _pageSize,
       ),
     );
-
-    if (result.isSuccess) {
-      final page = result.data!;
-      if (page.items.isEmpty) {
-        hasMoreBrandCompleted.value = false;
-      } else {
-        brandCompleted.addAll(page.items);
-        _brandCompletedPage++;
-        if (_brandCompletedPage > page.totalPages) {
-          hasMoreBrandCompleted.value = false;
-        }
-      }
-    }
-    isLoadingBrandCompleted.value = false;
   }
 
   Future<void> fetchBrandDrafts({bool reset = false}) async {
-    if (isLoadingBrandDrafts.value) return;
-    if (!hasMoreBrandDrafts.value && !reset) return;
-
-    isLoadingBrandDrafts.value = true;
-    if (reset) {
-      _brandDraftsPage = 1;
-      hasMoreBrandDrafts.value = true;
-      brandDrafts.clear();
-    }
-
-    final result = await ApiErrorHandler.call(
-      () => _fetchBrandCampaigns(
+    await _fetchPagedJobs(
+      reset: reset,
+      isLoading: isLoadingBrandDrafts,
+      hasMore: hasMoreBrandDrafts,
+      target: brandDrafts,
+      getPage: () => _brandDraftsPage,
+      setPage: (v) => _brandDraftsPage = v,
+      requestPage: (page) => _fetchBrandCampaigns(
         status: 'draft',
-        page: _brandDraftsPage,
+        page: page,
         pageSize: _pageSize,
       ),
     );
-
-    if (result.isSuccess) {
-      final page = result.data!;
-      if (page.items.isEmpty) {
-        hasMoreBrandDrafts.value = false;
-      } else {
-        brandDrafts.addAll(page.items);
-        _brandDraftsPage++;
-        if (_brandDraftsPage > page.totalPages) {
-          hasMoreBrandDrafts.value = false;
-        }
-      }
-    }
-    isLoadingBrandDrafts.value = false;
   }
 
   Future<void> fetchBrandCanceled({bool reset = false}) async {
-    if (isLoadingBrandCanceled.value) return;
-    if (!hasMoreBrandCanceled.value && !reset) return;
-
-    isLoadingBrandCanceled.value = true;
-    if (reset) {
-      _brandCanceledPage = 1;
-      hasMoreBrandCanceled.value = true;
-      brandCanceled.clear();
-    }
-
-    final result = await ApiErrorHandler.call(
-      () => _fetchBrandCampaigns(
+    await _fetchPagedJobs(
+      reset: reset,
+      isLoading: isLoadingBrandCanceled,
+      hasMore: hasMoreBrandCanceled,
+      target: brandCanceled,
+      getPage: () => _brandCanceledPage,
+      setPage: (v) => _brandCanceledPage = v,
+      requestPage: (page) => _fetchBrandCampaigns(
         status: 'cancelled',
-        page: _brandCanceledPage,
+        page: page,
         pageSize: _pageSize,
       ),
     );
-
-    if (result.isSuccess) {
-      final page = result.data!;
-      if (page.items.isEmpty) {
-        hasMoreBrandCanceled.value = false;
-      } else {
-        brandCanceled.addAll(page.items);
-        _brandCanceledPage++;
-        if (_brandCanceledPage > page.totalPages) {
-          hasMoreBrandCanceled.value = false;
-        }
-      }
-    }
-    isLoadingBrandCanceled.value = false;
   }
 
   // -------- BRAND API --------
@@ -968,7 +961,7 @@ class JobsController extends GetxController {
         .toList();
 
     final meta = data['meta'] as Map<String, dynamic>?;
-    final totalPages = (meta?['totalPages'] as num?)?.toInt() ?? 1;
+    final totalPages = (meta?['total'] as num?)?.toInt() ?? 1;
 
     return _CampaignPage(items: items, totalPages: totalPages);
   }
@@ -978,14 +971,16 @@ class JobsController extends GetxController {
   String _agencyTabParam(int tabIndex) {
     switch (tabIndex) {
       case 0:
-        return 'pending';
+        return 'new_offer';
       case 1:
-        return 'active';
+        return 'quoted';
       case 2:
-        return 'completed';
+        return 'active';
       case 3:
-        return 'pending';
+        return 'completed';
       case 4:
+        return 'pending';
+      case 5:
         return 'declined';
       default:
         return 'active';
@@ -1064,7 +1059,7 @@ class JobsController extends GetxController {
         .toList();
 
     final meta = (data['pagination'] ?? data['meta']) as Map<String, dynamic>?;
-    final totalPages = (meta?['totalPages'] as num?)?.toInt() ?? 1;
+    final totalPages = (meta?['total'] as num?)?.toInt() ?? 1;
 
     return _CampaignPage(items: items, totalPages: totalPages);
   }
@@ -1073,6 +1068,10 @@ class JobsController extends GetxController {
     required String tab,
     required int page,
     required int pageSize,
+
+    // ✅ NEW
+    String? search,
+    String? sort,
   }) async {
     final res = await _apiClient.dio.get(
       '/campaign/agency/list',
@@ -1080,6 +1079,10 @@ class JobsController extends GetxController {
         'page': page,
         'limit': pageSize,
         if (tab.trim().isNotEmpty) 'tab': tab.trim(),
+
+        // ✅ NEW
+        if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
+        if (sort != null && sort.trim().isNotEmpty) 'sort': sort.trim(),
       },
     );
 
@@ -1091,7 +1094,7 @@ class JobsController extends GetxController {
         .toList();
 
     final meta = data['meta'] as Map<String, dynamic>?;
-    final totalPages = (meta?['totalPages'] as num?)?.toInt() ?? 1;
+    final totalPages = (meta?['total'] as num?)?.toInt() ?? 1;
 
     return _CampaignPage(items: items, totalPages: totalPages);
   }
@@ -1122,6 +1125,8 @@ class JobsController extends GetxController {
 
     final budget = totalBudget > 0 ? totalBudget : availableBudget;
 
+    final timeLeftToRequoteMinutes = _intFrom(json['timeLeftToRequoteMinutes']);
+
     return JobItem(
       id: campaignId,
       title: campaignName?.isNotEmpty == true
@@ -1134,6 +1139,7 @@ class JobsController extends GetxController {
       sharePercent: serviceFee.round(),
       dueLabel: _buildDueLabel(deadline),
       progressPercent: _progressFromStatus(status),
+      timeLeftToRequoteMinutes: timeLeftToRequoteMinutes,
     );
   }
 

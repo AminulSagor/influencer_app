@@ -171,7 +171,7 @@ class BottomNavRouteGenerator {
           page: () => BrandMilestoneDetailsView(),
           binding: BindingsBuilder(() {
             Get.lazyPut<BrandMilestoneDetailsController>(
-              () => BrandMilestoneDetailsController(),
+              () => BrandMilestoneDetailsController(settings.arguments),
             );
           }),
         );

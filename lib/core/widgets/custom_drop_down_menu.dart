@@ -118,7 +118,7 @@ class CustomDropDownMenu extends StatelessWidget {
                 titleTextStyle ??
                 AppTheme.textStyle.copyWith(
                   fontSize: 12.sp,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
                   color: AppPalette.secondary,
                 ),
           ),

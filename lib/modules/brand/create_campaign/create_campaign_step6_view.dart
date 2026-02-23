@@ -1028,9 +1028,7 @@ class _BrandAssetsBlock extends StatelessWidget {
   final CreateCampaignController controller;
   const _BrandAssetsBlock({required this.controller});
 
-  static const _primary = Color(0xFF2F4F1F);
-  static const _softBorder = Color(0xFFBFD7A5);
-  static const _softBg = Color(0xFFF7FAF3);
+  static const _secondary = Color(0xFF2F4F1F);
 
   @override
   Widget build(BuildContext context) {
@@ -1062,27 +1060,34 @@ class _BrandAssetsBlock extends StatelessWidget {
               borderRadius: BorderRadius.circular(14.r),
               onTap: () => c.openEditBrandAssetDialog(i),
               child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+                padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
                 decoration: BoxDecoration(
-                  color: _softBg,
-                  borderRadius: BorderRadius.circular(14.r),
-                  border: Border.all(color: _softBorder),
+                  borderRadius: BorderRadius.circular(kBorderRadius.r),
+                  border: Border.all(
+                    color: AppPalette.border1,
+                    width: kBorderWidth0_5,
+                  ),
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomLeft,
+                    end: Alignment.topRight,
+                    colors: [
+                      AppPalette.white,
+                      AppPalette.white,
+                      AppPalette.thirdColor,
+                    ],
+                  ),
                 ),
                 child: Row(
                   children: [
                     Container(
-                      width: 36.w,
-                      height: 36.w,
+                      width: 32.w,
+                      height: 32.w,
                       decoration: BoxDecoration(
-                        color: _primary.withOpacity(.18),
+                        color: _secondary.withAlpha(30),
                         shape: BoxShape.circle,
                       ),
                       alignment: Alignment.center,
-                      child: Icon(
-                        Icons.facebook,
-                        size: 18.sp,
-                        color: _primary.withOpacity(.75),
-                      ),
+                      child: Icon(Icons.link, size: 18.sp, color: _secondary),
                     ),
                     12.w.horizontalSpace,
                     Expanded(
@@ -1094,9 +1099,9 @@ class _BrandAssetsBlock extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 13.5.sp,
-                              fontWeight: FontWeight.w800,
-                              color: _primary.withOpacity(.80),
+                              fontSize: 12.sp,
+                              fontWeight: FontWeight.w500,
+                              color: _secondary,
                             ),
                           ),
                           2.h.verticalSpace,
@@ -1105,9 +1110,9 @@ class _BrandAssetsBlock extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 11.5.sp,
-                              color: _primary.withOpacity(.55),
-                              fontWeight: FontWeight.w700,
+                              fontSize: 12.sp,
+                              color: _secondary,
+                              fontWeight: FontWeight.w400,
                             ),
                           ),
                         ],
@@ -1122,7 +1127,7 @@ class _BrandAssetsBlock extends StatelessWidget {
                       },
                       child: Icon(
                         Icons.close,
-                        color: _primary.withOpacity(.55),
+                        color: _secondary.withOpacity(.55),
                         size: 22.sp,
                       ),
                     ),

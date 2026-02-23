@@ -71,6 +71,7 @@ class MilestoneDetailsView extends GetView<MilestoneDetailsController> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              20.h.verticalSpace,
               // HEADER CARD
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16.w),

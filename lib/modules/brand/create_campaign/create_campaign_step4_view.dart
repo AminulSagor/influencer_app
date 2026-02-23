@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:influencer_app/core/models/job_item.dart';
 import 'package:influencer_app/core/theme/app_theme.dart';
 import 'package:influencer_app/core/utils/currency_formatter.dart';
 import 'package:influencer_app/core/widgets/custom_drop_down_menu.dart';
@@ -700,6 +701,30 @@ class _MilestoneEditorCard extends StatelessWidget {
               ),
             ],
           ),
+
+          if (controller.selectedType.value == CampaignType.paidAd) ...[
+            10.h.verticalSpace,
+            Row(
+              children: [
+                Image.asset('assets/icons/increase.png', width: 20.w),
+                8.w.horizontalSpace,
+                Text(
+                  'create_campaign_step4_promo_goal'.tr,
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w500,
+                    color: AppPalette.primary,
+                  ),
+                ),
+              ],
+            ),
+            10.h.verticalSpace,
+            CustomTextFormField(
+              hintText: 'create_campaign_step4_promo_goal_hint'.tr,
+              maxLines: 4,
+              controller: controller.promoGoalCtrl,
+            ),
+          ],
         ],
       ),
     );
