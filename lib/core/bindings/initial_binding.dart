@@ -6,6 +6,7 @@ import 'package:influencer_app/modules/ad_agency/services/agency_dashboard_servi
 import 'package:influencer_app/modules/ad_agency/services/agency_profile_service.dart';
 import 'package:influencer_app/modules/ad_agency/services/upload_service.dart';
 import 'package:influencer_app/modules/influencer/services/influencer_onboarding_services.dart';
+import 'package:influencer_app/modules/influencer/services/influencer_profile_service.dart';
 import 'package:influencer_app/modules/influencer/services/influencer_dashboard_service.dart';
 import 'package:influencer_app/modules/brand/services/brand_onboarding_services.dart';
 import 'package:influencer_app/core/services/services.dart';
@@ -53,6 +54,7 @@ class InitialBinding extends Bindings {
     Get.put(AgencyOnboardingService(Get.find<ApiClient>()), permanent: true);
     Get.put(AgencyDashboardService(Get.find<ApiClient>()), permanent: true);
     Get.put(AgencyProfileService(Get.find<ApiClient>()), permanent: true);
+    Get.put(InfluencerProfileService(Get.find<ApiClient>()), permanent: true);
     Get.put(InfluencerDashboardService(Get.find<ApiClient>()), permanent: true);
 
     Get.put(UploadService(Get.find<ApiClient>()), permanent: true);

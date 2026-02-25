@@ -11,6 +11,41 @@ class AgencyProfileService {
     return null;
   }
 
+  Future<Map<String, dynamic>> fetchProfile() async {
+    final res = await _api.dio.get('/agency/profile');
+    return _mapFromResponseData(res.data) ?? <String, dynamic>{};
+  }
+
+  Future<Map<String, dynamic>?> updateBasicInfo({
+    String? agencyName,
+    String? firstName,
+    String? lastName,
+    String? agencyBio,
+    String? logo,
+  }) async {
+    final payload = <String, dynamic>{
+      if (agencyName != null) 'agencyName': agencyName,
+      if (firstName != null) 'firstName': firstName,
+      if (lastName != null) 'lastName': lastName,
+      if (agencyBio != null) 'agencyBio': agencyBio,
+      if (logo != null) 'logo': logo,
+    };
+
+    final res = await _api.dio.patch(
+      '/agency/profile/basic-info',
+      data: payload,
+    );
+    return _mapFromResponseData(res.data);
+  }
+
+  Future<Map<String, dynamic>?> updateNiches(List<String> niches) async {
+    final res = await _api.dio.patch(
+      '/agency/profile/niches',
+      data: {'niches': niches},
+    );
+    return _mapFromResponseData(res.data);
+  }
+
   Future<Map<String, dynamic>?> updateAddress({
     required String addressName,
     required String thana,

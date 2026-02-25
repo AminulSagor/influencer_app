@@ -30,6 +30,13 @@ class AgencyDashboardService {
     return const {};
   }
 
+  Future<Map<String, dynamic>> fetchLifetimeSummary() async {
+    final res = await _api.dio.get('/agency/dashboard/lifetime-summary');
+    final data = res.data;
+    if (data is Map<String, dynamic>) return data;
+    return const {};
+  }
+
   Future<PagedResult<Map<String, dynamic>>> fetchActionRequired({
     int page = 1,
     int limit = 5,

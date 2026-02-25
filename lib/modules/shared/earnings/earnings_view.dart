@@ -42,26 +42,7 @@ class EarningsView extends GetView<EarningsController> {
 
               SizedBox(height: 16.h),
 
-              /// Main Tabs: Earnings / Transactions
-              Obx(
-                () => _PillTabBar(
-                  labelKeys: const [
-                    'earnings_tab_earnings',
-                    'earnings_tab_transactions',
-                  ],
-                  currentIndex: controller.mainTabIndex.value,
-                  onChanged: controller.changeMainTab,
-                ),
-              ),
-
-              SizedBox(height: 16.h),
-
-              /// Bodies
-              Obx(
-                () => controller.mainTabIndex.value == 0
-                    ? _EarningsBody(controller: controller)
-                    : _TransactionsBody(controller: controller),
-              ),
+              _TransactionsBody(controller: controller),
             ],
           ),
         ),
@@ -131,35 +112,45 @@ class _PillTabBar extends StatelessWidget {
 }
 
 class _FilterChip extends StatelessWidget {
-  const _FilterChip();
+  final String text;
+  final VoidCallback? onTap;
+
+  const _FilterChip({required this.text, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 5.h),
-      decoration: BoxDecoration(
-        color: AppPalette.thirdColor,
-        borderRadius: BorderRadius.circular(kBorderRadius.r),
-        border: Border.all(color: AppPalette.secondary, width: kBorderWeight1),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.arrow_downward_rounded,
-            size: 10.sp,
-            color: AppPalette.primary,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 5.h),
+        decoration: BoxDecoration(
+          color: AppPalette.thirdColor,
+          borderRadius: BorderRadius.circular(kBorderRadius.r),
+          border: Border.all(
+            color: AppPalette.secondary,
+            width: kBorderWeight1,
           ),
-          SizedBox(width: 6.w),
-          Text(
-            'common_low_to_high'.tr,
-            style: TextStyle(
-              fontSize: 10.sp,
-              fontWeight: FontWeight.w400,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.arrow_downward_rounded,
+              size: 10.sp,
               color: AppPalette.primary,
             ),
-          ),
-        ],
+            SizedBox(width: 6.w),
+            Text(
+              text,
+              style: TextStyle(
+                fontSize: 10.sp,
+                fontWeight: FontWeight.w400,
+                color: AppPalette.primary,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -617,7 +608,7 @@ class _ClientPlatformSection extends StatelessWidget {
                   ),
                 ),
                 SizedBox(width: 12.w),
-                const _FilterChip(),
+                _FilterChip(text: 'common_low_to_high'.tr),
               ],
             ),
           ),
@@ -1031,7 +1022,17 @@ class _TransactionsSection extends StatelessWidget {
                     ],
                   ),
                 ),
-                FittedBox(fit: BoxFit.scaleDown, child: const _FilterChip()),
+                Obx(
+                  () => FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: _FilterChip(
+                      text: controller.transactionSortLowToHigh.value
+                          ? 'jobs_sort_low_to_high'.tr
+                          : 'jobs_sort_high_to_low'.tr,
+                      onTap: controller.toggleTransactionSort,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -1060,7 +1061,11 @@ class _TransactionsSection extends StatelessWidget {
               children: controller.transactionItems.map((item) {
                 return Padding(
                   padding: EdgeInsets.only(bottom: 12.h),
-                  child: TransactionCard(item: item),
+                  child: TransactionCard(
+                    item: item,
+                    onDetailsTap: () =>
+                        controller.openTransactionCampaignDetails(item),
+                  ),
                 );
               }).toList(),
             );

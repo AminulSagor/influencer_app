@@ -9,7 +9,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as path;
 import 'package:influencer_app/core/controllers/app_user_session_controller.dart';
 import 'package:influencer_app/core/services/account_type_service.dart';
-import 'package:influencer_app/core/services/api_client.dart';
 import 'package:influencer_app/core/services/auth_services.dart';
 import 'package:influencer_app/core/services/api_error_handler.dart';
 import 'package:influencer_app/core/services/token_service.dart';
@@ -68,6 +67,7 @@ class PayoutMethod {
   final String? bankName;
   final String? accountName;
   final String? accountNo;
+  final String? branchName;
   final String? routingNumber;
 
   final String? bKashNo;
@@ -83,6 +83,7 @@ class PayoutMethod {
     required this.bankName,
     required this.accountName,
     required this.accountNo,
+    required this.branchName,
     required this.routingNumber,
     this.isApproved = false,
   }) : bKashNo = '',
@@ -100,6 +101,7 @@ class PayoutMethod {
   }) : bankName = '',
        accountName = '',
        accountNo = '',
+       branchName = '',
        routingNumber = '',
        isBank = false;
 }
@@ -273,8 +275,7 @@ class ProfileController extends GetxController {
 
   /// Fetches influencer profile from API and populates UI fields
   Future<void> _fetchInfluencerProfile() async {
-    final apiClient = Get.find<ApiClient>();
-    final service = InfluencerProfileService(apiClient);
+    final service = Get.find<InfluencerProfileService>();
     final result = await service.getProfile();
 
     if (result.isSuccess && result.data != null) {
@@ -398,6 +399,7 @@ class ProfileController extends GetxController {
             bankName: bank.bankName,
             accountName: bank.bankAccHolderName,
             accountNo: bank.bankAccNo,
+            branchName: bank.bankBranchName ?? '',
             routingNumber: bank.bankRoutingNo ?? '',
             isApproved: bank.isApproved,
           ),
@@ -803,55 +805,6 @@ class ProfileController extends GetxController {
     }
   }
 
-  Map<String, dynamic>? _extractProfileJsonFromResponse(dynamic response) {
-    if (response is! Map) return null;
-
-    final body = Map<String, dynamic>.from(response);
-    final profile = body['profile'];
-    if (profile is Map) {
-      final nested = Map<String, dynamic>.from(profile);
-      return _looksLikeProfileJson(nested) ? nested : null;
-    }
-
-    return _looksLikeProfileJson(body) ? body : null;
-  }
-
-  bool _looksLikeProfileJson(Map<String, dynamic> json) {
-    const profileKeys = {
-      'id',
-      'agencyName',
-      'brandName',
-      'companyName',
-      'firstName',
-      'lastName',
-      'isOnboardingComplete',
-      'socialLinks',
-      'niches',
-      'payouts',
-      'profileImg',
-      'profileImage',
-      'logo',
-      'bio',
-      'agencyBio',
-      'website',
-      'address',
-      'addresses',
-    };
-    return profileKeys.any(json.containsKey);
-  }
-
-  Map<String, dynamic> _mergeProfileJson({
-    Map<String, dynamic>? baseline,
-    Map<String, dynamic>? latest,
-    required Map<String, dynamic> incoming,
-  }) {
-    final merged = <String, dynamic>{};
-    if (baseline != null) merged.addAll(baseline);
-    if (latest != null) merged.addAll(latest);
-    merged.addAll(incoming);
-    return merged;
-  }
-
   void _replaceBrandAssets(List<BrandAssetItem> items) {
     for (final item in brandAssets) {
       item.controller.dispose();
@@ -863,18 +816,6 @@ class ProfileController extends GetxController {
     if (controller.text != value) {
       controller.text = value;
     }
-  }
-
-  void _hydrateInfluencerVerificationInputs(InfluencerProfile profile) {
-    _setControllerText(nidNumberController, (profile.nidNumber ?? '').trim());
-    nidFrontUploadedUrl.value = _stringOrNull(profile.nidFrontImg);
-    nidBackUploadedUrl.value = _stringOrNull(profile.nidBackImg);
-
-    _setControllerText(tradeNumberController, '');
-    _setControllerText(tinNumberController, '');
-    _setControllerText(binNumberController, '');
-    tradeLicenseUploadedUrl.value = null;
-    tinUploadedUrl.value = null;
   }
 
   void _hydrateVerificationInputsFromJson(Map<String, dynamic> json) {
@@ -909,38 +850,46 @@ class ProfileController extends GetxController {
 
   /// Fetches agency profile from API and populates UI fields
   Future<void> _fetchAgencyProfile() async {
-    final apiClient = Get.find<ApiClient>();
-    try {
-      final res = await apiClient.dio.get('/agency/profile');
-      final json = res.data as Map<String, dynamic>;
+    final service = Get.find<AgencyProfileService>();
+    final result = await ApiErrorHandler.call(
+      () => service.fetchProfile(),
+      showError: false,
+    );
 
-      debugPrint('📋 AGENCY PROFILE LOADED:');
-      debugPrint('  Name: ${json['agencyName']}');
-      debugPrint('  isOnboardingComplete: ${json['isOnboardingComplete']}');
-
-      _populateFromAgencyJson(json);
-    } catch (e) {
-      debugPrint('❌ Failed to load agency profile: $e');
+    if (!result.isSuccess || result.data == null) {
+      debugPrint('❌ Failed to load agency profile: ${result.error}');
       _applyEmptyProfileState();
+      return;
     }
+
+    final json = result.data!;
+    debugPrint('📋 AGENCY PROFILE LOADED:');
+    debugPrint('  Name: ${json['agencyName']}');
+    debugPrint('  isOnboardingComplete: ${json['isOnboardingComplete']}');
+
+    _populateFromAgencyJson(json);
   }
 
   /// Fetches brand profile from API and populates UI fields
   Future<void> _fetchBrandProfile() async {
-    final apiClient = Get.find<ApiClient>();
-    try {
-      final res = await apiClient.dio.get('/client/profile');
-      final json = res.data as Map<String, dynamic>;
+    final service = Get.find<BrandOnboardingService>();
+    final result = await ApiErrorHandler.call(
+      () => service.fetchProfile(),
+      showError: false,
+    );
 
-      debugPrint('📋 BRAND PROFILE LOADED:');
-      debugPrint('  Name: ${json['firstName']} ${json['lastName']}');
-      debugPrint('  isOnboardingComplete: ${json['isOnboardingComplete']}');
-
-      _populateFromBrandJson(json);
-    } catch (e) {
-      debugPrint('❌ Failed to load brand profile: $e');
+    if (!result.isSuccess || result.data == null) {
+      debugPrint('❌ Failed to load brand profile: ${result.error}');
       _applyEmptyProfileState();
+      return;
     }
+
+    final json = result.data!;
+    debugPrint('📋 BRAND PROFILE LOADED:');
+    debugPrint('  Name: ${json['firstName']} ${json['lastName']}');
+    debugPrint('  isOnboardingComplete: ${json['isOnboardingComplete']}');
+
+    _populateFromBrandJson(json);
   }
 
   /// Populates controller fields from Agency profile JSON
@@ -1090,6 +1039,7 @@ class ProfileController extends GetxController {
               bankName: bankMap['bankName'] as String? ?? '',
               accountName: bankMap['bankAccHolderName'] as String? ?? '',
               accountNo: bankMap['bankAccNo'] as String? ?? '',
+              branchName: bankMap['bankBranchName'] as String? ?? '',
               routingNumber: bankMap['bankRoutingNo'] as String? ?? '',
               isApproved: bankMap['status'] == 'approved',
             ),
@@ -1338,6 +1288,7 @@ class ProfileController extends GetxController {
               bankName: bankMap['bankName'] as String? ?? '',
               accountName: bankMap['bankAccHolderName'] as String? ?? '',
               accountNo: bankMap['bankAccNo'] as String? ?? '',
+              branchName: bankMap['bankBranchName'] as String? ?? '',
               routingNumber: bankMap['bankRoutingNo'] as String? ?? '',
               isApproved: bankMap['status'] == 'approved',
             ),
@@ -1479,6 +1430,7 @@ class ProfileController extends GetxController {
     bankNameController.dispose();
     accountHolderNameController.dispose();
     bankAccountNumberController.dispose();
+    bankBranchNameController.dispose();
     routingNumberController.dispose();
     bKashNoController.dispose();
     bKashHolderNameController.dispose();
@@ -1552,41 +1504,7 @@ class ProfileController extends GetxController {
       isUploadingTradeLicense.value ||
       isUploadingTin.value;
 
-  bool _hasText(String? value) => (value ?? '').trim().isNotEmpty;
-
   String? _validateVerificationInputs() {
-    final nidNumber = nidNumberController.text.trim();
-    final tradeNumber = tradeNumberController.text.trim();
-    final tinNumber = tinNumberController.text.trim();
-
-    final hasNidFront =
-        nidFrontPic.value != null || _hasText(nidFrontUploadedUrl.value);
-    final hasNidBack =
-        nidBackPic.value != null || _hasText(nidBackUploadedUrl.value);
-    final hasTradeImg =
-        tradeLicensePic.value != null ||
-        _hasText(tradeLicenseUploadedUrl.value);
-    final hasTinImg =
-        tinCertificatePic.value != null || _hasText(tinUploadedUrl.value);
-
-    if (hasNidFront || hasNidBack || nidNumber.isNotEmpty) {
-      if (nidNumber.isEmpty) return 'Please enter NID number.';
-      if (!hasNidFront || !hasNidBack) {
-        return 'Please provide both NID front and back images.';
-      }
-    }
-
-    if ((accountTypeService.isBrand || accountTypeService.isAdAgency) &&
-        (hasTradeImg || tradeNumber.isNotEmpty)) {
-      if (tradeNumber.isEmpty) return 'Please enter Trade License number.';
-      if (!hasTradeImg) return 'Please provide Trade License image.';
-    }
-
-    if (accountTypeService.isAdAgency && (hasTinImg || tinNumber.isNotEmpty)) {
-      if (tinNumber.isEmpty) return 'Please enter TIN number.';
-      if (!hasTinImg) return 'Please provide TIN image.';
-    }
-
     return null;
   }
 
@@ -1714,8 +1632,7 @@ class ProfileController extends GetxController {
     required File file,
     required String module,
   }) async {
-    final apiClient = Get.find<ApiClient>();
-    final uploadService = UploadService(apiClient);
+    final uploadService = Get.find<UploadService>();
     final fileName = path.basename(file.path);
     final extension = path.extension(fileName).replaceFirst('.', '');
     final normalizedExtension = extension.isEmpty
@@ -1754,47 +1671,31 @@ class ProfileController extends GetxController {
       profileImageUrl.value = url;
 
       if (accountTypeService.isInfluencer) {
-        final apiClient = Get.find<ApiClient>();
-        final service = InfluencerProfileService(apiClient);
+        final service = Get.find<InfluencerProfileService>();
         final result = await service.updateBasicInfo(
           profileImage: url,
           bio: bioText.value,
         );
         if (result.isSuccess && result.data != null) {
-          influencerProfile.value = result.data;
-          _populateFromInfluencerProfile(result.data!);
+          await _fetchProfileData();
           return;
         }
       } else if (accountTypeService.isAdAgency) {
-        final apiClient = Get.find<ApiClient>();
-        final response = await apiClient.dio.patch(
-          '/agency/profile/basic-info',
-          data: {'logo': url},
+        final service = Get.find<AgencyProfileService>();
+        final result = await ApiErrorHandler.call(
+          () => service.updateBasicInfo(logo: url),
         );
-        final json = _extractProfileJsonFromResponse(response.data);
-        if (json != null) {
-          final merged = _mergeProfileJson(
-            baseline: appUserSession.agencyProfileJson.value,
-            incoming: json,
-          );
-          _populateFromAgencyJson(merged);
-          return;
-        }
+        if (!result.isSuccess) return;
+        await _fetchProfileData();
+        return;
       } else if (accountTypeService.isBrand) {
-        final apiClient = Get.find<ApiClient>();
-        final response = await apiClient.dio.patch(
-          '/client/profile',
-          data: {'profileImg': url},
+        final service = Get.find<BrandOnboardingService>();
+        final result = await ApiErrorHandler.call(
+          () => service.updateProfileImage(profileImg: url),
         );
-        final json = _extractProfileJsonFromResponse(response.data);
-        if (json != null) {
-          final merged = _mergeProfileJson(
-            baseline: appUserSession.brandProfileJson.value,
-            incoming: json,
-          );
-          _populateFromBrandJson(merged);
-          return;
-        }
+        if (!result.isSuccess) return;
+        await _fetchProfileData();
+        return;
       }
     } catch (e) {
       debugPrint('Failed to update profile photo: $e');
@@ -1807,8 +1708,7 @@ class ProfileController extends GetxController {
 
     try {
       if (accountTypeService.isInfluencer) {
-        final apiClient = Get.find<ApiClient>();
-        final service = InfluencerProfileService(apiClient);
+        final service = Get.find<InfluencerProfileService>();
         await service.removeProfileImage();
       }
     } catch (e) {
@@ -1843,6 +1743,8 @@ class ProfileController extends GetxController {
       TextEditingController();
   final TextEditingController bankAccountNumberController =
       TextEditingController();
+  final TextEditingController bankBranchNameController =
+      TextEditingController();
   final TextEditingController routingNumberController = TextEditingController();
 
   final TextEditingController bKashNoController = TextEditingController();
@@ -1864,6 +1766,7 @@ class ProfileController extends GetxController {
     bankNameController.clear();
     accountHolderNameController.clear();
     bankAccountNumberController.clear();
+    bankBranchNameController.clear();
     routingNumberController.clear();
     bKashNoController.clear();
     bKashHolderNameController.clear();
@@ -1877,18 +1780,19 @@ class ProfileController extends GetxController {
 
     try {
       if (accountTypeService.isInfluencer) {
-        final apiClient = Get.find<ApiClient>();
-        final service = InfluencerProfileService(apiClient);
+        final service = Get.find<InfluencerProfileService>();
 
         if (selectedAccountType.value == 'Bank') {
           final bankName = bankNameController.text.trim();
           final holder = accountHolderNameController.text.trim();
           final accountNo = bankAccountNumberController.text.trim();
+          final branchName = bankBranchNameController.text.trim();
           final routing = routingNumberController.text.trim();
 
           if (bankName.isEmpty ||
               holder.isEmpty ||
               accountNo.isEmpty ||
+              branchName.isEmpty ||
               routing.isEmpty) {
             Get.snackbar('Error', 'Please fill all bank payout fields');
             return;
@@ -1898,14 +1802,11 @@ class ProfileController extends GetxController {
             bankName: bankName,
             accountHolderName: holder,
             accountNo: accountNo,
-            branchName: '',
+            branchName: branchName,
             routingNo: routing,
           );
 
-          if (result.isSuccess && result.data != null) {
-            influencerProfile.value = result.data;
-            _populateFromInfluencerProfile(result.data!);
-          } else {
+          if (!result.isSuccess) {
             Get.snackbar('Error', result.error ?? 'Failed to add payout');
             return;
           }
@@ -1925,40 +1826,41 @@ class ProfileController extends GetxController {
             accountNo: accountNo,
           );
 
-          if (result.isSuccess && result.data != null) {
-            influencerProfile.value = result.data;
-            _populateFromInfluencerProfile(result.data!);
-          } else {
+          if (!result.isSuccess) {
             Get.snackbar('Error', result.error ?? 'Failed to add payout');
             return;
           }
         }
       } else {
         if (accountTypeService.isAdAgency) {
-          final apiClient = Get.find<ApiClient>();
-          final agencyService = AgencyProfileService(apiClient);
+          final agencyService = Get.find<AgencyProfileService>();
 
           if (selectedAccountType.value == 'Bank') {
             final bankName = bankNameController.text.trim();
             final holder = accountHolderNameController.text.trim();
             final accountNo = bankAccountNumberController.text.trim();
+            final branchName = bankBranchNameController.text.trim();
             final routing = routingNumberController.text.trim();
 
             if (bankName.isEmpty ||
                 holder.isEmpty ||
                 accountNo.isEmpty ||
+                branchName.isEmpty ||
                 routing.isEmpty) {
               Get.snackbar('Error', 'Please fill all bank payout fields');
               return;
             }
 
-            await agencyService.addBankPayout(
-              bankName: bankName,
-              accountHolderName: holder,
-              accountNo: accountNo,
-              branchName: '',
-              routingNo: routing,
+            final result = await ApiErrorHandler.call(
+              () => agencyService.addBankPayout(
+                bankName: bankName,
+                accountHolderName: holder,
+                accountNo: accountNo,
+                branchName: branchName,
+                routingNo: routing,
+              ),
             );
+            if (!result.isSuccess) return;
           } else if (selectedAccountType.value == 'bKash') {
             final accountNo = bKashNoController.text.trim();
             final holder = bKashHolderNameController.text.trim();
@@ -1969,33 +1871,19 @@ class ProfileController extends GetxController {
               return;
             }
 
-            await agencyService.addMobilePayout(
-              accountType: accountType.isEmpty ? 'Bkash' : accountType,
-              accountHolderName: holder,
-              accountNo: accountNo,
+            final result = await ApiErrorHandler.call(
+              () => agencyService.addMobilePayout(
+                accountType: accountType.isEmpty ? 'Bkash' : accountType,
+                accountHolderName: holder,
+                accountNo: accountNo,
+              ),
             );
+            if (!result.isSuccess) return;
           }
         }
-
-        if (selectedAccountType.value == 'Bank') {
-          payoutMethods.add(
-            PayoutMethod.bank(
-              bankName: bankNameController.text.trim(),
-              accountName: accountHolderNameController.text.trim(),
-              accountNo: bankAccountNumberController.text.trim(),
-              routingNumber: routingNumberController.text.trim(),
-            ),
-          );
-        } else if (selectedAccountType.value == 'bKash') {
-          payoutMethods.add(
-            PayoutMethod.bKash(
-              bKashNo: bKashNoController.text.trim(),
-              bKashName: bKashHolderNameController.text.trim(),
-              bKashAccountType: bKashAccountTypeController.text.trim(),
-            ),
-          );
-        }
       }
+
+      await _fetchProfileData();
 
       showNewPayoutAccountForm.value = false;
       _clearAllFields();
@@ -2011,12 +1899,14 @@ class ProfileController extends GetxController {
       if (accountTypeService.isAdAgency) {
         final payoutId = payout.payoutId?.trim();
         if (payoutId != null && payoutId.isNotEmpty) {
-          final apiClient = Get.find<ApiClient>();
-          final agencyService = AgencyProfileService(apiClient);
-          await agencyService.removePayout(
-            type: payout.isBank ? 'bank' : 'mobileBanking',
-            id: payoutId,
+          final agencyService = Get.find<AgencyProfileService>();
+          final result = await ApiErrorHandler.call(
+            () => agencyService.removePayout(
+              type: payout.isBank ? 'bank' : 'mobileBanking',
+              id: payoutId,
+            ),
           );
+          if (!result.isSuccess) return;
         }
       }
 
@@ -2032,8 +1922,7 @@ class ProfileController extends GetxController {
 
     isSavingProfile.value = true;
     try {
-      final apiClient = Get.find<ApiClient>();
-      final service = InfluencerProfileService(apiClient);
+      final service = Get.find<InfluencerProfileService>();
       final result = await service.removePayout(
         type: payout.payoutType,
         id: payoutId,
@@ -2255,45 +2144,16 @@ class ProfileController extends GetxController {
 
     if (!accountTypeService.isBrand) return;
 
-    final apiClient = Get.find<ApiClient>();
+    final service = Get.find<BrandOnboardingService>();
     final result = await ApiErrorHandler.call(
-      () => apiClient.dio.patch(
-        '/client/profile/social',
-        data: {
-          if (website.isNotEmpty) 'website': website,
-          'socialLinks': handles,
-        },
-      ),
+      () => service.updateSocialLinks(website: website, socialLinks: handles),
     );
 
     if (!result.isSuccess) {
       return;
     }
 
-    final profileJson = _extractProfileJsonFromResponse(result.data);
-    if (profileJson != null) {
-      final merged = _mergeProfileJson(
-        baseline: appUserSession.brandProfileJson.value,
-        incoming: profileJson,
-      );
-      _populateFromBrandJson(merged);
-    } else {
-      socialAccounts.assignAll(
-        handles
-            .map(
-              (item) => SocialAccount(
-                platform: _capitalizeFirst((item['platform'] ?? '').toString()),
-                iconPath: _getIconPathForPlatform(
-                  (item['platform'] ?? '').toString(),
-                ),
-                handle: (item['url'] ?? '').toString(),
-              ),
-            )
-            .toList(growable: false),
-      );
-      _syncSocialHandleDefaults();
-      _setBrandWebsite(website);
-    }
+    await _fetchProfileData();
 
     Get.snackbar(
       'success_title'.tr,
@@ -2421,8 +2281,7 @@ class ProfileController extends GetxController {
     );
 
     if (accountTypeService.isInfluencer) {
-      final apiClient = Get.find<ApiClient>();
-      final service = InfluencerProfileService(apiClient);
+      final service = Get.find<InfluencerProfileService>();
 
       final result = await service.addAddress(
         addressName: name,
@@ -2439,23 +2298,28 @@ class ProfileController extends GetxController {
         return;
       }
     } else {
-      final apiClient = Get.find<ApiClient>();
       if (accountTypeService.isBrand) {
-        final brandService = BrandOnboardingService(apiClient);
-        await brandService.updateAddress(
-          addressName: name,
-          thana: thana,
-          zilla: zilla,
-          fullAddress: full,
+        final brandService = Get.find<BrandOnboardingService>();
+        final result = await ApiErrorHandler.call(
+          () => brandService.updateAddress(
+            addressName: name,
+            thana: thana,
+            zilla: zilla,
+            fullAddress: full,
+          ),
         );
+        if (!result.isSuccess) return;
       } else if (accountTypeService.isAdAgency) {
-        final agencyService = AgencyProfileService(apiClient);
-        await agencyService.updateAddress(
-          addressName: name,
-          thana: thana,
-          zilla: zilla,
-          fullAddress: full,
+        final agencyService = Get.find<AgencyProfileService>();
+        final result = await ApiErrorHandler.call(
+          () => agencyService.updateAddress(
+            addressName: name,
+            thana: thana,
+            zilla: zilla,
+            fullAddress: full,
+          ),
         );
+        if (!result.isSuccess) return;
       }
 
       final editIndex = editingLocationIndex.value;
@@ -2654,32 +2518,15 @@ class ProfileController extends GetxController {
     isSavingProfile.value = true;
 
     try {
-      var shouldRefetchProfile = true;
-
       if (accountTypeService.isInfluencer) {
-        final apiClient = Get.find<ApiClient>();
-        final service = InfluencerProfileService(apiClient);
-        InfluencerProfile? latestInfluencerProfile;
+        final service = Get.find<InfluencerProfileService>();
 
-        final basicInfoResult = await service.updateBasicInfo(
-          bio: bioText.value,
-        );
-        if (basicInfoResult.isSuccess && basicInfoResult.data != null) {
-          latestInfluencerProfile = basicInfoResult.data;
-        }
+        await service.updateBasicInfo(bio: bioText.value);
 
-        final nichesResult = await service.updateNiches(
-          niches.toList(growable: false),
-        );
-        if (nichesResult.isSuccess && nichesResult.data != null) {
-          latestInfluencerProfile = nichesResult.data;
-        }
+        await service.updateNiches(niches.toList(growable: false));
 
         if (skills.isNotEmpty) {
-          final skillsResult = await service.updateSkills(skills.toList());
-          if (skillsResult.isSuccess && skillsResult.data != null) {
-            latestInfluencerProfile = skillsResult.data;
-          }
+          await service.updateSkills(skills.toList());
         }
 
         if (socialAccounts.isNotEmpty) {
@@ -2706,10 +2553,7 @@ class ProfileController extends GetxController {
               .toList(growable: false);
 
           if (updatedLinks.isNotEmpty) {
-            final socialsResult = await service.updateSocialLinks(updatedLinks);
-            if (socialsResult.isSuccess && socialsResult.data != null) {
-              latestInfluencerProfile = socialsResult.data;
-            }
+            await service.updateSocialLinks(updatedLinks);
           }
         }
 
@@ -2722,7 +2566,7 @@ class ProfileController extends GetxController {
                   'bankName': method.bankName ?? '',
                   'bankAccHolderName': method.accountName ?? '',
                   'bankAccNo': method.accountNo ?? '',
-                  'bankBranchName': '',
+                  'bankBranchName': method.branchName ?? '',
                   'bankRoutingNo': method.routingNumber ?? '',
                 },
               )
@@ -2742,14 +2586,10 @@ class ProfileController extends GetxController {
               )
               .toList(growable: false);
 
-          final payoutResult = await service.updatePayouts(
+          await service.updatePayouts(
             bank: bankPayload.isEmpty ? null : bankPayload,
             mobileBanking: mobilePayload.isEmpty ? null : mobilePayload,
           );
-
-          if (payoutResult.isSuccess && payoutResult.data != null) {
-            latestInfluencerProfile = payoutResult.data;
-          }
         }
 
         final nidNumber = nidNumberController.text.trim();
@@ -2776,25 +2616,14 @@ class ProfileController extends GetxController {
             frontUrl.isNotEmpty &&
             backUrl != null &&
             backUrl.isNotEmpty) {
-          final nidResult = await service.submitNidVerification(
+          await service.submitNidVerification(
             nidNumber: nidNumber,
             nidFrontImg: frontUrl,
             nidBackImg: backUrl,
           );
-          if (nidResult.isSuccess && nidResult.data != null) {
-            latestInfluencerProfile = nidResult.data;
-          }
-        }
-
-        if (latestInfluencerProfile != null) {
-          influencerProfile.value = latestInfluencerProfile;
-          _populateFromInfluencerProfile(latestInfluencerProfile);
-          shouldRefetchProfile = false;
         }
       } else if (accountTypeService.isBrand) {
-        final apiClient = Get.find<ApiClient>();
-        final brandService = BrandOnboardingService(apiClient);
-        Map<String, dynamic>? latestBrandProfileJson;
+        final brandService = Get.find<BrandOnboardingService>();
 
         final brandNameValue =
             profileFieldValues['Company Name'] ?? brandName.value;
@@ -2804,19 +2633,14 @@ class ProfileController extends GetxController {
         if (brandNameValue.isNotEmpty ||
             firstNameValue.isNotEmpty ||
             lastNameValue.isNotEmpty) {
-          final response = await brandService.updateBasicInfo(
-            brandName: brandNameValue,
-            firstName: firstNameValue,
-            lastName: lastNameValue,
+          final basicInfoResult = await ApiErrorHandler.call(
+            () => brandService.updateBasicInfo(
+              brandName: brandNameValue,
+              firstName: firstNameValue,
+              lastName: lastNameValue,
+            ),
           );
-          final extracted = _extractProfileJsonFromResponse(response);
-          if (extracted != null) {
-            latestBrandProfileJson = _mergeProfileJson(
-              baseline: appUserSession.brandProfileJson.value,
-              latest: latestBrandProfileJson,
-              incoming: extracted,
-            );
-          }
+          if (!basicInfoResult.isSuccess) return;
         }
 
         final nidNumber = nidNumberController.text.trim();
@@ -2843,19 +2667,14 @@ class ProfileController extends GetxController {
             frontUrl.isNotEmpty &&
             backUrl != null &&
             backUrl.isNotEmpty) {
-          final response = await brandService.updateNid(
-            nidNumber: nidNumber,
-            nidFrontImg: frontUrl,
-            nidBackImg: backUrl,
+          final nidResult = await ApiErrorHandler.call(
+            () => brandService.updateNid(
+              nidNumber: nidNumber,
+              nidFrontImg: frontUrl ?? '',
+              nidBackImg: backUrl ?? '',
+            ),
           );
-          final extracted = _extractProfileJsonFromResponse(response);
-          if (extracted != null) {
-            latestBrandProfileJson = _mergeProfileJson(
-              baseline: appUserSession.brandProfileJson.value,
-              latest: latestBrandProfileJson,
-              incoming: extracted,
-            );
-          }
+          if (!nidResult.isSuccess) return;
         }
 
         final tradeNumber = tradeNumberController.text.trim();
@@ -2870,28 +2689,16 @@ class ProfileController extends GetxController {
         }
 
         if (tradeNumber.isNotEmpty && tradeUrl != null && tradeUrl.isNotEmpty) {
-          final response = await brandService.updateTradeLicense(
-            tradeLicenseNumber: tradeNumber,
-            tradeLicenseImg: tradeUrl,
+          final tradeResult = await ApiErrorHandler.call(
+            () => brandService.updateTradeLicense(
+              tradeLicenseNumber: tradeNumber,
+              tradeLicenseImg: tradeUrl ?? '',
+            ),
           );
-          final extracted = _extractProfileJsonFromResponse(response);
-          if (extracted != null) {
-            latestBrandProfileJson = _mergeProfileJson(
-              baseline: appUserSession.brandProfileJson.value,
-              latest: latestBrandProfileJson,
-              incoming: extracted,
-            );
-          }
-        }
-
-        if (latestBrandProfileJson != null) {
-          _populateFromBrandJson(latestBrandProfileJson);
-          shouldRefetchProfile = false;
+          if (!tradeResult.isSuccess) return;
         }
       } else if (accountTypeService.isAdAgency) {
-        final apiClient = Get.find<ApiClient>();
-        final agencyService = AgencyProfileService(apiClient);
-        Map<String, dynamic>? latestAgencyProfileJson;
+        final agencyService = Get.find<AgencyProfileService>();
 
         final agencyNameValue =
             profileFieldValues['Agency Name'] ?? profileName.value;
@@ -2905,23 +2712,14 @@ class ProfileController extends GetxController {
         if (agencyNameValue.isNotEmpty ||
             firstNameValue.isNotEmpty ||
             lastNameValue.isNotEmpty) {
-          final response = await apiClient.dio.patch(
-            '/agency/profile/basic-info',
-            data: {
-              'agencyName': agencyNameValue,
-              'firstName': firstNameValue,
-              'lastName': lastNameValue,
-              'agencyBio': bioText.value.trim(),
-            },
+          await ApiErrorHandler.call(
+            () => agencyService.updateBasicInfo(
+              agencyName: agencyNameValue,
+              firstName: firstNameValue,
+              lastName: lastNameValue,
+              agencyBio: bioText.value.trim(),
+            ),
           );
-          latestAgencyProfileJson =
-              _extractProfileJsonFromResponse(response.data) != null
-              ? _mergeProfileJson(
-                  baseline: appUserSession.agencyProfileJson.value,
-                  latest: latestAgencyProfileJson,
-                  incoming: _extractProfileJsonFromResponse(response.data)!,
-                )
-              : latestAgencyProfileJson;
         }
 
         if (locations.isNotEmpty) {
@@ -2929,37 +2727,23 @@ class ProfileController extends GetxController {
           if (location.thana.trim().isNotEmpty &&
               location.zilla.trim().isNotEmpty &&
               location.fullAddress.trim().isNotEmpty) {
-            final addressResponse = await agencyService.updateAddress(
-              addressName: location.name.trim().isEmpty
-                  ? 'Office'
-                  : location.name.trim(),
-              thana: location.thana.trim(),
-              zilla: location.zilla.trim(),
-              fullAddress: location.fullAddress.trim(),
+            final addressResult = await ApiErrorHandler.call(
+              () => agencyService.updateAddress(
+                addressName: location.name.trim().isEmpty
+                    ? 'Office'
+                    : location.name.trim(),
+                thana: location.thana.trim(),
+                zilla: location.zilla.trim(),
+                fullAddress: location.fullAddress.trim(),
+              ),
             );
-            latestAgencyProfileJson =
-                _extractProfileJsonFromResponse(addressResponse) != null
-                ? _mergeProfileJson(
-                    baseline: appUserSession.agencyProfileJson.value,
-                    latest: latestAgencyProfileJson,
-                    incoming: _extractProfileJsonFromResponse(addressResponse)!,
-                  )
-                : latestAgencyProfileJson;
+            if (!addressResult.isSuccess) return;
           }
         }
 
-        final nichesResponse = await apiClient.dio.patch(
-          '/agency/profile/niches',
-          data: {'niches': niches.toList(growable: false)},
+        await ApiErrorHandler.call(
+          () => agencyService.updateNiches(niches.toList(growable: false)),
         );
-        latestAgencyProfileJson =
-            _extractProfileJsonFromResponse(nichesResponse.data) != null
-            ? _mergeProfileJson(
-                baseline: appUserSession.agencyProfileJson.value,
-                latest: latestAgencyProfileJson,
-                incoming: _extractProfileJsonFromResponse(nichesResponse.data)!,
-              )
-            : latestAgencyProfileJson;
 
         final socialPayload = socialAccounts
             .map(
@@ -2975,35 +2759,21 @@ class ProfileController extends GetxController {
             .toList(growable: false);
         if (socialPayload.isNotEmpty ||
             (websiteValue != null && websiteValue.isNotEmpty)) {
-          final socialResponse = await agencyService.updateSocials(
-            website: websiteValue,
-            socialLinks: socialPayload,
+          final socialResult = await ApiErrorHandler.call(
+            () => agencyService.updateSocials(
+              website: websiteValue,
+              socialLinks: socialPayload,
+            ),
           );
-          latestAgencyProfileJson =
-              _extractProfileJsonFromResponse(socialResponse) != null
-              ? _mergeProfileJson(
-                  baseline: appUserSession.agencyProfileJson.value,
-                  latest: latestAgencyProfileJson,
-                  incoming: _extractProfileJsonFromResponse(socialResponse)!,
-                )
-              : latestAgencyProfileJson;
+          if (!socialResult.isSuccess) return;
         }
 
         final serviceFeeValue = serviceFeeText.value.trim();
         if (serviceFeeValue.isNotEmpty) {
-          final serviceFeeResponse = await agencyService.updateServiceFee(
-            serviceFeeValue,
+          final serviceFeeResult = await ApiErrorHandler.call(
+            () => agencyService.updateServiceFee(serviceFeeValue),
           );
-          latestAgencyProfileJson =
-              _extractProfileJsonFromResponse(serviceFeeResponse) != null
-              ? _mergeProfileJson(
-                  baseline: appUserSession.agencyProfileJson.value,
-                  latest: latestAgencyProfileJson,
-                  incoming: _extractProfileJsonFromResponse(
-                    serviceFeeResponse,
-                  )!,
-                )
-              : latestAgencyProfileJson;
+          if (!serviceFeeResult.isSuccess) return;
         }
 
         final nidNumber = nidNumberController.text.trim();
@@ -3030,19 +2800,14 @@ class ProfileController extends GetxController {
             frontUrl.isNotEmpty &&
             backUrl != null &&
             backUrl.isNotEmpty) {
-          final nidResponse = await agencyService.updateNid(
-            nidNumber: nidNumber,
-            nidFrontImg: frontUrl,
-            nidBackImg: backUrl,
+          final nidResult = await ApiErrorHandler.call(
+            () => agencyService.updateNid(
+              nidNumber: nidNumber,
+              nidFrontImg: frontUrl ?? '',
+              nidBackImg: backUrl ?? '',
+            ),
           );
-          latestAgencyProfileJson =
-              _extractProfileJsonFromResponse(nidResponse) != null
-              ? _mergeProfileJson(
-                  baseline: appUserSession.agencyProfileJson.value,
-                  latest: latestAgencyProfileJson,
-                  incoming: _extractProfileJsonFromResponse(nidResponse)!,
-                )
-              : latestAgencyProfileJson;
+          if (!nidResult.isSuccess) return;
         }
 
         final tradeNumber = tradeNumberController.text.trim();
@@ -3057,18 +2822,13 @@ class ProfileController extends GetxController {
         }
 
         if (tradeNumber.isNotEmpty && tradeUrl != null && tradeUrl.isNotEmpty) {
-          final tradeResponse = await agencyService.updateTradeLicense(
-            tradeLicenseNumber: tradeNumber,
-            tradeLicenseImg: tradeUrl,
+          final tradeResult = await ApiErrorHandler.call(
+            () => agencyService.updateTradeLicense(
+              tradeLicenseNumber: tradeNumber,
+              tradeLicenseImg: tradeUrl ?? '',
+            ),
           );
-          latestAgencyProfileJson =
-              _extractProfileJsonFromResponse(tradeResponse) != null
-              ? _mergeProfileJson(
-                  baseline: appUserSession.agencyProfileJson.value,
-                  latest: latestAgencyProfileJson,
-                  incoming: _extractProfileJsonFromResponse(tradeResponse)!,
-                )
-              : latestAgencyProfileJson;
+          if (!tradeResult.isSuccess) return;
         }
 
         final tinNumber = tinNumberController.text.trim();
@@ -3083,44 +2843,25 @@ class ProfileController extends GetxController {
         }
 
         if (tinNumber.isNotEmpty && tinUrl != null && tinUrl.isNotEmpty) {
-          final tinResponse = await agencyService.updateTin(
-            tinNumber: tinNumber,
-            tinImage: tinUrl,
+          final tinResult = await ApiErrorHandler.call(
+            () => agencyService.updateTin(
+              tinNumber: tinNumber,
+              tinImage: tinUrl ?? '',
+            ),
           );
-          latestAgencyProfileJson =
-              _extractProfileJsonFromResponse(tinResponse) != null
-              ? _mergeProfileJson(
-                  baseline: appUserSession.agencyProfileJson.value,
-                  latest: latestAgencyProfileJson,
-                  incoming: _extractProfileJsonFromResponse(tinResponse)!,
-                )
-              : latestAgencyProfileJson;
+          if (!tinResult.isSuccess) return;
         }
 
         final binNumber = binNumberController.text.trim();
         if (binNumber.isNotEmpty) {
-          final binResponse = await agencyService.updateBin(
-            binNumber: binNumber,
+          final binResult = await ApiErrorHandler.call(
+            () => agencyService.updateBin(binNumber: binNumber),
           );
-          latestAgencyProfileJson =
-              _extractProfileJsonFromResponse(binResponse) != null
-              ? _mergeProfileJson(
-                  baseline: appUserSession.agencyProfileJson.value,
-                  latest: latestAgencyProfileJson,
-                  incoming: _extractProfileJsonFromResponse(binResponse)!,
-                )
-              : latestAgencyProfileJson;
-        }
-
-        if (latestAgencyProfileJson != null) {
-          _populateFromAgencyJson(latestAgencyProfileJson);
-          shouldRefetchProfile = false;
+          if (!binResult.isSuccess) return;
         }
       }
 
-      if (shouldRefetchProfile) {
-        await _fetchProfileData();
-      }
+      await _fetchProfileData();
       Get.snackbar(
         'success_title'.tr,
         'profile_update_saved'.tr,

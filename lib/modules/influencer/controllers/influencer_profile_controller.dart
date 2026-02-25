@@ -1,6 +1,5 @@
 import 'package:get/get.dart';
 
-import '../../../core/services/api_client.dart';
 import '../models/influencer_profile_model.dart';
 import '../services/influencer_profile_service.dart';
 
@@ -18,7 +17,7 @@ class InfluencerProfileController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _profileService = InfluencerProfileService(Get.find<ApiClient>());
+    _profileService = Get.find<InfluencerProfileService>();
   }
 
   @override

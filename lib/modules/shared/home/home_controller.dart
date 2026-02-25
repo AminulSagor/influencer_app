@@ -5,6 +5,7 @@ import 'package:influencer_app/core/services/api_error_handler.dart';
 import 'package:influencer_app/modules/ad_agency/services/agency_dashboard_service.dart';
 import 'package:influencer_app/modules/brand/services/brand_dashboard_service.dart';
 import 'package:influencer_app/modules/influencer/services/influencer_dashboard_service.dart';
+import 'package:influencer_app/routes/app_routes.dart';
 import 'models/home_dashboard_model.dart';
 
 class HomeController extends GetxController {
@@ -101,11 +102,6 @@ class HomeController extends GetxController {
       showError: false,
     );
 
-    final earningsResult = await ApiErrorHandler.call(
-      () => _agencyDashboardService.fetchEarningsOverview(),
-      showError: false,
-    );
-
     final actionRequiredResult = await ApiErrorHandler.call(
       () => _agencyDashboardService.fetchActionRequired(page: 1, limit: 5),
       showError: false,
@@ -121,13 +117,14 @@ class HomeController extends GetxController {
       showError: false,
     );
 
+    final lifetimeResult = await ApiErrorHandler.call(
+      () => _agencyDashboardService.fetchLifetimeSummary(),
+      showError: false,
+    );
+
     if (summaryResult.isSuccess && summaryResult.data != null) {
       summaryIncludesOffers = _hasNewOffersField(summaryResult.data!);
       current = _applyAgencySummary(current, summaryResult.data!);
-    }
-
-    if (earningsResult.isSuccess && earningsResult.data != null) {
-      current = _applyAgencyEarnings(current, earningsResult.data!);
     }
 
     if (actionRequiredResult.isSuccess && actionRequiredResult.data != null) {
@@ -145,6 +142,10 @@ class HomeController extends GetxController {
           jobsInProgress: _mapJobs(workInProgressResult.data!.items),
         );
       }
+    }
+
+    if (lifetimeResult.isSuccess && lifetimeResult.data != null) {
+      current = _applyLifetimeSummary(current, lifetimeResult.data!);
     }
 
     if (current.jobsInProgress.isEmpty &&
@@ -168,11 +169,6 @@ class HomeController extends GetxController {
       showError: false,
     );
 
-    final earningsResult = await ApiErrorHandler.call(
-      () => _influencerDashboardService.fetchEarningsOverview(),
-      showError: false,
-    );
-
     final actionRequiredResult = await ApiErrorHandler.call(
       () => _influencerDashboardService.fetchActionRequired(page: 1, limit: 5),
       showError: false,
@@ -189,14 +185,14 @@ class HomeController extends GetxController {
       showError: false,
     );
 
+    final lifetimeResult = await ApiErrorHandler.call(
+      () => _influencerDashboardService.fetchLifetimeSummary(),
+      showError: false,
+    );
+
     if (summaryResult.isSuccess && summaryResult.data != null) {
       summaryIncludesOffers = _hasNewOffersField(summaryResult.data!);
       current = _applyInfluencerSummary(current, summaryResult.data!);
-      current = _applyLifetimeSummary(current, summaryResult.data!);
-    }
-
-    if (earningsResult.isSuccess && earningsResult.data != null) {
-      current = _applyInfluencerEarnings(current, earningsResult.data!);
     }
 
     if (actionRequiredResult.isSuccess && actionRequiredResult.data != null) {
@@ -216,6 +212,10 @@ class HomeController extends GetxController {
       }
     }
 
+    if (lifetimeResult.isSuccess && lifetimeResult.data != null) {
+      current = _applyLifetimeSummary(current, lifetimeResult.data!);
+    }
+
     if (current.jobsInProgress.isEmpty &&
         deadlinesResult.isSuccess &&
         deadlinesResult.data != null &&
@@ -230,6 +230,12 @@ class HomeController extends GetxController {
 
   List<JobItem> _mapJobs(List<Map<String, dynamic>> items) {
     return items.map((json) {
+      final id = _stringFrom(json, [
+        'campaignId',
+        'id',
+        'jobId',
+        'assignmentId',
+      ]);
       final title = _stringFrom(json, [
         'campaignName',
         'campaignTitle',
@@ -259,20 +265,25 @@ class HomeController extends GetxController {
           _intFrom(json['completion']) ??
           0;
 
-      final date = _parseDate(
-        json['deadline'] ??
-            json['dueDate'] ??
+      final dueDate = _parseDate(json['deadline'] ?? json['dueDate']);
+      final displayDate = _parseDate(
+        json['startedAt'] ??
+            json['startingDate'] ??
+            json['startDate'] ??
             json['date'] ??
-            json['createdAt'],
+            json['createdAt'] ??
+            json['deadline'] ??
+            json['dueDate'],
       );
 
-      final dueInDays = _intFrom(json['dueInDays']) ?? _daysUntil(date);
+      final dueInDays = _intFrom(json['dueInDays']) ?? _daysUntil(dueDate);
 
       final dateLabel =
           _stringFrom(json, ['dateLabel', 'deadlineLabel']) ??
-          _formatDate(date);
+          _formatDate(displayDate);
 
       return JobItem(
+        id: id,
         title: title ?? '—',
         subTitle: subTitle,
         clientName: clientName ?? '—',
@@ -284,6 +295,14 @@ class HomeController extends GetxController {
         dueInDays: dueInDays,
       );
     }).toList();
+  }
+
+  void openJobDetails(JobItem job) {
+    if (_accountTypeService.isBrand) {
+      Get.toNamed(AppRoutes.brandCampaignDetails, id: 1, arguments: job);
+      return;
+    }
+    Get.toNamed(AppRoutes.campaignDetails, id: 1, arguments: job);
   }
 
   HomeDashboardModel _applyLifetimeSummary(
@@ -361,25 +380,6 @@ class HomeController extends GetxController {
     );
   }
 
-  HomeDashboardModel _applyAgencyEarnings(
-    HomeDashboardModel current,
-    Map<String, dynamic> json,
-  ) {
-    final data = json['data'] is Map<String, dynamic>
-        ? json['data'] as Map<String, dynamic>
-        : json;
-
-    final totalEarnings = _doubleFrom(data['totalEarnings']);
-    final completedJobs = _intFrom(data['completedJobs']);
-
-    return current.copyWith(
-      totalEarningsK: totalEarnings != null
-          ? _toThousands(totalEarnings)
-          : current.totalEarningsK,
-      totalJobsCompleted: completedJobs ?? current.totalJobsCompleted,
-    );
-  }
-
   HomeDashboardModel _applyInfluencerSummary(
     HomeDashboardModel current,
     Map<String, dynamic> json,
@@ -400,25 +400,6 @@ class HomeController extends GetxController {
       pendingEarnings: pending?.round() ?? current.pendingEarnings,
       activeJobs: active ?? current.activeJobs,
       newOffers: offers ?? current.newOffers,
-    );
-  }
-
-  HomeDashboardModel _applyInfluencerEarnings(
-    HomeDashboardModel current,
-    Map<String, dynamic> json,
-  ) {
-    final data = json['data'] is Map<String, dynamic>
-        ? json['data'] as Map<String, dynamic>
-        : json;
-
-    final totalEarnings = _doubleFrom(data['totalEarnings']);
-    final completedJobs = _intFrom(data['completedJobs']);
-
-    return current.copyWith(
-      totalEarningsK: totalEarnings != null
-          ? _toThousands(totalEarnings)
-          : current.totalEarningsK,
-      totalJobsCompleted: completedJobs ?? current.totalJobsCompleted,
     );
   }
 

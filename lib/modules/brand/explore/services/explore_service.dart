@@ -90,7 +90,7 @@ class ExploreService {
     final ownerName = _asString(data['fullName']).trim().isNotEmpty
         ? _asString(data['fullName'])
         : _joinName(data['firstName'], data['lastName']);
-    final niches = _stringList(data['niches']);
+    final niches = _agencyVisibleNiches(data['niches']);
     final subtitle = _buildSubtitle(
       base: 'Ad Agency',
       extras: [if (ownerName.isNotEmpty) ownerName, ...niches],
@@ -194,5 +194,31 @@ class ExploreService {
       return v.map((e) => _asString(e)).where((e) => e.isNotEmpty).toList();
     }
     return const [];
+  }
+
+  List<String> _agencyVisibleNiches(dynamic v) {
+    if (v is! List) return const [];
+
+    final names = <String>[];
+    for (final item in v) {
+      if (item is String) {
+        final name = item.trim();
+        if (name.isNotEmpty) names.add(name);
+        continue;
+      }
+
+      if (item is Map) {
+        final map = Map<String, dynamic>.from(item);
+        final status = _asString(map['status']).trim().toLowerCase();
+        if (status == 'pending') continue;
+
+        final name = _asString(map['name']).trim().isNotEmpty
+            ? _asString(map['name']).trim()
+            : _asString(map['niche']).trim();
+        if (name.isNotEmpty) names.add(name);
+      }
+    }
+
+    return names;
   }
 }

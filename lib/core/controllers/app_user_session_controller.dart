@@ -3,9 +3,11 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:influencer_app/core/services/account_type_service.dart';
-import 'package:influencer_app/core/services/api_client.dart';
+import 'package:influencer_app/core/services/api_error_handler.dart';
 import 'package:influencer_app/core/services/notification_service.dart';
 import 'package:influencer_app/core/services/token_service.dart';
+import 'package:influencer_app/modules/ad_agency/services/agency_profile_service.dart';
+import 'package:influencer_app/modules/brand/services/brand_onboarding_services.dart';
 import 'package:influencer_app/modules/influencer/models/influencer_profile_model.dart';
 import 'package:influencer_app/modules/influencer/services/influencer_profile_service.dart';
 
@@ -32,7 +34,12 @@ class AppUserSessionController extends GetxService {
 
   final TokenService _tokenService = Get.find<TokenService>();
   final AccountTypeService _accountTypeService = Get.find<AccountTypeService>();
-  final ApiClient _apiClient = Get.find<ApiClient>();
+  final InfluencerProfileService _influencerProfileService =
+      Get.find<InfluencerProfileService>();
+  final AgencyProfileService _agencyProfileService =
+      Get.find<AgencyProfileService>();
+  final BrandOnboardingService _brandOnboardingService =
+      Get.find<BrandOnboardingService>();
   final NotificationService _notificationService =
       Get.find<NotificationService>();
 
@@ -85,8 +92,7 @@ class AppUserSessionController extends GetxService {
 
   Future<void> _loadInfluencerProfile() async {
     try {
-      final service = InfluencerProfileService(_apiClient);
-      final result = await service.getProfile();
+      final result = await _influencerProfileService.getProfile();
       if (!result.isSuccess || result.data == null) return;
 
       final profile = result.data!;
@@ -102,35 +108,35 @@ class AppUserSessionController extends GetxService {
   }
 
   Future<void> _loadAgencyProfile() async {
-    try {
-      final res = await _apiClient.dio.get('/agency/profile');
-      if (res.data is! Map) return;
-      final json = Map<String, dynamic>.from(res.data as Map);
-      agencyProfileJson.value = json;
+    final result = await ApiErrorHandler.call(
+      () => _agencyProfileService.fetchProfile(),
+      showError: false,
+    );
+    if (!result.isSuccess || result.data == null) return;
 
-      _applyIdentityFromJson(
-        json: json,
-        preferredName: (json['agencyName'] ?? '').toString(),
-      );
-    } catch (e) {
-      debugPrint('[AppUserSession] agency profile load failed: $e');
-    }
+    final json = result.data!;
+    agencyProfileJson.value = json;
+
+    _applyIdentityFromJson(
+      json: json,
+      preferredName: (json['agencyName'] ?? '').toString(),
+    );
   }
 
   Future<void> _loadBrandProfile() async {
-    try {
-      final res = await _apiClient.dio.get('/client/profile');
-      if (res.data is! Map) return;
-      final json = Map<String, dynamic>.from(res.data as Map);
-      brandProfileJson.value = json;
+    final result = await ApiErrorHandler.call(
+      () => _brandOnboardingService.fetchProfile(),
+      showError: false,
+    );
+    if (!result.isSuccess || result.data == null) return;
 
-      _applyIdentityFromJson(
-        json: json,
-        preferredName: (json['brandName'] ?? '').toString(),
-      );
-    } catch (e) {
-      debugPrint('[AppUserSession] brand profile load failed: $e');
-    }
+    final json = result.data!;
+    brandProfileJson.value = json;
+
+    _applyIdentityFromJson(
+      json: json,
+      preferredName: (json['brandName'] ?? '').toString(),
+    );
   }
 
   void _applyIdentityFromJson({

@@ -1,10 +1,12 @@
 import 'package:get/get.dart';
 
+import '../../../core/models/job_item.dart';
 import '../../../core/models/transaction_model.dart';
 import '../../../core/services/account_type_service.dart';
 import '../../../core/services/api_error_handler.dart';
 import '../../../core/services/earnings_service.dart';
-import '../../../modules/ad_agency/services/agency_dashboard_service.dart';
+import '../../ad_agency/services/agency_dashboard_service.dart';
+import '../../../routes/app_routes.dart';
 
 class EarningsChartPoint {
   final String label; // e.g. "7/11"
@@ -34,9 +36,9 @@ class PlatformItem {
 
 class EarningsController extends GetxController {
   final AccountTypeService _accountTypeService = Get.find<AccountTypeService>();
+  final EarningsService _earningsService = Get.find<EarningsService>();
   final AgencyDashboardService _agencyDashboardService =
       Get.find<AgencyDashboardService>();
-  final EarningsService _earningsService = Get.find<EarningsService>();
   // ------------ Tabs ------------
   /// 0 = Earnings, 1 = Transactions
   final mainTabIndex = 0.obs;
@@ -69,6 +71,7 @@ class EarningsController extends GetxController {
   final platformItems = <PlatformItem>[].obs;
 
   // ------------ Transactions (paginated) ------------
+  final transactionSortLowToHigh = true.obs;
   final transactionSearchQuery = ''.obs;
   final transactionIsLoading = false.obs;
   final transactionCurrentPage = 1.obs;
@@ -113,15 +116,14 @@ class EarningsController extends GetxController {
     }
   }
 
+  void toggleTransactionSort() {
+    transactionSortLowToHigh.value = !transactionSortLowToHigh.value;
+    _sortVisibleTransactions();
+  }
+
   // ------------ Init helpers ------------
 
   void _initReactions() {
-    debounce<String>(
-      clientSearchQuery,
-      (_) => fetchClientPage(1),
-      time: const Duration(milliseconds: 250),
-    );
-
     debounce<String>(
       transactionSearchQuery,
       (_) => fetchTransactionPage(1),
@@ -130,73 +132,108 @@ class EarningsController extends GetxController {
   }
 
   Future<void> _loadInitial() async {
-    await Future.wait([
-      fetchOverview(),
-      fetchClientPage(1),
-      fetchPlatforms(),
-      fetchTransactionPage(1),
-    ]);
+    await _loadOverview();
+    await fetchTransactionPage(1);
   }
 
-  Future<void> fetchOverview() async {
+  Future<void> _loadOverview() async {
     chartIsLoading.value = true;
+
     if (_accountTypeService.isBrand) {
       lifetimeEarnings.value = 0;
       pendingEarnings.value = 0;
       totalEarnings.value = 0;
-      recentEarnings.value = 0;
-      mostUsedPlatform.value = '—';
       chartPoints.clear();
       chartIsLoading.value = false;
       return;
     }
 
     if (_accountTypeService.isAdAgency) {
-      try {
-        final summaryRes = await ApiErrorHandler.call(
-          () => _agencyDashboardService.fetchSummary(),
-          showError: false,
-        );
-        final overviewRes = await ApiErrorHandler.call(
-          () => _agencyDashboardService.fetchEarningsOverview(),
-          showError: false,
-        );
+      selectedRangeLabel.value = '30d';
 
-        if (summaryRes.isSuccess && summaryRes.data != null) {
-          _applySummary(summaryRes.data!);
-        }
-        if (overviewRes.isSuccess && overviewRes.data != null) {
-          _applyEarningsOverview(overviewRes.data!);
-        } else {
-          chartPoints.clear();
-        }
-      } finally {
-        chartIsLoading.value = false;
-      }
-      return;
-    }
-
-    try {
-      final summaryRes = await ApiErrorHandler.call(
-        () => _earningsService.fetchInfluencerSummary(),
+      final summaryResult = await ApiErrorHandler.call(
+        () => _agencyDashboardService.fetchSummary(),
         showError: false,
       );
-      final overviewRes = await ApiErrorHandler.call(
-        () => _earningsService.fetchInfluencerEarningsOverview(),
+      if (summaryResult.isSuccess && summaryResult.data != null) {
+        final summaryData = _extractData(summaryResult.data!);
+        lifetimeEarnings.value = _intFrom(summaryData['lifetimeEarnings']) ?? 0;
+        pendingEarnings.value = _intFrom(summaryData['pendingEarnings']) ?? 0;
+        totalEarnings.value = lifetimeEarnings.value;
+      }
+
+      final overviewResult = await ApiErrorHandler.call(
+        () => _agencyDashboardService.fetchEarningsOverview(range: '30d'),
         showError: false,
       );
-
-      if (summaryRes.isSuccess && summaryRes.data != null) {
-        _applySummary(summaryRes.data!);
-      }
-      if (overviewRes.isSuccess && overviewRes.data != null) {
-        _applyEarningsOverview(overviewRes.data!);
+      if (overviewResult.isSuccess && overviewResult.data != null) {
+        _applyOverviewData(_extractData(overviewResult.data!));
       } else {
         chartPoints.clear();
       }
-    } finally {
+
       chartIsLoading.value = false;
+      return;
     }
+
+    selectedRangeLabel.value = '7_days'.tr;
+
+    final summaryResult = await ApiErrorHandler.call(
+      () => _earningsService.fetchInfluencerSummary(),
+      showError: false,
+    );
+    if (summaryResult.isSuccess && summaryResult.data != null) {
+      final summaryData = _extractData(summaryResult.data!);
+      lifetimeEarnings.value = _intFrom(summaryData['lifetimeEarnings']) ?? 0;
+      pendingEarnings.value = _intFrom(summaryData['pendingEarnings']) ?? 0;
+      totalEarnings.value = lifetimeEarnings.value;
+    }
+
+    final overviewResult = await ApiErrorHandler.call(
+      () => _earningsService.fetchInfluencerEarningsOverview(range: '7d'),
+      showError: false,
+    );
+    if (overviewResult.isSuccess && overviewResult.data != null) {
+      _applyOverviewData(_extractData(overviewResult.data!));
+    } else {
+      chartPoints.clear();
+    }
+
+    chartIsLoading.value = false;
+  }
+
+  Map<String, dynamic> _extractData(Map<String, dynamic> response) {
+    final nested = response['data'];
+    if (nested is Map<String, dynamic>) return nested;
+    return response;
+  }
+
+  void _applyOverviewData(Map<String, dynamic> data) {
+    final breakdown = data['breakdown'];
+    if (breakdown is List) {
+      final points = breakdown
+          .whereType<Map>()
+          .map((entry) {
+            final map = entry.cast<String, dynamic>();
+            final rawDate = map['date']?.toString() ?? '';
+            final amount = _intFrom(map['amount']) ?? 0;
+            return EarningsChartPoint(
+              label: _formatChartLabel(rawDate),
+              value: amount,
+            );
+          })
+          .toList(growable: false);
+
+      chartPoints.assignAll(points);
+    } else {
+      chartPoints.clear();
+    }
+  }
+
+  String _formatChartLabel(String rawDate) {
+    final parsed = DateTime.tryParse(rawDate);
+    if (parsed == null) return rawDate;
+    return '${parsed.month}/${parsed.day}';
   }
 
   Future<void> fetchClientPage(int page) async {
@@ -273,8 +310,11 @@ class EarningsController extends GetxController {
       transactionTotalPages.value = totalPages;
       transactionCurrentPage.value = page.clamp(1, totalPages);
 
-      final items = data.items.map(_mapTransaction).toList(growable: false);
+      final items = data.items.map(_mapTransaction).toList();
+      _sortTransactionModels(items);
       transactionItems.assignAll(items);
+
+      recentEarnings.value = _mostRecentTransactionAmount(data.items);
 
       _refreshDerivedStatsFromTransactions(data.items);
     } else {
@@ -286,8 +326,50 @@ class EarningsController extends GetxController {
       _platformSource.clear();
       clientItems.clear();
       platformItems.clear();
+      recentEarnings.value = 0;
     }
     transactionIsLoading.value = false;
+  }
+
+  void _sortVisibleTransactions() {
+    final sorted = transactionItems.toList();
+    _sortTransactionModels(sorted);
+    transactionItems.assignAll(sorted);
+  }
+
+  void _sortTransactionModels(List<TransactionModel> items) {
+    items.sort((a, b) {
+      final compare = a.amount.compareTo(b.amount);
+      return transactionSortLowToHigh.value ? compare : -compare;
+    });
+  }
+
+  int _mostRecentTransactionAmount(List<Map<String, dynamic>> items) {
+    if (items.isEmpty) return 0;
+
+    DateTime? mostRecentDate;
+    int mostRecentAmount = 0;
+
+    for (final item in items) {
+      final rawDate = item['date']?.toString() ?? item['createdAt']?.toString();
+      final parsedDate = rawDate != null ? DateTime.tryParse(rawDate) : null;
+      final amount = _intFrom(item['amount'] ?? item['paidAmount']) ?? 0;
+
+      if (parsedDate == null) {
+        continue;
+      }
+
+      if (mostRecentDate == null || parsedDate.isAfter(mostRecentDate)) {
+        mostRecentDate = parsedDate;
+        mostRecentAmount = amount;
+      }
+    }
+
+    if (mostRecentDate == null) {
+      return _intFrom(items.first['amount'] ?? items.first['paidAmount']) ?? 0;
+    }
+
+    return mostRecentAmount;
   }
 
   bool get hasPrevClientPage => clientCurrentPage.value > 1;
@@ -302,54 +384,6 @@ class EarningsController extends GetxController {
       await fetchTransactionPage(transactionCurrentPage.value - 1);
   }
 
-  void _applySummary(Map<String, dynamic> json) {
-    final data = json['data'] is Map<String, dynamic>
-        ? json['data'] as Map<String, dynamic>
-        : json;
-
-    lifetimeEarnings.value =
-        _intFrom(data['lifetimeEarnings']) ??
-        _intFrom(data['totalEarnings']) ??
-        0;
-    pendingEarnings.value =
-        _intFrom(data['pendingEarnings']) ?? pendingEarnings.value;
-
-    final platform = _stringFrom(data, ['mostUsedPlatform', 'topPlatform']);
-    if (platform != null && platform.isNotEmpty) {
-      mostUsedPlatform.value = platform;
-    }
-  }
-
-  void _applyEarningsOverview(Map<String, dynamic> json) {
-    final data = json['data'] is Map<String, dynamic>
-        ? json['data'] as Map<String, dynamic>
-        : json;
-
-    totalEarnings.value =
-        _intFrom(data['totalEarnings']) ??
-        _intFrom(data['total']) ??
-        totalEarnings.value;
-    recentEarnings.value =
-        _intFrom(data['recentEarnings']) ??
-        _intFrom(data['lastPaidAmount']) ??
-        recentEarnings.value;
-
-    final breakdown = data['breakdown'];
-    if (breakdown is List) {
-      final points = breakdown
-          .whereType<Map>()
-          .map((e) => Map<String, dynamic>.from(e))
-          .map((e) {
-            final rawDate = e['date']?.toString() ?? '';
-            final label = _shortDate(rawDate);
-            final value = _intFrom(e['amount'] ?? e['paidAmount']) ?? 0;
-            return EarningsChartPoint(label: label, value: value);
-          })
-          .toList(growable: false);
-      chartPoints.assignAll(points);
-    }
-  }
-
   TransactionModel _mapTransaction(Map<String, dynamic> json) {
     final jobName =
         json['jobName']?.toString() ??
@@ -360,6 +394,8 @@ class EarningsController extends GetxController {
     final amount = _intFrom(json['amount'] ?? json['paidAmount']) ?? 0;
     final date =
         json['date']?.toString() ?? json['createdAt']?.toString() ?? '';
+    final campaignId =
+        json['campaignId']?.toString() ?? json['jobId']?.toString();
 
     return TransactionModel(
       titleKey: 'earnings_payment_for',
@@ -369,7 +405,27 @@ class EarningsController extends GetxController {
       type: TransactionType.inbound,
       detailsKey: 'earnings_view_campaign_details',
       searchText: '$jobName $clientName',
+      campaignId: campaignId,
     );
+  }
+
+  void openTransactionCampaignDetails(TransactionModel item) {
+    final campaignId = item.campaignId?.trim();
+    if (campaignId == null || campaignId.isEmpty) return;
+
+    final fallbackJob = JobItem(
+      id: campaignId,
+      title: item.titleParams['name']?.trim().isNotEmpty == true
+          ? item.titleParams['name']!.trim()
+          : 'Campaign',
+      clientName: 'Client',
+      dateLabel: item.subtitle,
+      budget: item.amount.toDouble(),
+      sharePercent: 0,
+      campaignType: CampaignType.paidAd,
+    );
+
+    Get.toNamed(AppRoutes.campaignDetails, id: 1, arguments: fallbackJob);
   }
 
   void _refreshDerivedStatsFromTransactions(List<Map<String, dynamic>> items) {
@@ -423,27 +479,10 @@ class EarningsController extends GetxController {
     return 'facebook';
   }
 
-  String _shortDate(String raw) {
-    try {
-      final dt = DateTime.parse(raw);
-      return '${dt.month}/${dt.day}';
-    } catch (_) {
-      return raw.isNotEmpty ? raw : '—';
-    }
-  }
-
   int? _intFrom(dynamic value) {
     if (value is int) return value;
     if (value is num) return value.toInt();
-    if (value is String) return int.tryParse(value);
-    return null;
-  }
-
-  String? _stringFrom(Map<String, dynamic> json, List<String> keys) {
-    for (final key in keys) {
-      final value = json[key];
-      if (value is String && value.trim().isNotEmpty) return value;
-    }
+    if (value is String) return num.tryParse(value)?.toInt();
     return null;
   }
 }

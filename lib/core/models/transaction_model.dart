@@ -19,6 +19,9 @@ class TransactionModel {
   /// Search helper (campaign name / keywords)
   final String searchText;
 
+  /// Optional campaign reference for deep-linking to campaign details.
+  final String? campaignId;
+
   const TransactionModel({
     required this.titleKey,
     this.titleParams = const {},
@@ -27,5 +30,6 @@ class TransactionModel {
     required this.type,
     required this.detailsKey,
     required this.searchText,
+    this.campaignId,
   });
 }
