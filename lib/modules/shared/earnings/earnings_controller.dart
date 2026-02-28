@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/models/job_item.dart';
 import '../../../core/models/transaction_model.dart';
@@ -400,13 +401,32 @@ class EarningsController extends GetxController {
     return TransactionModel(
       titleKey: 'earnings_payment_for',
       titleParams: {'name': jobName},
-      subtitle: date.isNotEmpty ? date : '—',
+      subtitle: _formatTransactionDate(date),
       amount: amount,
       type: TransactionType.inbound,
       detailsKey: 'earnings_view_campaign_details',
       searchText: '$jobName $clientName',
       campaignId: campaignId,
     );
+  }
+
+  String _formatTransactionDate(String? rawDate) {
+    if (rawDate == null || rawDate.trim().isEmpty) return '—';
+
+    final trimmed = rawDate.trim();
+    final parsed = DateTime.tryParse(trimmed) ?? _tryParseEpoch(trimmed);
+    if (parsed == null) return trimmed;
+
+    return DateFormat('yyyy-MM-dd hh:mm a').format(parsed.toLocal());
+  }
+
+  DateTime? _tryParseEpoch(String value) {
+    final number = int.tryParse(value);
+    if (number == null) return null;
+
+    final isSeconds = value.length <= 10;
+    final millis = isSeconds ? number * 1000 : number;
+    return DateTime.fromMillisecondsSinceEpoch(millis, isUtc: true);
   }
 
   void openTransactionCampaignDetails(TransactionModel item) {

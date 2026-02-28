@@ -14,11 +14,23 @@ class PagedResult<T> {
   });
 }
 
+class ClientAnalyticsResult {
+  final PagedResult<Map<String, dynamic>> transactions;
+  final String? topCampaignTitle;
+  final String? topInfluencer;
+
+  const ClientAnalyticsResult({
+    required this.transactions,
+    this.topCampaignTitle,
+    this.topInfluencer,
+  });
+}
+
 class AnalyticsService {
   final ApiClient _api;
   AnalyticsService(this._api);
 
-  Future<PagedResult<Map<String, dynamic>>> fetchClientAnalytics({
+  Future<ClientAnalyticsResult> fetchClientAnalytics({
     int page = 1,
     int limit = 10,
     String? search,
@@ -33,48 +45,69 @@ class AnalyticsService {
         if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
       },
     );
-    return _parsePaged(res.data, page: page, limit: limit);
+    return _parseClientAnalytics(res.data, page: page, limit: limit);
   }
 
-  Future<PagedResult<Map<String, dynamic>>> fetchClientReports({
-    int page = 1,
-    int limit = 10,
-    String? search,
-  }) async {
-    final res = await _api.dio.get(
-      '/client/reports',
-      queryParameters: {
-        'page': page,
-        'limit': limit,
-        if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
-      },
-    );
-    return _parsePaged(res.data, page: page, limit: limit);
-  }
-
-  PagedResult<Map<String, dynamic>> _parsePaged(
+  ClientAnalyticsResult _parseClientAnalytics(
     dynamic data, {
     required int page,
     required int limit,
   }) {
     if (data is Map<String, dynamic>) {
-      final list = data['data'];
-      final meta = data['meta'];
-      final total = meta is Map<String, dynamic>
-          ? (meta['total'] is int ? meta['total'] as int : 0)
-          : 0;
-      if (list is List) {
-        return PagedResult(
-          items: list
-              .whereType<Map>()
-              .map((e) => e.cast<String, dynamic>())
-              .toList(),
-          total: total,
-          page: page,
-          limit: limit,
-        );
+      final rootData = data['data'];
+      if (rootData is Map<String, dynamic>) {
+        final highlights = rootData['highlights'];
+        final transactions = rootData['transactions'];
+
+        final topCampaignTitle = highlights is Map<String, dynamic>
+            ? ((highlights['topCampaign'] is Map<String, dynamic>)
+                  ? (highlights['topCampaign']['title']?.toString())
+                  : null)
+            : null;
+
+        final topInfluencer = highlights is Map<String, dynamic>
+            ? (highlights['topInfluencer']?.toString())
+            : null;
+
+        if (transactions is Map<String, dynamic>) {
+          final txData = transactions['data'];
+          final txMeta = transactions['meta'];
+
+          final total = txMeta is Map<String, dynamic>
+              ? int.tryParse('${txMeta['total']}') ?? 0
+              : 0;
+          final currentPage = txMeta is Map<String, dynamic>
+              ? int.tryParse('${txMeta['page']}') ?? page
+              : page;
+          final currentLimit = txMeta is Map<String, dynamic>
+              ? int.tryParse('${txMeta['limit']}') ?? limit
+              : limit;
+
+          if (txData is List) {
+            return ClientAnalyticsResult(
+              transactions: PagedResult(
+                items: txData
+                    .whereType<Map>()
+                    .map((e) => e.cast<String, dynamic>())
+                    .toList(),
+                total: total,
+                page: currentPage,
+                limit: currentLimit,
+              ),
+              topCampaignTitle: topCampaignTitle,
+              topInfluencer: topInfluencer,
+            );
+          }
+        }
       }
     }
-    return PagedResult(items: const [], total: 0, page: page, limit: limit);
+    return ClientAnalyticsResult(
+      transactions: PagedResult(
+        items: const [],
+        total: 0,
+        page: page,
+        limit: limit,
+      ),
+    );
   }
 }

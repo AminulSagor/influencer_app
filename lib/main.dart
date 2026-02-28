@@ -3,7 +3,6 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:influencer_app/core/theme/app_theme.dart';
-import 'package:influencer_app/modules/brand/analytics/models/analytics_models.dart';
 import 'package:influencer_app/routes/app_routes.dart';
 import 'core/bindings/initial_binding.dart';
 import 'core/services/account_type_service.dart';
