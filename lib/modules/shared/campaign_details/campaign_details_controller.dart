@@ -1,16 +1,3 @@
-// ✅ ALL UPDATES APPLIED AT ONCE
-// Changes:
-// 1) milestones API shape fixed: {success, data:{ milestones:[...] }}
-// 2) influencer milestones mapping uses backend `order` (0-based) for stepLabel
-// 3) influencer milestones dayLabel uses "Day X" from deliveryDays (or keeps null)
-// 4) influencer milestone platform/reach/views not present -> kept null
-// 5) milestone status null/empty -> todo
-// 6) top dueLabel = startingDate + duration (days remaining)
-// 7) top dateLabel = formatted startingDate
-// 8) safer extract of data map (handles map with data map)
-// 9) removed index-based milestone numbering for influencer (uses order)
-// 10) keeps existing agency mapping behavior
-
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -821,6 +808,10 @@ class CampaignDetailsController extends GetxController {
     final list = milestones.toList(growable: false);
 
     if (_serverStatus.isNotEmpty) {
+      if (_serverStatus.contains('agency_accepted')) {
+        campaignStatus.value = CampaignStatus.accepted;
+        return;
+      }
       if ({'completed', 'complete', 'closed'}.contains(_serverStatus)) {
         campaignStatus.value = CampaignStatus.complete;
         return;

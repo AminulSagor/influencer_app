@@ -97,7 +97,7 @@ class BottomNavRouteGenerator {
           page: () => const CreateCampaignView(),
           binding: BindingsBuilder(() {
             Get.lazyPut<CreateCampaignController>(
-              () => CreateCampaignController(),
+              () => CreateCampaignController(settings.arguments),
             );
           }),
         );
@@ -105,6 +105,13 @@ class BottomNavRouteGenerator {
         return GetPageRoute(
           settings: settings,
           page: () => const CreateCampaignStep2View(),
+          binding: BindingsBuilder(() {
+            if (!Get.isRegistered<CreateCampaignController>()) {
+              Get.lazyPut<CreateCampaignController>(
+                () => CreateCampaignController(settings.arguments),
+              );
+            }
+          }),
         );
       case AppRoutes.createCampaignStep3:
         return GetPageRoute(

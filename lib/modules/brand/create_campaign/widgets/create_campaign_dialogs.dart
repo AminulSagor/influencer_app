@@ -47,10 +47,6 @@ class CreateCampaignDialogs {
       }
     }
 
-    final primary = const Color(0xFF2F4F1F);
-    final bg = const Color(0xFFF6F7F7);
-    final softBorder = const Color(0xFFBFD7A5);
-
     Get.dialog(
       Dialog(
         backgroundColor: Colors.transparent,
@@ -72,8 +68,8 @@ class CreateCampaignDialogs {
                       'create_campaign_upload_another_asset'.tr,
                       style: TextStyle(
                         fontSize: 16.sp,
-                        fontWeight: FontWeight.w800,
-                        color: primary,
+                        fontWeight: FontWeight.w600,
+                        color: AppPalette.primary,
                       ),
                     ),
                   ),
@@ -85,36 +81,16 @@ class CreateCampaignDialogs {
                       child: Icon(
                         Icons.close,
                         size: 20.sp,
-                        color: primary.withOpacity(.6),
+                        color: AppPalette.secondary,
                       ),
                     ),
                   ),
                 ],
               ),
               14.h.verticalSpace,
-              TextField(
+              CustomTextFormField(
+                hintText: 'create_campaign_asset_name_hint'.tr,
                 controller: controller.assetTitleCtrl,
-                decoration: InputDecoration(
-                  hintText: 'create_campaign_asset_name_hint'.tr,
-                  filled: true,
-                  fillColor: bg,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 14.w,
-                    vertical: 12.h,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.r),
-                    borderSide: const BorderSide(color: Colors.black12),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.r),
-                    borderSide: const BorderSide(color: Colors.black12),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.r),
-                    borderSide: BorderSide(color: softBorder, width: 1.4),
-                  ),
-                ),
               ),
               12.h.verticalSpace,
               Obx(() {
@@ -124,21 +100,21 @@ class CreateCampaignDialogs {
                     onPressed: isPicking.value ? null : pickFile,
                     style: OutlinedButton.styleFrom(
                       minimumSize: Size(double.infinity, 46.h),
-                      side: BorderSide(color: softBorder),
+                      side: BorderSide(color: AppPalette.border1),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12.r),
                       ),
                     ),
                     icon: Icon(
                       Icons.upload_outlined,
-                      color: primary.withOpacity(.7),
+                      color: AppPalette.primary,
                     ),
                     label: Text(
                       isPicking.value
                           ? 'create_campaign_picking_file'.tr
                           : 'create_campaign_pick_file'.tr,
                       style: TextStyle(
-                        color: primary.withOpacity(.75),
+                        color: AppPalette.primary,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -155,7 +131,7 @@ class CreateCampaignDialogs {
                     width: double.infinity,
                     padding: EdgeInsets.all(12.w),
                     decoration: BoxDecoration(
-                      color: bg,
+                      color: AppPalette.white,
                       borderRadius: BorderRadius.circular(12.r),
                       border: Border.all(color: Colors.black12),
                     ),
@@ -178,13 +154,13 @@ class CreateCampaignDialogs {
                   decoration: BoxDecoration(
                     color: const Color(0xFFF7FAF3),
                     borderRadius: BorderRadius.circular(12.r),
-                    border: Border.all(color: softBorder),
+                    border: Border.all(color: AppPalette.border1),
                   ),
                   child: Row(
                     children: [
                       Icon(
                         iconForKind(pickedKind.value),
-                        color: primary.withOpacity(.7),
+                        color: AppPalette.primary,
                       ),
                       10.w.horizontalSpace,
                       Expanded(
@@ -198,7 +174,7 @@ class CreateCampaignDialogs {
                               style: TextStyle(
                                 fontSize: 13.5.sp,
                                 fontWeight: FontWeight.w800,
-                                color: primary.withOpacity(.8),
+                                color: AppPalette.primary,
                               ),
                             ),
                             2.h.verticalSpace,
@@ -207,7 +183,7 @@ class CreateCampaignDialogs {
                               style: TextStyle(
                                 fontSize: 12.sp,
                                 fontWeight: FontWeight.w600,
-                                color: primary.withOpacity(.55),
+                                color: AppPalette.primary,
                               ),
                             ),
                           ],
@@ -271,7 +247,7 @@ class CreateCampaignDialogs {
                             : null,
                         style: ElevatedButton.styleFrom(
                           minimumSize: Size(double.infinity, 46.h),
-                          backgroundColor: primary.withOpacity(
+                          backgroundColor: AppPalette.primary.withOpacity(
                             canSave ? .75 : .35,
                           ),
                           shape: RoundedRectangleBorder(

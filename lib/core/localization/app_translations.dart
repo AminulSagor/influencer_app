@@ -786,6 +786,9 @@ class AppTranslations extends Translations {
       "create_campaign_brand_assets": "Brand Assets",
       "create_campaign_add_brand_asset": "Add Another Brand Asset",
 
+      "brand_campaign_details_upload_another_brand_asset":
+          "Upload Another Brand Asset",
+
       "create_campaign_asset_name_hint": "Asset name (e.g. Brand Logo Pack)",
       "create_campaign_asset_meta_hint": "Meta (e.g. PNG, SVG - 2.4 MB)",
       "create_campaign_asset_error": "Please enter asset name and meta.",
@@ -1880,6 +1883,9 @@ class AppTranslations extends Translations {
 
       "create_campaign_brand_assets": "ব্র্যান্ড ফাইলসমূহ",
       "create_campaign_add_brand_asset": "+ আরও ব্র্যান্ড অ্যাসেট অ্যাড করুন",
+
+      "brand_campaign_details_upload_another_brand_asset":
+          "আরও ব্র্যান্ড অ্যাসেট আপলোড করুন",
 
       "create_campaign_asset_name_hint": "ফাইলের নাম (যেমন: Brand Logo Pack)",
       "create_campaign_asset_meta_hint": "বিবরণ (যেমন: PNG, SVG - 2.4 MB)",

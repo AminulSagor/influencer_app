@@ -50,6 +50,7 @@ class CampaignService {
         .map(
           (e) => AgencyLookup(
             id: e['id']?.toString() ?? '',
+            logo: e['logo']?.toString() ?? '',
             name:
                 e['agencyName']?.toString() ??
                 e['fullName']?.toString() ??
@@ -122,20 +123,18 @@ class CampaignService {
     required String campaignId,
     required String productType,
     required String campaignNiche,
-    List<String> preferredInfluencerIds = const [],
-    List<String> notPreferableInfluencerIds = const [],
+    required List<String> preferredInfluencers,
+    required List<String> notPreferableInfluencers,
   }) async {
-    await _api.dio.patch(
-      '$_campaignBase/$campaignId/step-2',
-      data: {
-        'productType': productType,
-        'campaignNiche': campaignNiche,
-        if (preferredInfluencerIds.isNotEmpty)
-          'preferredInfluencerIds': preferredInfluencerIds,
-        if (notPreferableInfluencerIds.isNotEmpty)
-          'notPreferableInfluencerIds': notPreferableInfluencerIds,
-      },
-    );
+    final payload = {
+      "productType": productType,
+      "campaignNiche": campaignNiche,
+      "preferredInfluencers": preferredInfluencers,
+      "notPreferableInfluencers": notPreferableInfluencers,
+    };
+
+    // call your api:
+    await _api.dio.patch("/campaign/$campaignId/step-2", data: payload);
   }
 
   Future<void> updateStep2PaidAd({
@@ -443,7 +442,7 @@ class CampaignService {
     required String submissionId,
     required Map<String, dynamic> payload,
   }) async {
-    final res = await _api.dio.post(
+    final res = await _api.dio.patch(
       '/campaign/agency/submission/$submissionId/resubmit',
       data: payload,
     );

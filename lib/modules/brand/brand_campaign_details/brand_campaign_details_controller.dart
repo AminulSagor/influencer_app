@@ -38,6 +38,7 @@ class BrandAssetLink {
 class PaidAdAgencyOffer {
   final String agencyId;
   final String name;
+  final String logo;
   final int agencyFeePercent; // e.g. 10
   final int totalPayableExcludingFee;
   final double dollarRate;
@@ -45,6 +46,7 @@ class PaidAdAgencyOffer {
   const PaidAdAgencyOffer({
     required this.agencyId,
     required this.name,
+    required this.logo,
     this.agencyFeePercent = 10,
     this.totalPayableExcludingFee = 0,
     this.dollarRate = 0,
@@ -57,6 +59,12 @@ class BrandCampaignDetailsController extends GetxController {
   // ✅ PaidAd tabs (0 = Agency Bids, 1 = Campaign Details)
   final paidAdTabIndex = 1.obs;
   void setPaidAdTab(int i) => paidAdTabIndex.value = i.clamp(0, 1);
+
+  final isSortLowToHigh = true.obs;
+
+  // Agency quotations pagination
+  final page = 1.obs;
+  final totalPages = 2.obs;
 
   // ✅ PaidAd: agency bids list (screenshot 2)
   final agencyOffers = <PaidAdAgencyOffer>[].obs;
@@ -98,7 +106,7 @@ class BrandCampaignDetailsController extends GetxController {
 
   // Optional: for other types
   final influencers = <String>[].obs;
-  final platformsImagePath = <String>['assets/icons/instagram.png'].obs;
+  final platformKeys = <String>[].obs;
 
   final daysRemaining = 0.obs;
   final deadlineDateText = ''.obs;
@@ -207,6 +215,39 @@ class BrandCampaignDetailsController extends GetxController {
       }
     });
     */
+  }
+
+  void toggleSort() {
+    isSortLowToHigh.value = !isSortLowToHigh.value;
+
+    /// TODO APPLY SORT
+  }
+
+  //Agency quotations pagination
+  void prevPage() {
+    if (page.value > 0) {
+      page.value--;
+    }
+
+    ///TODO prev pagination
+  }
+
+  void nextPage() {
+    if (page.value < totalPages.value) {
+      page.value++;
+    }
+
+    ///TODO next pagination
+  }
+
+  void _derivePlatformsFromMilestones(List<Milestone> list) {
+    final keys = list
+        .map((m) => (m.platform ?? '').trim().toLowerCase())
+        .where((p) => p.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+
+    platformKeys.assignAll(keys);
   }
 
   bool _isNonEmpty(dynamic value) {
@@ -426,6 +467,7 @@ class BrandCampaignDetailsController extends GetxController {
         .map((b) {
           final agencyId = b['agencyId']?.toString().trim() ?? '';
           final name = b['agencyName']?.toString().trim();
+          final logo = b['logo']?.toString().trim();
           final percent = _parsePercent(b['proposedServiceFeePercent']);
           final totalExcl = _numToInt(
             b['totalpayableExcludingAgencyServiceFee'],
@@ -437,6 +479,7 @@ class BrandCampaignDetailsController extends GetxController {
           return PaidAdAgencyOffer(
             agencyId: agencyId,
             name: (name == null || name.isEmpty) ? 'Agency' : name,
+            logo: logo ?? '',
             agencyFeePercent: percent <= 0 ? 10 : percent,
             totalPayableExcludingFee: totalExcl,
             dollarRate: fx,
@@ -502,6 +545,7 @@ class BrandCampaignDetailsController extends GetxController {
     // Milestones
     final ms = (data['milestones'] as List?) ?? const [];
     _mapMilestones(ms);
+    _derivePlatformsFromMilestones(milestones);
 
     // Content requirements fallback from milestones
     if (contentRequirements.isEmpty && milestones.isNotEmpty) {
@@ -631,6 +675,7 @@ class BrandCampaignDetailsController extends GetxController {
       if (raw is! Map) continue;
       final item = Map<String, dynamic>.from(raw);
 
+      final id = item['id']?.toString().trim();
       final title = item['contentTitle']?.toString().trim() ?? 'Milestone';
       final quantity = item['contentQuantity']?.toString().trim();
       final deliveryDays = (item['deliveryDays'] as num?)?.toInt();
@@ -641,6 +686,7 @@ class BrandCampaignDetailsController extends GetxController {
 
       mapped.add(
         Milestone(
+          id: id,
           stepLabel: ((order ?? mapped.length) + 1).toString(),
           title: title,
           subtitle: quantity?.isNotEmpty == true ? quantity : null,
@@ -762,6 +808,8 @@ class BrandCampaignDetailsController extends GetxController {
 
     // Milestones
     milestones.assignAll(j.milestones ?? const <Milestone>[]);
+
+    if (milestones.isNotEmpty) _derivePlatformsFromMilestones(milestones);
 
     // Brief text pieces
     dosText.value = (j.dosText ?? '').trim();

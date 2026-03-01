@@ -7,6 +7,7 @@ import 'package:influencer_app/core/theme/app_palette.dart';
 import 'package:influencer_app/core/theme/app_theme.dart';
 import 'package:influencer_app/core/utils/constants.dart';
 import 'package:influencer_app/core/widgets/custom_button.dart';
+import 'package:influencer_app/core/widgets/custom_text_form_field.dart';
 
 import '../../../core/models/job_item.dart';
 import 'milestone_details_controller.dart';
@@ -91,31 +92,19 @@ class MilestoneDetailsView extends GetView<MilestoneDetailsController> {
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: 16.w),
                   child: Obx(() {
-                    final reported = controller.hasReportedToAdmin.value;
+                    final selected = controller.selectedBrandSubmission;
+                    final hasSubmission = (selected?.serverId ?? '')
+                        .trim()
+                        .isNotEmpty;
 
-                    if (!reported) {
-                      // IMAGE 1/2: open write report dialog
-                      return CustomButton(
-                        onTap: () => _showWriteReportDialog(
-                          context: context,
-                          onSubmit: (reason) =>
-                              controller.submitAdminReport(reason),
-                        ),
-                        btnText: 'report_admin_btn'.tr, // "Report Admin"
-                        width: double.infinity,
-                        gradient: LinearGradient(
-                          colors: [AppPalette.secondary, AppPalette.primary],
-                        ),
-                        textStyle: AppTheme.textStyle.copyWith(
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.w500,
-                          color: AppPalette.white,
-                        ),
-                        height: 50.h,
-                      );
+                    // ✅ If no submission exists on this milestone, hide report admin UI entirely
+                    if (!hasSubmission) {
+                      return const SizedBox.shrink();
                     }
 
-                    // IMAGE 3/4: after submit show banner + view button
+                    final reported = controller.hasReportedToAdmin.value;
+                    final hasFetchedSubmissionReports =
+                        controller.selectedSubmissionReports.isNotEmpty;
                     final againAt = controller.reportAgainAt.value;
                     final againText = againAt == null
                         ? ''
@@ -123,67 +112,83 @@ class MilestoneDetailsView extends GetView<MilestoneDetailsController> {
 
                     return Column(
                       children: [
-                        Container(
-                          width: double.infinity,
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 18.w,
-                            vertical: 16.h,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppPalette.secondary,
-                            borderRadius: BorderRadius.circular(12.r),
-                          ),
-                          child: Column(
-                            children: [
-                              Text(
-                                'reported_to_admin_title'
-                                    .tr, // "Reported To Admin"
-                                style: TextStyle(
-                                  fontSize: 16.sp,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              if (againText.isNotEmpty) ...[
-                                SizedBox(height: 6.h),
-                                Text(
-                                  againText,
-                                  style: TextStyle(
-                                    fontSize: 11.sp,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.white.withOpacity(0.9),
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
+                        if (!reported)
+                          CustomButton(
+                            onTap: () => _showWriteReportDialog(
+                              context: context,
+                              onSubmit: (reason) =>
+                                  controller.submitAdminReport(reason),
+                            ),
+                            btnText: 'report_admin_btn'.tr,
+                            width: double.infinity,
+                            gradient: LinearGradient(
+                              colors: [
+                                AppPalette.secondary,
+                                AppPalette.primary,
                               ],
-                            ],
+                            ),
+                            textStyle: AppTheme.textStyle.copyWith(
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.w500,
+                              color: AppPalette.white,
+                            ),
+                            height: 50.h,
+                          )
+                        else ...[
+                          Container(
+                            width: double.infinity,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 18.w,
+                              vertical: 16.h,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppPalette.secondary,
+                              borderRadius: BorderRadius.circular(12.r),
+                            ),
+                            child: Column(
+                              children: [
+                                Text(
+                                  'reported_to_admin_title'.tr,
+                                  style: TextStyle(
+                                    fontSize: 16.sp,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                if (againText.isNotEmpty) ...[
+                                  SizedBox(height: 6.h),
+                                  Text(
+                                    againText,
+                                    style: TextStyle(
+                                      fontSize: 11.sp,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.white.withOpacity(0.9),
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ],
+                            ),
                           ),
-                        ),
-                        SizedBox(height: 12.h),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 50.h,
-                          child: OutlinedButton(
-                            onPressed: () =>
+                        ],
+
+                        // ✅ show only if API has reports for selected submission
+                        if (hasFetchedSubmissionReports) ...[
+                          SizedBox(height: 12.h),
+                          CustomButton(
+                            onTap: () =>
                                 _showSubmittedReportsDialog(context: context),
-                            style: OutlinedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              side: BorderSide(color: AppPalette.border1),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12.r),
-                              ),
-                            ),
-                            child: Text(
-                              'view_submitted_report'
-                                  .tr, // "View Submitted Report"
-                              style: TextStyle(
-                                fontSize: 15.sp,
-                                fontWeight: FontWeight.w700,
-                                color: AppPalette.primary,
-                              ),
+                            btnText: 'view_submitted_report'.tr,
+                            width: double.infinity,
+                            height: 50.h,
+                            btnColor: AppPalette.white,
+                            textStyle: AppTheme.textStyle.copyWith(
+                              fontWeight: FontWeight.w500,
+                              fontSize: 16.sp,
+                              color: AppPalette.primary,
                             ),
                           ),
-                        ),
+                        ],
                       ],
                     );
                   }),
@@ -323,16 +328,17 @@ class MilestoneDetailsView extends GetView<MilestoneDetailsController> {
                 ),
 
               if (!accountTypeService.isBrand) ...[
-                SizedBox(height: 8.h),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16.w),
-                  child: _AddAnotherSubmissionButton(
-                    onTap: controller.addSubmission,
+                if (!accountTypeService.isInfluencer) ...[
+                  SizedBox(height: 8.h),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16.w),
+                    child: _AddAnotherSubmissionButton(
+                      onTap: controller.addSubmission,
+                    ),
                   ),
-                ),
-                SizedBox(height: 24.h),
+                  SizedBox(height: 24.h),
+                ],
 
-                // BOTTOM AGREEMENT + SUBMIT
                 Obx(
                   () => _MilestoneBottomSection(
                     confirmOwnership: controller.confirmOwnership.value,
@@ -340,6 +346,8 @@ class MilestoneDetailsView extends GetView<MilestoneDetailsController> {
                     onToggleOwnership: controller.toggleOwnership,
                     onToggleLicense: controller.toggleLicense,
                     onSubmit: controller.submitForReview,
+                    // ✅ add this param
+                    submitText: controller.submitButtonText,
                   ),
                 ),
               ],
@@ -392,7 +400,7 @@ class _AcceptDeclineSection extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: Container(
-        padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 16.h),
+        padding: EdgeInsets.fromLTRB(20.w, 15.h, 20.w, 16.h),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(
@@ -409,50 +417,18 @@ class _AcceptDeclineSection extends StatelessWidget {
         child: Row(
           children: [
             Expanded(
-              child: SizedBox(
-                height: 42.h,
-                child: OutlinedButton(
-                  onPressed: onDecline,
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: AppPalette.border1),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10.r),
-                    ),
-                    backgroundColor: Colors.white,
-                  ),
-                  child: Text(
-                    declineText,
-                    style: TextStyle(
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.w600,
-                      color: AppPalette.black,
-                    ),
-                  ),
-                ),
+              child: CustomButton(
+                onTap: onDecline,
+                btnText: declineText,
+                btnColor: AppPalette.defaultFill,
               ),
             ),
             SizedBox(width: 12.w),
             Expanded(
-              child: SizedBox(
-                height: 42.h,
-                child: ElevatedButton(
-                  onPressed: onAccept,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF7BB23B),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10.r),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: Text(
-                    approveText,
-                    style: TextStyle(
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
+              child: CustomButton(
+                onTap: onAccept,
+                btnText: approveText,
+                textColor: AppPalette.white,
               ),
             ),
           ],
@@ -486,69 +462,45 @@ void _showDeclineSheet({
                   onTap: () => Get.back(),
                   borderRadius: BorderRadius.circular(999.r),
                   child: Container(
-                    width: 28.w,
-                    height: 28.w,
+                    width: 26.w,
+                    height: 26.w,
                     decoration: const BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Color(0xFFD32F2F),
+                      color: AppPalette.reportFlaggedActive,
                     ),
                     child: Icon(Icons.close, size: 18.sp, color: Colors.white),
                   ),
                 ),
                 SizedBox(width: 10.w),
                 Text(
-                  'brand_decline_reason_title'.tr, // ✅ BN/EN
+                  'brand_decline_reason_title'.tr,
                   style: TextStyle(
                     fontSize: 14.sp,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFFD32F2F),
+                    fontWeight: FontWeight.w500,
+                    color: AppPalette.reportFlaggedActive,
                   ),
                 ),
               ],
             ),
             SizedBox(height: 12.h),
 
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10.r),
-                border: Border.all(color: const Color(0xFFD32F2F), width: 1),
-              ),
-              child: TextField(
-                controller: tc,
-                maxLines: 5,
-                decoration: InputDecoration(
-                  hintText: 'brand_decline_reason_hint'.tr,
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.all(12.w),
-                ),
-              ),
+            CustomTextFormField(
+              controller: tc,
+              maxLines: 5,
+              hintText: 'brand_decline_reason_hint'.tr,
+              borderColor: AppPalette.error,
             ),
             SizedBox(height: 14.h),
 
-            SizedBox(
+            CustomButton(
+              onTap: () {
+                onSubmit(tc.text);
+                Get.back();
+              },
+              btnText: 'brand_decline_submit'.tr,
               width: double.infinity,
-              height: 44.h,
-              child: ElevatedButton(
-                onPressed: () {
-                  onSubmit(tc.text);
-                  Get.back();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFD32F2F),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10.r),
-                  ),
-                  elevation: 0,
-                ),
-                child: Text(
-                  'brand_decline_submit'.tr,
-                  style: TextStyle(
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
+              btnColor: AppPalette.error,
+              textColor: AppPalette.white,
             ),
           ],
         ),
@@ -596,6 +548,7 @@ class _MilestoneBottomSection extends StatelessWidget {
   final VoidCallback onToggleOwnership;
   final VoidCallback onToggleLicense;
   final VoidCallback onSubmit;
+  final String submitText;
 
   const _MilestoneBottomSection({
     required this.confirmOwnership,
@@ -603,6 +556,7 @@ class _MilestoneBottomSection extends StatelessWidget {
     required this.onToggleOwnership,
     required this.onToggleLicense,
     required this.onSubmit,
+    required this.submitText,
   });
 
   @override
@@ -662,7 +616,7 @@ class _MilestoneBottomSection extends StatelessWidget {
                 elevation: 0,
               ),
               child: Text(
-                'Submit For Admin Review',
+                submitText,
                 style: TextStyle(
                   fontSize: 13.sp,
                   fontWeight: FontWeight.w600,
@@ -883,10 +837,10 @@ void _showWriteReportDialog({
                 ),
                 SizedBox(width: 8.w),
                 Text(
-                  'write_report_title'.tr, // "Write Report"
+                  'write_report_title'.tr,
                   style: TextStyle(
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w600,
                     color: AppPalette.secondary,
                   ),
                 ),
@@ -910,14 +864,10 @@ void _showWriteReportDialog({
                   color: AppPalette.secondary.withOpacity(0.6),
                 ),
               ),
-              child: TextField(
+              child: CustomTextFormField(
                 controller: tc,
                 maxLines: 6,
-                decoration: InputDecoration(
-                  hintText: 'write_report_hint'.tr, // "Write your reasons..."
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.all(12.w),
-                ),
+                hintText: 'write_report_hint'.tr,
               ),
             ),
 
@@ -980,10 +930,10 @@ void _showSubmittedReportsDialog({required BuildContext context}) {
                 ),
                 SizedBox(width: 8.w),
                 Text(
-                  'submitted_report_title'.tr, // "Submitted Report"
+                  'submitted_report_title'.tr,
                   style: TextStyle(
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w600,
                     color: AppPalette.secondary,
                   ),
                 ),
@@ -1002,7 +952,12 @@ void _showSubmittedReportsDialog({required BuildContext context}) {
 
             Expanded(
               child: Obx(() {
-                final list = c.submittedReports;
+                final isLoading = c.isSelectedSubmissionReportsLoading.value;
+                final list = c.selectedSubmissionReports;
+
+                if (isLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
                 if (list.isEmpty) {
                   return Center(
@@ -1023,19 +978,21 @@ void _showSubmittedReportsDialog({required BuildContext context}) {
                   separatorBuilder: (_, __) => SizedBox(height: 12.h),
                   itemBuilder: (_, i) {
                     final item = list[i];
-                    final idx =
-                        list.length - i; // so top looks like "Report 1/2" style
+                    final idx = i + 1;
+
                     return Column(
                       children: [
                         Container(
                           width: double.infinity,
                           padding: EdgeInsets.symmetric(
-                            horizontal: 14.w,
-                            vertical: 10.h,
+                            horizontal: 10.w,
+                            vertical: 6.h,
                           ),
                           decoration: BoxDecoration(
-                            color: AppPalette.gradient3,
-                            borderRadius: BorderRadius.circular(12.r),
+                            color: AppPalette.thirdColor,
+                            borderRadius: BorderRadius.circular(
+                              kBorderRadius.r,
+                            ),
                           ),
                           child: Row(
                             children: [
@@ -1043,7 +1000,7 @@ void _showSubmittedReportsDialog({required BuildContext context}) {
                                 'Report $idx',
                                 style: TextStyle(
                                   fontSize: 12.sp,
-                                  fontWeight: FontWeight.w800,
+                                  fontWeight: FontWeight.w600,
                                   color: AppPalette.primary,
                                 ),
                               ),
@@ -1051,8 +1008,8 @@ void _showSubmittedReportsDialog({required BuildContext context}) {
                               Text(
                                 c.formatReportDateTime(item.createdAt),
                                 style: TextStyle(
-                                  fontSize: 11.sp,
-                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12.sp,
+                                  fontWeight: FontWeight.w500,
                                   color: AppPalette.primary,
                                 ),
                               ),
@@ -1062,18 +1019,18 @@ void _showSubmittedReportsDialog({required BuildContext context}) {
                         SizedBox(height: 8.h),
                         Container(
                           width: double.infinity,
-                          padding: EdgeInsets.all(12.w),
+                          padding: EdgeInsets.all(10.w),
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12.r),
-                            border: Border.all(
-                              color: AppPalette.secondary.withOpacity(0.4),
+                            borderRadius: BorderRadius.circular(
+                              kBorderRadius.r,
                             ),
+                            border: Border.all(color: AppPalette.secondary),
                           ),
                           child: Text(
-                            item.reason,
+                            item.content,
                             style: TextStyle(
                               fontSize: 12.sp,
-                              color: Colors.grey[800],
+                              color: AppPalette.black,
                               height: 1.45,
                             ),
                           ),

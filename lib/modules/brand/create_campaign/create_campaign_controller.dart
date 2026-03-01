@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 import 'package:influencer_app/core/theme/app_palette.dart';
 import 'package:influencer_app/core/utils/constants.dart';
 import 'package:influencer_app/core/utils/currency_formatter.dart';
+import 'package:influencer_app/core/widgets/custom_text_form_field.dart';
 import 'package:influencer_app/routes/app_routes.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
@@ -23,11 +24,13 @@ part 'widgets/create_campaign_dialogs.dart';
 class AdAgencyUiModel {
   final String id;
   final String name;
+  final String logo;
   final String subtitle;
   const AdAgencyUiModel({
     required this.id,
     required this.name,
     required this.subtitle,
+    required this.logo,
   });
 }
 
@@ -46,6 +49,9 @@ class InfluencerUiModel {
 }
 
 class CreateCampaignController extends GetxController {
+  dynamic arguments;
+  CreateCampaignController(this.arguments);
+
   final CampaignService _campaignService = Get.find<CampaignService>();
   final UploadService _uploadService = Get.find<UploadService>();
 
@@ -57,38 +63,7 @@ class CreateCampaignController extends GetxController {
   final selectedType = Rxn<CampaignType>();
 
   final selectedProductType = RxnString();
-  final selectedNiches = <String>[].obs;
-
-  final preferredInfluencerIds = <String>[].obs;
-  final notPreferredInfluencerIds = <String>[].obs;
-
-  final preferredQuery = ''.obs;
-  final notPreferredQuery = ''.obs;
-
-  final preferredSuggestionScroll = ScrollController();
-  final notPreferredSuggestionScroll = ScrollController();
-
-  final preferredSuggestions = <InfluencerUiModel>[].obs;
-  final notPreferredSuggestions = <InfluencerUiModel>[].obs;
-
-  static const Duration _typingDebounceDuration = Duration(milliseconds: 500);
-  static const Duration _scrollDebounceDuration = Duration(milliseconds: 500);
-
-  Timer? _preferredTypingDebounce;
-  Timer? _notPreferredTypingDebounce;
-  Timer? _recAgencyScrollDebounce;
-  Timer? _otherAgencyScrollDebounce;
-  Timer? _preferredScrollDebounce;
-  Timer? _notPreferredScrollDebounce;
-
-  int _preferredPage = 1;
-  int _notPreferredPage = 1;
-  bool _preferredHasMore = true;
-  bool _notPreferredHasMore = true;
-  bool _preferredLoading = false;
-  bool _notPreferredLoading = false;
-  String _preferredLastQuery = '';
-  String _notPreferredLastQuery = '';
+  final selectedInfluencerNiche = RxnString();
 
   final preferredInputCtrl = TextEditingController();
   final notPreferredInputCtrl = TextEditingController();
@@ -112,9 +87,9 @@ class CreateCampaignController extends GetxController {
   final recommendedAgencies = <AdAgencyUiModel>[].obs;
 
   // ── Other agencies (fetched WITHOUT niche) ──
-  final otherAgencyScroll = ScrollController();
+  final step2Scroll = ScrollController();
   int _otherAgencyPage = 1;
-  bool _isOtherAgencyLoading = false;
+  final isOtherAgencyLoading = false.obs;
   bool _hasMoreOtherAgencies = true;
   final otherAgencies = <AdAgencyUiModel>[].obs;
 
@@ -162,6 +137,9 @@ class CreateCampaignController extends GetxController {
 
   final milestoneTitleCtrl = TextEditingController();
   final milestoneDeliverableCtrl = TextEditingController();
+
+  final milestoneMetricTitleCtrl = TextEditingController();
+  final milestoneMetricAmountCtrl = TextEditingController();
 
   final selectedMilestonePlatform = RxnString();
   final selectedMilestoneDay = RxnInt();
@@ -249,7 +227,9 @@ class CreateCampaignController extends GetxController {
     if (step == 2) {
       final type = selectedType.value;
       if (type == CampaignType.influencerPromotion) {
-        return selectedProductType.value != null && selectedNiches.isNotEmpty;
+        return selectedProductType.value != null &&
+            (selectedInfluencerNiche.value != null &&
+                selectedInfluencerNiche.value!.trim().isNotEmpty);
       }
       if (type == CampaignType.paidAd) {
         return selectedPaidAdNiche.value != null &&
@@ -284,12 +264,128 @@ class CreateCampaignController extends GetxController {
   void onInit() {
     super.onInit();
 
-    _loadStep2Lookups();
-
+    // listeners (keep your existing ones)
     recommendedAgencyScroll.addListener(_onRecommendedAgencyScroll);
-    otherAgencyScroll.addListener(_onOtherAgencyScroll);
-    preferredSuggestionScroll.addListener(_onPreferredSuggestionScroll);
-    notPreferredSuggestionScroll.addListener(_onNotPreferredSuggestionScroll);
+    step2Scroll.addListener(_onStep2PageScroll);
+
+    // load lookups first (types/niches/agencies/influencers)
+    _boot();
+  }
+
+  Future<void> _boot() async {
+    final passedId = _readCampaignIdFromArgs(arguments);
+
+    await _loadStep2Lookups();
+
+    if (passedId != null && passedId.trim().isNotEmpty) {
+      campaignId.value = passedId;
+      currentStep.value = 2;
+
+      await _prefillFromCampaignDetails(passedId);
+    }
+  }
+
+  Future<void> _prefillFromCampaignDetails(String id) async {
+    await ApiErrorHandler.call(() async {
+      final payload = await _campaignService.fetchClientCampaignDetails(
+        campaignId: id,
+      );
+
+      // payload shape is: { id, campaignName, campaignType, campaignNiche, ... }
+      // and has nested client, paymentInfo, etc.
+
+      final name = payload['campaignName']?.toString() ?? '';
+      final typeRaw = payload['campaignType']?.toString() ?? '';
+      final niche = payload['campaignNiche']?.toString();
+      final productType = payload['productType']?.toString();
+
+      // ---- Step 1 fields (optional but good to set) ----
+      campaignNameCtrl.text = name;
+      campaignName.value = name;
+
+      final type = _parseCampaignTypeFromApi(typeRaw);
+      selectedType.value = type;
+
+      // ---- Step 2 fields ----
+      if (type == CampaignType.influencerPromotion) {
+        selectedProductType.value =
+            (productType != null && productType.trim().isNotEmpty)
+            ? productType
+            : null;
+
+        selectedInfluencerNiche.value =
+            (niche != null && niche.trim().isNotEmpty) ? niche : null;
+
+        // preferred / not preferred ids (API currently returns arrays)
+        preferredInfluencers
+          ..clear()
+          ..addAll(_stringList(payload['preferredInfluencers']));
+        notPreferredInfluencers
+          ..clear()
+          ..addAll(_stringList(payload['notPreferableInfluencers']));
+
+        // OPTIONAL: if those arrays are not ids but objects later, you can map them here.
+      } else {
+        // paid_ad flow
+        selectedPaidAdNiche.value = (niche != null && niche.trim().isNotEmpty)
+            ? niche
+            : null;
+
+        // Your API shows `selectedAgencyId` (single) currently.
+        // Your UI uses multi-select `selectedAgencyIds`.
+        selectedAgencyIds.clear();
+        final selectedAgencyId = payload['selectedAgencyId']?.toString();
+        if (selectedAgencyId != null && selectedAgencyId.trim().isNotEmpty) {
+          selectedAgencyIds.add(selectedAgencyId);
+        }
+
+        // reload recommended agencies based on niche (if any)
+        if (selectedPaidAdNiche.value != null) {
+          await _loadRecommendedAgencyPage(reset: true);
+        }
+      }
+
+      // If backend gives currentStep, keep local step aligned
+      // final step = payload['currentStep'];
+      // final stepInt = (step is num)
+      //     ? step.toInt()
+      //     : int.tryParse(step?.toString() ?? '');
+      // if (stepInt != null && stepInt >= 1 && stepInt <= totalSteps) {
+      //   currentStep.value = stepInt;
+      // } else {
+      //   currentStep.value = 2;
+      // }
+
+      return true;
+    }, showError: false);
+  }
+
+  CampaignType _parseCampaignTypeFromApi(String raw) {
+    final v = raw.trim().toLowerCase();
+    if (v == 'paid_ad' || v == 'paidad') return CampaignType.paidAd;
+    return CampaignType.influencerPromotion;
+  }
+
+  List<String> _stringList(dynamic value) {
+    if (value is List) {
+      return value
+          .map((e) => e?.toString() ?? '')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList(growable: false);
+    }
+    return const [];
+  }
+
+  String? _readCampaignIdFromArgs(dynamic args) {
+    if (args == null) return null;
+    if (args is String) return args;
+
+    if (args is Map) {
+      final v = args['campaignId'] ?? args['id'];
+      return v?.toString();
+    }
+    return null;
   }
 
   Future<void> _loadStep2Lookups() async {
@@ -313,24 +409,6 @@ class CreateCampaignController extends GetxController {
 
       // Load other agencies (no niche filter) on init
       await _loadOtherAgencyPage(reset: true);
-
-      final infl = await _campaignService.fetchInfluencers(limit: 10);
-      if (infl.isNotEmpty) {
-        influencers
-          ..clear()
-          ..addAll(
-            infl
-                .map(
-                  (i) => InfluencerUiModel(
-                    id: i.id,
-                    name: i.name,
-                    avatar: i.avatar,
-                    rating: i.rating,
-                  ),
-                )
-                .toList(growable: false),
-          );
-      }
 
       return true;
     }, showError: false);
@@ -369,6 +447,7 @@ class CreateCampaignController extends GetxController {
               (a) => AdAgencyUiModel(
                 id: a.id,
                 name: a.name,
+                logo: a.logo,
                 subtitle: a.subtitle ?? 'Ad Agency',
               ),
             )
@@ -386,19 +465,37 @@ class CreateCampaignController extends GetxController {
 
   void _onRecommendedAgencyScroll() {
     if (!recommendedAgencyScroll.hasClients) return;
+
     final position = recommendedAgencyScroll.position;
-    if (position.pixels >= position.maxScrollExtent - 120) {
-      _recAgencyScrollDebounce?.cancel();
-      _recAgencyScrollDebounce = Timer(_scrollDebounceDuration, () {
-        _loadRecommendedAgencyPage(reset: false);
-      });
+    const threshold = 160.0;
+    final isNearEnd = position.pixels >= (position.maxScrollExtent - threshold);
+
+    if (isNearEnd) {
+      _loadRecommendedAgencyPage(reset: false);
     }
   }
 
   // ── Other agencies (WITHOUT niche) ──
 
+  void _onStep2PageScroll() {
+    if (!step2Scroll.hasClients) return;
+
+    if (currentStep.value != 2) return;
+    if (selectedType.value != CampaignType.paidAd) return;
+
+    final position = step2Scroll.position;
+
+    const threshold = 280.0;
+    final isNearBottom =
+        position.pixels >= (position.maxScrollExtent - threshold);
+
+    if (isNearBottom) {
+      _loadOtherAgencyPage(reset: false);
+    }
+  }
+
   Future<void> _loadOtherAgencyPage({required bool reset}) async {
-    if (_isOtherAgencyLoading) return;
+    if (isOtherAgencyLoading.value) return;
 
     if (reset) {
       _otherAgencyPage = 1;
@@ -408,7 +505,7 @@ class CreateCampaignController extends GetxController {
 
     if (!_hasMoreOtherAgencies) return;
 
-    _isOtherAgencyLoading = true;
+    isOtherAgencyLoading.value = true;
 
     try {
       final agencies = await _campaignService.fetchAgencies(
@@ -422,6 +519,7 @@ class CreateCampaignController extends GetxController {
               (a) => AdAgencyUiModel(
                 id: a.id,
                 name: a.name,
+                logo: a.logo,
                 subtitle: a.subtitle ?? 'Ad Agency',
               ),
             )
@@ -433,18 +531,7 @@ class CreateCampaignController extends GetxController {
         _hasMoreOtherAgencies = false;
       }
     } finally {
-      _isOtherAgencyLoading = false;
-    }
-  }
-
-  void _onOtherAgencyScroll() {
-    if (!otherAgencyScroll.hasClients) return;
-    final position = otherAgencyScroll.position;
-    if (position.pixels >= position.maxScrollExtent - 120) {
-      _otherAgencyScrollDebounce?.cancel();
-      _otherAgencyScrollDebounce = Timer(_scrollDebounceDuration, () {
-        _loadOtherAgencyPage(reset: false);
-      });
+      isOtherAgencyLoading.value = false;
     }
   }
 
@@ -472,15 +559,12 @@ class CreateCampaignController extends GetxController {
 
   void _resetStep2ForType(CampaignType type) {
     selectedProductType.value = null;
-    selectedNiches.clear();
+    selectedInfluencerNiche.value = null;
+
     preferredInputCtrl.clear();
     notPreferredInputCtrl.clear();
     preferredInfluencers.clear();
     notPreferredInfluencers.clear();
-    preferredInfluencerIds.clear();
-    notPreferredInfluencerIds.clear();
-    preferredQuery.value = '';
-    notPreferredQuery.value = '';
 
     selectedPaidAdNiche.value = null;
     selectedAgencyIds.clear();
@@ -490,63 +574,58 @@ class CreateCampaignController extends GetxController {
   }
 
   void onPreferredTyping(String v) {
-    preferredQuery.value = v;
-    _preferredTypingDebounce?.cancel();
-    if (v.contains(',')) {
-      commitPreferredInput();
-      return;
-    }
-    _preferredTypingDebounce = Timer(_typingDebounceDuration, () {
-      _fetchPreferredSuggestions(v, reset: true);
-    });
+    // No API searching anymore.
+    if (v.contains(',')) commitPreferredInput();
   }
 
   void onNotPreferredTyping(String v) {
-    notPreferredQuery.value = v;
-    _notPreferredTypingDebounce?.cancel();
-    if (v.contains(',')) {
-      commitNotPreferredInput();
-      return;
-    }
-    _notPreferredTypingDebounce = Timer(_typingDebounceDuration, () {
-      _fetchNotPreferredSuggestions(v, reset: true);
-    });
+    // No API searching anymore.
+    if (v.contains(',')) commitNotPreferredInput();
   }
 
-  void commitPreferredInput() => _commitCommaSeparated(
-    preferredInputCtrl,
-    preferredInfluencers,
-    preferredInfluencerIds,
-    openInfluencerPicker,
-    () => preferredQuery.value = '',
-  );
-  void commitNotPreferredInput() => _commitCommaSeparated(
-    notPreferredInputCtrl,
-    notPreferredInfluencers,
-    notPreferredInfluencerIds,
-    openNotPreferredInfluencerPicker,
-    () => notPreferredQuery.value = '',
-  );
+  void commitPreferredInput() {
+    _commitFreeText(preferredInputCtrl, preferredInfluencers);
+  }
+
+  void commitNotPreferredInput() {
+    _commitFreeText(notPreferredInputCtrl, notPreferredInfluencers);
+  }
+
+  void _commitFreeText(TextEditingController ctrl, RxList<String> target) {
+    final raw = ctrl.text.trim();
+    if (raw.isEmpty) return;
+
+    // Accept comma or new line separated names/handles
+    final parts = raw
+        .split(RegExp(r'[,\n]'))
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+
+    for (final p in parts) {
+      if (!target.contains(p)) target.add(p);
+    }
+
+    ctrl.clear();
+  }
+
+  List<String> _cleanInfluencerStrings(Iterable<String> values) {
+    final out = <String>[];
+    for (final v in values) {
+      final s = v.trim();
+      if (s.isEmpty) continue;
+      if (!out.contains(s)) out.add(s);
+    }
+    return out;
+  }
 
   void onAgencyTyping(String v) {
     agencyQuery.value = v;
   }
 
-  void removePreferred(String name) {
-    final index = preferredInfluencers.indexOf(name);
-    if (index >= 0 && index < preferredInfluencerIds.length) {
-      preferredInfluencerIds.removeAt(index);
-    }
-    preferredInfluencers.remove(name);
-  }
+  void removePreferred(String name) => preferredInfluencers.remove(name);
 
-  void removeNotPreferred(String name) {
-    final index = notPreferredInfluencers.indexOf(name);
-    if (index >= 0 && index < notPreferredInfluencerIds.length) {
-      notPreferredInfluencerIds.removeAt(index);
-    }
-    notPreferredInfluencers.remove(name);
-  }
+  void removeNotPreferred(String name) => notPreferredInfluencers.remove(name);
 
   void _commitCommaSeparated(
     TextEditingController ctrl,
@@ -575,36 +654,6 @@ class CreateCampaignController extends GetxController {
     onDone();
   }
 
-  List<InfluencerUiModel> filteredInfluencers(
-    String query,
-    RxList<String> ids,
-  ) {
-    final q = query.trim().toLowerCase();
-    final list = influencers.toList(growable: false);
-    if (q.isEmpty) {
-      return list.where((e) => !ids.contains(e.id)).toList(growable: false);
-    }
-    return list
-        .where((e) => e.name.toLowerCase().contains(q) && !ids.contains(e.id))
-        .toList(growable: false);
-  }
-
-  List<InfluencerUiModel> preferredSuggestionsFiltered() {
-    final q = preferredQuery.value.trim().toLowerCase();
-    if (q.isEmpty) return const [];
-    return preferredSuggestions
-        .where((e) => !preferredInfluencerIds.contains(e.id))
-        .toList(growable: false);
-  }
-
-  List<InfluencerUiModel> notPreferredSuggestionsFiltered() {
-    final q = notPreferredQuery.value.trim().toLowerCase();
-    if (q.isEmpty) return const [];
-    return notPreferredSuggestions
-        .where((e) => !notPreferredInfluencerIds.contains(e.id))
-        .toList(growable: false);
-  }
-
   List<AdAgencyUiModel> filteredAgencies(String query) {
     final q = query.trim().toLowerCase();
     final list = <AdAgencyUiModel>[...recommendedAgencies, ...otherAgencies];
@@ -615,29 +664,6 @@ class CreateCampaignController extends GetxController {
   }
 
   // ---------------- UI OPENERS (controller only calls) ----------------
-
-  void openInfluencerPicker() {
-    CreateCampaignSheets.openInfluencerPicker(
-      title: 'create_campaign_preferred_influencers_label'.tr,
-      items: influencers.toList(growable: false),
-      selectedIds: preferredInfluencerIds,
-      onToggle: (item) =>
-          _toggleInfluencer(item, preferredInfluencers, preferredInfluencerIds),
-    );
-  }
-
-  void openNotPreferredInfluencerPicker() {
-    CreateCampaignSheets.openInfluencerPicker(
-      title: 'create_campaign_not_preferred_influencers_label'.tr,
-      items: influencers.toList(growable: false),
-      selectedIds: notPreferredInfluencerIds,
-      onToggle: (item) => _toggleInfluencer(
-        item,
-        notPreferredInfluencers,
-        notPreferredInfluencerIds,
-      ),
-    );
-  }
 
   void openAddContentAssetDialog() {
     assetTitleCtrl.clear();
@@ -710,155 +736,10 @@ class CreateCampaignController extends GetxController {
 
   // ------------------------------------------------------------------
 
-  void _toggleInfluencer(
-    InfluencerUiModel item,
-    RxList<String> names,
-    RxList<String> ids,
-  ) {
-    final exists = ids.contains(item.id);
-    if (exists) {
-      final idx = ids.indexOf(item.id);
-      if (idx >= 0 && idx < names.length) names.removeAt(idx);
-      ids.remove(item.id);
-      return;
-    }
-
-    ids.add(item.id);
-    names.add(item.name);
-  }
-
-  void selectPreferredSuggestion(InfluencerUiModel item) {
-    if (preferredInfluencerIds.contains(item.id)) return;
-    preferredInfluencerIds.add(item.id);
-    preferredInfluencers.add(item.name);
-    preferredInputCtrl.clear();
-    preferredQuery.value = '';
-    preferredSuggestions.clear();
-  }
-
-  void selectNotPreferredSuggestion(InfluencerUiModel item) {
-    if (notPreferredInfluencerIds.contains(item.id)) return;
-    notPreferredInfluencerIds.add(item.id);
-    notPreferredInfluencers.add(item.name);
-    notPreferredInputCtrl.clear();
-    notPreferredQuery.value = '';
-    notPreferredSuggestions.clear();
-  }
-
   void selectAgencySuggestion(AdAgencyUiModel agency) {
     toggleAgencySelection(agency);
     agencyQuery.value = '';
     agencySearchCtrl.clear();
-  }
-
-  Future<void> _fetchPreferredSuggestions(
-    String query, {
-    required bool reset,
-  }) async {
-    final q = query.trim();
-    if (_preferredLoading) return;
-
-    if (reset || q != _preferredLastQuery) {
-      _preferredLastQuery = q;
-      _preferredPage = 1;
-      _preferredHasMore = true;
-      preferredSuggestions.clear();
-    }
-
-    if (q.isEmpty || !_preferredHasMore) return;
-
-    _preferredLoading = true;
-    final list = await _campaignService.fetchInfluencers(
-      page: _preferredPage,
-      limit: 10,
-      search: q,
-    );
-
-    if (list.isNotEmpty) {
-      preferredSuggestions.addAll(
-        list
-            .map(
-              (i) => InfluencerUiModel(
-                id: i.id,
-                name: i.name,
-                avatar: i.avatar,
-                rating: i.rating,
-              ),
-            )
-            .toList(growable: false),
-      );
-      _preferredPage += 1;
-    } else {
-      _preferredHasMore = false;
-    }
-
-    _preferredLoading = false;
-  }
-
-  Future<void> _fetchNotPreferredSuggestions(
-    String query, {
-    required bool reset,
-  }) async {
-    final q = query.trim();
-    if (_notPreferredLoading) return;
-
-    if (reset || q != _notPreferredLastQuery) {
-      _notPreferredLastQuery = q;
-      _notPreferredPage = 1;
-      _notPreferredHasMore = true;
-      notPreferredSuggestions.clear();
-    }
-
-    if (q.isEmpty || !_notPreferredHasMore) return;
-
-    _notPreferredLoading = true;
-    final list = await _campaignService.fetchInfluencers(
-      page: _notPreferredPage,
-      limit: 10,
-      search: q,
-    );
-
-    if (list.isNotEmpty) {
-      notPreferredSuggestions.addAll(
-        list
-            .map(
-              (i) => InfluencerUiModel(
-                id: i.id,
-                name: i.name,
-                avatar: i.avatar,
-                rating: i.rating,
-              ),
-            )
-            .toList(growable: false),
-      );
-      _notPreferredPage += 1;
-    } else {
-      _notPreferredHasMore = false;
-    }
-
-    _notPreferredLoading = false;
-  }
-
-  void _onPreferredSuggestionScroll() {
-    if (!preferredSuggestionScroll.hasClients) return;
-    final position = preferredSuggestionScroll.position;
-    if (position.pixels >= position.maxScrollExtent - 120) {
-      _preferredScrollDebounce?.cancel();
-      _preferredScrollDebounce = Timer(_scrollDebounceDuration, () {
-        _fetchPreferredSuggestions(preferredQuery.value, reset: false);
-      });
-    }
-  }
-
-  void _onNotPreferredSuggestionScroll() {
-    if (!notPreferredSuggestionScroll.hasClients) return;
-    final position = notPreferredSuggestionScroll.position;
-    if (position.pixels >= position.maxScrollExtent - 120) {
-      _notPreferredScrollDebounce?.cancel();
-      _notPreferredScrollDebounce = Timer(_scrollDebounceDuration, () {
-        _fetchNotPreferredSuggestions(notPreferredQuery.value, reset: false);
-      });
-    }
   }
 
   // ── Toggle multi-select agency ──
@@ -1008,6 +889,8 @@ class CreateCampaignController extends GetxController {
     viewsCtrl.clear();
     likesCtrl.clear();
     commentsCtrl.clear();
+    milestoneMetricTitleCtrl.clear();
+    milestoneMetricAmountCtrl.clear();
     promoGoalCtrl.clear();
   }
 
@@ -1029,6 +912,98 @@ class CreateCampaignController extends GetxController {
     likesCtrl.text = m.targets?.likes?.toString() ?? '';
     commentsCtrl.text = m.targets?.comments?.toString() ?? '';
     promoGoalCtrl.text = m.promotionGoal?.toString() ?? '';
+
+    if (selectedType.value == CampaignType.paidAd) {
+      final t = m.targets;
+      String label = '';
+      int? value;
+
+      if ((t?.reach ?? 0) > 0) {
+        label = 'Reach';
+        value = t?.reach;
+      } else if ((t?.views ?? 0) > 0) {
+        label = 'Views';
+        value = t?.views;
+      } else if ((t?.likes ?? 0) > 0) {
+        label = 'Likes';
+        value = t?.likes;
+      } else if ((t?.comments ?? 0) > 0) {
+        label = 'Comments';
+        value = t?.comments;
+      }
+
+      milestoneMetricTitleCtrl.text = label;
+      milestoneMetricAmountCtrl.text = value?.toString() ?? '';
+    } else {
+      milestoneMetricTitleCtrl.clear();
+      milestoneMetricAmountCtrl.clear();
+    }
+  }
+
+  String _normalizeMetricKey(String raw) {
+    final v = raw.trim().toLowerCase();
+
+    if (v.contains('view')) return 'views';
+    if (v.contains('like')) return 'likes';
+    if (v.contains('comment')) return 'comments';
+    if (v.contains('follow')) return 'reach';
+    return 'reach';
+  }
+
+  /// Supports:
+  /// 300k -> 300000
+  /// 2.5M -> 2500000
+  /// 120000 -> 120000
+  int? _parseCompactMetricAmount(String raw) {
+    final input = raw.trim().toLowerCase().replaceAll(',', '');
+    if (input.isEmpty) return null;
+
+    final match = RegExp(r'^(\d+(\.\d+)?)\s*([km]?)$').firstMatch(input);
+    if (match == null) {
+      final digits = input.replaceAll(RegExp(r'[^0-9]'), '');
+      if (digits.isEmpty) return null;
+      return int.tryParse(digits);
+    }
+
+    final numberPart = double.tryParse(match.group(1) ?? '');
+    final suffix = match.group(3) ?? '';
+
+    if (numberPart == null) return null;
+
+    double value = numberPart;
+    if (suffix == 'k') value *= 1000;
+    if (suffix == 'm') value *= 1000000;
+
+    return value.round();
+  }
+
+  PromotionTarget _buildStep4PromotionTarget() {
+    // ✅ Paid Ad / Ad Agency => only one metric allowed
+    if (selectedType.value == CampaignType.paidAd) {
+      final key = _normalizeMetricKey(milestoneMetricTitleCtrl.text);
+      final amount = _parseCompactMetricAmount(milestoneMetricAmountCtrl.text);
+
+      return PromotionTarget(
+        reach: key == 'reach' ? amount : null,
+        views: key == 'views' ? amount : null,
+        likes: key == 'likes' ? amount : null,
+        comments: key == 'comments' ? amount : null,
+      );
+    }
+
+    // ✅ Influencer flow => keep existing 4 metrics inputs
+    int? toInt(TextEditingController c) {
+      final v = c.text.trim();
+      if (v.isEmpty) return null;
+      return int.tryParse(v.replaceAll(RegExp(r'[^0-9]'), ''));
+    }
+
+    return PromotionTarget(
+      reach: toInt(reachCtrl),
+      views: toInt(viewsCtrl),
+      likes: toInt(likesCtrl),
+      comments: toInt(commentsCtrl),
+    );
   }
 
   void closeMilestoneEditor() {
@@ -1059,18 +1034,23 @@ class CreateCampaignController extends GetxController {
       return;
     }
 
-    int? toInt(TextEditingController c) {
-      final v = c.text.trim();
-      if (v.isEmpty) return null;
-      return int.tryParse(v.replaceAll(RegExp(r'[^0-9]'), ''));
+    if (selectedType.value == CampaignType.paidAd) {
+      final metricTitle = milestoneMetricTitleCtrl.text.trim();
+      final metricAmount = _parseCompactMetricAmount(
+        milestoneMetricAmountCtrl.text,
+      );
+
+      if (metricTitle.isEmpty || metricAmount == null || metricAmount <= 0) {
+        Get.snackbar(
+          'create_campaign_error_title'.tr,
+          'Please enter a valid promotion target title and amount.',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        return;
+      }
     }
 
-    final target = PromotionTarget(
-      reach: toInt(reachCtrl),
-      views: toInt(viewsCtrl),
-      likes: toInt(likesCtrl),
-      comments: toInt(commentsCtrl),
-    );
+    final target = _buildStep4PromotionTarget();
 
     final editIndex = editingMilestoneIndex.value;
 
@@ -1205,18 +1185,6 @@ class CreateCampaignController extends GetxController {
     return id;
   }
 
-  bool _looksLikeUuid(String value) {
-    final v = value.trim();
-    final regex = RegExp(
-      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
-    );
-    return regex.hasMatch(v);
-  }
-
-  List<String> _filterUuidList(Iterable<String> values) {
-    return values.where(_looksLikeUuid).map((e) => e.trim()).toList();
-  }
-
   String _formatApiDate(DateTime date) {
     return DateFormat('yyyy-MM-dd').format(date);
   }
@@ -1344,6 +1312,18 @@ class CreateCampaignController extends GetxController {
     return data;
   }
 
+  bool _looksLikeUuid(String value) {
+    final v = value.trim();
+    final regex = RegExp(
+      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+    );
+    return regex.hasMatch(v);
+  }
+
+  List<String> _filterUuidList(Iterable<String> values) {
+    return values.where(_looksLikeUuid).map((e) => e.trim()).toList();
+  }
+
   void onPrevious() {
     if (currentStep.value > 1) {
       currentStep.value--;
@@ -1389,14 +1369,13 @@ class CreateCampaignController extends GetxController {
       if (step == 2) {
         final type = selectedType.value;
         if (type == CampaignType.influencerPromotion) {
-          final niche = selectedNiches.isNotEmpty ? selectedNiches.first : '';
           await _campaignService.updateStep2Influencer(
             campaignId: id,
             productType: selectedProductType.value ?? '',
-            campaignNiche: niche,
-            preferredInfluencerIds: _filterUuidList(preferredInfluencerIds),
-            notPreferableInfluencerIds: _filterUuidList(
-              notPreferredInfluencerIds,
+            campaignNiche: selectedInfluencerNiche.value?.trim() ?? '',
+            preferredInfluencers: _cleanInfluencerStrings(preferredInfluencers),
+            notPreferableInfluencers: _cleanInfluencerStrings(
+              notPreferredInfluencers,
             ),
           );
         } else {
@@ -1438,15 +1417,21 @@ class CreateCampaignController extends GetxController {
       if (step == 4) {
         final mappedMilestones = milestones
             .map((m) {
+              final isPaidAd = selectedType.value == CampaignType.paidAd;
+
               final map = {
                 'contentTitle': m.title,
                 'platform': m.platform?.toLowerCase(),
                 'contentQuantity': m.deliverable ?? m.subtitle,
                 'deliveryDays': m.dayIndex,
-                'expectedReach': m.targets?.reach,
-                'expectedViews': m.targets?.views,
-                'expectedLikes': m.targets?.likes,
-                'expectedComments': m.targets?.comments,
+                if (!isPaidAd || m.targets?.reach != null)
+                  'expectedReach': m.targets?.reach,
+                if (!isPaidAd || m.targets?.views != null)
+                  'expectedViews': m.targets?.views,
+                if (!isPaidAd || m.targets?.likes != null)
+                  'expectedLikes': m.targets?.likes,
+                if (!isPaidAd || m.targets?.comments != null)
+                  'expectedComments': m.targets?.comments,
                 'promotionGoal': m.promotionGoal,
               };
               return _removeNulls(map);
@@ -1515,21 +1500,12 @@ class CreateCampaignController extends GetxController {
 
   @override
   void onClose() {
-    _preferredTypingDebounce?.cancel();
-    _notPreferredTypingDebounce?.cancel();
-    _recAgencyScrollDebounce?.cancel();
-    _otherAgencyScrollDebounce?.cancel();
-    _preferredScrollDebounce?.cancel();
-    _notPreferredScrollDebounce?.cancel();
-
     campaignNameCtrl.dispose();
     preferredInputCtrl.dispose();
     notPreferredInputCtrl.dispose();
     agencySearchCtrl.dispose();
     recommendedAgencyScroll.dispose();
-    otherAgencyScroll.dispose();
-    preferredSuggestionScroll.dispose();
-    notPreferredSuggestionScroll.dispose();
+    step2Scroll.dispose();
 
     campaignGoalsCtrl.dispose();
     productServiceCtrl.dispose();
@@ -1551,6 +1527,9 @@ class CreateCampaignController extends GetxController {
     assetTitleCtrl.dispose();
     brandTitleCtrl.dispose();
     brandValueCtrl.dispose();
+
+    milestoneMetricTitleCtrl.dispose();
+    milestoneMetricAmountCtrl.dispose();
 
     super.onClose();
   }
@@ -1597,14 +1576,12 @@ class CreateCampaignController extends GetxController {
     selectedType.value = null;
 
     selectedProductType.value = null;
-    selectedNiches.clear();
+    selectedInfluencerNiche.value = null;
 
     preferredInputCtrl.clear();
     notPreferredInputCtrl.clear();
     preferredInfluencers.clear();
     notPreferredInfluencers.clear();
-    preferredSuggestions.clear();
-    notPreferredSuggestions.clear();
 
     selectedPaidAdNiche.value = null;
     selectedAgencyIds.clear();

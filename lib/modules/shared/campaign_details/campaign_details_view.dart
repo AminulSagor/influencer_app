@@ -264,6 +264,7 @@ class _CampaignOverviewCard extends StatelessWidget {
                       width: 24.w,
                       height: 24.w,
                       fit: BoxFit.cover,
+                      color: AppPalette.thirdColor,
                     ),
                   ),
                 ),
@@ -1770,6 +1771,8 @@ class _TotalEarningsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final accountTypeService = Get.find<AccountTypeService>();
 
+    final disableWithdrawButton = status != CampaignStatus.complete;
+
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
       decoration: BoxDecoration(
@@ -1837,10 +1840,15 @@ class _TotalEarningsCard extends StatelessWidget {
                   CustomButton(
                     onTap: onWithdrawalRequest,
                     btnText: 'campaign_withdrawal_request'.tr,
-                    btnColor: AppPalette.secondary,
+                    btnColor: disableWithdrawButton
+                        ? AppPalette.white
+                        : AppPalette.secondary,
+                    isDisabled: disableWithdrawButton,
                     textStyle: AppTheme.textStyle.copyWith(
                       fontSize: 12.sp,
-                      color: AppPalette.white,
+                      color: disableWithdrawButton
+                          ? AppPalette.greyText
+                          : AppPalette.thirdColor,
                     ),
                   ),
                 ],

@@ -24,6 +24,7 @@ class CreateCampaignStep2View extends GetView<CreateCampaignController> {
         children: [
           Expanded(
             child: SingleChildScrollView(
+              controller: controller.step2Scroll,
               physics: const BouncingScrollPhysics(),
               child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
@@ -170,9 +171,8 @@ class _InfluencerPromotionStep2 extends StatelessWidget {
 
         18.h.verticalSpace,
 
-        /// Niche (multi)
         Obx(() {
-          return CustomMultiSelectDropDownMenu(
+          return CustomDropDownMenu(
             title: 'create_campaign_niche_label'.tr,
             titleTextStyle: AppTheme.textStyle.copyWith(
               fontSize: 12.sp,
@@ -181,8 +181,9 @@ class _InfluencerPromotionStep2 extends StatelessWidget {
             ),
             hintText: 'create_campaign_niche_label'.tr,
             options: controller.nicheOptions,
-            selectedValues: controller.selectedNiches.toList(),
-            onChanged: (values) => controller.selectedNiches.value = values,
+            value: controller.selectedInfluencerNiche.value,
+            onChanged: (value) =>
+                controller.selectedInfluencerNiche.value = value,
           );
         }),
 
@@ -199,39 +200,10 @@ class _InfluencerPromotionStep2 extends StatelessWidget {
           hintText: 'create_campaign_preferred_influencers_hint'.tr,
           controller: controller.preferredInputCtrl,
           textInputAction: TextInputAction.done,
-          suffixIcon: IconButton(
-            icon: Icon(
-              Icons.add_circle_outline,
-              size: 20.sp,
-              color: AppPalette.primary,
-            ),
-            onPressed: controller.commitPreferredInput,
-          ),
+          maxLines: 2,
+          suffixIcon: null,
           onChanged: controller.onPreferredTyping,
         ),
-        Obx(() {
-          final query = controller.preferredQuery.value;
-          final suggestions = controller.preferredSuggestionsFiltered();
-          if (query.trim().isEmpty || suggestions.isEmpty) {
-            return const SizedBox.shrink();
-          }
-          return _SuggestionList(
-            controller: controller.preferredSuggestionScroll,
-            items: suggestions.map((e) => e.name).toList(growable: false),
-            onTap: (name) {
-              InfluencerUiModel? match;
-              for (final item in suggestions) {
-                if (item.name == name) {
-                  match = item;
-                  break;
-                }
-              }
-              if (match != null) {
-                controller.selectPreferredSuggestion(match);
-              }
-            },
-          );
-        }),
         12.h.verticalSpace,
         Obx(() {
           final items = controller.preferredInfluencers.toList();
@@ -251,39 +223,10 @@ class _InfluencerPromotionStep2 extends StatelessWidget {
           hintText: 'create_campaign_not_preferred_influencers_hint'.tr,
           controller: controller.notPreferredInputCtrl,
           textInputAction: TextInputAction.done,
-          suffixIcon: IconButton(
-            icon: Icon(
-              Icons.add_circle_outline,
-              size: 20.sp,
-              color: AppPalette.primary,
-            ),
-            onPressed: controller.commitNotPreferredInput,
-          ),
+          maxLines: 2,
+          suffixIcon: null,
           onChanged: controller.onNotPreferredTyping,
         ),
-        Obx(() {
-          final query = controller.notPreferredQuery.value;
-          final suggestions = controller.notPreferredSuggestionsFiltered();
-          if (query.trim().isEmpty || suggestions.isEmpty) {
-            return const SizedBox.shrink();
-          }
-          return _SuggestionList(
-            controller: controller.notPreferredSuggestionScroll,
-            items: suggestions.map((e) => e.name).toList(growable: false),
-            onTap: (name) {
-              InfluencerUiModel? match;
-              for (final item in suggestions) {
-                if (item.name == name) {
-                  match = item;
-                  break;
-                }
-              }
-              if (match != null) {
-                controller.selectNotPreferredSuggestion(match);
-              }
-            },
-          );
-        }),
         12.h.verticalSpace,
         Obx(() {
           final items = controller.notPreferredInfluencers.toList();
@@ -358,6 +301,7 @@ class _PaidAdStep2 extends StatelessWidget {
                     final selected = selectedIds.contains(a.id);
                     return _AgencySquareCard(
                       name: a.name,
+                      logo: a.logo,
                       subtitle: a.subtitle,
                       selected: selected,
                       onTap: () => controller.toggleAgencySelection(a),
@@ -370,11 +314,14 @@ class _PaidAdStep2 extends StatelessWidget {
           );
         }),
 
-        // ── Other agencies (vertical scroll with auto-pagination) ──
+        // ── Other agencies ──
         Obx(() {
           final items = controller.otherAgencies.toList();
           final selectedIds = controller.selectedAgencyIds.toList();
-          if (items.isEmpty) return const SizedBox.shrink();
+          final isLoading = controller.isOtherAgencyLoading.value;
+
+          if (items.isEmpty && !isLoading) return const SizedBox.shrink();
+
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -389,25 +336,37 @@ class _PaidAdStep2 extends StatelessWidget {
                 ),
               ),
               12.h.verticalSpace,
-              SizedBox(
-                height: 280.h,
-                child: ListView.separated(
-                  controller: controller.otherAgencyScroll,
-                  physics: const BouncingScrollPhysics(),
-                  itemCount: items.length,
-                  separatorBuilder: (_, __) => 12.h.verticalSpace,
-                  itemBuilder: (_, i) {
-                    final a = items[i];
-                    final selected = selectedIds.contains(a.id);
-                    return _AgencyWideCard(
-                      name: a.name,
-                      subtitle: a.subtitle,
-                      selected: selected,
-                      onTap: () => controller.toggleAgencySelection(a),
-                    );
-                  },
-                ),
+
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: items.length,
+                separatorBuilder: (_, __) => 12.h.verticalSpace,
+                itemBuilder: (_, i) {
+                  final a = items[i];
+                  final selected = selectedIds.contains(a.id);
+                  return _AgencyWideCard(
+                    name: a.name,
+                    logo: a.logo,
+                    subtitle: a.subtitle,
+                    selected: selected,
+                    onTap: () => controller.toggleAgencySelection(a),
+                  );
+                },
               ),
+
+              // ✅ Bottom loader (pagination)
+              if (isLoading) ...[
+                16.h.verticalSpace,
+                Center(
+                  child: SizedBox(
+                    width: 22.w,
+                    height: 22.w,
+                    child: const CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+                16.h.verticalSpace,
+              ],
             ],
           );
         }),
@@ -532,12 +491,14 @@ class _SuggestionList extends StatelessWidget {
 
 class _AgencySquareCard extends StatelessWidget {
   final String name;
+  final String logo;
   final String subtitle;
   final bool selected;
   final VoidCallback onTap;
 
   const _AgencySquareCard({
     required this.name,
+    required this.logo,
     required this.subtitle,
     required this.selected,
     required this.onTap,
@@ -586,7 +547,37 @@ class _AgencySquareCard extends StatelessWidget {
                     height: 45.w,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: AppPalette.defaultFill.withAlpha(220),
+                      gradient: LinearGradient(
+                        begin: Alignment.bottomLeft,
+                        end: Alignment.topRight,
+                        colors: [AppPalette.thirdColor, AppPalette.white],
+                      ),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Image.network(
+                      logo,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Center(
+                          child: Icon(
+                            Icons.person,
+                            size: 18.sp,
+                            color: AppPalette.greyText,
+                          ),
+                        );
+                      },
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Center(
+                          child: SizedBox(
+                            width: 14.w,
+                            height: 14.w,
+                            child: const CircularProgressIndicator(
+                              strokeWidth: 2,
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ),
@@ -649,12 +640,14 @@ class _AgencySquareCard extends StatelessWidget {
 
 class _AgencyWideCard extends StatelessWidget {
   final String name;
+  final String logo;
   final String subtitle;
   final bool selected;
   final VoidCallback onTap;
 
   const _AgencyWideCard({
     required this.name,
+    required this.logo,
     required this.subtitle,
     required this.selected,
     required this.onTap,
@@ -698,7 +691,35 @@ class _AgencyWideCard extends StatelessWidget {
               height: 45.w,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppPalette.defaultFill.withAlpha(220),
+                gradient: LinearGradient(
+                  begin: Alignment.bottomLeft,
+                  end: Alignment.topRight,
+                  colors: [AppPalette.thirdColor, AppPalette.white],
+                ),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Image.network(
+                logo,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Center(
+                    child: Icon(
+                      Icons.person,
+                      size: 18.sp,
+                      color: AppPalette.greyText,
+                    ),
+                  );
+                },
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Center(
+                    child: SizedBox(
+                      width: 14.w,
+                      height: 14.w,
+                      child: const CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  );
+                },
               ),
             ),
             14.w.horizontalSpace,

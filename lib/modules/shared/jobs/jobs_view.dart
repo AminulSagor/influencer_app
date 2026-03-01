@@ -1276,7 +1276,7 @@ class JobsView extends GetView<JobsController> {
                 ),
               ),
               GestureDetector(
-                onTap: () => controller.openJobDetails(job),
+                onTap: () => controller.editDraftCampaign(job),
                 child: Text(
                   'Edit >',
                   style: TextStyle(

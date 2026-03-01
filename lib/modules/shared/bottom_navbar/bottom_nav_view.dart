@@ -13,33 +13,40 @@ class BottomNavView extends GetView<BottomNavController> {
 
   @override
   Widget build(BuildContext context) {
-    return Obx(
-      () => Scaffold(
-        key: const ValueKey('bottom-nav-scaffold'),
-        backgroundColor: AppPalette.primary,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        Get.back(id: 1);
+      },
+      child: Obx(
+        () => Scaffold(
+          key: const ValueKey('bottom-nav-scaffold'),
+          backgroundColor: AppPalette.primary,
 
-        // ---------- RIGHT SIDE DRAWER ----------
-        endDrawer: const _ProfileDrawer(),
+          // ---------- RIGHT SIDE DRAWER ----------
+          endDrawer: const _ProfileDrawer(),
 
-        body: SafeArea(
-          top: true,
-          bottom: true,
-          child: Column(
-            children: [
-              _buildTopBar(),
-              Expanded(
-                // ---------- NESTED NAVIGATOR ----------
-                child: Navigator(
-                  key: Get.nestedKey(1),
-                  // Dev mode: always show dashboard home (no verification checks)
-                  initialRoute: AppRoutes.home,
-                  onGenerateRoute: BottomNavRouteGenerator.generateRoute,
+          body: SafeArea(
+            top: true,
+            bottom: true,
+            child: Column(
+              children: [
+                _buildTopBar(),
+                Expanded(
+                  // ---------- NESTED NAVIGATOR ----------
+                  child: Navigator(
+                    key: Get.nestedKey(1),
+                    // Dev mode: always show dashboard home (no verification checks)
+                    initialRoute: AppRoutes.home,
+                    onGenerateRoute: BottomNavRouteGenerator.generateRoute,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
+          bottomNavigationBar: _buildCustomBottomNav(),
         ),
-        bottomNavigationBar: _buildCustomBottomNav(),
       ),
     );
   }

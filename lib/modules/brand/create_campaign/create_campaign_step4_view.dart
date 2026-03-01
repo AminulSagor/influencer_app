@@ -542,6 +542,7 @@ class _MilestoneEditorCard extends StatelessWidget {
     final idx = editIndex != null
         ? editIndex + 1
         : controller.milestones.length + 1;
+    final isPaidAd = controller.selectedType.value == CampaignType.paidAd;
 
     return Container(
       padding: EdgeInsets.all(12.w),
@@ -662,47 +663,57 @@ class _MilestoneEditorCard extends StatelessWidget {
           ),
           10.h.verticalSpace,
 
-          Row(
-            children: [
-              Expanded(
-                child: _MiniMetricField(
-                  iconPath: 'assets/icons/eye.png',
-                  label: 'create_campaign_step4_reach'.tr,
-                  controller: controller.reachCtrl,
+          if (isPaidAd) ...[
+            // ✅ Paid ad single metric UI (like screenshot)
+            _MetricSingleField(
+              titleHint: 'Target Title (Ex: Reach, Like, Follow, Comments)',
+              amountHint: 'Target Amount (Ex: 300k, 2.5M)',
+              titleController: controller.milestoneMetricTitleCtrl,
+              amountController: controller.milestoneMetricAmountCtrl,
+            ),
+          ] else ...[
+            Row(
+              children: [
+                Expanded(
+                  child: _MiniMetricField(
+                    iconPath: 'assets/icons/eye.png',
+                    label: 'create_campaign_step4_reach'.tr,
+                    controller: controller.reachCtrl,
+                  ),
                 ),
-              ),
-              12.w.horizontalSpace,
-              Expanded(
-                child: _MiniMetricField(
-                  iconPath: 'assets/icons/play.png',
-                  label: 'create_campaign_step4_views'.tr,
-                  controller: controller.viewsCtrl,
+                12.w.horizontalSpace,
+                Expanded(
+                  child: _MiniMetricField(
+                    iconPath: 'assets/icons/play.png',
+                    label: 'create_campaign_step4_views'.tr,
+                    controller: controller.viewsCtrl,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          12.h.verticalSpace,
-          Row(
-            children: [
-              Expanded(
-                child: _MiniMetricField(
-                  iconPath: 'assets/icons/love.png',
-                  label: 'create_campaign_step4_likes'.tr,
-                  controller: controller.likesCtrl,
+              ],
+            ),
+            12.h.verticalSpace,
+            Row(
+              children: [
+                Expanded(
+                  child: _MiniMetricField(
+                    iconPath: 'assets/icons/love.png',
+                    label: 'create_campaign_step4_likes'.tr,
+                    controller: controller.likesCtrl,
+                  ),
                 ),
-              ),
-              12.w.horizontalSpace,
-              Expanded(
-                child: _MiniMetricField(
-                  iconPath: 'assets/icons/speech_bubble.png',
-                  label: 'create_campaign_step4_comments'.tr,
-                  controller: controller.commentsCtrl,
+                12.w.horizontalSpace,
+                Expanded(
+                  child: _MiniMetricField(
+                    iconPath: 'assets/icons/speech_bubble.png',
+                    label: 'create_campaign_step4_comments'.tr,
+                    controller: controller.commentsCtrl,
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
 
-          if (controller.selectedType.value == CampaignType.paidAd) ...[
+          if (isPaidAd) ...[
             10.h.verticalSpace,
             Row(
               children: [
@@ -727,6 +738,52 @@ class _MilestoneEditorCard extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+class _MetricSingleField extends StatelessWidget {
+  final String titleHint;
+  final String amountHint;
+  final TextEditingController titleController;
+  final TextEditingController amountController;
+
+  const _MetricSingleField({
+    required this.titleHint,
+    required this.amountHint,
+    required this.titleController,
+    required this.amountController,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        CustomTextFormField(
+          title: titleHint,
+          titleTextStyle: AppTheme.textStyle.copyWith(
+            fontSize: 10.sp,
+            fontWeight: FontWeight.w500,
+            color: AppPalette.primary,
+          ),
+          controller: titleController,
+          hintText: 'Reach',
+          textInputAction: TextInputAction.next,
+        ),
+        8.h.verticalSpace,
+        CustomTextFormField(
+          title: amountHint,
+          titleTextStyle: AppTheme.textStyle.copyWith(
+            fontSize: 10.sp,
+            fontWeight: FontWeight.w500,
+            color: AppPalette.primary,
+          ),
+          controller: amountController,
+          hintText: '2.5M',
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        ),
+      ],
     );
   }
 }

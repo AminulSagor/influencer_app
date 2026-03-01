@@ -3,6 +3,7 @@ import 'dart:developer' as dev;
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:influencer_app/core/services/account_type_service.dart';
+import 'package:influencer_app/core/services/campaign_service.dart';
 import 'package:influencer_app/core/utils/currency_formatter.dart';
 import 'package:intl/intl.dart';
 
@@ -13,18 +14,30 @@ import '../../../routes/app_routes.dart';
 
 class JobsController extends GetxController {
   final currentTabIndex = 0.obs;
+  final CampaignService _campaignService = Get.find<CampaignService>();
 
   /// used by search bar
   final searchQuery = ''.obs;
 
   /// sort toggle (used by the "Low to High" chip)
   final isSortLowToHigh = true.obs;
+
   void toggleSort() {
     isSortLowToHigh.value = !isSortLowToHigh.value;
 
-    // ✅ Agency: server-side sort too
     if (isAdAgency && !isBrand) {
       _refetchCurrentAgencyTab(reset: true);
+      return;
+    }
+
+    if (isInfluencer && !isBrand) {
+      _refetchCurrentInfluencerTab(reset: true);
+      return;
+    }
+
+    if (isBrand) {
+      _refetchCurrentBrandTab(reset: true);
+      return;
     }
   }
 
@@ -110,8 +123,18 @@ class JobsController extends GetxController {
     _searchWorker = debounce<String>(searchQuery, (_) {
       if (isAdAgency && !isBrand) {
         _refetchCurrentAgencyTab(reset: true);
+        return;
       }
-      // ✅ influencer/brand: local filtering happens automatically via getters
+
+      if (isInfluencer && !isBrand) {
+        _refetchCurrentInfluencerTab(reset: true);
+        return;
+      }
+
+      if (isBrand) {
+        _refetchCurrentBrandTab(reset: true);
+        return;
+      }
     }, time: const Duration(milliseconds: 450));
 
     _initLoad();
@@ -242,8 +265,15 @@ class JobsController extends GetxController {
   // -------- PUBLIC API --------
 
   String _agencySortParam() {
-    // low_to_high => low_budget, high_to_low => high_budget
     return isSortLowToHigh.value ? 'low_budget' : 'high_budget';
+  }
+
+  String _influencerSortParam() {
+    return _agencySortParam();
+  }
+
+  String _brandSortParam() {
+    return isSortLowToHigh.value ? 'ASC' : 'DESC';
   }
 
   void _refetchCurrentAgencyTab({required bool reset}) {
@@ -265,6 +295,46 @@ class JobsController extends GetxController {
         break;
       case 5:
         fetchDeclinedJobs(reset: reset);
+        break;
+    }
+  }
+
+  void _refetchCurrentInfluencerTab({required bool reset}) {
+    switch (currentTabIndex.value) {
+      case 0:
+        fetchNewOffers(reset: reset);
+        break;
+      case 1:
+        fetchActiveJobs(reset: reset);
+        break;
+      case 2:
+        fetchCompletedJobs(reset: reset);
+        break;
+      case 3:
+        fetchPendingPayments(reset: reset);
+        break;
+      case 4:
+        fetchDeclinedJobs(reset: reset);
+        break;
+    }
+  }
+
+  void _refetchCurrentBrandTab({required bool reset}) {
+    switch (currentTabIndex.value) {
+      case 0:
+        fetchBrandActive(reset: reset);
+        break;
+      case 1:
+        fetchBrandBudgeting(reset: reset);
+        break;
+      case 2:
+        fetchBrandCompleted(reset: reset);
+        break;
+      case 3:
+        fetchBrandDrafts(reset: reset);
+        break;
+      case 4:
+        fetchBrandCanceled(reset: reset);
         break;
     }
   }
@@ -509,13 +579,26 @@ class JobsController extends GetxController {
   }
 
   void openJobDetails(JobItem job) {
-    dev.log('JOB TYPE: ${job.campaignType}');
     if (_accountTypeService.isBrand) {
       Get.toNamed(AppRoutes.brandCampaignDetails, id: 1, arguments: job);
       return;
     }
 
     _openInfluencerOrAgencyJobDetails(job);
+  }
+
+  void editDraftCampaign(JobItem job) {
+    if (!isBrand) return;
+
+    final campaignId = job.id;
+    if (campaignId == null || campaignId.trim().isEmpty) return;
+
+    // Jump directly to step 2, pass campaignId
+    Get.toNamed(
+      AppRoutes.createCampaignStep2,
+      id: 1,
+      arguments: {'campaignId': campaignId},
+    );
   }
 
   Future<void> _openInfluencerOrAgencyJobDetails(JobItem job) async {
@@ -542,48 +625,21 @@ class JobsController extends GetxController {
     Get.toNamed(AppRoutes.campaignDetails, id: 1, arguments: resolved);
   }
 
-  // -------- FILTER + SORT HELPERS --------
-
-  List<JobItem> _filterList(List<JobItem> source) {
-    final q = searchQuery.value.trim().toLowerCase();
-    final List<JobItem> base = List<JobItem>.from(source);
-
-    Iterable<JobItem> filtered = base;
-
-    if (q.isNotEmpty) {
-      filtered = base.where((job) {
-        final title = job.title.toLowerCase();
-        final sub = (job.subTitle ?? '').toLowerCase();
-        final client = job.clientName.toLowerCase();
-        return title.contains(q) || sub.contains(q) || client.contains(q);
-      });
-    }
-
-    final out = filtered.toList();
-
-    // ✅ local sort for everyone (agency still also does server sort)
-    out.sort(
-      (a, b) => isSortLowToHigh.value
-          ? a.budget.compareTo(b.budget)
-          : b.budget.compareTo(a.budget),
-    );
-
-    return out;
-  }
-
   // Influencer/Agency
-  List<JobItem> get filteredNewOffers => _filterList(newOffers);
-  List<JobItem> get filteredQuotedJobs => _filterList(quotedJobs);
-  List<JobItem> get filteredActiveJobs => _filterList(activeJobs);
-  List<JobItem> get filteredCompletedJobs => _filterList(completedJobs);
-  List<JobItem> get filteredPendingPayments => _filterList(pendingPayments);
-  List<JobItem> get filteredDeclinedJobs => _filterList(declinedJobs);
+  List<JobItem> get filteredNewOffers => List<JobItem>.from(newOffers);
+  List<JobItem> get filteredQuotedJobs => List<JobItem>.from(quotedJobs);
+  List<JobItem> get filteredActiveJobs => List<JobItem>.from(activeJobs);
+  List<JobItem> get filteredCompletedJobs => List<JobItem>.from(completedJobs);
+  List<JobItem> get filteredPendingPayments =>
+      List<JobItem>.from(pendingPayments);
+  List<JobItem> get filteredDeclinedJobs => List<JobItem>.from(declinedJobs);
 
   // Brand
-  List<JobItem> get filteredBrandActive => _filterList(brandActive);
-  List<JobItem> get filteredBrandCompleted => _filterList(brandCompleted);
-  List<JobItem> get filteredBrandDrafts => _filterList(brandDrafts);
-  List<JobItem> get filteredBrandCanceled => _filterList(brandCanceled);
+  List<JobItem> get filteredBrandActive => List<JobItem>.from(brandActive);
+  List<JobItem> get filteredBrandCompleted =>
+      List<JobItem>.from(brandCompleted);
+  List<JobItem> get filteredBrandDrafts => List<JobItem>.from(brandDrafts);
+  List<JobItem> get filteredBrandCanceled => List<JobItem>.from(brandCanceled);
 
   int get brandBudgetPendingCount => brandBudgeting
       .where((e) => (e.profitLabel ?? '') == 'Budget Pending')
@@ -594,18 +650,17 @@ class JobsController extends GetxController {
       .length;
 
   List<JobItem> get filteredBrandBudgeting {
-    final all = _filterList(brandBudgeting);
     switch (brandBudgetChipIndex.value) {
       case 1:
-        return all
+        return brandBudgeting
             .where((e) => (e.profitLabel ?? '') == 'Budget Pending')
             .toList();
       case 2:
-        return all
+        return brandBudgeting
             .where((e) => (e.profitLabel ?? '') == 'Quotation Received')
             .toList();
       default:
-        return all;
+        return List<JobItem>.from(brandBudgeting);
     }
   }
 
@@ -633,6 +688,8 @@ class JobsController extends GetxController {
           status: _influencerTabParam(0),
           page: page,
           pageSize: _pageSize,
+          search: searchQuery.value.trim(),
+          sort: _influencerSortParam(),
         );
       },
     );
@@ -680,6 +737,8 @@ class JobsController extends GetxController {
           status: _influencerTabParam(1),
           page: page,
           pageSize: _pageSize,
+          search: searchQuery.value.trim(),
+          sort: _influencerSortParam(),
         );
       },
     );
@@ -707,6 +766,8 @@ class JobsController extends GetxController {
           status: _influencerTabParam(2),
           page: page,
           pageSize: _pageSize,
+          search: searchQuery.value.trim(),
+          sort: _influencerSortParam(),
         );
       },
     );
@@ -734,6 +795,8 @@ class JobsController extends GetxController {
           status: _influencerTabParam(3),
           page: page,
           pageSize: _pageSize,
+          search: searchQuery.value.trim(),
+          sort: _influencerSortParam(),
         );
       },
     );
@@ -761,6 +824,8 @@ class JobsController extends GetxController {
           status: _influencerTabParam(4),
           page: page,
           pageSize: _pageSize,
+          search: searchQuery.value.trim(),
+          sort: _influencerSortParam(),
         );
       },
     );
@@ -868,6 +933,8 @@ class JobsController extends GetxController {
         status: 'active',
         page: page,
         pageSize: _pageSize,
+        search: searchQuery.value.trim(),
+        sort: _brandSortParam(),
       ),
     );
   }
@@ -884,6 +951,8 @@ class JobsController extends GetxController {
         status: 'quoting',
         page: page,
         pageSize: _pageSize,
+        search: searchQuery.value.trim(),
+        sort: _brandSortParam(),
       ),
     );
   }
@@ -900,6 +969,8 @@ class JobsController extends GetxController {
         status: 'completed',
         page: page,
         pageSize: _pageSize,
+        search: searchQuery.value.trim(),
+        sort: _brandSortParam(),
       ),
     );
   }
@@ -916,6 +987,8 @@ class JobsController extends GetxController {
         status: 'draft',
         page: page,
         pageSize: _pageSize,
+        search: searchQuery.value.trim(),
+        sort: _brandSortParam(),
       ),
     );
   }
@@ -932,6 +1005,8 @@ class JobsController extends GetxController {
         status: 'cancelled',
         page: page,
         pageSize: _pageSize,
+        search: searchQuery.value.trim(),
+        sort: _brandSortParam(),
       ),
     );
   }
@@ -942,10 +1017,18 @@ class JobsController extends GetxController {
     required String status,
     required int page,
     required int pageSize,
+    String? search,
+    String? sort,
   }) async {
     final res = await _apiClient.dio.get(
       '/campaign/my-campaigns',
-      queryParameters: {'status': status, 'page': page, 'limit': pageSize},
+      queryParameters: {
+        'status': status,
+        'page': page,
+        'limit': pageSize,
+        if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
+        if (sort != null && sort.trim().isNotEmpty) 'sort': sort.trim(),
+      },
     );
 
     final data = res.data as Map<String, dynamic>;
@@ -1041,6 +1124,8 @@ class JobsController extends GetxController {
     required String status,
     required int page,
     required int pageSize,
+    String? search,
+    String? sort,
   }) async {
     final res = await _apiClient.dio.get(
       '/campaign/influencer/jobs',
@@ -1048,6 +1133,8 @@ class JobsController extends GetxController {
         'page': page,
         'limit': pageSize,
         if (status.trim().isNotEmpty) 'status': status.trim(),
+        if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
+        // if (sort != null && sort.trim().isNotEmpty) 'sort': sort.trim(),
       },
     );
 
@@ -1126,6 +1213,7 @@ class JobsController extends GetxController {
     final budget = totalBudget > 0 ? totalBudget : availableBudget;
 
     final timeLeftToRequoteMinutes = _intFrom(json['timeLeftToRequoteMinutes']);
+    final progress = _intFrom(json['progress']);
 
     return JobItem(
       id: campaignId,
@@ -1138,23 +1226,9 @@ class JobsController extends GetxController {
       budget: budget,
       sharePercent: serviceFee.round(),
       dueLabel: _buildDueLabel(deadline),
-      progressPercent: _progressFromStatus(status),
+      progressPercent: progress,
       timeLeftToRequoteMinutes: timeLeftToRequoteMinutes,
     );
-  }
-
-  int? _progressFromStatus(String? status) {
-    final v = (status ?? '').toLowerCase();
-    if (v == 'completed') return 100;
-    if (v.contains('active')) return 50;
-    return 0;
-  }
-
-  int? _progressFromInfluencerStatus(String? status) {
-    final v = (status ?? '').toLowerCase();
-    if (v.contains('complete')) return 100;
-    if (v.contains('active')) return 50;
-    return 0;
   }
 
   MilestoneStatus _parseMilestoneStatus(String? raw) {
@@ -1252,7 +1326,7 @@ class JobsController extends GetxController {
   int? _intFrom(dynamic value) {
     if (value is int) return value;
     if (value is num) return value.toInt();
-    if (value is String) return int.tryParse(value);
+    if (value is String) return (double.tryParse(value) ?? 0.0).toInt();
     return null;
   }
 
@@ -1272,6 +1346,7 @@ class JobsController extends GetxController {
     final createdAt = json['createdAt']?.toString();
     final deadline = json['deadline']?.toString();
     final status = json['status']?.toString();
+    final progress = json['progress'];
 
     return JobItem(
       id: campaignId,
@@ -1287,7 +1362,7 @@ class JobsController extends GetxController {
       budget: budget,
       sharePercent: 0,
       dueLabel: _buildDueLabel(deadline),
-      progressPercent: _progressFromInfluencerStatus(status),
+      progressPercent: _intFrom(progress),
     );
   }
 
@@ -1298,11 +1373,12 @@ class JobsController extends GetxController {
     if (jobId == null || jobId.isEmpty) return;
 
     final result = await ApiErrorHandler.call(
-      () => _apiClient.dio.post('/campaign/influencer/job/$jobId/accept'),
+      () => _campaignService.acceptInfluencerJobOffer(jobId: jobId),
     );
 
     if (result.isSuccess) {
       newOffers.removeWhere((e) => e.id == jobId);
+      await fetchActiveJobs(reset: true);
       await fetchPendingPayments(reset: true);
       await fetchInfluencerCounts();
     }
@@ -1398,7 +1474,7 @@ class JobsController extends GetxController {
           ? budget
           : (budgetPending > 0 ? budgetPending : budget),
       sharePercent: 0,
-      progressPercent: isQuotation ? totalQuotations : progress,
+      progressPercent: progress,
       dueLabel: dueLabel,
       profitLabel: budgetStatus,
       totalEarningsLabel: 'Revised: $negotiationRevisedTimes Times',

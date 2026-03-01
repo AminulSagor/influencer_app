@@ -4,6 +4,8 @@ import 'package:get/get.dart';
 import 'package:influencer_app/core/theme/app_palette.dart';
 import 'package:influencer_app/core/utils/constants.dart';
 
+import 'proof_tile.dart';
+
 class BrandSubmissionMetric {
   final String labelKey; // translation key
   final String leftValue;
@@ -32,6 +34,7 @@ class BrandSubmissionUiModel {
   final String platformLink;
   final double avgPercent;
   final List<BrandSubmissionMetric> metrics;
+  final List<String> proofUrls;
 
   final RxBool isExpanded;
 
@@ -47,6 +50,7 @@ class BrandSubmissionUiModel {
     required this.platformLink,
     required this.avgPercent,
     required this.metrics,
+    required this.proofUrls,
     BrandSubmissionStatus initialStatus = BrandSubmissionStatus.inReview,
     bool expanded = true,
   }) : status = initialStatus.obs,
@@ -116,10 +120,10 @@ class BrandSubmissionCard extends StatelessWidget {
                     SizedBox(height: 12.h),
 
                     _IconTitle(
-                      icon: Icons.group_outlined,
+                      iconPath: 'assets/icons/about_me.png',
                       title: 'brand_submission_description'.tr,
                     ),
-                    SizedBox(height: 6.h),
+                    SizedBox(height: 15.h),
                     Text(
                       submission.description,
                       maxLines: 3,
@@ -130,13 +134,13 @@ class BrandSubmissionCard extends StatelessWidget {
                       ),
                     ),
 
-                    SizedBox(height: 14.h),
+                    SizedBox(height: 30.h),
 
                     _IconTitle(
-                      icon: Icons.link_rounded,
+                      iconPath: 'assets/icons/webpage_click.png',
                       title: submission.platformTitleKey.tr,
                     ),
-                    SizedBox(height: 6.h),
+                    SizedBox(height: 15.h),
                     Text(
                       submission.platformLink,
                       maxLines: 1,
@@ -148,13 +152,13 @@ class BrandSubmissionCard extends StatelessWidget {
                       ),
                     ),
 
-                    SizedBox(height: 16.h),
+                    SizedBox(height: 30.h),
 
                     _IconTitle(
-                      icon: Icons.bar_chart_rounded,
+                      iconPath: 'assets/icons/increase.png',
                       title: 'brand_submission_performance_metrics'.tr,
                     ),
-                    SizedBox(height: 10.h),
+                    SizedBox(height: 15.h),
                     Center(child: _AvgRing(percent: submission.avgPercent)),
                     SizedBox(height: 12.h),
 
@@ -168,13 +172,22 @@ class BrandSubmissionCard extends StatelessWidget {
                     SizedBox(height: 10.h),
 
                     _IconTitle(
-                      icon: Icons.attachment_rounded,
+                      iconPath:
+                          'assets/icons/checked_identification_documents.png',
                       title: 'brand_submission_attached_proofs'.tr,
                     ),
                     SizedBox(height: 10.h),
-                    _DashedBox(),
-                    SizedBox(height: 10.h),
-                    _DashedBox(),
+                    if (submission.proofUrls.isEmpty)
+                      _DashedBox()
+                    else
+                      Column(
+                        children: submission.proofUrls.map((u) {
+                          return Padding(
+                            padding: EdgeInsets.only(bottom: 10.h),
+                            child: ProofTile(networkUrl: u),
+                          );
+                        }).toList(),
+                      ),
 
                     // ✅ declined reason (like image #4)
                     if (submission.status.value ==
@@ -248,16 +261,16 @@ class _HeaderRow extends StatelessWidget {
     Color pillText;
     switch (submission.status.value) {
       case BrandSubmissionStatus.inReview:
-        pillBg = const Color(0xFFFFF1D6);
-        pillText = const Color(0xFFB87500);
+        pillBg = AppPalette.complemetaryFill;
+        pillText = AppPalette.complemetary;
         break;
       case BrandSubmissionStatus.completed:
-        pillBg = const Color(0xFFE8F5E9);
-        pillText = const Color(0xFF2E7D32);
+        pillBg = AppPalette.secondary;
+        pillText = AppPalette.thirdColor;
         break;
       case BrandSubmissionStatus.declined:
-        pillBg = const Color(0xFFFFEBEE);
-        pillText = const Color(0xFFD32F2F);
+        pillBg = AppPalette.requiredColor;
+        pillText = AppPalette.white;
         break;
     }
 
@@ -287,22 +300,20 @@ class _HeaderRow extends StatelessWidget {
               ),
               SizedBox(width: 8.w),
             ],
-            Expanded(
-              child: Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 13.sp,
-                  fontWeight: FontWeight.w700,
-                  color: AppPalette.black,
-                ),
+            Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w600,
+                color: AppPalette.black,
               ),
             ),
             SizedBox(width: 8.w),
             Obx(() {
               return Container(
-                padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+                padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
                 decoration: BoxDecoration(
                   color: pillBg,
                   borderRadius: BorderRadius.circular(999.r),
@@ -311,14 +322,14 @@ class _HeaderRow extends StatelessWidget {
                   submission.statusKey.tr,
                   style: TextStyle(
                     fontSize: 10.sp,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w500,
                     color: pillText,
                   ),
                 ),
               );
             }),
             if (isPaidAd) ...[
-              SizedBox(width: 8.w),
+              Spacer(),
               Icon(
                 submission.isExpanded.value
                     ? Icons.keyboard_arrow_up_rounded
@@ -335,16 +346,21 @@ class _HeaderRow extends StatelessWidget {
 }
 
 class _IconTitle extends StatelessWidget {
-  final IconData icon;
+  final String iconPath;
   final String title;
 
-  const _IconTitle({required this.icon, required this.title});
+  const _IconTitle({required this.iconPath, required this.title});
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 18.sp, color: AppPalette.primary),
+        Image.asset(
+          iconPath,
+          width: 20.w,
+          fit: BoxFit.cover,
+          color: AppPalette.black,
+        ),
         SizedBox(width: 8.w),
         Expanded(
           child: Text(
@@ -352,8 +368,8 @@ class _IconTitle extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              fontSize: 13.sp,
-              fontWeight: FontWeight.w700,
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w600,
               color: AppPalette.primary,
             ),
           ),
@@ -376,12 +392,12 @@ class _AvgRing extends StatelessWidget {
         Text(
           'brand_submission_average_performance'.tr,
           style: TextStyle(
-            fontSize: 11.sp,
-            fontWeight: FontWeight.w600,
-            color: Colors.grey[700],
+            fontSize: 12.sp,
+            fontWeight: FontWeight.w500,
+            color: AppPalette.black,
           ),
         ),
-        SizedBox(height: 10.h),
+        SizedBox(height: 15.h),
         SizedBox(
           width: 88.w,
           height: 88.w,
@@ -394,7 +410,7 @@ class _AvgRing extends StatelessWidget {
                 child: CircularProgressIndicator(
                   value: p,
                   strokeWidth: 10.w,
-                  backgroundColor: const Color(0xFFDDE7CF),
+                  backgroundColor: AppPalette.secondary.withAlpha(80),
                   valueColor: const AlwaysStoppedAnimation<Color>(
                     AppPalette.secondary,
                   ),
@@ -404,8 +420,8 @@ class _AvgRing extends StatelessWidget {
               Text(
                 '${percent.toStringAsFixed(1)}%',
                 style: TextStyle(
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w800,
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w700,
                   color: AppPalette.black,
                 ),
               ),
@@ -437,7 +453,7 @@ class _MetricRow extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 12.sp,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w500,
                   color: AppPalette.black,
                 ),
               ),
@@ -450,8 +466,8 @@ class _MetricRow extends StatelessWidget {
             Text(
               metric.leftValue,
               style: TextStyle(
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w700,
+                fontSize: 16.sp,
+                fontWeight: FontWeight.w500,
                 color: AppPalette.secondary,
               ),
             ),
@@ -459,9 +475,9 @@ class _MetricRow extends StatelessWidget {
             Text(
               metric.rightValue,
               style: TextStyle(
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w700,
-                color: const Color(0xFFE07E2D),
+                fontSize: 16.sp,
+                fontWeight: FontWeight.w500,
+                color: AppPalette.complemetary,
               ),
             ),
           ],
@@ -482,9 +498,9 @@ class _MetricRow extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            fontSize: 10.sp,
-            color: const Color(0xFFE07E2D),
-            fontWeight: FontWeight.w600,
+            fontSize: 12.sp,
+            color: AppPalette.complemetary,
+            fontWeight: FontWeight.w400,
           ),
         ),
       ],

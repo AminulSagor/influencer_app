@@ -25,6 +25,7 @@ class CustomTextFormField extends StatelessWidget {
   final TextInputAction? textInputAction;
   final Color? borderColor;
   final double? borderRadius;
+
   const CustomTextFormField({
     super.key,
     this.hintText,
@@ -54,12 +55,21 @@ class CustomTextFormField extends StatelessWidget {
     final style =
         textStyle ?? TextStyle(fontSize: 12.sp, color: AppPalette.black);
 
+    final baseBorderColor = borderColor ?? AppPalette.border1;
+
+    final focusedBorderColor = Color.alphaBlend(
+      Colors.black.withOpacity(0.18),
+      baseBorderColor,
+    );
+
     final border = OutlineInputBorder(
       borderRadius: BorderRadius.circular(borderRadius ?? kBorderRadius.r),
-      borderSide: BorderSide(
-        color: borderColor ?? AppPalette.border1,
-        width: kBorderWidth0_5,
-      ),
+      borderSide: BorderSide(color: baseBorderColor, width: kBorderWidth0_5),
+    );
+
+    final focusedBorder = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(borderRadius ?? kBorderRadius.r),
+      borderSide: BorderSide(color: focusedBorderColor, width: 1),
     );
 
     final textFormField = TextFormField(
@@ -81,9 +91,11 @@ class CustomTextFormField extends StatelessWidget {
         labelStyle: style,
         errorStyle: style,
         fillColor: fillColor,
-        filled: fillColor != null ? true : false,
+        filled: fillColor != null,
         border: border,
         enabledBorder: border,
+        focusedBorder: focusedBorder,
+        focusColor: focusedBorderColor,
         prefixIcon: prefixIcon,
         suffixIcon: suffixIcon,
         contentPadding:
@@ -94,7 +106,7 @@ class CustomTextFormField extends StatelessWidget {
 
     if (title != null) {
       return Column(
-        crossAxisAlignment: .start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title!,
@@ -111,6 +123,7 @@ class CustomTextFormField extends StatelessWidget {
         ],
       );
     }
+
     return textFormField;
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:influencer_app/core/utils/currency_formatter.dart';
 
 import '../../../../core/models/job_item.dart';
 import '../../../../core/services/account_type_service.dart';
@@ -56,6 +57,7 @@ class MilestoneHeaderCard extends StatelessWidget {
         : ((milestone.subtitle?.trim().isNotEmpty ?? false)
               ? milestone.subtitle!.trim()
               : '—');
+    final promotionGoal = (milestone.promotionGoal ?? '').trim();
     return Container(
       padding: EdgeInsets.all(18.w),
       decoration: BoxDecoration(
@@ -270,7 +272,16 @@ class MilestoneHeaderCard extends StatelessWidget {
                   ],
                 ),
               ),
-            SizedBox(height: 25.h),
+            if (promotionGoal.isNotEmpty) ...[
+              _HeaderSectionTitle(
+                iconPath: 'assets/icons/goal.png',
+                title: 'Promotion Goal',
+                subTitle: promotionGoal,
+              ),
+
+              SizedBox(height: 18.h),
+            ],
+            SizedBox(height: 20.h),
             Row(
               children: [
                 Spacer(),
@@ -303,7 +314,9 @@ class MilestoneHeaderCard extends StatelessWidget {
                 ),
                 if (!isBrand)
                   Text(
-                    milestone.amountLabel,
+                    formatCurrencyByLocale(
+                      double.tryParse(milestone.amountLabel) ?? 0,
+                    ),
                     style: TextStyle(
                       color: AppPalette.thirdColor,
                       fontSize: 24.sp,

@@ -82,7 +82,7 @@ class _UploadAnotherBrandAssetDialogState
             TextField(
               controller: titleCtrl,
               decoration: InputDecoration(
-                hintText: 'brand_campaign_details_brand_asset_title_hint'.tr,
+                hintText: 'create_campaign_brand_asset_name_hint'.tr,
                 filled: true,
                 fillColor: bg,
                 contentPadding: EdgeInsets.symmetric(
@@ -107,7 +107,7 @@ class _UploadAnotherBrandAssetDialogState
             TextField(
               controller: urlCtrl,
               decoration: InputDecoration(
-                hintText: 'brand_campaign_details_brand_asset_link_hint'.tr,
+                hintText: 'create_campaign_brand_asset_value_hint'.tr,
                 filled: true,
                 fillColor: bg,
                 contentPadding: EdgeInsets.symmetric(
@@ -141,7 +141,7 @@ class _UploadAnotherBrandAssetDialogState
                         borderRadius: BorderRadius.circular(12.r),
                       ),
                     ),
-                    child: Text('common_cancel'.tr),
+                    child: Text('skills_cancel'.tr),
                   ),
                 ),
                 12.w.horizontalSpace,

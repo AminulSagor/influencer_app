@@ -7,8 +7,11 @@ import 'package:influencer_app/routes/app_routes.dart';
 
 import '../../../core/theme/app_palette.dart';
 import '../../../core/utils/constants.dart';
+import '../../../core/widgets/app_pagination_row.dart';
+import '../../../core/widgets/app_pill_tabs.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../../core/models/job_item.dart';
+import '../../../core/widgets/sort_toggle_chip.dart';
 import 'brand_campaign_details_controller.dart';
 
 class BrandCampaignDetailsView extends GetView<BrandCampaignDetailsController> {
@@ -33,7 +36,13 @@ class BrandCampaignDetailsView extends GetView<BrandCampaignDetailsController> {
                 Obx(() {
                   controller.campaignType.value;
                   final isPaidAd = controller.isPaidAd;
-                  final showAgencyTabs = controller.agencyOffers.isNotEmpty;
+                  final isActive =
+                      controller.progressStep.value ==
+                          CampaignProgressStep.promoting ||
+                      controller.progressStep.value ==
+                          CampaignProgressStep.completed;
+                  final showAgencyTabs =
+                      !isActive && controller.agencyOffers.isNotEmpty;
 
                   Widget detailsColumn() {
                     return Column(
@@ -64,7 +73,26 @@ class BrandCampaignDetailsView extends GetView<BrandCampaignDetailsController> {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _PaidAdTabPills(),
+                      // _PaidAdTabPills(),
+                      Obx(
+                        () => AppPillTabs<bool>(
+                          selected: controller.paidAdTabIndex.value == 0,
+                          onChanged: (v) => controller.setPaidAdTab(v ? 0 : 1),
+                          items: [
+                            AppPillTabItem(
+                              value: true,
+                              label:
+                                  'brand_campaign_details_agency_quotes_tab'.tr,
+                            ),
+                            AppPillTabItem(
+                              value: false,
+                              label:
+                                  'brand_campaign_details_campaign_overview_tab'
+                                      .tr,
+                            ),
+                          ],
+                        ),
+                      ),
                       12.h.verticalSpace,
 
                       Obx(() {
@@ -248,31 +276,56 @@ class _CampaignDetailsCard extends GetView<BrandCampaignDetailsController> {
           10.h.verticalSpace,
 
           // Platforms
-          Row(
-            children: [
-              Text(
-                'brand_campaign_details_platforms'.tr,
-                style: TextStyle(
-                  color: AppPalette.white,
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w500,
+          Obx(() {
+            final keys = controller.platformKeys.toList(growable: false);
+
+            final iconPaths = keys.isEmpty
+                ? <String>[
+                    'assets/icons/instagram.png',
+                    'assets/icons/youTube.png',
+                    'assets/icons/tikTok.png',
+                  ]
+                : keys
+                      .map(_platformAssetPath)
+                      .where((e) => e.isNotEmpty)
+                      .toList(growable: false);
+
+            return Row(
+              children: [
+                Text(
+                  'brand_campaign_details_platforms'.tr,
+                  style: TextStyle(
+                    color: AppPalette.white,
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
-              10.w.horizontalSpace,
-              Obx(() {
-                return Row(
-                  children: controller.platformsImagePath
-                      .map(
-                        (ic) => Padding(
-                          padding: EdgeInsets.only(right: 8.w),
-                          child: _MiniPlatform(iconPath: ic),
-                        ),
-                      )
-                      .toList(),
-                );
-              }),
-            ],
-          ),
+                10.w.horizontalSpace,
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: iconPaths
+                          .map(
+                            (path) => Padding(
+                              padding: EdgeInsets.only(right: 8.w),
+                              child: Image.asset(
+                                path,
+                                width: 24.w,
+                                height: 24.w,
+                                fit: BoxFit.cover,
+                                color: AppPalette
+                                    .thirdColor, // same style as overview header
+                              ),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }),
           12.h.verticalSpace,
 
           // Deadline box
@@ -340,6 +393,41 @@ class _CampaignDetailsCard extends GetView<BrandCampaignDetailsController> {
           Align(
             alignment: Alignment.center,
             child: Obx(() {
+              final isActive =
+                  controller.progressStep.value ==
+                      CampaignProgressStep.promoting ||
+                  controller.progressStep.value == CampaignProgressStep.paid ||
+                  controller.progressStep.value ==
+                      CampaignProgressStep.completed;
+              if (isActive) {
+                return Column(
+                  children: [
+                    Image.asset(
+                      'assets/icons/not_expensive.png',
+                      width: 21.w,
+
+                      fit: BoxFit.cover,
+                    ),
+                    6.h.verticalSpace,
+                    Text(
+                      'brand_campaign_fund_total_due'.tr,
+                      style: AppTheme.textStyle.copyWith(
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.w400,
+                        color: AppPalette.white,
+                      ),
+                    ),
+                    Text(
+                      formatCurrencyByLocale(controller.dueAmount.value),
+                      style: AppTheme.textStyle.copyWith(
+                        fontSize: 24.sp,
+                        fontWeight: FontWeight.w600,
+                        color: AppPalette.thirdColor,
+                      ),
+                    ),
+                  ],
+                );
+              }
               return Container(
                 padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 7.h),
                 decoration: BoxDecoration(
@@ -370,6 +458,25 @@ class _CampaignDetailsCard extends GetView<BrandCampaignDetailsController> {
         ],
       ),
     );
+  }
+
+  static String _platformAssetPath(String platformKey) {
+    final key = platformKey.trim().toLowerCase();
+
+    if (key.contains('youtube') || key == 'yt') {
+      return 'assets/icons/youTube.png';
+    }
+    if (key.contains('tik') || key.contains('tiktok')) {
+      return 'assets/icons/tikTok.png';
+    }
+    if (key.contains('facebook')) {
+      return 'assets/icons/facebook.png';
+    }
+    if (key.contains('instagram') || key.contains('insta')) {
+      return 'assets/icons/instagram.png';
+    }
+
+    return 'assets/icons/instagram.png'; // fallback
   }
 }
 
@@ -1411,7 +1518,16 @@ class _ContentAssetsCard extends GetView<BrandCampaignDetailsController> {
                 ),
                 10.h.verticalSpace,
                 CustomButton.dotted(
-                  height: 42.h,
+                  height: 54.h,
+                  width: double.infinity,
+                  leading: Transform.flip(
+                    flipY: true,
+                    child: Image.asset(
+                      'assets/icons/download.png',
+                      width: 23.1.w,
+                      color: AppPalette.secondary,
+                    ),
+                  ),
                   btnText: 'brand_campaign_details_upload_another_asset'.tr,
                   btnColor: Colors.transparent,
                   borderColor: AppPalette.secondary,
@@ -1449,15 +1565,19 @@ class _AssetTile extends StatelessWidget {
 
     return Container(
       margin: EdgeInsets.only(bottom: 10.h),
-      padding: EdgeInsets.all(12.w),
+      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 10.h),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7FAF3),
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
+        borderRadius: BorderRadius.circular(kBorderRadius.r),
+        border: Border.all(color: AppPalette.secondary, width: kBorderWidth0_5),
+        gradient: LinearGradient(
+          begin: Alignment.bottomLeft,
+          end: Alignment.topRight,
+          colors: [AppPalette.white, AppPalette.white, AppPalette.thirdColor],
+        ),
       ),
       child: Row(
         children: [
-          Icon(iconFor(asset.kind), color: AppPalette.primary, size: 18.sp),
+          Icon(iconFor(asset.kind), color: AppPalette.secondary, size: 25.sp),
           10.w.horizontalSpace,
           Expanded(
             child: Column(
@@ -1468,9 +1588,9 @@ class _AssetTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 12.5.sp,
-                    fontWeight: FontWeight.w900,
-                    color: AppPalette.primary,
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w500,
+                    color: AppPalette.secondary,
                   ),
                 ),
                 2.h.verticalSpace,
@@ -1479,9 +1599,9 @@ class _AssetTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 11.sp,
-                    fontWeight: FontWeight.w600,
-                    color: AppPalette.greyText,
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w400,
+                    color: AppPalette.secondary.withAlpha(153),
                   ),
                 ),
               ],
@@ -1490,20 +1610,11 @@ class _AssetTile extends StatelessWidget {
           10.w.horizontalSpace,
           InkWell(
             onTap: onTap,
-            child: Container(
-              width: 30.w,
-              height: 30.w,
-              decoration: BoxDecoration(
-                color: AppPalette.white,
-                borderRadius: BorderRadius.circular(10.r),
-                border: Border.all(
-                  color: AppPalette.border1,
-                  width: kBorderWidth0_5,
-                ),
-              ),
-              child: Icon(
-                Icons.download_rounded,
-                size: 18.sp,
+            child: Padding(
+              padding: EdgeInsets.only(right: 8.w),
+              child: Image.asset(
+                'assets/icons/download.png',
+                width: 23.w,
                 color: AppPalette.secondary,
               ),
             ),
@@ -1549,13 +1660,13 @@ class _TermsCard extends GetView<BrandCampaignDetailsController> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _TermBlock(
-                  icon: Icons.assignment_turned_in_rounded,
+                  iconPath: 'assets/icons/presentation.png',
                   title: 'brand_campaign_details_reporting_requirements'.tr,
                   text: controller.reportingRequirements.value,
                 ),
                 12.h.verticalSpace,
                 _TermBlock(
-                  icon: Icons.copyright_rounded,
+                  iconPath: 'assets/icons/copyright.png',
                   title: 'brand_campaign_details_usage_rights'.tr,
                   text: controller.usageRights.value,
                 ),
@@ -1569,57 +1680,49 @@ class _TermsCard extends GetView<BrandCampaignDetailsController> {
 }
 
 class _TermBlock extends StatelessWidget {
-  final IconData icon;
+  final String iconPath;
   final String title;
   final String text;
   const _TermBlock({
-    required this.icon,
+    required this.iconPath,
     required this.title,
     required this.text,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.all(12.w),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF7FAF3),
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 16.sp, color: AppPalette.primary),
-              8.w.horizontalSpace,
-              Expanded(
-                child: Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12.5.sp,
-                    fontWeight: FontWeight.w900,
-                    color: AppPalette.primary,
-                  ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Image.asset(iconPath, width: 20.w, color: AppPalette.primary),
+            8.w.horizontalSpace,
+            Expanded(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w500,
+                  color: AppPalette.primary,
                 ),
               ),
-            ],
-          ),
-          8.h.verticalSpace,
-          Text(
-            text,
-            style: TextStyle(
-              fontSize: 11.5.sp,
-              height: 1.35,
-              color: AppPalette.greyText,
-              fontWeight: FontWeight.w600,
             ),
+          ],
+        ),
+        8.h.verticalSpace,
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: 12.sp,
+            height: 1.35,
+            color: AppPalette.greyText,
+            fontWeight: FontWeight.w400,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -1652,9 +1755,18 @@ class _BrandAssetsCard extends GetView<BrandCampaignDetailsController> {
                 ),
                 10.h.verticalSpace,
                 CustomButton.dotted(
-                  height: 42.h,
+                  height: 54.h,
+                  width: double.infinity,
                   btnText:
                       'brand_campaign_details_upload_another_brand_asset'.tr,
+                  leading: Transform.flip(
+                    flipY: true,
+                    child: Image.asset(
+                      'assets/icons/download.png',
+                      width: 23.1.w,
+                      color: AppPalette.secondary,
+                    ),
+                  ),
                   btnColor: Colors.transparent,
                   borderColor: AppPalette.secondary,
                   textColor: AppPalette.secondary,
@@ -1681,26 +1793,17 @@ class _BrandAssetTile extends StatelessWidget {
       margin: EdgeInsets.only(bottom: 10.h),
       padding: EdgeInsets.all(12.w),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7FAF3),
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
+        borderRadius: BorderRadius.circular(kBorderRadius.r),
+        border: Border.all(color: AppPalette.secondary, width: kBorderWidth0_5),
+        gradient: LinearGradient(
+          begin: Alignment.bottomLeft,
+          end: Alignment.topRight,
+          colors: [AppPalette.white, AppPalette.white, AppPalette.thirdColor],
+        ),
       ),
       child: Row(
         children: [
-          Container(
-            width: 34.w,
-            height: 34.w,
-            decoration: BoxDecoration(
-              color: AppPalette.defaultFill,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: AppPalette.border1,
-                width: kBorderWidth0_5,
-              ),
-            ),
-            alignment: Alignment.center,
-            child: Icon(asset.icon, size: 18.sp, color: AppPalette.primary),
-          ),
+          Icon(asset.icon, size: 30.sp, color: AppPalette.secondary),
           10.w.horizontalSpace,
           Expanded(
             child: Column(
@@ -1711,8 +1814,8 @@ class _BrandAssetTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 12.5.sp,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w500,
                     color: AppPalette.primary,
                   ),
                 ),
@@ -1722,35 +1825,35 @@ class _BrandAssetTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 11.sp,
-                    fontWeight: FontWeight.w600,
-                    color: AppPalette.greyText,
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w400,
+                    color: AppPalette.secondary.withAlpha(153),
                   ),
                 ),
               ],
             ),
           ),
           10.w.horizontalSpace,
-          InkWell(
-            onTap: onRemove,
-            child: Container(
-              width: 30.w,
-              height: 30.w,
-              decoration: BoxDecoration(
-                color: AppPalette.white,
-                borderRadius: BorderRadius.circular(10.r),
-                border: Border.all(
-                  color: AppPalette.border1,
-                  width: kBorderWidth0_5,
-                ),
-              ),
-              child: Icon(
-                Icons.close_rounded,
-                size: 18.sp,
-                color: AppPalette.greyText,
-              ),
-            ),
-          ),
+          // InkWell(
+          //   onTap: onRemove,
+          //   child: Container(
+          //     width: 30.w,
+          //     height: 30.w,
+          //     decoration: BoxDecoration(
+          //       color: AppPalette.white,
+          //       borderRadius: BorderRadius.circular(10.r),
+          //       border: Border.all(
+          //         color: AppPalette.border1,
+          //         width: kBorderWidth0_5,
+          //       ),
+          //     ),
+          //     child: Icon(
+          //       Icons.close_rounded,
+          //       size: 18.sp,
+          //       color: AppPalette.greyText,
+          //     ),
+          //   ),
+          // ),
         ],
       ),
     );
@@ -1868,40 +1971,20 @@ class _AgencyBidsTab extends GetView<BrandCampaignDetailsController> {
                     'count': controller.agencyOffers.length.toString(),
                   }),
                   style: TextStyle(
-                    fontSize: 13.5.sp,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w600,
                     color: AppPalette.primary,
                   ),
                 ),
               ),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
-                decoration: BoxDecoration(
-                  color: AppPalette.defaultFill,
-                  borderRadius: BorderRadius.circular(999.r),
-                  border: Border.all(
-                    color: AppPalette.border1,
-                    width: kBorderWidth0_5,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Text(
-                      'common_low_to_high'.tr,
-                      style: TextStyle(
-                        fontSize: 11.sp,
-                        fontWeight: FontWeight.w800,
-                        color: AppPalette.greyText,
-                      ),
-                    ),
-                    6.w.horizontalSpace,
-                    Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      color: AppPalette.greyText,
-                    ),
-                  ],
-                ),
-              ),
+              Obx(() {
+                return SortToggleChip(
+                  isLowToHigh: controller.isSortLowToHigh.value,
+                  onTap: controller.toggleSort,
+                  lowToHighText: 'jobs_sort_low_to_high'.tr,
+                  highToLowText: 'jobs_sort_high_to_low'.tr,
+                );
+              }),
             ],
           ),
           10.h.verticalSpace,
@@ -1927,6 +2010,7 @@ class _AgencyBidsTab extends GetView<BrandCampaignDetailsController> {
 
                   return _AgencyOfferCard(
                     name: o.name,
+                    logo: o.logo,
                     agencyFeePercent: o.agencyFeePercent,
                     fxRate: fxRate,
                     agencyFeeBdt: fee,
@@ -1938,57 +2022,15 @@ class _AgencyBidsTab extends GetView<BrandCampaignDetailsController> {
                 }).toList(),
 
                 6.h.verticalSpace,
-                Row(
-                  children: [
-                    Container(
-                      width: 56.w,
-                      height: 40.h,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: AppPalette.defaultFill,
-                        borderRadius: BorderRadius.circular(12.r),
-                        border: Border.all(
-                          color: AppPalette.border1,
-                          width: kBorderWidth0_5,
-                        ),
-                      ),
-                      child: Text(
-                        '1',
-                        style: TextStyle(
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.w900,
-                          color: AppPalette.primary,
-                        ),
-                      ),
-                    ),
-                    10.w.horizontalSpace,
-                    Text(
-                      'common_of_n'.trParams({'n': '30'}),
-                      style: TextStyle(
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.w800,
-                        color: AppPalette.greyText,
-                      ),
-                    ),
-                    const Spacer(),
-                    Container(
-                      height: 40.h,
-                      padding: EdgeInsets.symmetric(horizontal: 18.w),
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: AppPalette.primary,
-                        borderRadius: BorderRadius.circular(12.r),
-                      ),
-                      child: Text(
-                        'common_next'.tr,
-                        style: TextStyle(
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.w900,
-                          color: AppPalette.white,
-                        ),
-                      ),
-                    ),
-                  ],
+                AppPaginationRow(
+                  page: controller.page,
+                  totalPages: controller.totalPages,
+                  isLoading: controller.isLoading,
+                  onPrev: controller.prevPage,
+                  onNext: controller.nextPage,
+                  pageLabel: 'analytics_page'.tr,
+                  ofLabel: 'analytics_of'.tr,
+                  nextLabel: 'analytics_next'.tr,
                 ),
               ],
             );
@@ -2001,6 +2043,7 @@ class _AgencyBidsTab extends GetView<BrandCampaignDetailsController> {
 
 class _AgencyOfferCard extends StatelessWidget {
   final String name;
+  final String logo;
   final int agencyFeePercent;
   final double fxRate;
   final int agencyFeeBdt;
@@ -2010,6 +2053,7 @@ class _AgencyOfferCard extends StatelessWidget {
 
   const _AgencyOfferCard({
     required this.name,
+    required this.logo,
     required this.agencyFeePercent,
     required this.fxRate,
     required this.agencyFeeBdt,
@@ -2024,10 +2068,10 @@ class _AgencyOfferCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: EdgeInsets.only(bottom: 12.h),
-      padding: EdgeInsets.all(12.w),
+      padding: EdgeInsets.symmetric(horizontal: 17.w, vertical: 12.h),
       decoration: BoxDecoration(
         color: AppPalette.white,
-        borderRadius: BorderRadius.circular(14.r),
+        borderRadius: BorderRadius.circular(kBorderRadius.r),
         border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
       ),
       child: Column(
@@ -2035,8 +2079,8 @@ class _AgencyOfferCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                width: 34.w,
-                height: 34.w,
+                width: 30.w,
+                height: 30.w,
                 decoration: BoxDecoration(
                   color: AppPalette.defaultFill,
                   shape: BoxShape.circle,
@@ -2045,17 +2089,69 @@ class _AgencyOfferCard extends StatelessWidget {
                     width: kBorderWidth0_5,
                   ),
                 ),
+                clipBehavior: Clip.antiAlias,
+                child: Image.network(
+                  logo,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Center(
+                      child: Icon(
+                        Icons.person,
+                        size: 18.sp,
+                        color: AppPalette.greyText,
+                      ),
+                    );
+                  },
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Center(
+                      child: SizedBox(
+                        width: 14.w,
+                        height: 14.w,
+                        child: const CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    );
+                  },
+                ),
               ),
               10.w.horizontalSpace,
               Expanded(
                 child: Text(
                   name,
                   style: TextStyle(
-                    fontSize: 13.sp,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w500,
                     color: AppPalette.primary,
                   ),
                 ),
+              ),
+            ],
+          ),
+          10.h.verticalSpace,
+
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'brand_campaign_details_agency_fee_percent'.tr,
+                    style: TextStyle(
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w400,
+                      color: AppPalette.black,
+                    ),
+                  ),
+                  Text(
+                    '$agencyFeePercent%',
+                    style: TextStyle(
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.w600,
+                      color: AppPalette.secondary,
+                    ),
+                  ),
+                ],
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -2063,18 +2159,18 @@ class _AgencyOfferCard extends StatelessWidget {
                   Text(
                     'brand_campaign_details_fx_rate'.tr,
                     style: TextStyle(
-                      fontSize: 11.sp,
-                      fontWeight: FontWeight.w700,
-                      color: AppPalette.greyText,
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w400,
+                      color: AppPalette.black,
                     ),
                   ),
                   2.h.verticalSpace,
                   Text(
                     '৳${fxRate.toStringAsFixed(2)}',
                     style: TextStyle(
-                      fontSize: 13.sp,
-                      fontWeight: FontWeight.w900,
-                      color: AppPalette.primary,
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.w600,
+                      color: AppPalette.secondary,
                     ),
                   ),
                 ],
@@ -2083,39 +2179,24 @@ class _AgencyOfferCard extends StatelessWidget {
           ),
           10.h.verticalSpace,
 
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'brand_campaign_details_agency_fee_percent'.tr,
-                  style: TextStyle(
-                    fontSize: 11.sp,
-                    fontWeight: FontWeight.w700,
-                    color: AppPalette.greyText,
-                  ),
-                ),
-              ),
-              Text(
-                '$agencyFeePercent%',
-                style: TextStyle(
-                  fontSize: 13.sp,
-                  fontWeight: FontWeight.w900,
-                  color: AppPalette.primary,
-                ),
-              ),
-            ],
-          ),
-          10.h.verticalSpace,
-
           Container(
             width: double.infinity,
-            padding: EdgeInsets.all(12.w),
+            padding: EdgeInsets.only(
+              left: 14.w,
+              top: 10.h,
+              bottom: 10.h,
+              right: 10.w,
+            ),
             decoration: BoxDecoration(
-              color: const Color(0xFFF7FAF3),
-              borderRadius: BorderRadius.circular(12.r),
+              borderRadius: BorderRadius.circular(kBorderRadius.r),
               border: Border.all(
-                color: AppPalette.border1,
+                color: AppPalette.secondary,
                 width: kBorderWidth0_5,
+              ),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [AppPalette.thirdColor, AppPalette.white],
               ),
             ),
             child: Column(
@@ -2144,27 +2225,11 @@ class _AgencyOfferCard extends StatelessWidget {
           ),
           12.h.verticalSpace,
 
-          SizedBox(
+          CustomButton(
+            onTap: onAcceptAndPay,
+            btnText: 'brand_campaign_details_accept_quote_and_pay'.tr,
+            textColor: AppPalette.white,
             width: double.infinity,
-            height: 44.h,
-            child: ElevatedButton(
-              onPressed: onAcceptAndPay,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppPalette.primary,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12.r),
-                ),
-                elevation: 0,
-              ),
-              child: Text(
-                'brand_campaign_details_accept_quote_and_pay'.tr,
-                style: TextStyle(
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w900,
-                  color: AppPalette.white,
-                ),
-              ),
-            ),
           ),
         ],
       ),
@@ -2178,18 +2243,18 @@ class _AgencyOfferCard extends StatelessWidget {
           child: Text(
             k,
             style: TextStyle(
-              fontSize: 11.sp,
-              fontWeight: FontWeight.w700,
-              color: AppPalette.greyText,
+              fontSize: 10.sp,
+              fontWeight: FontWeight.w400,
+              color: AppPalette.black,
             ),
           ),
         ),
         Text(
           v,
           style: TextStyle(
-            fontSize: 11.5.sp,
-            fontWeight: FontWeight.w900,
-            color: AppPalette.primary,
+            fontSize: 10.sp,
+            fontWeight: FontWeight.w600,
+            color: AppPalette.secondary,
           ),
         ),
       ],

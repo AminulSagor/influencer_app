@@ -1,13 +1,18 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:influencer_app/core/utils/currency_formatter.dart';
 
 import '../../../../core/models/job_item.dart';
 import '../../../../core/services/account_type_service.dart';
 import '../../../../core/theme/app_palette.dart';
 import '../../../../core/utils/constants.dart';
 import '../../../../core/widgets/custom_text_field.dart';
+import '../../../../core/widgets/custom_text_form_field.dart';
 import '../milestone_details_controller.dart';
+import 'proof_tile.dart';
 
 class SubmissionCard extends StatelessWidget {
   final int index;
@@ -65,6 +70,13 @@ class SubmissionCard extends StatelessWidget {
 
       final isAdAgency = accountTypeService.isAdAgency;
 
+      final remoteUrls = submission.serverProofUrls;
+      final localFiles = submission.proofs
+          .map((p) => p.path)
+          .whereType<String>()
+          .map((p) => File(p))
+          .toList();
+
       return Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -115,7 +127,12 @@ class SubmissionCard extends StatelessWidget {
                     Text(
                       submission.amountController.text.isEmpty
                           ? ''
-                          : submission.amountController.text,
+                          : formatCurrencyByLocale(
+                              double.tryParse(
+                                    submission.amountController.text,
+                                  ) ??
+                                  0,
+                            ),
                       style: TextStyle(
                         fontSize: 13.sp,
                         fontWeight: FontWeight.w600,
@@ -123,8 +140,8 @@ class SubmissionCard extends StatelessWidget {
                       ),
                     ),
                     if (submission.isSubmitted.value &&
-                        submission.status.value ==
-                            SubmissionStatus.declined) ...[
+                        submission.status.value == SubmissionStatus.declined &&
+                        submission.declinedEditEnabled.value == false) ...[
                       SizedBox(width: 8.w),
                       GestureDetector(
                         onTap: onEditDeclined,
@@ -161,13 +178,23 @@ class SubmissionCard extends StatelessWidget {
                       title: 'Description / Update (Optional)',
                     ),
                     SizedBox(height: 12.h),
-                    CustomTextField(
-                      hintText: 'Write description...',
-                      textStyle: textStyle,
-                      controller: submission.descriptionController,
-                      enabled: isEditable,
-                      maxLines: 4,
-                    ),
+                    isEditable
+                        ? CustomTextField(
+                            hintText: 'Write description...',
+                            textStyle: textStyle,
+                            controller: submission.descriptionController,
+                            enabled: isEditable,
+                            maxLines: 4,
+                          )
+                        : Text(
+                            submission.descriptionController.text.trim().isEmpty
+                                ? '—'
+                                : submission.descriptionController.text.trim(),
+                            style: TextStyle(
+                              fontSize: 12.sp,
+                              color: Colors.grey[700],
+                            ),
+                          ),
                     SizedBox(height: 16.h),
 
                     if (isAdAgency) ...[
@@ -200,6 +227,7 @@ class SubmissionCard extends StatelessWidget {
                         ),
                       ),
                       child: Column(
+                        crossAxisAlignment: .start,
                         children: [
                           _IconTitle(
                             iconPath: 'assets/icons/webpage_click.png',
@@ -219,12 +247,23 @@ class SubmissionCard extends StatelessWidget {
                             ),
                           ),
                           SizedBox(height: 4.h),
-                          CustomTextField(
-                            hintText: 'https://instagram.com/...',
-                            textStyle: textStyle,
-                            controller: submission.linkController,
-                            enabled: isEditable,
-                          ),
+                          isEditable
+                              ? CustomTextField(
+                                  hintText: 'https://instagram.com/...',
+                                  textStyle: textStyle,
+                                  controller: submission.linkController,
+                                  enabled: isEditable,
+                                )
+                              : Text(
+                                  submission.linkController.text.trim().isEmpty
+                                      ? '—'
+                                      : submission.linkController.text.trim(),
+                                  style: TextStyle(
+                                    fontSize: 12.sp,
+                                    color: AppPalette.primary,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
                           SizedBox(height: 16.h),
 
                           _IconTitle(
@@ -264,47 +303,44 @@ class SubmissionCard extends StatelessWidget {
                             Row(
                               children: [
                                 Expanded(
-                                  child: Column(
-                                    children: [
-                                      CustomTextField(
-                                        hintText: 'Reach',
-                                        textStyle: textStyle,
-                                        controller:
-                                            submission.metricLabelController,
-                                        enabled: isEditable,
-                                        fillColor: AppPalette.gradient3,
-                                      ),
-                                      SizedBox(width: 10.w),
-                                      CustomTextField(
-                                        hintText: '2.5M',
-                                        textStyle: textStyle,
-                                        controller:
-                                            submission.metricValueController,
-                                        enabled: isEditable,
-                                      ),
-                                    ],
+                                  child: _MetricBox(
+                                    icon: Icons.remove_red_eye_outlined, // eye
+                                    label: 'Reach',
+                                    controller: submission.reachController,
+                                    enabled: isEditable,
                                   ),
                                 ),
+                                SizedBox(width: 14.w),
                                 Expanded(
-                                  child: Column(
-                                    children: [
-                                      CustomTextField(
-                                        hintText: 'Reach',
-                                        textStyle: textStyle,
-                                        controller:
-                                            submission.metricLabelController,
-                                        enabled: isEditable,
-                                        fillColor: AppPalette.gradient3,
-                                      ),
-                                      SizedBox(width: 10.w),
-                                      CustomTextField(
-                                        hintText: '2.5M',
-                                        textStyle: textStyle,
-                                        controller:
-                                            submission.metricValueController,
-                                        enabled: isEditable,
-                                      ),
-                                    ],
+                                  child: _MetricBox(
+                                    icon: Icons
+                                        .play_arrow_rounded, // triangle play
+                                    label: 'Views',
+                                    controller: submission.viewsController,
+                                    enabled: isEditable,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 14.h),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _MetricBox(
+                                    icon: Icons.favorite_border, // heart
+                                    label: 'Likes',
+                                    controller: submission.likesController,
+                                    enabled: isEditable,
+                                  ),
+                                ),
+                                SizedBox(width: 14.w),
+                                Expanded(
+                                  child: _MetricBox(
+                                    icon: Icons
+                                        .mode_comment_outlined, // comment bubble
+                                    label: 'Comments',
+                                    controller: submission.commentsController,
+                                    enabled: isEditable,
                                   ),
                                 ),
                               ],
@@ -318,80 +354,146 @@ class SubmissionCard extends StatelessWidget {
                             title: 'Attach Proof (Screenshots, Videos)',
                           ),
                           SizedBox(height: 8.h),
-                          GestureDetector(
-                            onTap: isEditable ? onPickFiles : null,
-                            child: Container(
-                              height: 140.h,
+                          Obx(() {
+                            final tiles = <Widget>[];
+
+                            for (final u in submission.serverProofUrls) {
+                              tiles.add(
+                                Padding(
+                                  padding: EdgeInsets.only(bottom: 8.h),
+                                  child: ProofTile(networkUrl: u),
+                                ),
+                              );
+                            }
+
+                            for (final f in submission.proofs) {
+                              final fp = (f.path ?? '').trim();
+                              if (fp.isEmpty) continue;
+                              tiles.add(
+                                Padding(
+                                  padding: EdgeInsets.only(bottom: 8.h),
+                                  child: ProofTile(localFile: File(fp)),
+                                ),
+                              );
+                            }
+
+                            if (tiles.isEmpty) return const SizedBox.shrink();
+
+                            return Column(children: tiles);
+                          }),
+                          SizedBox(height: 8.h),
+
+                          if (isEditable) ...[
+                            GestureDetector(
+                              onTap: onPickFiles,
+                              child: Container(
+                                height: 140.h,
+                                width: double.infinity,
+                                decoration: BoxDecoration(
+                                  color: AppPalette.defaultFill,
+                                  borderRadius: BorderRadius.circular(
+                                    kBorderRadius.r,
+                                  ),
+                                  border: Border.all(
+                                    color: AppPalette.border1,
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.file_upload_outlined,
+                                      size: 26.sp,
+                                      color: isEditable
+                                          ? Colors.grey[700]
+                                          : Colors.grey[400],
+                                    ),
+                                    SizedBox(height: 8.h),
+                                    Text(
+                                      'Tap to Upload Files',
+                                      style: TextStyle(
+                                        fontSize: 14.sp,
+                                        fontWeight: FontWeight.w500,
+                                        color: AppPalette.greyText,
+                                      ),
+                                    ),
+                                    SizedBox(height: 4.h),
+                                    Text(
+                                      'Screenshots, Videos or other proof',
+                                      style: TextStyle(
+                                        fontSize: 12.sp,
+                                        color: AppPalette.greyText,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            SizedBox(height: 12.h),
+                            _AddAnotherProofButton(onTap: onPickFiles),
+                          ],
+
+                          if (submission.status.value ==
+                                  SubmissionStatus.declined &&
+                              (submission.rejectionReason.value ?? '')
+                                  .trim()
+                                  .isNotEmpty) ...[
+                            SizedBox(height: 14.h),
+                            Text(
+                              'Declined Reason',
+                              style: TextStyle(
+                                fontSize: 12.sp,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFFD32F2F),
+                              ),
+                            ),
+                            SizedBox(height: 8.h),
+                            Container(
                               width: double.infinity,
+                              padding: EdgeInsets.all(12.w),
+                              constraints: BoxConstraints(minHeight: 0.15.sh),
                               decoration: BoxDecoration(
-                                color: AppPalette.defaultFill,
                                 borderRadius: BorderRadius.circular(
                                   kBorderRadius.r,
                                 ),
                                 border: Border.all(
-                                  color: AppPalette.border1,
+                                  color: const Color(0xFFD32F2F),
                                   width: 1,
                                 ),
                               ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.file_upload_outlined,
-                                    size: 26.sp,
-                                    color: isEditable
-                                        ? Colors.grey[700]
-                                        : Colors.grey[400],
-                                  ),
-                                  SizedBox(height: 8.h),
-                                  Text(
-                                    'Tap to Upload Files',
-                                    style: TextStyle(
-                                      fontSize: 14.sp,
-                                      fontWeight: FontWeight.w500,
-                                      color: AppPalette.greyText,
-                                    ),
-                                  ),
-                                  SizedBox(height: 4.h),
-                                  Text(
-                                    'Screenshots, Videos or other proof',
-                                    style: TextStyle(
-                                      fontSize: 12.sp,
-                                      color: AppPalette.greyText,
-                                    ),
-                                  ),
-                                ],
+                              child: Text(
+                                submission.rejectionReason.value ?? '',
+                                style: TextStyle(
+                                  fontSize: 12.sp,
+                                  color: Colors.grey[800],
+                                ),
                               ),
                             ),
-                          ),
-                          SizedBox(height: 8.h),
+                          ],
 
-                          Obx(
-                            () => Wrap(
-                              spacing: 6.w,
-                              runSpacing: 4.h,
-                              children: [
-                                for (
-                                  int i = 0;
-                                  i < submission.proofs.length;
-                                  i++
-                                )
-                                  Chip(
-                                    label: Text(
-                                      submission.proofs[i].name,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    onDeleted: isEditable
-                                        ? () => onRemoveProof(i)
-                                        : null,
-                                  ),
-                              ],
-                            ),
-                          ),
-
-                          SizedBox(height: 12.h),
-                          if (isEditable)
-                            _AddAnotherProofButton(onTap: onPickFiles),
+                          // Obx(
+                          //   () => Wrap(
+                          //     spacing: 6.w,
+                          //     runSpacing: 4.h,
+                          //     children: [
+                          //       for (
+                          //         int i = 0;
+                          //         i < submission.proofs.length;
+                          //         i++
+                          //       )
+                          //         Chip(
+                          //           label: Text(
+                          //             submission.proofs[i].name,
+                          //             overflow: TextOverflow.ellipsis,
+                          //           ),
+                          //           onDeleted: isEditable
+                          //               ? () => onRemoveProof(i)
+                          //               : null,
+                          //         ),
+                          //     ],
+                          //   ),
+                          // ),
                         ],
                       ),
                     ),
@@ -463,6 +565,55 @@ class _AddAnotherProofButton extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _MetricBox extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final TextEditingController controller;
+  final bool enabled;
+
+  const _MetricBox({
+    required this.icon,
+    required this.label,
+    required this.controller,
+    required this.enabled,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 18.sp, color: AppPalette.black),
+            SizedBox(width: 8.w),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13.sp,
+                fontWeight: FontWeight.w600,
+                color: AppPalette.black,
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 8.h),
+        CustomTextFormField(
+          hintText: '0',
+          controller: controller,
+          enabled: enabled,
+          textAlign: TextAlign.center,
+          keyboardType: TextInputType.number,
+          contentPadding: EdgeInsets.symmetric(
+            horizontal: 12.w,
+            vertical: 14.h,
+          ),
+        ),
+      ],
     );
   }
 }

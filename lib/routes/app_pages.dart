@@ -292,42 +292,54 @@ class AppPages {
       name: AppRoutes.createCampaign,
       page: () => const CreateCampaignView(),
       binding: BindingsBuilder(() {
-        Get.lazyPut<CreateCampaignController>(() => CreateCampaignController());
+        Get.lazyPut<CreateCampaignController>(
+          () => CreateCampaignController(null),
+        );
       }),
     ),
     GetPage(
       name: AppRoutes.createCampaignStep2,
       page: () => const CreateCampaignStep2View(),
       binding: BindingsBuilder(() {
-        Get.lazyPut<CreateCampaignController>(() => CreateCampaignController());
+        Get.lazyPut<CreateCampaignController>(
+          () => CreateCampaignController(null),
+        );
       }),
     ),
     GetPage(
       name: AppRoutes.createCampaignStep3,
       page: () => const CreateCampaignStep3View(),
       binding: BindingsBuilder(() {
-        Get.lazyPut<CreateCampaignController>(() => CreateCampaignController());
+        Get.lazyPut<CreateCampaignController>(
+          () => CreateCampaignController(null),
+        );
       }),
     ),
     GetPage(
       name: AppRoutes.createCampaignStep4,
       page: () => const CreateCampaignStep4View(),
       binding: BindingsBuilder(() {
-        Get.lazyPut<CreateCampaignController>(() => CreateCampaignController());
+        Get.lazyPut<CreateCampaignController>(
+          () => CreateCampaignController(null),
+        );
       }),
     ),
     GetPage(
       name: AppRoutes.createCampaignStep5,
       page: () => const CreateCampaignStep5View(),
       binding: BindingsBuilder(() {
-        Get.lazyPut<CreateCampaignController>(() => CreateCampaignController());
+        Get.lazyPut<CreateCampaignController>(
+          () => CreateCampaignController(null),
+        );
       }),
     ),
     GetPage(
       name: AppRoutes.createCampaignStep6,
       page: () => const CreateCampaignStep6View(),
       binding: BindingsBuilder(() {
-        Get.lazyPut<CreateCampaignController>(() => CreateCampaignController());
+        Get.lazyPut<CreateCampaignController>(
+          () => CreateCampaignController(null),
+        );
       }),
     ),
   ];

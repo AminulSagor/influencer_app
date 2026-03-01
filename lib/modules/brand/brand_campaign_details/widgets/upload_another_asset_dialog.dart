@@ -275,7 +275,7 @@ class _UploadAnotherAssetDialogState extends State<UploadAnotherAssetDialog> {
                         borderRadius: BorderRadius.circular(12.r),
                       ),
                     ),
-                    child: Text('common_cancel'.tr),
+                    child: Text('skills_cancel'.tr),
                   ),
                 ),
                 12.w.horizontalSpace,

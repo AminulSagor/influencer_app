@@ -1,9 +1,15 @@
 class AgencyLookup {
   final String id;
   final String name;
+  final String logo;
   final String? subtitle;
 
-  const AgencyLookup({required this.id, required this.name, this.subtitle});
+  const AgencyLookup({
+    required this.id,
+    required this.name,
+    this.subtitle,
+    required this.logo,
+  });
 }
 
 class InfluencerLookup {
