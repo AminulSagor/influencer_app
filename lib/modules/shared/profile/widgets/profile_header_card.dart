@@ -30,13 +30,12 @@ class ProfileHeaderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Obx(
-      () {
-        final topSocials = controller.socialAccounts
-            .take(3)
-            .toList(growable: false);
+    return Obx(() {
+      final topSocials = controller.socialAccounts
+          .take(3)
+          .toList(growable: false);
 
-        return Container(
+      return Container(
         width: double.infinity,
         padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
         decoration: BoxDecoration(
@@ -120,7 +119,7 @@ class ProfileHeaderCard extends StatelessWidget {
                       ),
                       10.h.verticalSpace,
                       CustomButton(
-                        onTap: () {},
+                        onTap: () => controller.logout(),
                         btnText: 'Log Out',
                         btnColor: AppPalette.thirdColor,
                         textColor: AppPalette.black,
@@ -174,12 +173,21 @@ class ProfileHeaderCard extends StatelessWidget {
                                       _iconForPlatform(social.platform),
                                       width: 20.w,
                                       height: 20.w,
+                                      errorBuilder:
+                                          (context, error, stackTrace) => Icon(
+                                            Icons.link,
+                                            size: 18.sp,
+                                            color: AppPalette.thirdColor,
+                                          ),
                                     ),
 
                                     SizedBox(width: 6.w),
                                     Flexible(
                                       child: Text(
-                                        social.handle,
+                                        controller.socialHandleValue(
+                                          social.platform,
+                                          social.handle,
+                                        ),
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
                                           color: AppPalette.thirdColor,
@@ -195,7 +203,7 @@ class ProfileHeaderCard extends StatelessWidget {
                             .toList(),
                       16.h.verticalSpace,
                       CustomButton(
-                        onTap: () {},
+                        onTap: () => controller.logout(),
                         btnText: 'Log Out',
                         btnColor: AppPalette.thirdColor,
                         textColor: AppPalette.black,
@@ -210,8 +218,7 @@ class ProfileHeaderCard extends StatelessWidget {
           ],
         ),
       );
-      },
-    );
+    });
   }
 }
 

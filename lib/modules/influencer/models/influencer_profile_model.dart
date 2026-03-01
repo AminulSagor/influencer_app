@@ -209,11 +209,13 @@ class InfluencerAddress {
 class InfluencerSocialLink {
   final String platform;
   final String url;
+  final String? website;
   final String status; // 'verified', 'unverified', 'pending', 'rejected'
 
   InfluencerSocialLink({
     required this.platform,
     required this.url,
+    this.website,
     this.status = 'unverified',
   });
 
@@ -222,15 +224,29 @@ class InfluencerSocialLink {
   bool get isRejected => status == 'rejected';
 
   factory InfluencerSocialLink.fromJson(Map<String, dynamic> json) {
+    final rawStatus = (json['status'] ?? json['verificationStatus'] ?? '')
+        .toString()
+        .toLowerCase()
+        .trim();
+
     return InfluencerSocialLink(
       platform: json['platform'] as String? ?? '',
-      url: json['url'] as String? ?? '',
-      status: json['status'] as String? ?? 'unverified',
+      url:
+          (json['profileUrl'] ?? json['url'] ?? json['link'])?.toString() ?? '',
+      website: json['website']?.toString(),
+      status: rawStatus.isEmpty
+          ? ((json['isVerified'] == true) ? 'verified' : 'unverified')
+          : rawStatus,
     );
   }
 
   Map<String, dynamic> toJson() {
-    return {'platform': platform, 'url': url, 'status': status};
+    return {
+      'platform': platform,
+      'url': url,
+      if (website != null) 'website': website,
+      'status': status,
+    };
   }
 }
 

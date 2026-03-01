@@ -171,6 +171,12 @@ class SignupBrandController extends GetxController {
     profileLinkController.clear();
   }
 
+  void removeLink(int index) {
+    if (index >= 0 && index < socialLinks.length) {
+      socialLinks.removeAt(index);
+    }
+  }
+
   void onSocialContinue() {
     if (socialFormKey.currentState?.validate() != true) return;
 

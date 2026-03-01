@@ -243,13 +243,15 @@ class HomeController extends GetxController {
         'jobName',
       ]);
       final subTitle = _stringFrom(json, ['campaignType', 'type', 'subTitle']);
-      final clientName = _stringFrom(json, [
-        'clientName',
-        'brandName',
-        'influencerName',
-        'assignedTo',
-        'name',
-      ]);
+      final assignedToName = _assignedToLabel(json['assignedTo']);
+      final clientName =
+          assignedToName ??
+          _stringFrom(json, [
+            'clientName',
+            'brandName',
+            'influencerName',
+            'name',
+          ]);
 
       final budget =
           _doubleFrom(json['budget']) ??
@@ -446,6 +448,31 @@ class HomeController extends GetxController {
       if (value is String && value.trim().isNotEmpty) return value;
     }
     return null;
+  }
+
+  String? _assignedToLabel(dynamic value) {
+    if (value is! List || value.isEmpty) return null;
+
+    final names = <String>[];
+    for (final item in value) {
+      if (item is Map) {
+        final name = item['name']?.toString().trim();
+        if (name != null && name.isNotEmpty) {
+          names.add(name);
+        }
+        continue;
+      }
+
+      if (item is String) {
+        final trimmed = item.trim();
+        if (trimmed.isNotEmpty) {
+          names.add(trimmed);
+        }
+      }
+    }
+
+    if (names.isEmpty) return null;
+    return names.join(', ');
   }
 
   DateTime? _parseDate(dynamic value) {

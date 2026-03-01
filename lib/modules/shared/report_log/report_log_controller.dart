@@ -147,16 +147,27 @@ class ReportLogController extends GetxController {
         json['milestone']?.toString() ??
         '—';
     final message =
-        json['feedback']?.toString() ?? json['message']?.toString() ?? '—';
+        json['submissionDescription']?.toString() ??
+        json['issueSummary']?.toString() ??
+        json['details']?.toString() ??
+        json['feedback']?.toString() ??
+        json['message']?.toString() ??
+        '—';
     final companyName =
         json['clientName']?.toString() ??
         json['brandName']?.toString() ??
         json['companyName']?.toString() ??
-        '—';
+        campaignName;
     final date =
-        json['date']?.toString() ?? json['createdAt']?.toString() ?? '—';
+        json['submissionDate']?.toString() ??
+        json['date']?.toString() ??
+        json['createdAt']?.toString() ??
+        '—';
     final statusRaw =
-        json['logStatus']?.toString() ?? json['status']?.toString() ?? '';
+        json['status']?.toString() ??
+        json['logStatus']?.toString() ??
+        json['submissionStatus']?.toString() ??
+        '';
 
     return ReportModel(
       id: id,
@@ -172,9 +183,17 @@ class ReportLogController extends GetxController {
 
   ReportStatus _mapStatus(String raw) {
     final value = raw.toLowerCase();
-    if (value.contains('resolve')) return ReportStatus.resolved;
-    if (value.contains('pending')) return ReportStatus.pending;
-    if (value.contains('flag') || value.contains('reject')) {
+    if (value.contains('resolve') ||
+        value.contains('approve') ||
+        value.contains('complete')) {
+      return ReportStatus.resolved;
+    }
+    if (value.contains('pending') || value.contains('review')) {
+      return ReportStatus.pending;
+    }
+    if (value.contains('flag') ||
+        value.contains('reject') ||
+        value.contains('declin')) {
       return ReportStatus.flagged;
     }
     return ReportStatus.pending;

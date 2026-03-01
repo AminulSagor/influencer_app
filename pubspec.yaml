@@ -29,6 +29,7 @@ dependencies:
   shared_preferences: ^2.5.4
   jwt_decoder: ^2.0.1
   pretty_dio_logger: ^1.4.0
+  url_launcher: ^6.3.1
 
 dev_dependencies:
   flutter_test:

@@ -168,7 +168,11 @@ class _TransactionList extends StatelessWidget {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       separatorBuilder: (_, __) => 12.h.verticalSpace,
-      itemBuilder: (_, i) => TransactionCard(item: items[i]),
+      itemBuilder: (_, i) => TransactionCard(
+        item: items[i],
+        onDetailsTap: () => Get.find<AnalyticsController>()
+            .openTransactionCampaignDetails(items[i]),
+      ),
     );
   }
 }

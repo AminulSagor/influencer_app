@@ -125,6 +125,113 @@ class SignupBrandSocialView extends GetView<SignupBrandController> {
                   btnColor: AppPalette.white,
                 ),
 
+                SizedBox(height: 16.h),
+
+                Obx(() {
+                  if (controller.socialLinks.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
+
+                  return Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(12.w),
+                    decoration: BoxDecoration(
+                      color: AppPalette.thirdColor,
+                      borderRadius: BorderRadius.circular(10.r),
+                      border: Border.all(color: AppPalette.border1, width: 1),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${controller.socialLinks.length} platform${controller.socialLinks.length > 1 ? 's' : ''} added',
+                          style: TextStyle(
+                            fontSize: 12.sp,
+                            fontWeight: FontWeight.w600,
+                            color: AppPalette.primary,
+                          ),
+                        ),
+                        SizedBox(height: 8.h),
+                        ...List.generate(controller.socialLinks.length, (
+                          index,
+                        ) {
+                          final link = controller.socialLinks[index];
+                          final website = (link.website ?? '').trim();
+                          return Container(
+                            margin: EdgeInsets.only(bottom: 8.h),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 10.w,
+                              vertical: 8.h,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8.r),
+                              border: Border.all(
+                                color: AppPalette.border1,
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        link.platform,
+                                        style: TextStyle(
+                                          color: AppPalette.primary,
+                                          fontSize: 12.sp,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      SizedBox(height: 2.h),
+                                      Text(
+                                        link.profileUrl,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: AppPalette.secondary,
+                                          fontSize: 11.sp,
+                                          fontWeight: FontWeight.w400,
+                                        ),
+                                      ),
+                                      if (website.isNotEmpty) ...[
+                                        SizedBox(height: 2.h),
+                                        Text(
+                                          website,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            color: AppPalette.subtext,
+                                            fontSize: 10.sp,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  onPressed: () => controller.removeLink(index),
+                                  icon: Icon(
+                                    Icons.close,
+                                    size: 16.sp,
+                                    color: AppPalette.subtext,
+                                  ),
+                                  splashRadius: 16.r,
+                                  constraints: const BoxConstraints(),
+                                  padding: EdgeInsets.zero,
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+                  );
+                }),
+
                 SizedBox(height: 32.h),
 
                 CustomButton(

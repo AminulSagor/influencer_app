@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/models/job_item.dart';
 import '../../../core/models/transaction_model.dart';
 import '../../../core/services/analytics_service.dart';
 import '../../../core/services/api_error_handler.dart';
+import '../../../routes/app_routes.dart';
 
 class AnalyticsController extends GetxController {
   final AnalyticsService _api = Get.find<AnalyticsService>();
@@ -120,6 +122,7 @@ class AnalyticsController extends GetxController {
   TransactionModel _mapApiTransaction(Map<String, dynamic> json) {
     final campaign = _stringFrom(json, ['campaignName']) ?? '';
     final transactionId = _stringFrom(json, ['transactionId']) ?? '';
+    final campaignId = _stringFrom(json, ['campaignId', 'jobId']);
     final status = _stringFrom(json, ['status']) ?? '';
     final name = campaign.isNotEmpty ? campaign : 'Campaign';
 
@@ -134,8 +137,27 @@ class AnalyticsController extends GetxController {
       type: TransactionType.inbound,
       detailsKey: 'analytics_view_campaign_details',
       searchText: '$campaign $status $transactionId'.trim(),
-      campaignId: transactionId.isEmpty ? null : transactionId,
+      campaignId: campaignId,
     );
+  }
+
+  void openTransactionCampaignDetails(TransactionModel item) {
+    final campaignId = item.campaignId?.trim();
+    if (campaignId == null || campaignId.isEmpty) return;
+
+    final fallbackJob = JobItem(
+      id: campaignId,
+      title: item.titleParams['name']?.trim().isNotEmpty == true
+          ? item.titleParams['name']!.trim()
+          : 'Campaign',
+      clientName: 'Client',
+      dateLabel: item.subtitle,
+      budget: item.amount.toDouble(),
+      sharePercent: 0,
+      campaignType: CampaignType.paidAd,
+    );
+
+    Get.toNamed(AppRoutes.brandCampaignDetails, id: 1, arguments: fallbackJob);
   }
 
   String _formatTransactionDate(String? rawDate) {

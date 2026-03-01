@@ -18,6 +18,7 @@ import 'package:influencer_app/modules/ad_agency/services/upload_service.dart';
 import 'package:influencer_app/modules/influencer/models/influencer_profile_model.dart';
 import 'package:influencer_app/modules/influencer/services/influencer_profile_service.dart';
 import 'package:influencer_app/modules/brand/services/brand_onboarding_services.dart';
+import 'package:influencer_app/routes/app_routes.dart';
 
 import 'models/brand_asset.dart';
 import 'models/user_location.dart';
@@ -2377,6 +2378,49 @@ class ProfileController extends GetxController {
   void showEmailSuccess() => verificationFlowIndex.value = 2;
 
   void resetVerificationFlow() => verificationFlowIndex.value = 0;
+
+  Future<void> logout() async {
+    final confirmed = await Get.dialog<bool>(
+      AlertDialog(
+        title: const Text('Confirm Logout'),
+        content: const Text('Are you sure you want to log out?'),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Get.back(result: true),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+      barrierDismissible: true,
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await _authService.logout();
+      accountTypeService.setRole(null);
+
+      appUserSession.userEmail.value = '';
+      appUserSession.userPhone.value = '';
+      appUserSession.displayName.value = '';
+      appUserSession.profileImageUrl.value = '';
+      appUserSession.influencerProfile.value = null;
+      appUserSession.agencyProfileJson.value = null;
+      appUserSession.brandProfileJson.value = null;
+      appUserSession.newNotifications.clear();
+      appUserSession.earlierNotifications.clear();
+      appUserSession.isLoaded.value = false;
+      appUserSession.notificationsLoaded.value = false;
+
+      Get.offAllNamed(AppRoutes.login);
+    } catch (_) {
+      Get.snackbar('Error', 'Logout failed');
+    }
+  }
 
   String get _emailRoleSegment {
     if (accountTypeService.isInfluencer) return 'influencer';
