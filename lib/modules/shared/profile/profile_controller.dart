@@ -2434,6 +2434,7 @@ class ProfileController extends GetxController {
       if (result.isSuccess && result.data != null) {
         influencerProfile.value = result.data;
         _populateFromInfluencerProfile(result.data!);
+        await _fetchProfileData();
       } else {
         Get.snackbar('Error', result.error ?? 'Failed to save location');
         return;

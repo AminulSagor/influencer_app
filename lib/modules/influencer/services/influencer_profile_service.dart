@@ -87,12 +87,14 @@ class InfluencerProfileService {
       final res = await _api.dio.post(
         '/influencer/profile/address',
         data: {
-          'addresses': {
-            'addressName': addressName,
-            'thana': thana,
-            'zilla': zilla,
-            'fullAddress': fullAddress,
-          },
+          'addresses': [
+            {
+              'addressName': addressName,
+              'thana': thana,
+              'zilla': zilla,
+              'fullAddress': fullAddress,
+            },
+          ],
         },
       );
       return InfluencerProfile.fromJson(res.data);

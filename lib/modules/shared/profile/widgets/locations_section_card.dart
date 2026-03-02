@@ -201,7 +201,7 @@ class _AddLocationForm extends StatelessWidget {
           Row(
             children: [
               Text(
-                'locations_add_new_title'
+                'locations_add_new'
                     .tr, // "Add New Address" / "নতুন ঠিকানা যোগ করুন"
                 style: TextStyle(
                   fontSize: 14.sp,

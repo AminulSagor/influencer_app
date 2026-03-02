@@ -98,8 +98,10 @@ class InfluencerProfile {
       nidNumber: json['nidNumber'] as String?,
       nidFrontImg: json['nidFrontImg'] as String?,
       nidBackImg: json['nidBackImg'] as String?,
-      nidVerification: json['nidVerification'] != null
-          ? NidVerificationStatus.fromJson(json['nidVerification'])
+      nidVerification: json['nidVerification'] is Map<String, dynamic>
+          ? NidVerificationStatus.fromJson(
+              json['nidVerification'] as Map<String, dynamic>,
+            )
           : null,
       profileImg: json['profileImg'] as String?,
       isOnboardingComplete:
