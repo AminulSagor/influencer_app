@@ -28,7 +28,7 @@ class InfluencerProfileService {
       if (lastName != null) data['lastName'] = lastName;
       if (bio != null) data['bio'] = bio;
       if (profileImage != null && profileImage.isNotEmpty) {
-        data['profileImage'] = profileImage;
+        data['profileImg'] = profileImage;
       }
       if (website != null) data['website'] = website;
 
@@ -165,7 +165,9 @@ class InfluencerProfileService {
   ) async {
     return ApiErrorHandler.call(() async {
       final data = <String, dynamic>{
-        'socialLinks': socialLinks.map((e) => e.toJson()).toList(),
+        'socialLinks': socialLinks
+            .map((e) => {'platform': e.platform, 'url': e.url})
+            .toList(),
       };
       final res = await _api.dio.patch(
         '/influencer/profile/edit/social-links',

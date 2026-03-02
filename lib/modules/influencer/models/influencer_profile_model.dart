@@ -110,7 +110,7 @@ class InfluencerProfile {
           ? InfluencerPayouts.fromJson(json['payouts'] as Map<String, dynamic>)
           : null,
       averageRating: _parseDouble(json['averageRating']),
-      totalReviews: json['totalReviews'] as int? ?? 0,
+      totalReviews: _parseInt(json['totalReviews']),
       userId: json['userId'] as String,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
@@ -151,6 +151,14 @@ class InfluencerProfile {
     if (value is String) return double.tryParse(value) ?? 0.0;
     return 0.0;
   }
+
+  static int _parseInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
 }
 
 /// Address model for influencer
@@ -158,6 +166,7 @@ class InfluencerAddress {
   final String? addressName;
   final String? thana;
   final String? zilla;
+  final String? country;
   final String? fullAddress;
   final bool isDefault;
 
@@ -165,6 +174,7 @@ class InfluencerAddress {
     this.addressName,
     this.thana,
     this.zilla,
+    this.country,
     this.fullAddress,
     this.isDefault = false,
   });
@@ -181,6 +191,9 @@ class InfluencerAddress {
     if (zilla != null && zilla!.isNotEmpty) {
       parts.add(zilla!);
     }
+    if (country != null && country!.isNotEmpty) {
+      parts.add(country!);
+    }
     return parts.join(', ');
   }
 
@@ -189,6 +202,7 @@ class InfluencerAddress {
       addressName: json['addressName'] as String?,
       thana: json['thana'] as String?,
       zilla: json['zilla'] as String?,
+      country: json['country'] as String?,
       fullAddress: json['fullAddress'] as String?,
       isDefault: json['isDefault'] as bool? ?? false,
     );
@@ -199,6 +213,7 @@ class InfluencerAddress {
       'addressName': addressName,
       'thana': thana,
       'zilla': zilla,
+      'country': country,
       'fullAddress': fullAddress,
       'isDefault': isDefault,
     };
@@ -328,9 +343,16 @@ class NidVerificationStatus {
       return NidVerificationStatus();
     }
     if (json is Map<String, dynamic>) {
+      final rawStatus = (json['status'] ?? json['nidStatus'])
+          ?.toString()
+          .toLowerCase()
+          .trim();
+      final normalizedStatus = rawStatus == 'active' ? 'approved' : rawStatus;
+
       return NidVerificationStatus(
-        status: json['status'] as String?,
-        rejectionReason: json['rejectionReason'] as String?,
+        status: normalizedStatus,
+        rejectionReason: (json['rejectionReason'] ?? json['nidRejectReason'])
+            ?.toString(),
         verifiedAt: json['verifiedAt'] != null
             ? DateTime.tryParse(json['verifiedAt'] as String)
             : null,
@@ -411,6 +433,12 @@ class BankPayout {
   bool get isRejected => status == 'rejected';
 
   factory BankPayout.fromJson(Map<String, dynamic> json) {
+    final rawStatus = (json['status'] ?? json['accStatus'])
+        ?.toString()
+        .toLowerCase()
+        .trim();
+    final normalizedStatus = rawStatus == 'active' ? 'approved' : rawStatus;
+
     return BankPayout(
       id: json['id'] as String?,
       bankName: json['bankName'] as String? ?? '',
@@ -418,7 +446,7 @@ class BankPayout {
       bankAccNo: json['bankAccNo'] as String? ?? '',
       bankBranchName: json['bankBranchName'] as String?,
       bankRoutingNo: json['bankRoutingNo'] as String?,
-      status: json['status'] as String?,
+      status: normalizedStatus,
       isDefault: json['isDefault'] as bool? ?? false,
     );
   }
@@ -460,12 +488,18 @@ class MobilePayout {
   bool get isRejected => status == 'rejected';
 
   factory MobilePayout.fromJson(Map<String, dynamic> json) {
+    final rawStatus = (json['status'] ?? json['accStatus'])
+        ?.toString()
+        .toLowerCase()
+        .trim();
+    final normalizedStatus = rawStatus == 'active' ? 'approved' : rawStatus;
+
     return MobilePayout(
       id: json['id'] as String?,
       accountType: json['accountType'] as String? ?? '',
       accountHolderName: json['accountHolderName'] as String? ?? '',
       accountNo: json['accountNo'] as String? ?? '',
-      status: json['status'] as String?,
+      status: normalizedStatus,
       isDefault: json['isDefault'] as bool? ?? false,
     );
   }

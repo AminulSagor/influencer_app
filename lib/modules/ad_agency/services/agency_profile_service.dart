@@ -55,10 +55,7 @@ class AgencyProfileService {
     final res = await _api.dio.patch(
       '/agency/profile/address',
       data: {
-        'addressName': addressName,
-        'thana': thana,
-        'zilla': zilla,
-        'fullAddress': fullAddress,
+        'address': {'thana': thana, 'zilla': zilla, 'fullAddress': fullAddress},
       },
     );
     return _mapFromResponseData(res.data);

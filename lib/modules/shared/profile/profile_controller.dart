@@ -46,11 +46,13 @@ class ProfileField {
   final String hintText;
   final String value;
   final bool isRequired;
+  final bool isReadOnly;
 
   const ProfileField({
     required this.label,
     required this.value,
     this.isRequired = false,
+    this.isReadOnly = false,
     required this.hintText,
   });
 }
@@ -110,11 +112,13 @@ class PayoutMethod {
 class ProfileController extends GetxController {
   final accountTypeService = Get.find<AccountTypeService>();
   final appUserSession = Get.find<AppUserSessionController>();
+  final TokenService _tokenService = Get.find<TokenService>();
   // ---------------------------------------------------------------------------
   // BASIC PROFILE STATE
   // ---------------------------------------------------------------------------
 
   final profileStatus = ProfileStatus.verified.obs;
+  final RxnBool _jwtAdminVerified = RxnBool();
 
   final profileName = ''.obs;
   final profileLocation = 'Dhaka, Bangladesh'.obs;
@@ -128,6 +132,7 @@ class ProfileController extends GetxController {
   // Text values
   final bioText = ''.obs;
   final serviceFeeText = ''.obs; // "15%" when filled
+  final bioController = TextEditingController();
 
   // Profile image
   final Rx<File?> profileImageFile = Rx<File?>(null);
@@ -204,6 +209,7 @@ class ProfileController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    bioController.addListener(_syncBioFromController);
     brandWebsiteController.addListener(_syncBrandWebsiteFromController);
     _setupVerificationMediaUploadWorkers();
     _hydrateOrFetchProfileData();
@@ -211,6 +217,8 @@ class ProfileController extends GetxController {
 
   Future<void> _hydrateOrFetchProfileData() async {
     isLoadingProfile.value = true;
+
+    await _loadUserFromToken();
 
     if (appUserSession.isLoaded.value) {
       if (appUserSession.userEmail.value.trim().isNotEmpty) {
@@ -300,18 +308,34 @@ class ProfileController extends GetxController {
     profileName.value = profile.fullName.isNotEmpty
         ? profile.fullName
         : 'Influencer';
-    profileStatus.value = profile.isOnboardingComplete
-        ? ProfileStatus.verified
-        : ProfileStatus.unverified;
-    bioText.value = profile.bio ?? '';
+    _setProfileStatusFromVerification(
+      profileIsVerified: profile.isOnboardingComplete,
+    );
+    _setBioText(profile.bio ?? '');
     profileImageUrl.value = profile.displayImage ?? '';
     profileImageFile.value = null;
     profileRating.value = profile.averageRating;
     profileRatingCount.value = profile.totalReviews;
 
+    if (profile.addresses.isNotEmpty) {
+      final primary = profile.primaryAddress ?? profile.addresses.first;
+      final locationParts = <String>[
+        primary.thana?.trim() ?? '',
+        primary.zilla?.trim() ?? '',
+        primary.country?.trim() ?? '',
+      ].where((part) => part.isNotEmpty).toList(growable: false);
+      profileLocation.value = locationParts.isEmpty
+          ? 'Dhaka, Bangladesh'
+          : locationParts.join(', ');
+    } else {
+      profileLocation.value = 'Dhaka, Bangladesh';
+    }
+
     appUserSession.influencerProfile.value = profile;
     appUserSession.displayName.value = profileName.value;
     appUserSession.profileImageUrl.value = profileImageUrl.value;
+
+    _hydrateVerificationInputsFromJson(profile.toJson());
 
     // Calculate profile completion
     int completed = 0;
@@ -380,6 +404,7 @@ class ProfileController extends GetxController {
                 name: addr.addressName ?? '',
                 thana: addr.thana ?? '',
                 zilla: addr.zilla ?? '',
+                country: addr.country ?? '',
                 fullAddress: addr.fullAddress ?? '',
               ),
             )
@@ -453,6 +478,11 @@ class ProfileController extends GetxController {
     ]);
 
     // Profile fields
+    final nidStatusValue = profile.nidVerification?.status?.trim();
+    final nidStatusLabel = (nidStatusValue != null && nidStatusValue.isNotEmpty)
+        ? _capitalizeFirst(nidStatusValue)
+        : (profile.hasNidSubmitted ? 'Pending' : 'Not Submitted');
+
     profileFields.assignAll([
       ProfileField(
         label: 'First Name',
@@ -471,12 +501,67 @@ class ProfileController extends GetxController {
         hintText: 'Enter Email Address',
         value: userEmail.value, // Email is on User model / token
         isRequired: true,
+        isReadOnly: true,
       ),
       ProfileField(
         label: 'Website',
         hintText: 'Enter Website URL',
         value: profile.website ?? '',
         isRequired: false,
+      ),
+      ProfileField(
+        label: 'NID Number',
+        hintText: 'NID Number',
+        value: profile.nidNumber ?? '',
+        isReadOnly: true,
+      ),
+      ProfileField(
+        label: 'NID Status',
+        hintText: 'NID Status',
+        value: nidStatusLabel,
+        isReadOnly: true,
+      ),
+      ProfileField(
+        label: 'Onboarding Complete',
+        hintText: 'Onboarding Complete',
+        value: profile.isOnboardingComplete ? 'Yes' : 'No',
+        isReadOnly: true,
+      ),
+      ProfileField(
+        label: 'Profile Rating',
+        hintText: 'Profile Rating',
+        value: profile.averageRating.toStringAsFixed(1),
+        isReadOnly: true,
+      ),
+      ProfileField(
+        label: 'Total Reviews',
+        hintText: 'Total Reviews',
+        value: profile.totalReviews.toString(),
+        isReadOnly: true,
+      ),
+      ProfileField(
+        label: 'Profile ID',
+        hintText: 'Profile ID',
+        value: profile.id,
+        isReadOnly: true,
+      ),
+      ProfileField(
+        label: 'User ID',
+        hintText: 'User ID',
+        value: profile.userId,
+        isReadOnly: true,
+      ),
+      ProfileField(
+        label: 'Created At',
+        hintText: 'Created At',
+        value: _formatDateTime(profile.createdAt),
+        isReadOnly: true,
+      ),
+      ProfileField(
+        label: 'Updated At',
+        hintText: 'Updated At',
+        value: _formatDateTime(profile.updatedAt),
+        isReadOnly: true,
       ),
     ]);
     _syncProfileFieldDefaults();
@@ -528,8 +613,18 @@ class ProfileController extends GetxController {
       name: addr.addressName ?? '',
       thana: addr.thana ?? '',
       zilla: addr.zilla ?? '',
+      country: addr.country ?? '',
       fullAddress: addr.fullAddress ?? '',
     );
+  }
+
+  String _formatDateTime(DateTime value) {
+    final year = value.year.toString().padLeft(4, '0');
+    final month = value.month.toString().padLeft(2, '0');
+    final day = value.day.toString().padLeft(2, '0');
+    final hour = value.hour.toString().padLeft(2, '0');
+    final minute = value.minute.toString().padLeft(2, '0');
+    return '$year-$month-$day $hour:$minute';
   }
 
   bool _hasValidOnboardingAddress(UserLocation? location) {
@@ -734,7 +829,7 @@ class ProfileController extends GetxController {
   }
 
   Future<void> _loadUserFromToken() async {
-    final token = await TokenService().getAccessToken();
+    final token = await _tokenService.getAccessToken();
     if (token == null || token.trim().isEmpty) return;
 
     final payload = _decodeJwtPayload(token);
@@ -745,6 +840,34 @@ class ProfileController extends GetxController {
 
     if (email != null) userEmail.value = email;
     if (phone != null) userPhone.value = phone;
+
+    final jwtVerified = _toBool(payload['isVerified']);
+    if (jwtVerified != null) {
+      _jwtAdminVerified.value = jwtVerified;
+      profileStatus.value = jwtVerified
+          ? ProfileStatus.verified
+          : ProfileStatus.unverified;
+    }
+  }
+
+  void _setProfileStatusFromVerification({dynamic profileIsVerified}) {
+    final jwtVerified = _jwtAdminVerified.value;
+    final apiVerified = _toBool(profileIsVerified);
+    final isVerified = jwtVerified ?? apiVerified ?? false;
+    profileStatus.value = isVerified
+        ? ProfileStatus.verified
+        : ProfileStatus.unverified;
+  }
+
+  bool? _toBool(dynamic value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      if (normalized == 'true' || normalized == '1') return true;
+      if (normalized == 'false' || normalized == '0') return false;
+    }
+    return null;
   }
 
   Map<String, dynamic>? _decodeJwtPayload(String token) {
@@ -816,6 +939,18 @@ class ProfileController extends GetxController {
   void _setControllerText(TextEditingController controller, String value) {
     if (controller.text != value) {
       controller.text = value;
+    }
+  }
+
+  void _setBioText(String value) {
+    bioText.value = value;
+    _setControllerText(bioController, value);
+  }
+
+  void _syncBioFromController() {
+    final value = bioController.text;
+    if (bioText.value != value) {
+      bioText.value = value;
     }
   }
 
@@ -896,7 +1031,6 @@ class ProfileController extends GetxController {
   /// Populates controller fields from Agency profile JSON
   void _populateFromAgencyJson(Map<String, dynamic> json) {
     _applyContactFromJson(json);
-    final isComplete = json['isOnboardingComplete'] as bool? ?? false;
 
     // Basic info
     final agencyName = json['agencyName'] as String? ?? '';
@@ -905,10 +1039,8 @@ class ProfileController extends GetxController {
     profileName.value = agencyName.isNotEmpty
         ? agencyName
         : '$firstName $lastName'.trim();
-    profileStatus.value = isComplete
-        ? ProfileStatus.verified
-        : ProfileStatus.unverified;
-    bioText.value = json['agencyBio'] as String? ?? '';
+    _setProfileStatusFromVerification(profileIsVerified: json['isVerified']);
+    _setBioText(json['agencyBio'] as String? ?? '');
     serviceFeeText.value = json['serviceFee']?.toString() ?? '';
     profileImageUrl.value =
         _stringOrNull(json['profileImg']) ??
@@ -1160,7 +1292,6 @@ class ProfileController extends GetxController {
   void _populateFromBrandJson(Map<String, dynamic> json) {
     _applyContactFromJson(json);
     // Brand uses similar structure - reuse agency logic with slight modifications
-    final isComplete = json['isOnboardingComplete'] as bool? ?? false;
 
     final companyName =
         _stringOrNull(json['brandName']) ??
@@ -1172,10 +1303,8 @@ class ProfileController extends GetxController {
         ? companyName
         : '$firstName $lastName'.trim();
     brandName.value = companyName;
-    profileStatus.value = isComplete
-        ? ProfileStatus.verified
-        : ProfileStatus.unverified;
-    bioText.value = json['bio'] as String? ?? '';
+    _setProfileStatusFromVerification(profileIsVerified: json['isVerified']);
+    _setBioText(json['bio'] as String? ?? '');
     _setBrandWebsite(_stringOrNull(json['website']));
     profileImageUrl.value =
         _stringOrNull(json['profileImg']) ??
@@ -1436,6 +1565,9 @@ class ProfileController extends GetxController {
     bKashNoController.dispose();
     bKashHolderNameController.dispose();
     bKashAccountTypeController.dispose();
+
+    bioController.removeListener(_syncBioFromController);
+    bioController.dispose();
 
     brandWebsiteController.removeListener(_syncBrandWebsiteFromController);
     brandWebsiteController.dispose();
@@ -1950,7 +2082,7 @@ class ProfileController extends GetxController {
 
     profileStatus.value = ProfileStatus.unverified;
     profileCompletion.value = 0.35;
-    bioText.value = '';
+    _setBioText('');
     serviceFeeText.value = '';
     profileImageUrl.value = '';
     profileImageFile.value = null;
@@ -2565,7 +2697,25 @@ class ProfileController extends GetxController {
       if (accountTypeService.isInfluencer) {
         final service = Get.find<InfluencerProfileService>();
 
-        await service.updateBasicInfo(bio: bioText.value);
+        final firstNameValue =
+            (profileFieldValues['First Name'] ?? '').trim().isNotEmpty
+            ? (profileFieldValues['First Name'] ?? '').trim()
+            : null;
+        final lastNameValue =
+            (profileFieldValues['Last Name'] ?? '').trim().isNotEmpty
+            ? (profileFieldValues['Last Name'] ?? '').trim()
+            : null;
+        final websiteValue =
+            (profileFieldValues['Website'] ?? '').trim().isNotEmpty
+            ? (profileFieldValues['Website'] ?? '').trim()
+            : null;
+
+        await service.updateBasicInfo(
+          firstName: firstNameValue,
+          lastName: lastNameValue,
+          bio: bioText.value,
+          website: websiteValue,
+        );
 
         await service.updateNiches(niches.toList(growable: false));
 
@@ -2599,41 +2749,6 @@ class ProfileController extends GetxController {
           if (updatedLinks.isNotEmpty) {
             await service.updateSocialLinks(updatedLinks);
           }
-        }
-
-        if (payoutMethods.isNotEmpty) {
-          final bankPayload = payoutMethods
-              .where((method) => method.isBank)
-              .map(
-                (method) => <String, dynamic>{
-                  if ((method.payoutId ?? '').isNotEmpty) 'id': method.payoutId,
-                  'bankName': method.bankName ?? '',
-                  'bankAccHolderName': method.accountName ?? '',
-                  'bankAccNo': method.accountNo ?? '',
-                  'bankBranchName': method.branchName ?? '',
-                  'bankRoutingNo': method.routingNumber ?? '',
-                },
-              )
-              .toList(growable: false);
-
-          final mobilePayload = payoutMethods
-              .where((method) => !method.isBank)
-              .map(
-                (method) => <String, dynamic>{
-                  if ((method.payoutId ?? '').isNotEmpty) 'id': method.payoutId,
-                  'accountType': (method.bKashAccountType ?? '').trim().isEmpty
-                      ? 'Bkash'
-                      : method.bKashAccountType,
-                  'accountHolderName': method.bKashName ?? '',
-                  'accountNo': method.bKashNo ?? '',
-                },
-              )
-              .toList(growable: false);
-
-          await service.updatePayouts(
-            bank: bankPayload.isEmpty ? null : bankPayload,
-            mobileBanking: mobilePayload.isEmpty ? null : mobilePayload,
-          );
         }
 
         final nidNumber = nidNumberController.text.trim();

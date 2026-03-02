@@ -301,13 +301,10 @@ class _BioSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Obx(
-      () => CustomTextFormField(
-        hintText: 'Write a short bio that describes you & your content.',
-        initialValue: controller.bioText.value,
-        maxLines: 4,
-        onChanged: (value) => controller.bioText.value = value,
-      ),
+    return CustomTextFormField(
+      hintText: 'Write a short bio that describes you & your content.',
+      controller: controller.bioController,
+      maxLines: 4,
     );
   }
 }
