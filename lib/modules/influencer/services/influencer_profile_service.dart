@@ -146,15 +146,19 @@ class InfluencerProfileService {
   }
 
   /// Removes a payout method
-  /// [type] can be "bank" or "mobileBanking"
+  /// [type] can be "bank", "mobile", or "mobileBanking"
   Future<ApiResult<void>> removePayout({
     required String type,
-    required String id,
+    required String accountNo,
   }) async {
+    final normalizedType = type.toLowerCase() == 'mobilebanking'
+        ? 'mobile'
+        : type.toLowerCase();
+
     return ApiErrorHandler.call(() async {
       await _api.dio.delete(
         '/influencer/profile/payouts',
-        data: {'type': type, 'id': id},
+        data: {'type': normalizedType, 'identifier': accountNo},
       );
     });
   }

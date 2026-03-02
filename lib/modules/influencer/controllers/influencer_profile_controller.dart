@@ -243,10 +243,16 @@ class InfluencerProfileController extends GetxController {
   }
 
   /// Removes a payout method
-  Future<bool> removePayout({required String type, required String id}) async {
+  Future<bool> removePayout({
+    required String type,
+    required String accountNo,
+  }) async {
     isUpdating.value = true;
 
-    final result = await _profileService.removePayout(type: type, id: id);
+    final result = await _profileService.removePayout(
+      type: type,
+      accountNo: accountNo,
+    );
 
     if (result.isSuccess) {
       await fetchProfile();

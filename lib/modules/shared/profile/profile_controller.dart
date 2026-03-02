@@ -2028,18 +2028,21 @@ class ProfileController extends GetxController {
   Future<void> removePayoutMethod(PayoutMethod payout) async {
     if (isSavingProfile.value) return;
 
+    final payoutAccountNo = (payout.isBank ? payout.accountNo : payout.bKashNo)
+        ?.trim();
+
     if (!accountTypeService.isInfluencer) {
       if (accountTypeService.isAdAgency) {
-        final payoutId = payout.payoutId?.trim();
-        if (payoutId != null && payoutId.isNotEmpty) {
+        if (payoutAccountNo != null && payoutAccountNo.isNotEmpty) {
           final agencyService = Get.find<AgencyProfileService>();
           final result = await ApiErrorHandler.call(
             () => agencyService.removePayout(
-              type: payout.isBank ? 'bank' : 'mobileBanking',
-              id: payoutId,
+              type: payout.isBank ? 'bank' : 'mobile',
+              accountNo: payoutAccountNo,
             ),
           );
           if (!result.isSuccess) return;
+          await _fetchProfileData();
         }
       }
 
@@ -2047,9 +2050,8 @@ class ProfileController extends GetxController {
       return;
     }
 
-    final payoutId = payout.payoutId?.trim();
-    if (payoutId == null || payoutId.isEmpty) {
-      Get.snackbar('Error', 'Unable to remove payout: missing payout id');
+    if (payoutAccountNo == null || payoutAccountNo.isEmpty) {
+      Get.snackbar('Error', 'Unable to remove payout: missing account number');
       return;
     }
 
@@ -2058,11 +2060,17 @@ class ProfileController extends GetxController {
       final service = Get.find<InfluencerProfileService>();
       final result = await service.removePayout(
         type: payout.payoutType,
-        id: payoutId,
+        accountNo: payoutAccountNo,
       );
 
       if (result.isSuccess) {
-        payoutMethods.removeWhere((item) => item.payoutId == payoutId);
+        payoutMethods.removeWhere(
+          (item) =>
+              item.payoutType == payout.payoutType &&
+              ((item.isBank ? item.accountNo : item.bKashNo)?.trim() ==
+                  payoutAccountNo),
+        );
+        await _fetchProfileData();
       } else {
         Get.snackbar('Error', result.error ?? 'Failed to remove payout');
       }

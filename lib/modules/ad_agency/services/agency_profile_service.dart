@@ -144,10 +144,17 @@ class AgencyProfileService {
     );
   }
 
-  Future<void> removePayout({required String type, required String id}) async {
+  Future<void> removePayout({
+    required String type,
+    required String accountNo,
+  }) async {
+    final normalizedType = type.toLowerCase() == 'mobilebanking'
+        ? 'mobile'
+        : type.toLowerCase();
+
     await _api.dio.delete(
       '/agency/profile/payouts',
-      data: {'type': type, 'id': id},
+      data: {'type': normalizedType, 'identifier': accountNo},
     );
   }
 
