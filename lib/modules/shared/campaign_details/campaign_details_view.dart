@@ -11,6 +11,7 @@ import 'package:influencer_app/core/utils/number_formatter.dart';
 import 'package:influencer_app/core/widgets/custom_button.dart';
 
 import '../../../core/models/job_item.dart';
+import '../../../core/widgets/empty_details_message.dart';
 import 'campaign_details_controller.dart';
 
 class CampaignDetailsView extends GetView<CampaignDetailsController> {
@@ -54,6 +55,19 @@ class CampaignDetailsView extends GetView<CampaignDetailsController> {
                   status: status,
                   isExpanded: controller.milestonesExpanded.value,
                   onToggle: controller.toggleMilestones,
+                  paidCountOverride: controller.accountTypeService.isInfluencer
+                      ? controller.withdrawPaidCount.value
+                      : null,
+                  totalEarningsOverride:
+                      controller.accountTypeService.isInfluencer
+                      ? formatCurrencyByLocale(
+                          controller.withdrawApprovedAmount.value,
+                        )
+                      : null,
+                  canWithdraw:
+                      controller.accountTypeService.isInfluencer &&
+                      controller.withdrawAvailableAmount.value > 0,
+                  isWithdrawLoading: controller.isWithdrawalLoading.value,
                 );
               }),
               SizedBox(height: 12.h),
@@ -818,7 +832,7 @@ class _MilestoneCard extends GetView<CampaignDetailsController> {
 // ---------------------------------------------------------------------------
 
 class _CampaignBrief extends GetView<CampaignDetailsController> {
-  _CampaignBrief();
+  const _CampaignBrief();
 
   @override
   Widget build(BuildContext context) {
@@ -853,16 +867,18 @@ class _CampaignBrief extends GetView<CampaignDetailsController> {
             ],
           ),
           SizedBox(height: 6.h),
-          Text(
-            goals.isNotEmpty ? goals : 'campaign_goals_desc'.tr,
-            style: TextStyle(
-              fontSize: 12.sp,
-              fontWeight: FontWeight.w400,
-              color: AppPalette.subtext,
-              letterSpacing: -0.04,
-            ),
-            textAlign: TextAlign.justify,
-          ),
+          if (goals.isNotEmpty)
+            Text(
+              goals,
+              style: AppTheme.textStyle.copyWith(
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w400,
+                color: AppPalette.subtext,
+              ),
+              textAlign: TextAlign.justify,
+            )
+          else
+            EmptyDetailsMessage('no_campaign_brief_found'.tr),
 
           SizedBox(height: 14.h),
           Row(
@@ -885,11 +901,9 @@ class _CampaignBrief extends GetView<CampaignDetailsController> {
             ],
           ),
           SizedBox(height: 6.h),
-          if (requirements.isEmpty) ...[
-            _BulletText('campaign_req_1'.tr),
-            _BulletText('campaign_req_2'.tr),
-            _BulletText('campaign_req_3'.tr),
-          ] else
+          if (requirements.isEmpty)
+            EmptyDetailsMessage('no_details_found'.tr)
+          else
             ...requirements.map((item) => _BulletText(item)),
 
           SizedBox(height: 14.h),
@@ -936,20 +950,9 @@ class _CampaignBrief extends GetView<CampaignDetailsController> {
                   ],
                 ),
                 SizedBox(height: 6.h),
-                if (dos.isEmpty) ...[
-                  _BulletText(
-                    'campaign_dos_1'.tr,
-                    fontColor: AppPalette.greenText,
-                  ),
-                  _BulletText(
-                    'campaign_dos_2'.tr,
-                    fontColor: AppPalette.greenText,
-                  ),
-                  _BulletText(
-                    'campaign_dos_3'.tr,
-                    fontColor: AppPalette.greenText,
-                  ),
-                ] else
+                if (dos.isEmpty)
+                  EmptyDetailsMessage('no_details_found'.tr)
+                else
                   ...dos.map(
                     (item) =>
                         _BulletText(item, fontColor: AppPalette.greenText),
@@ -987,26 +990,15 @@ class _CampaignBrief extends GetView<CampaignDetailsController> {
                       style: TextStyle(
                         fontSize: 12.sp,
                         fontWeight: FontWeight.w500,
-                        color: AppPalette.primary,
+                        color: AppPalette.color2text,
                       ),
                     ),
                   ],
                 ),
                 SizedBox(height: 6.h),
-                if (donts.isEmpty) ...[
-                  _BulletText(
-                    'campaign_donts_1'.tr,
-                    fontColor: AppPalette.color2text,
-                  ),
-                  _BulletText(
-                    'campaign_donts_2'.tr,
-                    fontColor: AppPalette.color2text,
-                  ),
-                  _BulletText(
-                    'campaign_donts_3'.tr,
-                    fontColor: AppPalette.color2text,
-                  ),
-                ] else
+                if (donts.isEmpty)
+                  EmptyDetailsMessage('no_details_found'.tr)
+                else
                   ...donts.map(
                     (item) =>
                         _BulletText(item, fontColor: AppPalette.color2text),
@@ -1021,13 +1013,15 @@ class _CampaignBrief extends GetView<CampaignDetailsController> {
 }
 
 class _ContentAssets extends GetView<CampaignDetailsController> {
-  _ContentAssets();
+  const _ContentAssets();
 
   @override
   Widget build(BuildContext context) {
     return Obx(() {
       final items = controller.contentAssetsUi.toList(growable: false);
-      if (items.isEmpty) return _BulletText('No content assets');
+      if (items.isEmpty) {
+        return EmptyDetailsMessage('no_content_assets_found'.tr);
+      }
 
       return Column(
         children: [
@@ -1054,7 +1048,7 @@ class _ContentAssets extends GetView<CampaignDetailsController> {
 }
 
 class _TermsAndConditions extends GetView<CampaignDetailsController> {
-  _TermsAndConditions();
+  const _TermsAndConditions();
 
   @override
   Widget build(BuildContext context) {
@@ -1087,10 +1081,9 @@ class _TermsAndConditions extends GetView<CampaignDetailsController> {
             ],
           ),
           SizedBox(height: 6.h),
-          if (reporting.isEmpty) ...[
-            _BulletText('campaign_report_1'.tr),
-            _BulletText('campaign_report_2'.tr),
-          ] else
+          if (reporting.isEmpty)
+            EmptyDetailsMessage('no_terms_found'.tr)
+          else
             ...reporting.map((item) => _BulletText(item)),
 
           SizedBox(height: 14.h),
@@ -1115,10 +1108,9 @@ class _TermsAndConditions extends GetView<CampaignDetailsController> {
             ],
           ),
           SizedBox(height: 6.h),
-          if (usage.isEmpty) ...[
-            _BulletText('campaign_usage_1'.tr),
-            _BulletText('campaign_usage_2'.tr),
-          ] else
+          if (usage.isEmpty)
+            EmptyDetailsMessage('no_terms_found'.tr)
+          else
             ...usage.map((item) => _BulletText(item)),
         ],
       );
@@ -1127,13 +1119,15 @@ class _TermsAndConditions extends GetView<CampaignDetailsController> {
 }
 
 class _BrandAssets extends GetView<CampaignDetailsController> {
-  _BrandAssets();
+  const _BrandAssets();
 
   @override
   Widget build(BuildContext context) {
     return Obx(() {
       final items = controller.brandAssetsUi.toList(growable: false);
-      if (items.isEmpty) return _BulletText('No brand assets');
+      if (items.isEmpty) {
+        return EmptyDetailsMessage('no_brand_assets_found'.tr);
+      }
 
       return Column(
         children: [
@@ -1625,6 +1619,10 @@ class _PaymentMilestonesSection extends StatelessWidget {
   final CampaignStatus status;
   final bool isExpanded;
   final VoidCallback onToggle;
+  final int? paidCountOverride;
+  final String? totalEarningsOverride;
+  final bool canWithdraw;
+  final bool isWithdrawLoading;
 
   const _PaymentMilestonesSection({
     required this.job,
@@ -1632,25 +1630,26 @@ class _PaymentMilestonesSection extends StatelessWidget {
     required this.status,
     required this.isExpanded,
     required this.onToggle,
+    this.paidCountOverride,
+    this.totalEarningsOverride,
+    this.canWithdraw = false,
+    this.isWithdrawLoading = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final totalCount = milestones.length;
 
-    final paidCount = milestones
-        .where(
-          (m) =>
-              m.status == MilestoneStatus.paid ||
-              m.status == MilestoneStatus.partialPaid,
-        )
-        .length;
+    final paidCount =
+        paidCountOverride ??
+        milestones.where((m) => m.status == MilestoneStatus.approved).length;
 
     final double progress = totalCount == 0
         ? 0.0
         : paidCount / totalCount.toDouble();
 
-    final totalEarnings = job.totalEarningsLabel ?? '৳0';
+    final totalEarnings =
+        totalEarningsOverride ?? job.totalEarningsLabel ?? '৳0';
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 20.w),
@@ -1736,6 +1735,8 @@ class _PaymentMilestonesSection extends StatelessWidget {
                 status: status,
                 onWithdrawalRequest:
                     Get.find<CampaignDetailsController>().onWithdrawalRequest,
+                canWithdraw: canWithdraw,
+                isWithdrawLoading: isWithdrawLoading,
               ),
               SizedBox(height: 8.h),
               Divider(color: AppPalette.border1),
@@ -1759,19 +1760,23 @@ class _TotalEarningsCard extends StatelessWidget {
   final String totalEarnings;
   final CampaignStatus status;
   final VoidCallback onWithdrawalRequest;
+  final bool canWithdraw;
+  final bool isWithdrawLoading;
 
   const _TotalEarningsCard({
     required this.totalEarnings,
     required this.status,
     required this.jobTitle,
     required this.onWithdrawalRequest,
+    this.canWithdraw = false,
+    this.isWithdrawLoading = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final accountTypeService = Get.find<AccountTypeService>();
 
-    final disableWithdrawButton = status != CampaignStatus.complete;
+    final disableWithdrawButton = !canWithdraw || isWithdrawLoading;
 
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
@@ -1838,8 +1843,10 @@ class _TotalEarningsCard extends StatelessWidget {
                 if (accountTypeService.isInfluencer) ...[
                   4.h.verticalSpace,
                   CustomButton(
-                    onTap: onWithdrawalRequest,
-                    btnText: 'campaign_withdrawal_request'.tr,
+                    onTap: disableWithdrawButton ? null : onWithdrawalRequest,
+                    btnText: isWithdrawLoading
+                        ? 'Requesting...'
+                        : 'campaign_withdrawal_request'.tr,
                     btnColor: disableWithdrawButton
                         ? AppPalette.white
                         : AppPalette.secondary,

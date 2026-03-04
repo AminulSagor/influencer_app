@@ -178,16 +178,57 @@ class _CampaignOverviewCard extends StatelessWidget {
   final CreateCampaignController controller;
   const _CampaignOverviewCard({required this.controller});
 
-  @override
-  Widget build(BuildContext context) {
-    String safeTitle() {
-      final t = controller.campaignName.value.trim();
-      if (t.isNotEmpty) return t;
-      return controller.campaignNameCtrl.text.trim().isNotEmpty
-          ? controller.campaignNameCtrl.text.trim()
-          : 'create_campaign_step6_campaign_title_fallback'.tr;
+  List<String> _platformIconPathsFromMilestones(CreateCampaignController c) {
+    final keys = c.milestones
+        .map((m) => (m.platform ?? '').trim().toLowerCase())
+        .where((p) => p.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+
+    if (keys.isEmpty) {
+      return <String>[
+        'assets/icons/instagram.png',
+        'assets/icons/youTube.png',
+        'assets/icons/tikTok.png',
+      ];
     }
 
+    return keys
+        .map(_platformAssetPath)
+        .where((e) => e.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  String _platformAssetPath(String platformKey) {
+    final key = platformKey.trim().toLowerCase();
+
+    if (key.contains('youtube') || key == 'yt') {
+      return 'assets/icons/youTube.png';
+    }
+    if (key.contains('tik') || key.contains('tiktok')) {
+      return 'assets/icons/tikTok.png';
+    }
+    if (key.contains('facebook')) {
+      return 'assets/icons/facebook.png';
+    }
+    if (key.contains('instagram') || key.contains('insta')) {
+      return 'assets/icons/instagram.png';
+    }
+
+    // fallback
+    return 'assets/icons/instagram.png';
+  }
+
+  String safeTitle() {
+    final t = controller.campaignName.value.trim();
+    if (t.isNotEmpty) return t;
+    return controller.campaignNameCtrl.text.trim().isNotEmpty
+        ? controller.campaignNameCtrl.text.trim()
+        : 'create_campaign_step6_campaign_title_fallback'.tr;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.all(18.w),
       decoration: BoxDecoration(
@@ -256,39 +297,34 @@ class _CampaignOverviewCard extends StatelessWidget {
           SizedBox(height: 12.h),
 
           // Platforms row
-          Row(
-            children: [
-              Text(
-                'common_platforms'.tr,
-                style: TextStyle(
-                  color: AppPalette.thirdColor,
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w600,
+          Obx(() {
+            final iconPaths = _platformIconPathsFromMilestones(controller);
+
+            return Row(
+              children: [
+                Text(
+                  'common_platforms'.tr,
+                  style: TextStyle(
+                    color: AppPalette.thirdColor,
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-              12.w.horizontalSpace,
-              Image.asset(
-                'assets/icons/instagram.png',
-                width: 24.w,
-                height: 24.w,
-                fit: BoxFit.cover,
-              ),
-              SizedBox(width: 8.w),
-              Image.asset(
-                'assets/icons/youTube.png',
-                width: 24.w,
-                height: 24.w,
-                fit: BoxFit.cover,
-              ),
-              SizedBox(width: 8.w),
-              Image.asset(
-                'assets/icons/tikTok.png',
-                width: 24.w,
-                height: 24.w,
-                fit: BoxFit.cover,
-              ),
-            ],
-          ),
+                12.w.horizontalSpace,
+                ...iconPaths.map(
+                  (path) => Padding(
+                    padding: EdgeInsets.only(right: 8.w),
+                    child: Image.asset(
+                      path,
+                      width: 24.w,
+                      height: 24.w,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }),
 
           SizedBox(height: 16.h),
 
@@ -413,7 +449,7 @@ class _CampaignBriefBlock extends StatelessWidget {
     return c.milestones
         .map(
           (m) => m.subtitle?.trim().isNotEmpty == true
-              ? '${m.title} • ${m.subtitle}'
+              ? '${m.platform} • ${m.subtitle}'
               : m.title,
         )
         .toList();

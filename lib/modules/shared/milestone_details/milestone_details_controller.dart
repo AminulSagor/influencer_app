@@ -148,7 +148,6 @@ class MilestoneDetailsController extends GetxController {
   final CampaignService _campaignService = Get.find<CampaignService>();
   final UploadService _uploadService = Get.find<UploadService>();
   bool _needsParentRefresh = false;
-  bool _didProbeCampaignSubmissionDetails = false;
 
   final AccountTypeService _accountTypeService = Get.find<AccountTypeService>();
 
@@ -171,10 +170,7 @@ class MilestoneDetailsController extends GetxController {
       milestoneRx.value = milestone;
       job = map['job'] as JobItem;
     } else {
-      Get.snackbar(
-        'ERROR',
-        'MilestoneDetails requires Milestone and JobItem in Get.arguments',
-      );
+      Get.snackbar('ERROR', 'Fail to get milestone details');
     }
 
     _syncLocalStatusFromModel();
@@ -423,7 +419,7 @@ class MilestoneDetailsController extends GetxController {
 
     milestoneStatus.value = _localStatusFromMilestone(currentMilestone.status);
 
-    final submissionsRaw = (raw['submissions'] as List?) ?? [];
+    final submissionsRaw = (raw['submissions'] as List?) ?? const [];
 
     if (_accountTypeService.isBrand) {
       // ✅ Brand uses BrandSubmissionUiModel
@@ -492,31 +488,6 @@ class MilestoneDetailsController extends GetxController {
     isBrandSubmissionsLoading.value = false;
   }
 
-  Future<void> _probeCampaignSubmissionDetails(String submissionId) async {
-    if (_didProbeCampaignSubmissionDetails) return;
-
-    final result = await ApiErrorHandler.call(
-      () => _campaignService.fetchCampaignSubmissionDetails(
-        submissionId: submissionId,
-      ),
-      showError: false,
-    );
-
-    if (result.isSuccess) {
-      debugPrint(
-        '[API Probe] GET /campaign/submission/$submissionId => ${result.data}',
-      );
-      Get.snackbar('Submission details', 'Response captured in debug logs.');
-      _didProbeCampaignSubmissionDetails = true;
-      return;
-    }
-
-    Get.snackbar(
-      'Submission details',
-      result.error ?? 'Failed to capture response.',
-    );
-  }
-
   Future<Map<String, dynamic>?> _fetchMilestoneDetails(
     String milestoneId,
   ) async {
@@ -537,109 +508,6 @@ class MilestoneDetailsController extends GetxController {
     }
 
     return null;
-  }
-
-  Future<List<String>> _fetchSubmissionIdsForMilestone({
-    required String? campaignId,
-    required String milestoneId,
-    Map<String, dynamic>? fallback,
-  }) async {
-    final ids = <String>[];
-
-    if (fallback != null && fallback['submissions'] is List) {
-      for (final s in (fallback['submissions'] as List)) {
-        if (s is Map && (s['id']?.toString() ?? '').trim().isNotEmpty) {
-          ids.add(s['id'].toString());
-        }
-      }
-    }
-
-    if (ids.isNotEmpty || campaignId == null || campaignId.isEmpty) {
-      return ids;
-    }
-
-    final result = await ApiErrorHandler.call(() async {
-      final res = await _apiClient.dio.get('/campaign/milestones/$campaignId');
-      return res.data;
-    }, showError: false);
-
-    if (!result.isSuccess || result.data == null) return ids;
-    final data = result.data as Map<String, dynamic>;
-    final list = data['data'] as List? ?? const [];
-
-    for (final m in list) {
-      if (m is! Map) continue;
-      if ((m['id']?.toString() ?? '') != milestoneId) continue;
-      final subs = m['submissions'] as List? ?? const [];
-      for (final s in subs) {
-        if (s is Map && (s['id']?.toString() ?? '').trim().isNotEmpty) {
-          ids.add(s['id'].toString());
-        }
-      }
-      break;
-    }
-
-    if (ids.isNotEmpty) return ids;
-
-    final fallbackIds = await _fetchClientSubmissionIdsByMilestone(
-      milestoneId: milestoneId,
-    );
-    ids.addAll(fallbackIds);
-
-    return ids;
-  }
-
-  Future<List<String>> _fetchClientSubmissionIdsByMilestone({
-    required String milestoneId,
-  }) async {
-    final result = await ApiErrorHandler.call(() async {
-      final res = await _apiClient.dio.get('/campaign/client/submissions');
-      return res.data;
-    }, showError: false);
-
-    if (!result.isSuccess || result.data == null) return const [];
-    final data = result.data as Map<String, dynamic>;
-    final list = data['data'] as List? ?? const [];
-
-    final ids = <String>[];
-    for (final item in list) {
-      if (item is! Map) continue;
-      final id = item['id']?.toString() ?? '';
-      if (id.trim().isEmpty) continue;
-
-      // Try direct milestoneId if present
-      final mid = item['milestoneId']?.toString() ?? '';
-      if (mid == milestoneId) {
-        ids.add(id);
-        continue;
-      }
-
-      // Fallback by title match (if milestoneId missing in list response)
-      final title = item['milestoneTitle']?.toString().trim() ?? '';
-      if (title.isNotEmpty && title == milestone.title) {
-        ids.add(id);
-      }
-    }
-
-    return ids;
-  }
-
-  Future<Map<String, dynamic>?> _fetchClientSubmissionDetails(
-    String submissionId,
-  ) async {
-    final result = await ApiErrorHandler.call(() async {
-      final res = await _apiClient.dio.get(
-        '/campaign/client/submissions/$submissionId',
-      );
-      return res.data;
-    }, showError: false);
-
-    if (!result.isSuccess || result.data == null) return null;
-    final data = result.data as Map<String, dynamic>;
-    final raw = data['data'] is Map<String, dynamic>
-        ? data['data'] as Map<String, dynamic>
-        : data;
-    return raw is Map<String, dynamic> ? raw : null;
   }
 
   BrandSubmissionUiModel _mapBrandSubmission({
@@ -862,10 +730,18 @@ class MilestoneDetailsController extends GetxController {
   bool get showPaymentProgress => submissions.isNotEmpty;
 
   int _parseAmount(String raw) {
-    // removes everything except digits
-    final cleaned = raw.replaceAll(RegExp(r'[^0-9]'), '');
-    if (cleaned.isEmpty) return 0;
-    return int.tryParse(cleaned) ?? 0;
+    final s = raw.trim();
+    if (s.isEmpty) return 0;
+
+    // keep digits, decimal point and minus (if ever needed)
+    final normalized = s.replaceAll(RegExp(r'[^0-9.\-]'), '');
+
+    if (normalized.isEmpty) return 0;
+
+    final value = double.tryParse(normalized);
+    if (value == null) return 0;
+
+    return value.round(); // or .toInt() if you prefer floor
   }
 
   int get requestedAmount {
@@ -894,7 +770,7 @@ class MilestoneDetailsController extends GetxController {
       requestedAmount > 0 ? formatCurrencyByLocale(requestedAmount) : '৳0';
 
   String get progressRightLabel =>
-      formatCurrencyByLocale(double.tryParse(milestone.amountLabel) ?? 0);
+      formatCurrencyByLocale(_parseAmount(milestone.amountLabel));
 
   // ---------- actions ----------
 
@@ -1223,6 +1099,8 @@ class MilestoneDetailsController extends GetxController {
         ? data['milestone']
         : <String, dynamic>{};
 
+    dev.log('THE MILESTONE: ${formatCurrencyByLocale(m['amount'] as num)}');
+
     // ✅ top-level status (in_review / approved / declined etc)
     final String? overallStatusRaw = data['status']?.toString();
 
@@ -1234,7 +1112,7 @@ class MilestoneDetailsController extends GetxController {
         platform: m['platform']?.toString(),
         deliverable: m['contentQuantity']?.toString(),
         dayIndex: _intSmart(m['deliveryDays']),
-        amountLabel: _moneyLabelFrom(m['amount']),
+        amountLabel: formatCurrencyByLocale(m['amount'] as num),
         promotionGoal:
             (m['promotionGoal']?.toString().trim().isNotEmpty ?? false)
             ? m['promotionGoal']?.toString()
@@ -1255,12 +1133,15 @@ class MilestoneDetailsController extends GetxController {
     milestoneStatus.value = _localStatusFromMilestone(currentMilestone.status);
 
     // ✅ pick latestSubmission first, fallback to submissions[0]
-    final Map<String, dynamic>? latest =
+    final Map<String, dynamic>? latestRaw =
         (data['latestSubmission'] is Map<String, dynamic>)
         ? (data['latestSubmission'] as Map<String, dynamic>)
         : null;
 
+    final Map<String, dynamic>? latest = latestRaw;
+
     final List submissionsList = (data['submissions'] as List?) ?? const [];
+
     final Map<String, dynamic>? firstFromList =
         submissionsList.isNotEmpty &&
             submissionsList.first is Map<String, dynamic>
@@ -1340,24 +1221,6 @@ class MilestoneDetailsController extends GetxController {
     final cleaned = s.replaceAll(RegExp(r'[^0-9]'), '');
     if (cleaned.isEmpty) return null;
     return int.tryParse(cleaned);
-  }
-
-  /// Produces "৳0" / "৳1200" from "0.00" / 1200 / "1200"
-  String _moneyLabelFrom(dynamic v) {
-    if (v == null) return '—';
-    if (v is num) return '৳${v.toInt()}';
-
-    final s = v.toString().trim();
-    if (s.isEmpty) return '—';
-
-    final d = double.tryParse(s);
-    if (d != null) return '৳${d.toInt()}';
-
-    final i = _intSmart(s);
-    if (i != null) return '৳$i';
-
-    // last fallback: show raw
-    return s;
   }
 
   Submission _mapInfluencerSubmission(Map<String, dynamic> json) {
@@ -1804,15 +1667,6 @@ class MilestoneDetailsController extends GetxController {
     }
 
     await _declineBrandSubmission(target, r);
-  }
-
-  String? _submissionIdForIndex(int index) {
-    for (final s in milestone.submissions) {
-      if (s.index == index && (s.id ?? '').trim().isNotEmpty) {
-        return s.id;
-      }
-    }
-    return null;
   }
 
   Future<bool> _reviewClientSubmission({

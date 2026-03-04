@@ -314,9 +314,7 @@ class MilestoneHeaderCard extends StatelessWidget {
                 ),
                 if (!isBrand)
                   Text(
-                    formatCurrencyByLocale(
-                      double.tryParse(milestone.amountLabel) ?? 0,
-                    ),
+                    milestone.amountLabel,
                     style: TextStyle(
                       color: AppPalette.thirdColor,
                       fontSize: 24.sp,

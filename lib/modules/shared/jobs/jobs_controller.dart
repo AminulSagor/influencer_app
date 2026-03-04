@@ -1095,29 +1095,18 @@ class JobsController extends GetxController {
         : data;
 
     final base = _mapInfluencerJobToJobItem(raw);
-    final milestones = await _fetchInfluencerJobMilestones(jobId);
-    return _copyJobWithMilestones(base, milestones);
-  }
 
-  Future<List<Milestone>> _fetchInfluencerJobMilestones(String jobId) async {
-    final res = await _apiClient.dio.get(
-      '/campaign/influencer/job/$jobId/milestones',
-    );
-
-    final data = res.data as Map<String, dynamic>;
-    final raw = data['data'] is Map<String, dynamic>
-        ? data['data'] as Map<String, dynamic>
-        : data;
-    final list = (raw['milestones'] as List?) ?? const [];
-
-    return list
+    final milestonesRaw = (raw['milestones'] as List?) ?? const [];
+    final milestones = milestonesRaw
         .whereType<Map>()
-        .map((e) => e.cast<String, dynamic>())
-        .toList()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList(growable: false)
         .asMap()
         .entries
         .map((entry) => _mapInfluencerMilestone(entry.value, entry.key))
         .toList(growable: false);
+
+    return _copyJobWithMilestones(base, milestones);
   }
 
   Future<_CampaignPage> _fetchInfluencerJobs({
@@ -1134,7 +1123,7 @@ class JobsController extends GetxController {
         'limit': pageSize,
         if (status.trim().isNotEmpty) 'status': status.trim(),
         if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
-        // if (sort != null && sort.trim().isNotEmpty) 'sort': sort.trim(),
+        if (sort != null && sort.trim().isNotEmpty) 'sort': sort.trim(),
       },
     );
 
@@ -1343,10 +1332,18 @@ class JobsController extends GetxController {
     final totalAmount = _numToDouble(json['totalAmount']);
     final budget = offeredAmount > 0 ? offeredAmount : totalAmount;
 
+    final startingDate = json['startingDate']?.toString();
     final createdAt = json['createdAt']?.toString();
-    final deadline = json['deadline']?.toString();
-    final status = json['status']?.toString();
     final progress = json['progress'];
+    final duration = _intFrom(json['duration']);
+
+    DateTime? deadline;
+    final startDt = startingDate != null
+        ? DateTime.tryParse(startingDate)
+        : null;
+    if (startDt != null && duration != null && duration > 0) {
+      deadline = startDt.add(Duration(days: duration));
+    }
 
     return JobItem(
       id: campaignId,
@@ -1358,10 +1355,12 @@ class JobsController extends GetxController {
           ? clientName!
           : (brandName?.isNotEmpty == true ? brandName! : '—'),
       campaignType: _parseCampaignType(campaignTypeRaw),
-      dateLabel: _formatDateLabel(deadline ?? createdAt),
+      dateLabel: _formatDateLabel(startingDate ?? createdAt),
       budget: budget,
       sharePercent: 0,
-      dueLabel: _buildDueLabel(deadline),
+      dueLabel: deadline == null
+          ? null
+          : _buildDueLabel(deadline.toIso8601String()),
       progressPercent: _intFrom(progress),
     );
   }
@@ -1395,20 +1394,6 @@ class JobsController extends GetxController {
     if (result.isSuccess) {
       newOffers.removeWhere((e) => e.id == jobId);
       await fetchDeclinedJobs(reset: true);
-      await fetchInfluencerCounts();
-    }
-  }
-
-  Future<void> startInfluencerJob(JobItem job) async {
-    final jobId = job.id;
-    if (jobId == null || jobId.isEmpty) return;
-
-    final result = await ApiErrorHandler.call(
-      () => _apiClient.dio.post('/campaign/influencer/job/$jobId/start'),
-    );
-
-    if (result.isSuccess) {
-      await fetchActiveJobs(reset: true);
       await fetchInfluencerCounts();
     }
   }

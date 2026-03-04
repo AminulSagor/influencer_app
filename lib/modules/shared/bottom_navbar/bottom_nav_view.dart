@@ -17,7 +17,7 @@ class BottomNavView extends GetView<BottomNavController> {
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        Get.back(id: 1);
+        Get.back(id: 1, closeOverlays: true);
       },
       child: Obx(
         () => Scaffold(

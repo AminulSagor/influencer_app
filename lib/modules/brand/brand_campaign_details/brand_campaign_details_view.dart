@@ -888,8 +888,45 @@ class _MilestonesCard extends GetView<BrandCampaignDetailsController> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (!controller.isPaidAd) ...[
-                  _DropdownPill(text: controller.milestoneStatusLabel.value),
-                  10.h.verticalSpace,
+                  Text(
+                    'Overall Progress',
+                    style: TextStyle(
+                      fontSize: 10.sp,
+                      fontWeight: FontWeight.w400,
+                      color: AppPalette.black,
+                    ),
+                  ),
+                  6.h.verticalSpace,
+                  Obx(() {
+                    return Text(
+                      '${controller.operationalProgressText.value} Completed',
+                      style: TextStyle(
+                        fontSize: 18.sp,
+                        fontWeight: FontWeight.w600,
+                        color: AppPalette.complemetary,
+                      ),
+                    );
+                  }),
+                  14.h.verticalSpace,
+                  Obx(() {
+                    final selected = controller.assignedInfluencers
+                        .firstWhereOrNull(
+                          (e) =>
+                              e.assignmentId ==
+                              controller.selectedAssignmentId.value,
+                        );
+
+                    final name =
+                        selected?.name ?? controller.milestoneStatusLabel.value;
+                    final avatar = selected?.image;
+
+                    return _DropdownPill(
+                      text: name,
+                      avatarUrl: avatar,
+                      onTap: controller.openInfluencerMilestonePickerSheet,
+                    );
+                  }),
+                  12.h.verticalSpace,
                 ],
                 Row(
                   children: [
@@ -916,7 +953,9 @@ class _MilestonesCard extends GetView<BrandCampaignDetailsController> {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(999.r),
                   child: LinearProgressIndicator(
-                    value: 0,
+                    value: list.isEmpty
+                        ? 0
+                        : (completedCount / list.length).clamp(0.0, 1.0),
                     minHeight: 8.h,
                     backgroundColor: AppPalette.border1,
                     color: AppPalette.secondary,
@@ -936,33 +975,61 @@ class _MilestonesCard extends GetView<BrandCampaignDetailsController> {
 
 class _DropdownPill extends StatelessWidget {
   final String text;
-  const _DropdownPill({required this.text});
+  final String? avatarUrl;
+  final VoidCallback? onTap;
+
+  const _DropdownPill({required this.text, this.avatarUrl, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
-      decoration: BoxDecoration(
-        color: AppPalette.defaultFill,
-        borderRadius: BorderRadius.circular(kBorderRadius.r),
-        border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              text,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w400,
-                color: AppPalette.greyText,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(kBorderRadius.r),
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+        decoration: BoxDecoration(
+          color: AppPalette.white,
+          borderRadius: BorderRadius.circular(kBorderRadius.r),
+          border: Border.all(color: AppPalette.border1, width: 1),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 25.w,
+              height: 25.w,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE7E4C8),
+                shape: BoxShape.circle,
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: (avatarUrl != null && avatarUrl!.trim().isNotEmpty)
+                  ? Image.network(
+                      avatarUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+            12.w.horizontalSpace,
+            Expanded(
+              child: Text(
+                text,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w400,
+                  color: AppPalette.primary,
+                ),
               ),
             ),
-          ),
-          Icon(Icons.keyboard_arrow_down_rounded, color: AppPalette.greyText),
-        ],
+            Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: AppPalette.black,
+              size: 24.sp,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1001,7 +1068,7 @@ class _MilestoneCard extends StatelessWidget {
       case MilestoneStatus.partialPaid:
         return 'brand_campaign_details_completed'.tr;
       case MilestoneStatus.declined:
-        return 'brand_campaign_details_declined'.tr;
+        return 'brand_submission_declined'.tr;
     }
   }
 

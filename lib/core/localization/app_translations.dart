@@ -1094,6 +1094,12 @@ class AppTranslations extends Translations {
       'bad_gateway': 'Server is temporarily unavailable.',
       'service_unavailable': 'Service is currently unavailable.',
       'http_error': 'Network error occurred.',
+
+      "no_details_found": "No details found",
+      "no_campaign_brief_found": "No campaign brief details found",
+      "no_content_assets_found": "No content assets found",
+      "no_terms_found": "No terms & condition details found",
+      "no_brand_assets_found": "No brand assets found",
     },
 
     // Bangla
@@ -2200,6 +2206,12 @@ class AppTranslations extends Translations {
       'bad_gateway': 'সার্ভার সাময়িকভাবে অনুপলব্ধ।',
       'service_unavailable': 'সেবা বর্তমানে অনুপলব্ধ।',
       'http_error': 'নেটওয়ার্ক ত্রুটি হয়েছে।',
+      "no_details_found": "কোনো তথ্য পাওয়া যায়নি",
+      "no_campaign_brief_found":
+          "ক্যাম্পেইনের কোনো বিস্তারিত তথ্য পাওয়া যায়নি",
+      "no_content_assets_found": "কোনো কনটেন্ট অ্যাসেট পাওয়া যায়নি",
+      "no_terms_found": "কোনো শর্তাবলী বা তথ্য পাওয়া যায়নি",
+      "no_brand_assets_found": "কোনো ব্র্যান্ড অ্যাসেট পাওয়া যায়নি",
     },
   };
 }

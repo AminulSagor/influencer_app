@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as dev;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -55,6 +56,13 @@ class CampaignDetailsController extends GetxController {
   final usageRightLines = <String>[].obs;
   final contentAssetsUi = <JobAsset>[].obs;
   final brandAssetsUi = <BrandAsset>[].obs;
+
+  final withdrawPaidCount = 0.obs;
+  final withdrawApprovedAmount = 0.0.obs;
+  final withdrawAvailableAmount = 0.0.obs;
+  final isWithdrawalLoading = false.obs;
+
+  final influencerJobCampaignId = RxnString();
 
   @override
   void onInit() {
@@ -332,14 +340,45 @@ class CampaignDetailsController extends GetxController {
     isRequoteLoading.value = false;
   }
 
-  void onWithdrawalRequest() {
-    Get.dialog(
-      _WithdrawalSuccessDialog(
-        title: job.title,
-        amount: job.totalEarningsLabel ?? '৳0',
+  Future<void> onWithdrawalRequest() async {
+    if (!accountTypeService.isInfluencer) return;
+
+    final campaignId = influencerJobCampaignId.value?.trim();
+    if (campaignId == null || campaignId.isEmpty) {
+      Get.snackbar('common_error'.tr, 'campaign_missing_id'.tr);
+      return;
+    }
+
+    final amount = withdrawAvailableAmount.value;
+    if (amount <= 0) {
+      Get.snackbar('common_error'.tr, 'campaign_no_withdrawable_amount'.tr);
+      return;
+    }
+
+    if (isWithdrawalLoading.value) return;
+    isWithdrawalLoading.value = true;
+
+    final result = await ApiErrorHandler.call(
+      () => _campaignService.requestInfluencerWithdrawal(
+        campaignId: campaignId,
+        amount: amount,
       ),
-      barrierDismissible: true,
     );
+
+    if (result.isSuccess) {
+      // Refresh server values (paid/approved/available)
+      await _loadInfluencerWithdrawableBalance(campaignId);
+
+      Get.dialog(
+        _WithdrawalSuccessDialog(
+          title: job.title,
+          amount: formatCurrencyByLocale(amount), // ✅ requested amount shown
+        ),
+        barrierDismissible: true,
+      );
+    }
+
+    isWithdrawalLoading.value = false;
   }
 
   Future<void> _loadCampaignDetails() async {
@@ -354,6 +393,11 @@ class CampaignDetailsController extends GetxController {
     final result = await ApiErrorHandler.call(() async {
       if (accountTypeService.isInfluencer) {
         await _loadInfluencerJobDetails(id);
+        if (influencerJobCampaignId.value != null) {
+          await _loadInfluencerWithdrawableBalance(
+            influencerJobCampaignId.value!,
+          );
+        }
       } else if (accountTypeService.isAdAgency) {
         await _loadAgencyCampaignDetails(id);
       }
@@ -439,6 +483,23 @@ class CampaignDetailsController extends GetxController {
     return '$m ${date.day}, ${date.year}';
   }
 
+  Future<void> _loadInfluencerWithdrawableBalance(String campaignId) async {
+    final res = await _campaignService.fetchInfluencerWithdrawableBalance(
+      campaignId: campaignId,
+    );
+
+    final data = _extractDataMap(res);
+    final financials = data['financials'] is Map
+        ? Map<String, dynamic>.from(data['financials'] as Map)
+        : <String, dynamic>{};
+
+    withdrawPaidCount.value = _toInt(financials['totalPaid']) ?? 0;
+    withdrawApprovedAmount.value = _toDouble(financials['totalApproved']);
+    withdrawAvailableAmount.value = _toDouble(
+      financials['availableToWithdraw'],
+    );
+  }
+
   Milestone _mapInfluencerMilestone(Map<String, dynamic> json) {
     // backend uses 0-based order
     final order = _toInt(json['order']) ?? 0;
@@ -450,13 +511,15 @@ class CampaignDetailsController extends GetxController {
         ? json['contentTitle'].toString().trim()
         : 'Milestone';
 
+    dev.log('$json', name: 'MilestoneMap:');
+
     return Milestone(
       id: json['id']?.toString(),
       stepLabel: '${order + 1}', // ✅ from backend order
       title: title,
-      subtitle: json['promotionGoal']?.toString().trim().isEmpty == true
+      subtitle: json['contentQuantity']?.toString().trim().isEmpty == true
           ? null
-          : json['promotionGoal']?.toString().trim(),
+          : json['contentQuantity']?.toString().trim(),
       amountLabel: _amountLabelFrom(json['amount']),
       dayIndex: deliveryDays,
       dayLabel: dayLabel,
@@ -487,9 +550,11 @@ class CampaignDetailsController extends GetxController {
         ? Map<String, dynamic>.from(campaignRaw as Map)
         : <String, dynamic>{};
 
+    influencerJobCampaignId.value = campaign['id'];
+
     // 2) Milestones:
     // Prefer campaign.milestones (it already exists in your response)
-    final campaignMilestonesRaw = campaign['milestones'];
+    final campaignMilestonesRaw = root['milestones'];
     List<dynamic> milestoneList = (campaignMilestonesRaw is List)
         ? campaignMilestonesRaw
         : const [];
@@ -602,10 +667,11 @@ class CampaignDetailsController extends GetxController {
     _isNewOffer = _isNewOfferFromStatus(statusRaw, fallback: _isNewOffer);
 
     // 7) Assets + brief MUST come from campaign (not root)
-    _applyCampaignTextAndAssets(campaign);
-
-    // 8) Platforms from milestones (now campaign.milestones includes platform)
-    _derivePlatformsFromMilestones(mappedMilestones);
+    _applyInfluencerCampaignTextAndAssets(
+      root: root,
+      campaign: campaign,
+      mappedMilestones: mappedMilestones,
+    );
 
     jobRx.value = updated;
     milestones.assignAll(mappedMilestones);
@@ -858,6 +924,106 @@ class CampaignDetailsController extends GetxController {
     }
   }
 
+  void _applyInfluencerCampaignTextAndAssets({
+    required Map<String, dynamic> root,
+    required Map<String, dynamic> campaign,
+    required List<Milestone> mappedMilestones,
+  }) {
+    // --- Brief / text fields come from nested campaign ---
+    campaignGoalsText.value =
+        (campaign['campaignGoals'] ?? campaign['productServiceDetails'] ?? '')
+            .toString()
+            .trim();
+
+    // ✅ Influencer content requirements should come from influencer response milestones
+    // Format: "platform - contentQuantity"
+    contentRequirements.assignAll(
+      _contentRequirementLinesFromInfluencerMilestones(root['milestones']),
+    );
+
+    dosLines.assignAll(_splitLines(campaign['dos']?.toString()));
+    dontsLines.assignAll(_splitLines(campaign['donts']?.toString()));
+    reportingRequirementLines.assignAll(
+      _splitLines(campaign['reportingRequirements']?.toString()),
+    );
+    usageRightLines.assignAll(_splitLines(campaign['usageRights']?.toString()));
+
+    // --- Assets come from campaign.assets ---
+    final assets = (campaign['assets'] as List?) ?? const [];
+    final mappedContent = <JobAsset>[];
+    final mappedBrand = <BrandAsset>[];
+
+    for (final item in assets) {
+      if (item is! Map) continue;
+
+      final e = Map<String, dynamic>.from(item);
+      final category = e['category']?.toString().toLowerCase().trim();
+      final fileName = e['fileName']?.toString().trim();
+      final description = e['description']?.toString().trim();
+      final fileUrl = e['fileUrl']?.toString().trim();
+      final mime = e['mimeType']?.toString().trim();
+      final fileSize = _toInt(e['fileSize']) ?? 0;
+
+      final displayTitle = (description != null && description.isNotEmpty)
+          ? description
+          : (fileName != null && fileName.isNotEmpty)
+          ? fileName
+          : (e['assetType']?.toString().trim().isNotEmpty == true
+                ? e['assetType'].toString().trim()
+                : 'Asset');
+
+      if (category == 'brand') {
+        mappedBrand.add(
+          BrandAsset(
+            title: displayTitle,
+            value: (fileUrl != null && fileUrl.isNotEmpty) ? fileUrl : null,
+          ),
+        );
+      } else {
+        mappedContent.add(
+          JobAsset(
+            title: displayTitle,
+            meta: _assetMeta(mime: mime, fileSize: fileSize),
+            kind: _assetKindFrom(mime: mime, name: fileName),
+            pathOrUrl: (fileUrl != null && fileUrl.isNotEmpty) ? fileUrl : null,
+          ),
+        );
+      }
+    }
+
+    contentAssetsUi.assignAll(mappedContent);
+    brandAssetsUi.assignAll(mappedBrand);
+
+    // platform chips from already mapped milestones (safer than raw)
+    _derivePlatformsFromMilestones(mappedMilestones);
+  }
+
+  List<String> _contentRequirementLinesFromInfluencerMilestones(
+    dynamic rawMilestones,
+  ) {
+    final list = (rawMilestones as List?) ?? const [];
+
+    final lines = <String>[];
+
+    for (final item in list) {
+      if (item is! Map) continue;
+      final e = Map<String, dynamic>.from(item);
+
+      final platform = e['platform']?.toString().trim() ?? '';
+      final quantity = e['contentQuantity']?.toString().trim() ?? '';
+
+      if (platform.isEmpty && quantity.isEmpty) continue;
+      if (platform.isNotEmpty && quantity.isNotEmpty) {
+        lines.add('$platform - $quantity');
+      } else {
+        lines.add(platform.isNotEmpty ? platform : quantity);
+      }
+    }
+
+    // de-duplicate while preserving order
+    return lines.toSet().toList(growable: false);
+  }
+
   void _applyCampaignTextAndAssets(Map<String, dynamic> raw) {
     campaignGoalsText.value =
         (raw['campaignGoals'] ?? raw['productServiceDetails'] ?? '')
@@ -881,14 +1047,15 @@ class CampaignDetailsController extends GetxController {
       final e = Map<String, dynamic>.from(item);
       final category = e['category']?.toString().toLowerCase().trim();
       final fileName = e['fileName']?.toString().trim();
+      final description = e['description']?.toString().trim();
       final fileUrl = e['fileUrl']?.toString().trim();
       final mime = e['mimeType']?.toString().trim();
       final fileSize = _toInt(e['fileSize']) ?? 0;
 
-      final displayTitle = (fileName != null && fileName.isNotEmpty)
-          ? fileName
-          : (e['assetType']?.toString().trim().isNotEmpty == true
-                ? e['assetType'].toString().trim()
+      final displayTitle = (description != null && description.isNotEmpty)
+          ? description
+          : (e['fileName']?.toString().trim().isNotEmpty == true
+                ? e['fileName'].toString().trim()
                 : 'Asset');
 
       if (category == 'brand') {
@@ -1062,6 +1229,7 @@ class CampaignDetailsController extends GetxController {
       id: json['id']?.toString(),
       stepLabel: '${index + 1}',
       title: title,
+      subtitle: json['contentQuantity']?.toString(),
       amountLabel: _amountLabelFrom(json['amount']),
       dayIndex: dayIndex,
       dayLabel: dayLabel,

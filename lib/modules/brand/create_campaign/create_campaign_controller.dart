@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 import 'package:influencer_app/core/theme/app_palette.dart';
 import 'package:influencer_app/core/utils/constants.dart';
 import 'package:influencer_app/core/utils/currency_formatter.dart';
+import 'package:influencer_app/core/widgets/custom_button.dart';
 import 'package:influencer_app/core/widgets/custom_text_form_field.dart';
 import 'package:influencer_app/routes/app_routes.dart';
 import 'package:file_picker/file_picker.dart';

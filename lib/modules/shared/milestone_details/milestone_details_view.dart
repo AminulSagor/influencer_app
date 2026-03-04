@@ -220,13 +220,10 @@ class MilestoneDetailsView extends GetView<MilestoneDetailsController> {
                   () =>
                       controller.showPaymentProgress &&
                           accountTypeService.isAdAgency
-                      ? Padding(
-                          padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 24.h),
-                          child: _PaymentProgressSection(
-                            leftLabel: controller.progressLeftLabel,
-                            rightLabel: controller.progressRightLabel,
-                            progress: controller.paymentProgressValue,
-                          ),
+                      ? _PaymentProgressSection(
+                          leftLabel: controller.progressLeftLabel,
+                          rightLabel: controller.progressRightLabel,
+                          progress: controller.paymentProgressValue,
                         )
                       : const SizedBox.shrink(),
                 ),

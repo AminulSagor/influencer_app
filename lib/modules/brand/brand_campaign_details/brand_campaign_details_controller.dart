@@ -2,11 +2,14 @@ import 'dart:developer' as dev;
 
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:influencer_app/modules/brand/brand_campaign_details/widgets/influencer_milestone_picker_sheet.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/models/job_item.dart';
 import '../../../core/services/campaign_service.dart';
+import '../../../core/theme/app_palette.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../create_campaign/create_campaign_controller.dart';
 import '../../../core/services/api_error_handler.dart';
@@ -50,6 +53,30 @@ class PaidAdAgencyOffer {
     this.agencyFeePercent = 10,
     this.totalPayableExcludingFee = 0,
     this.dollarRate = 0,
+  });
+}
+
+class AssignedInfluencerUi {
+  final String assignmentId;
+  final String influencerId;
+  final String name;
+  final String? image;
+  final String locationText;
+  final String status;
+  final double offeredAmount;
+
+  /// Raw assignedWork list from API for this influencer
+  final List<Map<String, dynamic>> assignedWork;
+
+  const AssignedInfluencerUi({
+    required this.assignmentId,
+    required this.influencerId,
+    required this.name,
+    this.image,
+    required this.locationText,
+    required this.status,
+    required this.offeredAmount,
+    required this.assignedWork,
   });
 }
 
@@ -132,6 +159,18 @@ class BrandCampaignDetailsController extends GetxController {
   final milestones = <Milestone>[].obs;
   final milestoneStatusLabel =
       'brand_campaign_details_campaign_not_started'.tr.obs;
+
+  // ✅ overall progress text from fetchCampaignProgress.data.operationalProgress
+  final operationalProgressText = '0%'.obs;
+
+  // ✅ master milestones from campaign (top-level milestones)
+  final masterMilestones = <Milestone>[].obs;
+
+  // ✅ influencer promotion assignment list
+  final assignedInfluencers = <AssignedInfluencerUi>[].obs;
+
+  // Selected influencer (for dropdown/bottomsheet)
+  final RxnString selectedAssignmentId = RxnString();
 
   // Rating
   final rating = 0.obs;
@@ -407,17 +446,17 @@ class BrandCampaignDetailsController extends GetxController {
       isLoading.value = true;
       loadError.value = null;
 
-      final data = await _campaignService.fetchClientCampaignDetails(
+      final res = await _campaignService.fetchClientCampaignDetails(
         campaignId: campaignId,
       );
-      _loadFromApiMap(data);
 
-      final progress = await _campaignService.fetchCampaignProgress(
-        campaignId: campaignId,
-      );
-      _loadCampaignProgress(progress);
+      final payload = (res['data'] is Map)
+          ? Map<String, dynamic>.from(res['data'] as Map)
+          : Map<String, dynamic>.from(res);
 
-      await _probeClientInfluencersProgress(campaignId);
+      _loadFromApiMap(payload);
+
+      await _loadProgressByCampaignType(campaignId);
 
       await _loadNegotiationContext(campaignId);
 
@@ -435,29 +474,51 @@ class BrandCampaignDetailsController extends GetxController {
     }
   }
 
-  Future<void> _probeClientInfluencersProgress(String campaignId) async {
-    if (_didProbeInfluencersProgress) return;
+  Future<void> _loadProgressByCampaignType(String campaignId) async {
+    try {
+      if (isPaidAd) {
+        final progress = await _campaignService.fetchAgencyCampaignProgress(
+          campaignId: campaignId,
+        );
+        _loadCampaignProgress(progress);
+        return;
+      }
 
-    final result = await ApiErrorHandler.call(
-      () => _campaignService.fetchClientInfluencersProgress(
+      // influencer_promotion => progress is per selected influencer
+      final influencerId = selectedInfluencerId.value?.trim();
+
+      // If influencer not selected yet, try first assigned influencer
+      if (influencerId == null || influencerId.isEmpty) {
+        final firstInfluencerId = assignedInfluencers.isNotEmpty
+            ? assignedInfluencers.first.influencerId.trim()
+            : '';
+
+        if (firstInfluencerId.isEmpty) {
+          // no influencer yet, reset safe defaults
+          operationalProgressText.value = '0%';
+          progressStep.value = CampaignProgressStep.submitted;
+          return;
+        }
+
+        selectedInfluencerId.value = firstInfluencerId;
+        final progress = await _campaignService.fetchInfluencerCampaignProgress(
+          campaignId: campaignId,
+          influencerId: firstInfluencerId,
+        );
+        _loadCampaignProgress(progress);
+        return;
+      }
+
+      final progress = await _campaignService.fetchInfluencerCampaignProgress(
         campaignId: campaignId,
-      ),
-      showError: false,
-    );
-
-    if (result.isSuccess) {
-      debugPrint(
-        '[API Probe] GET /campaign/client/$campaignId/influencers-progress => ${result.data}',
+        influencerId: influencerId,
       );
-      Get.snackbar('Influencer progress', 'Response captured in debug logs.');
-      _didProbeInfluencersProgress = true;
-      return;
+      _loadCampaignProgress(progress);
+    } catch (e) {
+      debugPrint('[Progress API] failed: $e');
+      // keep UI usable
+      operationalProgressText.value = '0%';
     }
-
-    Get.snackbar(
-      'Influencer progress',
-      result.error ?? 'Failed to capture response.',
-    );
   }
 
   void _loadAgencyBids(List<Map<String, dynamic>> bids) {
@@ -491,6 +552,207 @@ class BrandCampaignDetailsController extends GetxController {
     if (mapped.isNotEmpty) agencyOffers.assignAll(mapped);
   }
 
+  void _mapAssignedInfluencers(Map<String, dynamic> data) {
+    final rawList = (data['assignedInfluencers'] as List?) ?? const [];
+
+    final mapped = <AssignedInfluencerUi>[];
+    final chipNames = <String>[];
+
+    for (final raw in rawList) {
+      if (raw is! Map) continue;
+      final item = Map<String, dynamic>.from(raw);
+
+      final assignmentId = (item['assignmentId'] ?? '').toString().trim();
+      final influencerId = (item['influencerId'] ?? '').toString().trim();
+      final name = (item['name'] ?? 'Influencer').toString().trim();
+      final image = item['image']?.toString().trim();
+      final location = (item['location'] ?? '').toString().trim();
+      final country = (item['country'] ?? '').toString().trim();
+
+      final locationText = [
+        if (location.isNotEmpty) location,
+        if (country.isNotEmpty && country.toLowerCase() != 'n/a') country,
+      ].join(', ');
+
+      final assignedWorkRaw = (item['assignedWork'] as List?) ?? const [];
+      final assignedWork = assignedWorkRaw
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList(growable: false);
+
+      mapped.add(
+        AssignedInfluencerUi(
+          assignmentId: assignmentId,
+          influencerId: influencerId,
+          name: name.isEmpty ? 'Influencer' : name,
+          image: (image != null && image.isNotEmpty) ? image : null,
+          locationText: locationText.isEmpty ? '—' : locationText,
+          status: (item['status'] ?? '').toString().trim(),
+          offeredAmount: _numToDouble(item['offeredAmount']),
+          assignedWork: assignedWork,
+        ),
+      );
+
+      chipNames.add(name);
+    }
+
+    assignedInfluencers.assignAll(mapped);
+
+    // keep old top card influencers chips (if you still use it)
+    influencers.assignAll(chipNames);
+
+    // auto select first influencer for influencer campaign only
+    if (!isPaidAd && mapped.isNotEmpty) {
+      final alreadySelected = selectedAssignmentId.value;
+      final stillExists = mapped.any((e) => e.assignmentId == alreadySelected);
+
+      if (!stillExists) {
+        selectAssignedInfluencer(mapped.first);
+      } else {
+        final current = mapped.firstWhere(
+          (e) => e.assignmentId == alreadySelected,
+        );
+        _applyInfluencerAssignedWorkToMilestones(current);
+      }
+    }
+  }
+
+  void selectAssignedInfluencer(AssignedInfluencerUi influencer) {
+    if (isPaidAd) return; // ✅ only influencer promotion
+
+    selectedAssignmentId.value = influencer.assignmentId;
+    selectedInfluencerId.value = influencer.influencerId;
+    _applyInfluencerAssignedWorkToMilestones(influencer);
+
+    // ✅ refresh progress for selected influencer
+    final campaignId = _extractCampaignId(arguments);
+    if (campaignId != null && campaignId.trim().isNotEmpty) {
+      _loadProgressByCampaignType(campaignId);
+    }
+  }
+
+  void _applyInfluencerAssignedWorkToMilestones(
+    AssignedInfluencerUi influencer,
+  ) {
+    final baseList = masterMilestones.toList(growable: false);
+
+    // If no master milestones from campaign, fallback to assigned work direct map
+    if (baseList.isEmpty) {
+      final fallback = influencer.assignedWork
+          .asMap()
+          .entries
+          .map((entry) {
+            final w = entry.value;
+            return Milestone(
+              id: w['id']?.toString() ?? w['id']?.toString(),
+              stepLabel: '${entry.key + 1}',
+              title: (w['contentTitle'] ?? 'Milestone').toString(),
+              subtitle: w['contentQuantity']?.toString(),
+              dayLabel: w['deliveryDays'] != null
+                  ? 'DAY ${w['deliveryDays']}'
+                  : null,
+              dayIndex: _numToInt(w['deliveryDays']),
+              amountLabel: _numToDouble(w['amount']) > 0
+                  ? _fmt(_numToDouble(w['amount']).round())
+                  : '',
+              platform: w['platform']?.toString(),
+              deliverable: w['contentQuantity']?.toString(),
+              status: _parseMilestoneStatus(w['status']?.toString()),
+              submissions: const [],
+            );
+          })
+          .toList(growable: false);
+
+      milestones.assignAll(fallback);
+      _derivePlatformsFromMilestones(fallback);
+      _recomputeMilestoneStatusLabel();
+      return;
+    }
+
+    final workByMasterId = <String, Map<String, dynamic>>{};
+    for (final w in influencer.assignedWork) {
+      final masterId = (w['id'] ?? '').toString().trim();
+      if (masterId.isNotEmpty) {
+        workByMasterId[masterId] = w;
+      }
+    }
+
+    final merged = <Milestone>[];
+    for (int i = 0; i < baseList.length; i++) {
+      final base = baseList[i];
+      final masterId = (base.id ?? '').trim();
+      final w = masterId.isNotEmpty ? workByMasterId[masterId] : null;
+
+      if (w == null) {
+        // if this influencer doesn't have this work, you can skip or keep base
+        // Keeping base is safer for visibility; if you want exact assigned list only, continue instead.
+        merged.add(base);
+        continue;
+      }
+
+      merged.add(
+        Milestone(
+          id: masterId.isNotEmpty ? masterId : (w['id']?.toString()),
+          stepLabel: base.stepLabel,
+          title: (w['contentTitle'] ?? base.title).toString(),
+          subtitle:
+              (w['contentQuantity']?.toString().trim().isNotEmpty ?? false)
+              ? w['contentQuantity'].toString().trim()
+              : base.subtitle,
+          dayLabel: w['deliveryDays'] != null
+              ? 'DAY ${w['deliveryDays']}'
+              : base.dayLabel,
+          dayIndex: _numToInt(w['deliveryDays']) == 0
+              ? base.dayIndex
+              : _numToInt(w['deliveryDays']),
+          amountLabel: _numToDouble(w['amount']) > 0
+              ? _fmt(_numToDouble(w['amount']).round())
+              : (base.amountLabel),
+          platform: (w['platform']?.toString().trim().isNotEmpty ?? false)
+              ? w['platform'].toString()
+              : base.platform,
+          deliverable: w['contentQuantity']?.toString() ?? base.deliverable,
+          targets: base.targets,
+          status: _parseMilestoneStatus(w['status']?.toString()),
+          submissions: const [],
+        ),
+      );
+    }
+
+    milestones.assignAll(merged);
+    _derivePlatformsFromMilestones(merged);
+    _recomputeMilestoneStatusLabel();
+  }
+
+  List<String> submissionIdsForSelectedInfluencerMilestone(
+    String? masterMilestoneId,
+  ) {
+    if (isPaidAd) return const [];
+    final targetMasterId = (masterMilestoneId ?? '').trim();
+    if (targetMasterId.isEmpty) return const [];
+
+    final selected = assignedInfluencers.firstWhereOrNull(
+      (e) => e.assignmentId == selectedAssignmentId.value,
+    );
+    if (selected == null) return const [];
+
+    final ids = <String>[];
+
+    for (final work in selected.assignedWork) {
+      final workMasterId = (work['id'] ?? '').toString().trim();
+      if (workMasterId != targetMasterId) continue;
+
+      final submissions = (work['submissions'] as List?) ?? const [];
+      for (final s in submissions) {
+        if (s is! Map) continue;
+        final id = (s['id'] ?? '').toString().trim();
+        if (id.isNotEmpty) ids.add(id);
+      }
+    }
+
+    return ids;
+  }
+
   void _loadFromApiMap(Map<String, dynamic> data) {
     // Type
     final ct = data['campaignType']?.toString() ?? '';
@@ -499,6 +761,8 @@ class BrandCampaignDetailsController extends GetxController {
     // Top
     final title = data['campaignName']?.toString().trim();
     if (title != null && title.isNotEmpty) campaignTitle.value = title;
+
+    campaignStatus.value = data['status'];
 
     final totalBudget = _numToDouble(data['totalBudget']);
     if (totalBudget > 0) budgetText.value = formatCurrencyByLocale(totalBudget);
@@ -547,6 +811,8 @@ class BrandCampaignDetailsController extends GetxController {
     _mapMilestones(ms);
     _derivePlatformsFromMilestones(milestones);
 
+    _mapAssignedInfluencers(data);
+
     // Content requirements fallback from milestones
     if (contentRequirements.isEmpty && milestones.isNotEmpty) {
       contentRequirements.assignAll(
@@ -562,43 +828,55 @@ class BrandCampaignDetailsController extends GetxController {
   }
 
   void _loadCampaignProgress(Map<String, dynamic> response) {
-    final data = response['data'] is Map<String, dynamic>
-        ? response['data'] as Map<String, dynamic>
-        : response;
+    final data = response['data'] is Map
+        ? Map<String, dynamic>.from(response['data'] as Map)
+        : Map<String, dynamic>.from(response);
 
-    final rawStatus = (data['campaignStatus'])?.toString().toLowerCase().trim();
-    campaignStatus.value = rawStatus ?? '';
-
-    if (isPendingAgency) {
-      budgetStatusText.value =
-          'brand_campaign_details_agency_confirmation_pending'.tr;
-
-      progressStep.value = CampaignProgressStep.quoted;
-      return;
+    // ✅ New progress APIs (agency / influencer)
+    final progressPercentage = _numToInt(data['progressPercentage']);
+    if (progressPercentage >= 0) {
+      operationalProgressText.value = '$progressPercentage%';
     }
 
-    if (rawStatus == null || rawStatus.isEmpty) return;
-
-    if (rawStatus.contains('complete') || rawStatus.contains('completed')) {
-      progressStep.value = CampaignProgressStep.completed;
-      return;
-    }
-    if (rawStatus.contains('promot') ||
-        rawStatus.contains('active') ||
-        rawStatus.contains('accept')) {
-      progressStep.value = CampaignProgressStep.promoting;
-      return;
-    }
-    if (rawStatus.contains('pending') || rawStatus.contains('active')) {
-      progressStep.value = CampaignProgressStep.paid;
-      return;
-    }
-    if (rawStatus.contains('quote') || rawStatus.contains('negotiat')) {
-      progressStep.value = CampaignProgressStep.quoted;
-      return;
+    // ✅ Backward compatibility (if old API fields still appear somewhere)
+    final op = (data['operationalProgress'] ?? '').toString().trim();
+    if (op.isNotEmpty) {
+      operationalProgressText.value = op;
     }
 
-    progressStep.value = CampaignProgressStep.submitted;
+    if (campaignStatus.value.isNotEmpty) {
+      campaignStatus.value = campaignStatus.value;
+
+      if (isPendingAgency) {
+        budgetStatusText.value =
+            'brand_campaign_details_agency_confirmation_pending'.tr;
+        progressStep.value = CampaignProgressStep.quoted;
+        return;
+      }
+
+      if (campaignStatus.value.contains('complete') ||
+          campaignStatus.value.contains('completed')) {
+        progressStep.value = CampaignProgressStep.completed;
+        return;
+      }
+      if (campaignStatus.value.contains('promot') ||
+          campaignStatus.value.contains('active') ||
+          campaignStatus.value.contains('accept')) {
+        progressStep.value = CampaignProgressStep.promoting;
+        return;
+      }
+      if (campaignStatus.value.contains('pending')) {
+        progressStep.value = CampaignProgressStep.paid;
+        return;
+      }
+      if (campaignStatus.value.contains('quote') ||
+          campaignStatus.value.contains('negotiat')) {
+        progressStep.value = CampaignProgressStep.quoted;
+        return;
+      }
+
+      progressStep.value = CampaignProgressStep.submitted;
+    }
   }
 
   void _applyDeadline({String? startingDate, int? duration}) {
@@ -705,7 +983,10 @@ class BrandCampaignDetailsController extends GetxController {
       );
     }
 
-    if (mapped.isNotEmpty) milestones.assignAll(mapped);
+    if (mapped.isNotEmpty) {
+      masterMilestones.assignAll(mapped);
+      milestones.assignAll(mapped);
+    }
   }
 
   MilestoneStatus _parseMilestoneStatus(String? raw) {
@@ -1284,7 +1565,7 @@ class BrandCampaignDetailsController extends GetxController {
 
     FundCampaignDialog.show(
       campaignTitle: campaignTitle.value,
-      totalDue: (totalDue <= 0 ? 18000 : totalDue),
+      totalDue: totalDue,
       paidAmount: paidAmount.value,
       trOr: trOr,
       fmt: _fmt,
@@ -1299,7 +1580,8 @@ class BrandCampaignDetailsController extends GetxController {
           return;
         }
 
-        final isDuePayment = showDueButton.value && dueAmount.value > 0;
+        final isDuePayment =
+            showDueButton.value && dueAmount.value > 0 && paidAmount.value > 0;
 
         try {
           isLoading.value = true;
@@ -1365,5 +1647,25 @@ class BrandCampaignDetailsController extends GetxController {
         negotiationId: negotiationId,
       );
     }
+  }
+
+  void openInfluencerMilestonePickerSheet() {
+    if (isPaidAd) return;
+
+    final list = assignedInfluencers.toList(growable: false);
+    if (list.isEmpty) return;
+
+    Get.bottomSheet(
+      InfluencerMilestonePickerSheet(
+        influencers: list,
+        selectedAssignmentId: selectedAssignmentId.value,
+        onSelect: (item) {
+          selectAssignedInfluencer(item);
+          Get.back();
+        },
+      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+    );
   }
 }

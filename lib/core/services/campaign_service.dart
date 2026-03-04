@@ -510,11 +510,23 @@ class CampaignService {
     return _expectMap(res.data, 'submission report');
   }
 
-  Future<Map<String, dynamic>> fetchCampaignProgress({
+  Future<Map<String, dynamic>> fetchAgencyCampaignProgress({
     required String campaignId,
   }) async {
-    final res = await _api.dio.post('/campaign/progress/$campaignId');
-    return _expectMap(res.data, 'campaign progress');
+    final res = await _api.dio.get(
+      '/campaign/progress/campaign/$campaignId/agency',
+    );
+    return _expectMap(res.data, 'agency campaign progress');
+  }
+
+  Future<Map<String, dynamic>> fetchInfluencerCampaignProgress({
+    required String campaignId,
+    required String influencerId,
+  }) async {
+    final res = await _api.dio.get(
+      '/campaign/progress/campaign/$campaignId/influencer/$influencerId',
+    );
+    return _expectMap(res.data, 'influencer campaign progress');
   }
 
   Future<List<Map<String, dynamic>>> searchInfluencers({
@@ -650,5 +662,25 @@ class CampaignService {
     }
 
     return const [];
+  }
+
+  Future<Map<String, dynamic>> fetchInfluencerWithdrawableBalance({
+    required String campaignId,
+  }) async {
+    final res = await _api.dio.get(
+      '/campaign/influencer/campaign/$campaignId/withdrawable-balance',
+    );
+    return _expectMap(res.data, 'fetch influencer withdrawable balance');
+  }
+
+  Future<Map<String, dynamic>> requestInfluencerWithdrawal({
+    required String campaignId,
+    required double amount,
+  }) async {
+    final res = await _api.dio.post(
+      '/campaign/influencer/withdrawal/request',
+      data: {'campaignId': campaignId, 'amount': amount},
+    );
+    return _expectMap(res.data, 'request influencer withdrawal');
   }
 }

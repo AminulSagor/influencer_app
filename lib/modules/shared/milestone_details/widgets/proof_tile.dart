@@ -7,12 +7,16 @@ import 'package:path_provider/path_provider.dart';
 import 'package:photo_view/photo_view.dart';
 
 bool _isImagePath(String s) {
-  final lower = s.toLowerCase();
-  return lower.endsWith('.jpg') ||
-      lower.endsWith('.jpeg') ||
-      lower.endsWith('.png') ||
-      lower.endsWith('.webp') ||
-      lower.endsWith('.gif');
+  final lower = s.toLowerCase().trim();
+
+  final clean = lower.split('?').first.split('#').first;
+
+  final imageExtPattern = RegExp(
+    r'\.(jpg|jpeg|png|webp|gif)(-\d+)?$',
+    caseSensitive: false,
+  );
+
+  return imageExtPattern.hasMatch(clean);
 }
 
 class ProofTile extends StatelessWidget {

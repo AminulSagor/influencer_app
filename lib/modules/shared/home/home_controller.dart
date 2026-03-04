@@ -5,6 +5,7 @@ import 'package:influencer_app/core/services/api_error_handler.dart';
 import 'package:influencer_app/modules/ad_agency/services/agency_dashboard_service.dart';
 import 'package:influencer_app/modules/brand/services/brand_dashboard_service.dart';
 import 'package:influencer_app/modules/influencer/services/influencer_dashboard_service.dart';
+import 'package:influencer_app/modules/shared/bottom_navbar/bottom_nav_controller.dart';
 import 'models/home_dashboard_model.dart';
 
 class HomeController extends GetxController {
@@ -20,6 +21,9 @@ class HomeController extends GetxController {
     super.onInit();
     final userType = _resolveUserType();
     dashboard.value = HomeDashboardModel.empty(userType: userType);
+    if (!Get.isRegistered<BottomNavController>()) {
+      Get.put(BottomNavController(), permanent: true);
+    }
     if (_accountTypeService.isBrand) {
       _loadBrandDashboard();
     } else if (_accountTypeService.isAdAgency) {

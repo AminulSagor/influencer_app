@@ -197,16 +197,10 @@ class CreateCampaignDialogs {
               Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Get.back(),
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: Size(double.infinity, 46.h),
-                        side: const BorderSide(color: Colors.black12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12.r),
-                        ),
-                      ),
-                      child: Text('skills_cancel'.tr),
+                    child: CustomButton(
+                      onTap: Get.back,
+                      btnText: 'skills_cancel'.tr,
+                      btnColor: AppPalette.defaultFill,
                     ),
                   ),
                   12.w.horizontalSpace,
@@ -214,8 +208,8 @@ class CreateCampaignDialogs {
                     child: Obx(() {
                       final canSave =
                           pickedName.value != null && pickedBytes.value != null;
-                      return ElevatedButton(
-                        onPressed: canSave
+                      return CustomButton(
+                        onTap: canSave
                             ? () {
                                 final name = pickedName.value!;
                                 final bytes = pickedBytes.value!;
@@ -245,24 +239,14 @@ class CreateCampaignDialogs {
                                 Get.back();
                               }
                             : null,
-                        style: ElevatedButton.styleFrom(
-                          minimumSize: Size(double.infinity, 46.h),
-                          backgroundColor: AppPalette.primary.withOpacity(
-                            canSave ? .75 : .35,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12.r),
-                          ),
-                          elevation: 0,
-                        ),
-                        child: Text(
-                          'common_done'.tr,
-                          style: TextStyle(
-                            color: canSave
-                                ? AppPalette.white
-                                : AppPalette.defaultFill,
-                          ),
-                        ),
+                        isDisabled: !canSave,
+                        btnText: 'common_done'.tr,
+                        btnColor: canSave
+                            ? AppPalette.secondary
+                            : AppPalette.defaultFill,
+                        textColor: canSave
+                            ? AppPalette.white
+                            : AppPalette.black,
                       );
                     }),
                   ),
