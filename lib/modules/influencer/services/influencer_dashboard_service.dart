@@ -30,6 +30,13 @@ class InfluencerDashboardService {
     return const {};
   }
 
+  Future<Map<String, dynamic>> fetchLifetimeSummary() async {
+    final res = await _api.dio.get('/influencer/dashboard/lifetime-summary');
+    final data = res.data;
+    if (data is Map<String, dynamic>) return data;
+    return const {};
+  }
+
   Future<PagedResult<Map<String, dynamic>>> fetchActionRequired({
     int page = 1,
     int limit = 5,
@@ -57,7 +64,7 @@ class InfluencerDashboardService {
     int limit = 5,
   }) async {
     final res = await _api.dio.get(
-      '/influencer/dashboard/wip',
+      '/influencer/dashboard/work-in-progress',
       queryParameters: {'page': page, 'limit': limit},
     );
     return _parsePaged(res.data);

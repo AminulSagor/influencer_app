@@ -1,5 +1,6 @@
 // lib/modules/ad_agency/support/support_controller.dart
 import 'package:get/get.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SupportController extends GetxController {
   // later you can load these from API/settings if needed
@@ -17,14 +18,40 @@ class SupportController extends GetxController {
     Get.back(id: 1);
   }
 
-  void callNumber(String phone) {
-    // TODO: integrate url_launcher or native dialer
-    // e.g. launchUrl(Uri.parse('tel:$phone'));
+  Future<void> callNumber(String phone) async {
+    final cleaned = phone.trim();
+    if (cleaned.isEmpty) return;
+
+    final uri = Uri(scheme: 'tel', path: cleaned);
+    try {
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched) {
+        Get.snackbar('Support', 'Unable to open dialer right now.');
+      }
+    } catch (_) {
+      Get.snackbar('Support', 'Dialer is unavailable right now.');
+    }
   }
 
-  void emailTo(String email) {
-    // TODO: integrate mailto handler
-    // e.g. launchUrl(Uri.parse('mailto:$email'));
+  Future<void> emailTo(String email) async {
+    final cleaned = email.trim();
+    if (cleaned.isEmpty) return;
+
+    final uri = Uri(scheme: 'mailto', path: cleaned);
+    try {
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched) {
+        Get.snackbar('Support', 'Unable to open email app right now.');
+      }
+    } catch (_) {
+      Get.snackbar('Support', 'Email app is unavailable right now.');
+    }
   }
 }
 

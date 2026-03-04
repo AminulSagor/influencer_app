@@ -1,6 +1,5 @@
 import 'package:get/get.dart';
 
-import '../../../core/services/api_client.dart';
 import '../models/influencer_profile_model.dart';
 import '../services/influencer_profile_service.dart';
 
@@ -18,7 +17,7 @@ class InfluencerProfileController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _profileService = InfluencerProfileService(Get.find<ApiClient>());
+    _profileService = Get.find<InfluencerProfileService>();
   }
 
   @override
@@ -244,10 +243,16 @@ class InfluencerProfileController extends GetxController {
   }
 
   /// Removes a payout method
-  Future<bool> removePayout({required String type, required String id}) async {
+  Future<bool> removePayout({
+    required String type,
+    required String accountNo,
+  }) async {
     isUpdating.value = true;
 
-    final result = await _profileService.removePayout(type: type, id: id);
+    final result = await _profileService.removePayout(
+      type: type,
+      accountNo: accountNo,
+    );
 
     if (result.isSuccess) {
       await fetchProfile();

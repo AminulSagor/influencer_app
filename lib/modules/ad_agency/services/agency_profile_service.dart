@@ -5,41 +5,82 @@ class AgencyProfileService {
 
   final ApiClient _api;
 
-  Future<void> updateAddress({
+  Map<String, dynamic>? _mapFromResponseData(dynamic data) {
+    if (data is Map<String, dynamic>) return data;
+    if (data is Map) return Map<String, dynamic>.from(data);
+    return null;
+  }
+
+  Future<Map<String, dynamic>> fetchProfile() async {
+    final res = await _api.dio.get('/agency/profile');
+    return _mapFromResponseData(res.data) ?? <String, dynamic>{};
+  }
+
+  Future<Map<String, dynamic>?> updateBasicInfo({
+    String? agencyName,
+    String? firstName,
+    String? lastName,
+    String? agencyBio,
+    String? logo,
+  }) async {
+    final payload = <String, dynamic>{
+      if (agencyName != null) 'agencyName': agencyName,
+      if (firstName != null) 'firstName': firstName,
+      if (lastName != null) 'lastName': lastName,
+      if (agencyBio != null) 'agencyBio': agencyBio,
+      if (logo != null) 'logo': logo,
+    };
+
+    final res = await _api.dio.patch(
+      '/agency/profile/basic-info',
+      data: payload,
+    );
+    return _mapFromResponseData(res.data);
+  }
+
+  Future<Map<String, dynamic>?> updateNiches(List<String> niches) async {
+    final res = await _api.dio.patch(
+      '/agency/profile/niches',
+      data: {'niches': niches},
+    );
+    return _mapFromResponseData(res.data);
+  }
+
+  Future<Map<String, dynamic>?> updateAddress({
     required String addressName,
     required String thana,
     required String zilla,
     required String fullAddress,
   }) async {
-    await _api.dio.patch(
+    final res = await _api.dio.patch(
       '/agency/profile/address',
       data: {
-        'addressName': addressName,
-        'thana': thana,
-        'zilla': zilla,
-        'fullAddress': fullAddress,
+        'address': {'thana': thana, 'zilla': zilla, 'fullAddress': fullAddress},
       },
     );
+    return _mapFromResponseData(res.data);
   }
 
-  Future<void> updateSocials({
+  Future<Map<String, dynamic>?> updateSocials({
     String? website,
     required List<Map<String, dynamic>> socialLinks,
   }) async {
-    await _api.dio.patch(
+    final res = await _api.dio.patch(
       '/agency/profile/socials',
       data: {
         if (website != null && website.trim().isNotEmpty) 'website': website,
         'socialLinks': socialLinks,
       },
     );
+    return _mapFromResponseData(res.data);
   }
 
-  Future<void> updateServiceFee(String serviceFee) async {
-    await _api.dio.patch(
+  Future<Map<String, dynamic>?> updateServiceFee(String serviceFee) async {
+    final res = await _api.dio.patch(
       '/agency/profile/service-fee',
       data: {'serviceFee': serviceFee},
     );
+    return _mapFromResponseData(res.data);
   }
 
   Future<void> updateDollarRate(num dollarRate) async {
@@ -51,14 +92,16 @@ class AgencyProfileService {
 
   Future<Map<String, dynamic>> getServiceFee() async {
     final res = await _api.dio.get('/agency/profile/service-fee');
-    if (res.data is Map<String, dynamic>) return res.data as Map<String, dynamic>;
+    if (res.data is Map<String, dynamic>)
+      return res.data as Map<String, dynamic>;
     if (res.data is Map) return Map<String, dynamic>.from(res.data as Map);
     return const {};
   }
 
   Future<Map<String, dynamic>> getDollarRate() async {
     final res = await _api.dio.get('/agency/profile/dollar-rate');
-    if (res.data is Map<String, dynamic>) return res.data as Map<String, dynamic>;
+    if (res.data is Map<String, dynamic>)
+      return res.data as Map<String, dynamic>;
     if (res.data is Map) return Map<String, dynamic>.from(res.data as Map);
     return const {};
   }
@@ -101,19 +144,26 @@ class AgencyProfileService {
     );
   }
 
-  Future<void> removePayout({required String type, required String id}) async {
+  Future<void> removePayout({
+    required String type,
+    required String accountNo,
+  }) async {
+    final normalizedType = type.toLowerCase() == 'mobilebanking'
+        ? 'mobile'
+        : type.toLowerCase();
+
     await _api.dio.delete(
       '/agency/profile/payouts',
-      data: {'type': type, 'id': id},
+      data: {'type': normalizedType, 'identifier': accountNo},
     );
   }
 
-  Future<void> updateNid({
+  Future<Map<String, dynamic>?> updateNid({
     required String nidNumber,
     required String nidFrontImg,
     required String nidBackImg,
   }) async {
-    await _api.dio.patch(
+    final res = await _api.dio.patch(
       '/agency/profile/verification/nid',
       data: {
         'nidNumber': nidNumber,
@@ -121,35 +171,39 @@ class AgencyProfileService {
         'nidBackImg': nidBackImg,
       },
     );
+    return _mapFromResponseData(res.data);
   }
 
-  Future<void> updateTradeLicense({
+  Future<Map<String, dynamic>?> updateTradeLicense({
     required String tradeLicenseNumber,
     required String tradeLicenseImg,
   }) async {
-    await _api.dio.patch(
+    final res = await _api.dio.patch(
       '/agency/profile/verification/trade-license',
       data: {
         'tradeLicenseNumber': tradeLicenseNumber,
         'tradeLicenseImg': tradeLicenseImg,
       },
     );
+    return _mapFromResponseData(res.data);
   }
 
-  Future<void> updateTin({
+  Future<Map<String, dynamic>?> updateTin({
     required String tinNumber,
     required String tinImage,
   }) async {
-    await _api.dio.patch(
+    final res = await _api.dio.patch(
       '/agency/profile/verification/tin',
       data: {'tinNumber': tinNumber, 'tinImage': tinImage},
     );
+    return _mapFromResponseData(res.data);
   }
 
-  Future<void> updateBin({required String binNumber}) async {
-    await _api.dio.patch(
+  Future<Map<String, dynamic>?> updateBin({required String binNumber}) async {
+    final res = await _api.dio.patch(
       '/agency/profile/verification/bin',
       data: {'binNumber': binNumber},
     );
+    return _mapFromResponseData(res.data);
   }
 }

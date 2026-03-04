@@ -21,7 +21,11 @@ class PayoutSettingsSection extends StatelessWidget {
         children: [
           ...controller.payoutMethods.map((payout) {
             final title = payout.isBank ? payout.accountName : payout.bKashNo;
-            final subTitle = payout.isBank ? payout.bankName : 'Bkash';
+            final subTitle = payout.isBank
+                ? ((payout.branchName ?? '').trim().isEmpty
+                      ? payout.bankName
+                      : '${payout.bankName} • ${payout.branchName}')
+                : 'Bkash';
             final account = payout.isBank
                 ? 'Account No: ${controller.maskString(payout.accountNo ?? '')}'
                 : payout.bKashName;
@@ -226,6 +230,15 @@ class _NewPaymentMethod extends GetView<ProfileController> {
               CustomTextFormField(
                 title: 'Bank Account No',
                 controller: controller.bankAccountNumberController,
+                titleTextStyle: TextStyle(
+                  fontSize: 12.sp,
+                  color: AppPalette.secondary,
+                ),
+              ),
+              10.h.verticalSpace,
+              CustomTextFormField(
+                title: 'Bank Branch Name',
+                controller: controller.bankBranchNameController,
                 titleTextStyle: TextStyle(
                   fontSize: 12.sp,
                   color: AppPalette.secondary,

@@ -301,13 +301,10 @@ class _BioSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Obx(
-      () => CustomTextFormField(
-        hintText: 'Write a short bio that describes you & your content.',
-        initialValue: controller.bioText.value,
-        maxLines: 4,
-        onChanged: (value) => controller.bioText.value = value,
-      ),
+    return CustomTextFormField(
+      hintText: 'Write a short bio that describes you & your content.',
+      controller: controller.bioController,
+      maxLines: 4,
     );
   }
 }
@@ -349,7 +346,7 @@ class _ServiceFeeSection extends StatelessWidget {
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 62.w),
           child: CustomButton(
-            onTap: () {},
+            onTap: controller.onSaveVerificationMethods,
             btnText: 'Save',
             textColor: AppPalette.white,
             width: double.infinity,
@@ -466,7 +463,7 @@ class _SocialLinksSection extends StatelessWidget {
           10.h.verticalSpace,
           CustomButton.dotted(
             borderRadius: 5.r,
-            onTap: () {},
+            onTap: controller.showAddSocialDialog,
             btnText: '+ Add Another Social Link',
             btnColor: AppPalette.white,
             textColor: AppPalette.primary,
@@ -489,8 +486,9 @@ class _NicheSection extends StatelessWidget {
       () => Wrap(
         spacing: 5.w,
         children: [
-          ...controller.niches.map(
-            (n) => Chip(
+          ...controller.niches.map((n) {
+            final isVerified = controller.isNicheVerified(n);
+            return Chip(
               label: Row(
                 mainAxisSize: .min,
                 children: [
@@ -504,9 +502,11 @@ class _NicheSection extends StatelessWidget {
                   ),
                   4.w.horizontalSpace,
                   Icon(
-                    Icons.check_circle,
+                    isVerified ? Icons.check_circle : Icons.access_time_filled,
                     size: 12.sp,
-                    color: AppPalette.primary,
+                    color: isVerified
+                        ? AppPalette.primary
+                        : AppPalette.complemetary,
                   ),
                 ],
               ),
@@ -515,14 +515,14 @@ class _NicheSection extends StatelessWidget {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20.r),
               ),
-            ),
-          ),
+            );
+          }),
           Padding(
             padding: EdgeInsets.only(top: 10.h),
             child: CustomButton.dotted(
               borderRadius: 99.r,
-              onTap: () {},
-              btnText: '+ Add Another Social Link',
+              onTap: controller.showAddNicheDialog,
+              btnText: '+ Add Another Niche',
               btnColor: AppPalette.white,
               textColor: AppPalette.primary,
               width: double.infinity,
@@ -937,53 +937,46 @@ class _EmailVerificationStepState extends State<_EmailVerificationStep> {
           ),
           SizedBox(height: 18.h),
           Center(
-            child: Obx(
-              () {
-                final isLoading =
-                    widget.controller.isResendingEmailOtp.value ||
-                    widget.controller.isRequestingEmailOtp.value;
-                return GestureDetector(
-                  onTap:
-                      isLoading ? null : widget.controller.resendEmailOtp,
-                  child: Text(
-                    isLoading
-                        ? 'Resending...'
-                        : 'Didn’t receive the code? Resend',
-                    style: TextStyle(
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w500,
-                      color: const Color(0xFF6B7280),
-                    ),
+            child: Obx(() {
+              final isLoading =
+                  widget.controller.isResendingEmailOtp.value ||
+                  widget.controller.isRequestingEmailOtp.value;
+              return GestureDetector(
+                onTap: isLoading ? null : widget.controller.resendEmailOtp,
+                child: Text(
+                  isLoading
+                      ? 'Resending...'
+                      : 'Didn’t receive the code? Resend',
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF6B7280),
                   ),
-                );
-              },
-            ),
-          ),
-          SizedBox(height: 40.h),
-          Obx(
-            () {
-              final isVerifying =
-                  widget.controller.isVerifyingEmailOtp.value;
-              return CustomButton(
-                onTap: isVerifying
-                    ? null
-                    : () {
-                        final code =
-                            _controllers.map((c) => c.text).join();
-                        widget.controller.verifyEmailOtp(code);
-                      },
-                btnText: isVerifying ? 'Verifying...' : 'Continue',
-                width: double.infinity,
-                height: 56.h,
-                isDisabled: !_isOtpComplete() || isVerifying,
-                textStyle: TextStyle(
-                  fontSize: 18.sp,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
                 ),
               );
-            },
+            }),
           ),
+          SizedBox(height: 40.h),
+          Obx(() {
+            final isVerifying = widget.controller.isVerifyingEmailOtp.value;
+            return CustomButton(
+              onTap: isVerifying
+                  ? null
+                  : () {
+                      final code = _controllers.map((c) => c.text).join();
+                      widget.controller.verifyEmailOtp(code);
+                    },
+              btnText: isVerifying ? 'Verifying...' : 'Continue',
+              width: double.infinity,
+              height: 56.h,
+              isDisabled: !_isOtpComplete() || isVerifying,
+              textStyle: TextStyle(
+                fontSize: 18.sp,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            );
+          }),
         ],
       ),
     );

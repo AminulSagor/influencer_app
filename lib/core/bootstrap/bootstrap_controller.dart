@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:influencer_app/core/controllers/app_user_session_controller.dart';
 
 import '../../../core/enums/account_type.dart';
 import '../../../core/services/account_type_service.dart';
@@ -13,12 +14,14 @@ class BootstrapController extends GetxController {
 
   late final TokenService _tokenService;
   late final AccountTypeService _accountTypeService;
+  late final AppUserSessionController _appUserSessionController;
 
   @override
   void onInit() {
     super.onInit();
     _tokenService = Get.find<TokenService>();
     _accountTypeService = Get.find<AccountTypeService>();
+    _appUserSessionController = Get.find<AppUserSessionController>();
     debugPrint('[Bootstrap] onInit');
     Future.microtask(_bootstrap);
   }
@@ -68,6 +71,8 @@ class BootstrapController extends GetxController {
 
           final isVerifiedByAdmin = payload['isVerified'] as bool? ?? false;
           debugPrint('[Bootstrap] isVerifiedByAdmin=$isVerifiedByAdmin');
+
+          await _appUserSessionController.preloadUserData();
 
           debugPrint('[Bootstrap] routing -> bottomNav');
           Get.offAllNamed(

@@ -2096,7 +2096,7 @@ class _AgencyBidsTab extends GetView<BrandCampaignDetailsController> {
                   onPrev: controller.prevPage,
                   onNext: controller.nextPage,
                   pageLabel: 'analytics_page'.tr,
-                  ofLabel: 'analytics_of'.tr,
+                  // ofLabel: 'analytics_of'.tr,
                   nextLabel: 'analytics_next'.tr,
                 ),
               ],

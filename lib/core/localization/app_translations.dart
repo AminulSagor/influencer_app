@@ -642,6 +642,7 @@ class AppTranslations extends Translations {
 
       "common_low_to_high": "Low To High",
       "common_page": "Page",
+      "common_of": "Of",
       "common_of_n": "Of @n",
       "common_next": "Next",
 
@@ -955,6 +956,7 @@ class AppTranslations extends Translations {
       'brand_assets_add_another': 'Add Another Brand Asset',
       'brand_assets_save': 'Save Update',
       'brand_assets_saved': 'Brand assets saved successfully.',
+      'profile_update_saved': 'Profile updated successfully.',
       'success_title': 'Success',
 
       'brand_platform_facebook': 'Facebook Page',
@@ -1747,6 +1749,7 @@ class AppTranslations extends Translations {
 
       "common_low_to_high": "কম থেকে বেশি",
       "common_page": "পেজ",
+      "common_of": "মোট",
       "common_of_n": "মোট @n",
       "common_next": "পরবর্তী",
 
@@ -2066,6 +2069,7 @@ class AppTranslations extends Translations {
       'brand_assets_add_another': 'আরও ব্র্যান্ড ফাইল যুক্ত করুন',
       'brand_assets_save': 'সেভ করুন',
       'brand_assets_saved': 'ব্র্যান্ড ফাইল সফলভাবে সেভ হয়েছে।',
+      'profile_update_saved': 'প্রোফাইল সফলভাবে আপডেট হয়েছে।',
       'success_title': 'সফল',
 
       'brand_platform_facebook': 'Facebook Page',

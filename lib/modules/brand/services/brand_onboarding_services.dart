@@ -13,6 +13,14 @@ class BrandOnboardingService {
   final ApiClient _api;
   BrandOnboardingService(this._api);
 
+  Future<Map<String, dynamic>> fetchProfile() async {
+    final res = await _api.dio.get('/client/profile');
+    if (res.data is Map<String, dynamic>)
+      return res.data as Map<String, dynamic>;
+    if (res.data is Map) return Map<String, dynamic>.from(res.data as Map);
+    return const {};
+  }
+
   /// PATCH /client/profile/onboarding
   /// Sends full onboarding payload.
   ///
@@ -81,6 +89,44 @@ class BrandOnboardingService {
       throw DioException(
         requestOptions: res.requestOptions,
         message: 'client/profile response is not a valid Map',
+      );
+    }
+    return (res.data as Map).cast<String, dynamic>();
+  }
+
+  Future<Map<String, dynamic>> updateProfileImage({
+    required String profileImg,
+  }) async {
+    final res = await _api.dio.patch(
+      '/client/profile',
+      data: {'profileImg': profileImg},
+    );
+
+    if (res.data is! Map) {
+      throw DioException(
+        requestOptions: res.requestOptions,
+        message: 'client/profile response is not a valid Map',
+      );
+    }
+    return (res.data as Map).cast<String, dynamic>();
+  }
+
+  Future<Map<String, dynamic>> updateSocialLinks({
+    String? website,
+    required List<Map<String, dynamic>> socialLinks,
+  }) async {
+    final res = await _api.dio.patch(
+      '/client/profile/social',
+      data: {
+        if (website != null && website.trim().isNotEmpty) 'website': website,
+        'socialLinks': socialLinks,
+      },
+    );
+
+    if (res.data is! Map) {
+      throw DioException(
+        requestOptions: res.requestOptions,
+        message: 'client/profile/social response is not a valid Map',
       );
     }
     return (res.data as Map).cast<String, dynamic>();

@@ -211,8 +211,22 @@ class SignupInfluencerController extends GetxController {
   }
 
   Future<void> onKycSkip() async {
-    // Mandatory fields must be validated before proceeding
-    await onKycSubmit();
+    if (isSubmitting.value || isUploadingNid.value) return;
+
+    isSubmitting.value = true;
+
+    final result = await ApiErrorHandler.call(
+      () => _onboardingService.submitOnboarding(onboardingData),
+    );
+
+    isSubmitting.value = false;
+
+    if (result.isSuccess) {
+      Get.toNamed(
+        AppRoutes.signupSuccess,
+        arguments: {'accountType': AccountType.influencer},
+      );
+    }
   }
 
   Future<void> onKycSubmit() async {

@@ -6,12 +6,14 @@ import 'package:influencer_app/modules/ad_agency/services/agency_dashboard_servi
 import 'package:influencer_app/modules/ad_agency/services/agency_profile_service.dart';
 import 'package:influencer_app/modules/ad_agency/services/upload_service.dart';
 import 'package:influencer_app/modules/influencer/services/influencer_onboarding_services.dart';
+import 'package:influencer_app/modules/influencer/services/influencer_profile_service.dart';
 import 'package:influencer_app/modules/influencer/services/influencer_dashboard_service.dart';
 import 'package:influencer_app/modules/brand/services/brand_onboarding_services.dart';
 import 'package:influencer_app/core/services/services.dart';
 import 'package:influencer_app/core/services/analytics_service.dart';
 import 'package:influencer_app/core/services/report_service.dart';
 import 'package:influencer_app/core/services/earnings_service.dart';
+import 'package:influencer_app/core/controllers/app_user_session_controller.dart';
 import 'package:influencer_app/modules/brand/services/brand_dashboard_service.dart';
 import 'package:influencer_app/modules/brand/explore/services/explore_service.dart';
 import 'package:influencer_app/modules/shared/notification/notifications_controller.dart';
@@ -52,6 +54,7 @@ class InitialBinding extends Bindings {
     Get.put(AgencyOnboardingService(Get.find<ApiClient>()), permanent: true);
     Get.put(AgencyDashboardService(Get.find<ApiClient>()), permanent: true);
     Get.put(AgencyProfileService(Get.find<ApiClient>()), permanent: true);
+    Get.put(InfluencerProfileService(Get.find<ApiClient>()), permanent: true);
     Get.put(InfluencerDashboardService(Get.find<ApiClient>()), permanent: true);
 
     Get.put(UploadService(Get.find<ApiClient>()), permanent: true);
@@ -65,6 +68,10 @@ class InitialBinding extends Bindings {
     Get.lazyPut<NotificationService>(
       () => NotificationService(Get.find<ApiClient>()),
       fenix: true,
+    );
+    Get.put<AppUserSessionController>(
+      AppUserSessionController(),
+      permanent: true,
     );
     Get.lazyPut<NotificationsController>(
       () => NotificationsController(service: Get.find<NotificationService>()),

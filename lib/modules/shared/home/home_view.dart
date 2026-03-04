@@ -10,6 +10,7 @@ import '../../../core/utils/constants.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/number_formatter.dart';
 import '../../../core/widgets/earnings_overview_card.dart';
+import '../jobs/jobs_controller.dart';
 import 'home_controller.dart';
 
 class HomeView extends GetView<HomeController> {
@@ -61,6 +62,7 @@ class HomeView extends GetView<HomeController> {
           child: _summaryCard(
             iconPath: 'assets/icons/suitcase.png',
             title: 'home_active_jobs'.tr,
+            onTap: () => _openJobsTab(isActiveJobs: true),
             value: Obx(() {
               final dashboard = controller.dashboard.value;
               return Text(
@@ -81,6 +83,7 @@ class HomeView extends GetView<HomeController> {
           child: _summaryCard(
             iconPath: 'assets/icons/sand_watch2.png',
             title: 'home_new_offers_for_you'.tr,
+            onTap: () => _openJobsTab(isActiveJobs: false),
             value: Obx(() {
               final dashboard = controller.dashboard.value;
               return Text(
@@ -105,78 +108,95 @@ class HomeView extends GetView<HomeController> {
     required String title,
     required Widget value,
     required String trailingText,
+    required VoidCallback onTap,
     bool isGradient = false,
   }) {
     final textColor = isGradient ? AppPalette.thirdColor : AppPalette.black;
 
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 18.w, vertical: 15.h),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        gradient: !isGradient
-            ? null
-            : LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [AppPalette.primary, AppPalette.secondary],
-              ),
-        borderRadius: BorderRadius.circular(kBorderRadius.r),
-        border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                height: 30.h,
-                width: 30.h,
-                padding: EdgeInsets.only(bottom: 5.h),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: AppPalette.defaultFill,
-                  borderRadius: BorderRadius.circular(kBorderRadiusSmall.r),
-                  border: Border.all(
-                    color: AppPalette.defaultStroke,
-                    width: kBorderWidth0_5,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 18.w, vertical: 15.h),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          gradient: !isGradient
+              ? null
+              : LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [AppPalette.primary, AppPalette.secondary],
+                ),
+          borderRadius: BorderRadius.circular(kBorderRadius.r),
+          border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  height: 30.h,
+                  width: 30.h,
+                  padding: EdgeInsets.only(bottom: 5.h),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppPalette.defaultFill,
+                    borderRadius: BorderRadius.circular(kBorderRadiusSmall.r),
+                    border: Border.all(
+                      color: AppPalette.defaultStroke,
+                      width: kBorderWidth0_5,
+                    ),
+                  ),
+                  child: Image.asset(
+                    iconPath,
+                    width: 20.w,
+                    fit: BoxFit.cover,
+                    color: AppPalette.secondary,
                   ),
                 ),
-                child: Image.asset(
-                  iconPath,
-                  width: 20.w,
-                  fit: BoxFit.cover,
-                  color: AppPalette.secondary,
+                Text(
+                  '$trailingText >',
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w300,
+                  ),
                 ),
-              ),
-              Text(
-                '$trailingText >',
+              ],
+            ),
+            SizedBox(height: 5.h),
+            value,
+            SizedBox(height: 4.h),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                title,
                 style: TextStyle(
+                  fontSize: 14.sp,
                   color: textColor,
-                  fontSize: 12.sp,
                   fontWeight: FontWeight.w300,
                 ),
               ),
-            ],
-          ),
-          SizedBox(height: 5.h),
-          value,
-          SizedBox(height: 4.h),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              title,
-              style: TextStyle(
-                fontSize: 14.sp,
-                color: textColor,
-                fontWeight: FontWeight.w300,
-              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
+  }
+
+  void _openJobsTab({required bool isActiveJobs}) {
+    final accountTypeService = Get.find<AccountTypeService>();
+    final jobsController = Get.find<JobsController>();
+
+    final targetTab = isActiveJobs
+        ? (accountTypeService.isBrand ? 0 : 1)
+        : (accountTypeService.isBrand ? 1 : 0);
+
+    jobsController.changeTab(targetTab);
+    Get.find<BottomNavController>().onTabChanged(1);
   }
 
   // ---------------- WORK IN PROGRESS ----------------
@@ -261,6 +281,9 @@ class HomeView extends GetView<HomeController> {
                 padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 5.h),
               ),
               onPressed: () {
+                final jobsController = Get.find<JobsController>();
+                final accountTypeService = Get.find<AccountTypeService>();
+                jobsController.changeTab(accountTypeService.isBrand ? 0 : 1);
                 Get.find<BottomNavController>().onTabChanged(1);
               },
               child: Text(
@@ -298,157 +321,164 @@ class HomeView extends GetView<HomeController> {
     final accoutnTypeService = Get.find<AccountTypeService>();
     final isBrand = accoutnTypeService.isBrand;
 
-    return Container(
-      padding: EdgeInsets.all(12.w),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(kBorderRadius.r),
-        border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // title + due
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      job.title,
-                      style: TextStyle(
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.w600,
-                        color: AppPalette.primary,
-                      ),
-                    ),
-                    if (isBrand)
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => controller.openJobDetails(job),
+      child: Container(
+        padding: EdgeInsets.all(12.w),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(kBorderRadius.r),
+          border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // title + due
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        job.subTitle ?? '',
+                        job.title,
                         style: TextStyle(
-                          fontSize: 10.sp,
-                          fontWeight: FontWeight.w400,
-                          color: AppPalette.subtext,
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w600,
+                          color: AppPalette.primary,
                         ),
                       ),
-                    SizedBox(height: 4.h),
-                    Text(
-                      isBrand
-                          ? formatCurrencyByLocale(job.budget)
-                          : '${formatNumberByLocale(job.sharePercent)}%',
+                      if (isBrand)
+                        Text(
+                          job.subTitle ?? '',
+                          style: TextStyle(
+                            fontSize: 10.sp,
+                            fontWeight: FontWeight.w400,
+                            color: AppPalette.subtext,
+                          ),
+                        ),
+                      SizedBox(height: 4.h),
+                      Text(
+                        isBrand
+                            ? formatCurrencyByLocale(job.budget)
+                            : '${formatNumberByLocale(job.sharePercent)}%',
+                        style: TextStyle(
+                          fontSize: 18.sp,
+                          color: AppPalette.secondary,
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (dueText.isNotEmpty)
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 14.w,
+                      vertical: 5.h,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppPalette.complemetaryFill,
+                      borderRadius: BorderRadius.circular(kBorderRadiusSmall.r),
+                      border: Border.all(
+                        color: AppPalette.complemetary,
+                        width: kBorderWeight1,
+                      ),
+                    ),
+                    child: Text(
+                      dueText,
                       style: TextStyle(
-                        fontSize: 18.sp,
-                        color: AppPalette.secondary,
+                        color: AppPalette.complemetary,
+                        fontSize: 10.sp,
                         fontWeight: FontWeight.w400,
                       ),
                     ),
-                  ],
-                ),
-              ),
-              if (dueText.isNotEmpty)
-                Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 14.w,
-                    vertical: 5.h,
                   ),
-                  decoration: BoxDecoration(
-                    color: AppPalette.complemetaryFill,
-                    borderRadius: BorderRadius.circular(kBorderRadiusSmall.r),
-                    border: Border.all(
-                      color: AppPalette.complemetary,
-                      width: kBorderWeight1,
-                    ),
-                  ),
-                  child: Text(
-                    dueText,
-                    style: TextStyle(
-                      color: AppPalette.complemetary,
-                      fontSize: 10.sp,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          SizedBox(height: 8.h),
-          Row(
-            children: [
-              Icon(Icons.person, size: 15.sp, color: AppPalette.complemetary),
-              SizedBox(width: 6.w),
-              Text(
-                job.clientName,
-                style: TextStyle(
-                  fontSize: 12.sp,
-                  color: AppPalette.complemetary,
-                  fontWeight: FontWeight.w400,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 4.h),
-          Row(
-            children: [
-              Icon(
-                Icons.access_time_filled,
-                size: 14.sp,
-                color: AppPalette.complemetary,
-              ),
-              SizedBox(width: 6.w),
-              Text(
-                job.dateLabel,
-                style: TextStyle(
-                  fontSize: 12.sp,
-                  color: AppPalette.complemetary,
-                  fontWeight: FontWeight.w400,
-                ),
-              ),
-              const Spacer(),
-              if (!isBrand)
+              ],
+            ),
+            SizedBox(height: 8.h),
+            Row(
+              children: [
+                Icon(Icons.person, size: 15.sp, color: AppPalette.complemetary),
+                SizedBox(width: 6.w),
                 Text(
-                  '${'common_budget'.tr}: ${formatCurrencyByLocale(job.budget)}',
+                  job.clientName,
                   style: TextStyle(
                     fontSize: 12.sp,
-                    color: AppPalette.secondary,
+                    color: AppPalette.complemetary,
                     fontWeight: FontWeight.w400,
                   ),
                 ),
-            ],
-          ),
-          SizedBox(height: 12.h),
-          LinearProgressIndicator(
-            value: progress / 100,
-            minHeight: 6.h,
-            backgroundColor: AppPalette.secondary.withAlpha(77),
-            color: AppPalette.secondary,
-            borderRadius: BorderRadius.circular(kBorderRadiusSmall.r),
-          ),
-          SizedBox(height: 4.h),
-          Row(
-            children: [
-              Text(
-                'home_progress_complete_line'.trParams({
-                  'percent': formatNumberByLocale(progress),
-                }),
-                style: TextStyle(
-                  fontSize: 12.sp,
+              ],
+            ),
+            SizedBox(height: 4.h),
+            Row(
+              children: [
+                Icon(
+                  Icons.access_time_filled,
+                  size: 14.sp,
                   color: AppPalette.complemetary,
-                  fontWeight: FontWeight.w400,
                 ),
-              ),
-              const Spacer(),
-              Text(
-                '${'common_view'.tr} >',
-                style: TextStyle(
-                  fontSize: 10.sp,
-                  color: AppPalette.black,
-                  fontWeight: FontWeight.w300,
+                SizedBox(width: 6.w),
+                Text(
+                  job.dateLabel,
+                  style: TextStyle(
+                    fontSize: 12.sp,
+                    color: AppPalette.complemetary,
+                    fontWeight: FontWeight.w400,
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ],
+                const Spacer(),
+                if (!isBrand)
+                  Text(
+                    '${'common_budget'.tr}: ${formatCurrencyByLocale(job.budget)}',
+                    style: TextStyle(
+                      fontSize: 12.sp,
+                      color: AppPalette.secondary,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+              ],
+            ),
+            SizedBox(height: 12.h),
+            LinearProgressIndicator(
+              value: progress / 100,
+              minHeight: 6.h,
+              backgroundColor: AppPalette.secondary.withAlpha(77),
+              color: AppPalette.secondary,
+              borderRadius: BorderRadius.circular(kBorderRadiusSmall.r),
+            ),
+            SizedBox(height: 4.h),
+            Row(
+              children: [
+                Text(
+                  'home_progress_complete_line'.trParams({
+                    'percent': formatNumberByLocale(progress),
+                  }),
+                  style: TextStyle(
+                    fontSize: 12.sp,
+                    color: AppPalette.complemetary,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+                const Spacer(),
+                GestureDetector(
+                  onTap: () => controller.openJobDetails(job),
+                  child: Text(
+                    '${'common_view'.tr} >',
+                    style: TextStyle(
+                      fontSize: 12.sp,
+                      color: AppPalette.black,
+                      fontWeight: FontWeight.w300,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

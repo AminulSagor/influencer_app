@@ -28,7 +28,7 @@ class InfluencerProfileService {
       if (lastName != null) data['lastName'] = lastName;
       if (bio != null) data['bio'] = bio;
       if (profileImage != null && profileImage.isNotEmpty) {
-        data['profileImage'] = profileImage;
+        data['profileImg'] = profileImage;
       }
       if (website != null) data['website'] = website;
 
@@ -87,12 +87,14 @@ class InfluencerProfileService {
       final res = await _api.dio.post(
         '/influencer/profile/address',
         data: {
-          'addresses': {
-            'addressName': addressName,
-            'thana': thana,
-            'zilla': zilla,
-            'fullAddress': fullAddress,
-          },
+          'addresses': [
+            {
+              'addressName': addressName,
+              'thana': thana,
+              'zilla': zilla,
+              'fullAddress': fullAddress,
+            },
+          ],
         },
       );
       return InfluencerProfile.fromJson(res.data);
@@ -146,15 +148,19 @@ class InfluencerProfileService {
   }
 
   /// Removes a payout method
-  /// [type] can be "bank" or "mobileBanking"
+  /// [type] can be "bank", "mobile", or "mobileBanking"
   Future<ApiResult<void>> removePayout({
     required String type,
-    required String id,
+    required String accountNo,
   }) async {
+    final normalizedType = type.toLowerCase() == 'mobilebanking'
+        ? 'mobile'
+        : type.toLowerCase();
+
     return ApiErrorHandler.call(() async {
       await _api.dio.delete(
         '/influencer/profile/payouts',
-        data: {'type': type, 'id': id},
+        data: {'type': normalizedType, 'identifier': accountNo},
       );
     });
   }
@@ -165,7 +171,9 @@ class InfluencerProfileService {
   ) async {
     return ApiErrorHandler.call(() async {
       final data = <String, dynamic>{
-        'socialLinks': socialLinks.map((e) => e.toJson()).toList(),
+        'socialLinks': socialLinks
+            .map((e) => {'platform': e.platform, 'url': e.url})
+            .toList(),
       };
       final res = await _api.dio.patch(
         '/influencer/profile/edit/social-links',

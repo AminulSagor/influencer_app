@@ -273,6 +273,13 @@ class AppPages {
       binding: SupportBinding(),
     ),
     GetPage(
+      name: AppRoutes.reportLog,
+      page: () => const ReportLogView(),
+      binding: BindingsBuilder(() {
+        Get.lazyPut<ReportLogController>(() => ReportLogController());
+      }),
+    ),
+    GetPage(
       name: AppRoutes.campaignShipping,
       page: () => const CampaignShippingView(),
       binding: BindingsBuilder(() {

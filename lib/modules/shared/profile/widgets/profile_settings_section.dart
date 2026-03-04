@@ -72,60 +72,33 @@ class ProfileSettingsSection extends StatelessWidget {
             ],
           ),
           33.h.verticalSpace,
-          if (!controller.accountTypeService.isInfluencer)
-            ...controller.profileFields.map((field) {
-              return Padding(
-                padding: EdgeInsets.only(bottom: 10.h),
-                child: Column(
-                  crossAxisAlignment: .start,
-                  children: [
-                    CustomTextFormField(
-                      title: field.label + (field.isRequired ? ' *' : ''),
-                      hintText: field.hintText,
-                      initialValue: controller.profileFieldValue(
-                        field.label,
-                        field.value,
-                      ),
-                      onChanged: (value) =>
-                          controller.setProfileFieldValue(field.label, value),
-                      textStyle: TextStyle(
-                        fontWeight: FontWeight.w300,
-                        fontSize: 12.sp,
-                        color: AppPalette.black,
-                      ),
-                      maxLines: field.label.contains('Full Address') ? 5 : 1,
+          ...controller.profileFields.map((field) {
+            return Padding(
+              padding: EdgeInsets.only(bottom: 10.h),
+              child: Column(
+                crossAxisAlignment: .start,
+                children: [
+                  CustomTextFormField(
+                    title: field.label + (field.isRequired ? ' *' : ''),
+                    hintText: field.hintText,
+                    initialValue: controller.profileFieldValue(
+                      field.label,
+                      field.value,
                     ),
-                    if (field.label.contains('Last')) ...[
-                      12.h.verticalSpace,
-
-                      /// ----- Thana -----
-                      Obx(
-                        () => CustomDropDownMenu(
-                          title: "Thana *",
-                          hintText: "Select Thana",
-                          options: controller.thanaList,
-                          value: controller.selectedThana.value,
-                          onChanged: controller.setThana,
-                        ),
-                      ),
-
-                      SizedBox(height: 20.h),
-
-                      /// ----- Zilla -----
-                      Obx(
-                        () => CustomDropDownMenu(
-                          title: "Zilla *",
-                          hintText: "Select Zilla",
-                          options: controller.zillaList,
-                          value: controller.selectedZilla.value,
-                          onChanged: controller.setZilla,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              );
-            }).toList(),
+                    enabled: !field.isReadOnly,
+                    onChanged: (value) =>
+                        controller.setProfileFieldValue(field.label, value),
+                    textStyle: TextStyle(
+                      fontWeight: FontWeight.w300,
+                      fontSize: 12.sp,
+                      color: AppPalette.black,
+                    ),
+                    maxLines: field.label.contains('Full Address') ? 5 : 1,
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
         ],
       ),
     );

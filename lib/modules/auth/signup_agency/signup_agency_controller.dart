@@ -229,6 +229,12 @@ class SignupAgencyController extends GetxController {
     profileLinkController.clear();
   }
 
+  void removeLink(int index) {
+    if (index >= 0 && index < socialLinks.length) {
+      socialLinks.removeAt(index);
+    }
+  }
+
   void onSocialContinue() {
     if (socialFormKey.currentState?.validate() != true) return;
 
@@ -294,8 +300,8 @@ class SignupAgencyController extends GetxController {
   }
 
   Future<void> onKycSkip() async {
-    // Mandatory fields must be validated before proceeding
-    await onKycSubmit();
+    if (isUploadingNid.value) return;
+    Get.toNamed(AppRoutes.signupAgencyTradeLicense);
   }
 
   Future<void> onKycSubmit() async {
@@ -383,8 +389,8 @@ class SignupAgencyController extends GetxController {
   }
 
   Future<void> onTradeLicenseSkip() async {
-    // Mandatory fields must be validated before proceeding
-    await onTradeLicenseContinue();
+    if (isUploadingTradeLicense.value) return;
+    Get.toNamed(AppRoutes.signupAgencyTin);
   }
 
   // ----------------- Step 7 (TIN / BIN) -----------------
@@ -408,8 +414,8 @@ class SignupAgencyController extends GetxController {
   }
 
   Future<void> onTinSkip() async {
-    // Mandatory fields must be validated before proceeding
-    await onTinContinue();
+    if (isUploadingTin.value || isFinishing.value) return;
+    await _finishAgencySignup();
   }
 
   Future<void> onTinContinue() async {
