@@ -12,6 +12,8 @@ import 'package:influencer_app/core/widgets/custom_button.dart';
 import 'package:influencer_app/core/widgets/custom_drop_down_menu.dart';
 
 import '../../../core/widgets/custom_text_form_field.dart';
+import 'enums/profile_status.dart';
+import 'enums/verification_state.dart';
 import 'profile_controller.dart';
 import 'widgets/brand_assets_section.dart';
 import 'widgets/brand_contact_info_card.dart';

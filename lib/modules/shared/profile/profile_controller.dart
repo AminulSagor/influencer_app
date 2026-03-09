@@ -22,130 +22,49 @@ import 'package:influencer_app/modules/brand/services/brand_onboarding_services.
 import 'package:influencer_app/routes/app_routes.dart';
 
 import 'models/brand_asset.dart';
+import 'models/payout_method.dart';
+import 'models/profile_field.dart';
+import 'models/profile_user_model.dart';
+import 'models/social_account.dart';
 import 'models/user_location.dart';
+import 'models/verification_inprogress_item.dart';
+import 'enums/profile_status.dart';
+import 'enums/verification_state.dart';
 import 'widgets/tag_selection_dialog.dart';
-
-enum ProfileStatus { unverified, verified }
-
-enum VerificationState { unverified, underReview, verified }
-
-class SocialAccount {
-  final String platform; // e.g. "Instagram"
-  final String iconPath;
-  final String handle; // e.g. "@growbig"
-  final bool isVerified;
-
-  const SocialAccount({
-    required this.platform,
-    required this.handle,
-    this.isVerified = false,
-    required this.iconPath,
-  });
-}
-
-class ProfileField {
-  final String label;
-  final String hintText;
-  final String value;
-  final bool isRequired;
-  final bool isReadOnly;
-
-  const ProfileField({
-    required this.label,
-    required this.value,
-    this.isRequired = false,
-    this.isReadOnly = false,
-    required this.hintText,
-  });
-}
-
-class VerificationInprogressItem {
-  final String title;
-  final VerificationState state;
-
-  const VerificationInprogressItem({required this.title, required this.state});
-}
-
-class PayoutMethod {
-  final String? payoutId;
-  final String payoutType;
-  final String? bankName;
-  final String? accountName;
-  final String? accountNo;
-  final String? branchName;
-  final String? routingNumber;
-
-  final String? bKashNo;
-  final String? bKashName;
-  final String? bKashAccountType;
-  final bool isApproved;
-
-  final bool isBank;
-
-  const PayoutMethod.bank({
-    this.payoutId,
-    this.payoutType = 'bank',
-    required this.bankName,
-    required this.accountName,
-    required this.accountNo,
-    required this.branchName,
-    required this.routingNumber,
-    this.isApproved = false,
-  }) : bKashNo = '',
-       bKashName = '',
-       bKashAccountType = '',
-       isBank = true;
-
-  const PayoutMethod.bKash({
-    this.payoutId,
-    this.payoutType = 'mobileBanking',
-    required this.bKashNo,
-    required this.bKashName,
-    required this.bKashAccountType,
-    this.isApproved = false,
-  }) : bankName = '',
-       accountName = '',
-       accountNo = '',
-       branchName = '',
-       routingNumber = '',
-       isBank = false;
-}
 
 class ProfileController extends GetxController {
   final accountTypeService = Get.find<AccountTypeService>();
   final appUserSession = Get.find<AppUserSessionController>();
   final TokenService _tokenService = Get.find<TokenService>();
   final CampaignService _campaignService = Get.find<CampaignService>();
+  final _apiData = ProfileUserModel();
   // ---------------------------------------------------------------------------
   // BASIC PROFILE STATE
   // ---------------------------------------------------------------------------
 
-  final profileStatus = ProfileStatus.verified.obs;
+  Rx<ProfileStatus> get profileStatus => _apiData.profileStatus;
+  RxString get profileName => _apiData.profileName;
+  RxString get profileLocation => _apiData.profileLocation;
+  RxString get brandName => _apiData.brandName;
+  RxDouble get profileRating => _apiData.profileRating;
+  RxInt get profileRatingCount => _apiData.profileRatingCount;
+  RxDouble get profileCompletion => _apiData.profileCompletion;
+  RxString get bioText => _apiData.bioText;
+  RxString get serviceFeeText => _apiData.serviceFeeText;
+  RxString get dollarRateText => _apiData.dollarRateText;
+  RxString get profileImageUrl => _apiData.profileImageUrl;
+  RxString get userEmail => _apiData.userEmail;
+  RxString get userPhone => _apiData.userPhone;
+  RxString get brandWebsite => _apiData.brandWebsite;
   final RxnBool _jwtAdminVerified = RxnBool();
 
-  final profileName = ''.obs;
-  final profileLocation = 'Dhaka, Bangladesh'.obs;
-  final brandName = ''.obs;
-  final profileRating = 4.5.obs;
-  final profileRatingCount = 32.obs;
-
-  // Between 0.0 – 1.0
-  final profileCompletion = 0.35.obs;
-
   // Text values
-  final bioText = ''.obs;
-  final serviceFeeText = ''.obs; // "15%" when filled
-  final dollarRateText = ''.obs;
   final bioController = TextEditingController();
 
   // Profile image
   final Rx<File?> profileImageFile = Rx<File?>(null);
-  final profileImageUrl = ''.obs;
-
-  // From token / profile
-  final userEmail = ''.obs;
-  final userPhone = ''.obs;
-  final brandWebsite = ''.obs;
+  Rxn<ProfileIdentityModel> get profileUser => _apiData.profileUser;
+  ProfileIdentityModel? get currentProfileUser => _apiData.profileUser.value;
 
   // ---------------------------------------------------------------------------
   // EXPANSION STATE
@@ -179,12 +98,15 @@ class ProfileController extends GetxController {
   // SECTION DATA
   // ---------------------------------------------------------------------------
 
-  final socialAccounts = <SocialAccount>[].obs;
-  final niches = <String>[].obs;
-  final RxMap<String, String> nicheStatuses = <String, String>{}.obs;
-  final profileFields = <ProfileField>[].obs;
-  final verificationInprogressItems = <VerificationInprogressItem>[].obs;
-  final payoutMethods = <PayoutMethod>[].obs;
+    RxList<SocialAccount> get socialAccounts => _apiData.socialAccounts;
+    RxList<String> get niches => _apiData.niches;
+    RxMap<String, String> get nicheStatuses => _apiData.nicheStatuses;
+    RxList<ProfileField> get profileFields => _apiData.profileFields;
+    RxList<VerificationInprogressItem> get verificationInprogressItems =>
+      _apiData.verificationInprogressItems;
+    RxList<PayoutMethod> get payoutMethods => _apiData.payoutMethods;
+    RxList<String> get skills => _apiData.skills;
+    RxList<UserLocation> get locations => _apiData.locations;
 
   final RxnString newSocialPlatform = RxnString();
   final TextEditingController newSocialHandleController =
@@ -234,7 +156,7 @@ class ProfileController extends GetxController {
   }
 
   /// Current influencer profile (null for brand/agency)
-  final Rxn<InfluencerProfile> influencerProfile = Rxn<InfluencerProfile>();
+  Rxn<InfluencerProfile> get influencerProfile => _apiData.influencerProfile;
 
   @override
   void onInit() {
@@ -315,7 +237,10 @@ class ProfileController extends GetxController {
   /// Fetches influencer profile from API and populates UI fields
   Future<void> _fetchInfluencerProfile() async {
     final service = Get.find<InfluencerProfileService>();
-    final result = await service.getProfile();
+    final wrappedResult = await ApiErrorHandler.call(() => service.getProfile());
+    final result =
+        wrappedResult.data ??
+        ApiResult.failure(wrappedResult.error ?? 'unknown_error'.tr);
 
     if (result.isSuccess && result.data != null) {
       final profile = result.data!;
@@ -334,36 +259,19 @@ class ProfileController extends GetxController {
 
   /// Populates controller fields from InfluencerProfile data
   void _populateFromInfluencerProfile(InfluencerProfile profile) {
-    // Basic info
-    profileName.value = profile.fullName.isNotEmpty
-        ? profile.fullName
-        : 'Influencer';
-    _setProfileStatusFromVerification(
-      profileIsVerified: profile.isOnboardingComplete,
+    final userModel = ProfileIdentityModel.fromInfluencer(
+      profile,
+      fallbackEmail: userEmail.value,
+      fallbackPhone: userPhone.value,
     );
+    _applyProfileUser(userModel);
+
     _setBioText(profile.bio ?? '');
-    profileImageUrl.value = profile.displayImage ?? '';
     profileImageFile.value = null;
     profileRating.value = profile.averageRating;
     profileRatingCount.value = profile.totalReviews;
 
-    if (profile.addresses.isNotEmpty) {
-      final primary = profile.primaryAddress ?? profile.addresses.first;
-      final locationParts = <String>[
-        primary.thana?.trim() ?? '',
-        primary.zilla?.trim() ?? '',
-        primary.country?.trim() ?? '',
-      ].where((part) => part.isNotEmpty).toList(growable: false);
-      profileLocation.value = locationParts.isEmpty
-          ? 'Dhaka, Bangladesh'
-          : locationParts.join(', ');
-    } else {
-      profileLocation.value = 'Dhaka, Bangladesh';
-    }
-
     appUserSession.influencerProfile.value = profile;
-    appUserSession.displayName.value = profileName.value;
-    appUserSession.profileImageUrl.value = profileImageUrl.value;
 
     _hydrateVerificationInputsFromJson(profile.toJson());
 
@@ -826,7 +734,11 @@ class ProfileController extends GetxController {
   }
 
   Future<void> _loadUserFromToken() async {
-    final token = await _tokenService.getAccessToken();
+    final tokenResult = await ApiErrorHandler.call(
+      () => _tokenService.getAccessToken(),
+      showError: false,
+    );
+    final token = tokenResult.data;
     if (token == null || token.trim().isEmpty) return;
 
     final payload = _decodeJwtPayload(token);
@@ -882,19 +794,24 @@ class ProfileController extends GetxController {
     }
   }
 
-  void _applyContactFromJson(Map<String, dynamic> json) {
-    final email =
-        _stringOrNull(json['email']) ??
-        _stringOrNull((json['user'] as Map?)?['email']);
-    final phone =
-        _stringOrNull(json['phone']) ??
-        _stringOrNull((json['user'] as Map?)?['phone']);
+  void _applyProfileUser(ProfileIdentityModel model) {
+    _apiData.profileUser.value = model;
 
-    if (email != null) userEmail.value = email;
-    if (phone != null) userPhone.value = phone;
+    profileName.value = model.displayName;
+    userEmail.value = model.email;
+    userPhone.value = model.phone;
+    profileImageUrl.value = model.avatarUrl;
+    profileLocation.value = model.location;
+    _setProfileStatusFromVerification(profileIsVerified: model.isVerified);
 
-    if (email != null) appUserSession.userEmail.value = email;
-    if (phone != null) appUserSession.userPhone.value = phone;
+    appUserSession.displayName.value = model.displayName;
+    appUserSession.profileImageUrl.value = model.avatarUrl;
+    if (model.email.trim().isNotEmpty) {
+      appUserSession.userEmail.value = model.email.trim();
+    }
+    if (model.phone.trim().isNotEmpty) {
+      appUserSession.userPhone.value = model.phone.trim();
+    }
   }
 
   String? _stringOrNull(dynamic value) {
@@ -1027,29 +944,22 @@ class ProfileController extends GetxController {
 
   /// Populates controller fields from Agency profile JSON
   void _populateFromAgencyJson(Map<String, dynamic> json) {
-    _applyContactFromJson(json);
+    final userModel = ProfileIdentityModel.fromAgencyJson(
+      json,
+      fallbackEmail: userEmail.value,
+      fallbackPhone: userPhone.value,
+    );
+    _applyProfileUser(userModel);
 
-    // Basic info
     final agencyName = json['agencyName'] as String? ?? '';
     final firstName = json['firstName'] as String? ?? '';
     final lastName = json['lastName'] as String? ?? '';
-    profileName.value = agencyName.isNotEmpty
-        ? agencyName
-        : '$firstName $lastName'.trim();
-    _setProfileStatusFromVerification(profileIsVerified: json['isVerified']);
     _setBioText(json['agencyBio'] as String? ?? '');
     serviceFeeText.value = json['serviceFee']?.toString() ?? '';
     dollarRateText.value = json['dollarRate']?.toString() ?? '';
-    profileImageUrl.value =
-        _stringOrNull(json['profileImg']) ??
-        _stringOrNull(json['profileImage']) ??
-        _stringOrNull(json['logo']) ??
-        '';
     profileImageFile.value = null;
 
     appUserSession.agencyProfileJson.value = Map<String, dynamic>.from(json);
-    appUserSession.displayName.value = profileName.value;
-    appUserSession.profileImageUrl.value = profileImageUrl.value;
 
     // Rating
     final rating = json['averageRating'];
@@ -1350,32 +1260,26 @@ class ProfileController extends GetxController {
 
   /// Populates controller fields from Brand profile JSON
   void _populateFromBrandJson(Map<String, dynamic> json) {
-    _applyContactFromJson(json);
-    // Brand uses similar structure - reuse agency logic with slight modifications
+    final userModel = ProfileIdentityModel.fromBrandJson(
+      json,
+      fallbackEmail: userEmail.value,
+      fallbackPhone: userPhone.value,
+    );
+    _applyProfileUser(userModel);
 
+    // Brand uses similar structure - reuse agency logic with slight modifications
     final companyName =
-        _stringOrNull(json['brandName']) ??
-        _stringOrNull(json['companyName']) ??
-        '';
+      _stringOrNull(json['brandName']) ??
+      _stringOrNull(json['companyName']) ??
+      '';
     final firstName = json['firstName'] as String? ?? '';
     final lastName = json['lastName'] as String? ?? '';
-    profileName.value = companyName.isNotEmpty
-        ? companyName
-        : '$firstName $lastName'.trim();
     brandName.value = companyName;
-    _setProfileStatusFromVerification(profileIsVerified: json['isVerified']);
     _setBioText(json['bio'] as String? ?? '');
     _setBrandWebsite(_stringOrNull(json['website']));
-    profileImageUrl.value =
-        _stringOrNull(json['profileImg']) ??
-        _stringOrNull(json['profileImage']) ??
-        _stringOrNull(json['logo']) ??
-        '';
     profileImageFile.value = null;
 
     appUserSession.brandProfileJson.value = Map<String, dynamic>.from(json);
-    appUserSession.displayName.value = profileName.value;
-    appUserSession.profileImageUrl.value = profileImageUrl.value;
 
     // Rating
     final rating = json['averageRating'];
@@ -1996,17 +1900,29 @@ class ProfileController extends GetxController {
         : extension.toLowerCase();
     final contentType = _getContentType(normalizedExtension);
 
-    final signedUrl = await uploadService.createSignedUrl(
-      fileName: fileName,
-      fileType: contentType,
-      module: module,
+    final signedUrlResult = await ApiErrorHandler.call(
+      () => uploadService.createSignedUrl(
+        fileName: fileName,
+        fileType: contentType,
+        module: module,
+      ),
     );
+    if (!signedUrlResult.isSuccess || signedUrlResult.data == null) {
+      return '';
+    }
 
-    await uploadService.uploadFileToSignedUrl(
-      uploadUrl: signedUrl.uploadUrl,
-      file: file,
-      contentType: contentType,
+    final signedUrl = signedUrlResult.data!;
+
+    final uploadResult = await ApiErrorHandler.call(
+      () => uploadService.uploadFileToSignedUrl(
+        uploadUrl: signedUrl.uploadUrl,
+        file: file,
+        contentType: contentType,
+      ),
     );
+    if (!uploadResult.isSuccess) {
+      return '';
+    }
 
     return signedUrl.fileUrl;
   }
@@ -2028,10 +1944,15 @@ class ProfileController extends GetxController {
 
       if (accountTypeService.isInfluencer) {
         final service = Get.find<InfluencerProfileService>();
-        final result = await service.updateBasicInfo(
-          profileImage: url,
-          bio: bioText.value,
+        final wrappedResult = await ApiErrorHandler.call(
+          () => service.updateBasicInfo(
+            profileImage: url,
+            bio: bioText.value,
+          ),
         );
+        final result =
+            wrappedResult.data ??
+            ApiResult.failure(wrappedResult.error ?? 'unknown_error'.tr);
         if (result.isSuccess && result.data != null) {
           await _fetchProfileData();
           return;
@@ -2065,7 +1986,12 @@ class ProfileController extends GetxController {
     try {
       if (accountTypeService.isInfluencer) {
         final service = Get.find<InfluencerProfileService>();
-        final result = await service.removeProfileImage();
+        final wrappedResult = await ApiErrorHandler.call(
+          () => service.removeProfileImage(),
+        );
+        final result =
+            wrappedResult.data ??
+            ApiResult.failure(wrappedResult.error ?? 'unknown_error'.tr);
         if (!result.isSuccess) return;
         await _fetchProfileData();
         return;
@@ -2175,13 +2101,18 @@ class ProfileController extends GetxController {
             return;
           }
 
-          final result = await service.addBankPayout(
-            bankName: bankName,
-            accountHolderName: holder,
-            accountNo: accountNo,
-            branchName: branchName,
-            routingNo: routing,
+          final wrappedResult = await ApiErrorHandler.call(
+            () => service.addBankPayout(
+              bankName: bankName,
+              accountHolderName: holder,
+              accountNo: accountNo,
+              branchName: branchName,
+              routingNo: routing,
+            ),
           );
+          final result =
+              wrappedResult.data ??
+              ApiResult.failure(wrappedResult.error ?? 'unknown_error'.tr);
 
           if (!result.isSuccess) {
             Get.snackbar('Error', result.error ?? 'Failed to add payout');
@@ -2197,11 +2128,16 @@ class ProfileController extends GetxController {
             return;
           }
 
-          final result = await service.addMobilePayout(
-            accountType: accountType.isEmpty ? 'Bkash' : accountType,
-            accountHolderName: holder,
-            accountNo: accountNo,
+          final wrappedResult = await ApiErrorHandler.call(
+            () => service.addMobilePayout(
+              accountType: accountType.isEmpty ? 'Bkash' : accountType,
+              accountHolderName: holder,
+              accountNo: accountNo,
+            ),
           );
+          final result =
+              wrappedResult.data ??
+              ApiResult.failure(wrappedResult.error ?? 'unknown_error'.tr);
 
           if (!result.isSuccess) {
             Get.snackbar('Error', result.error ?? 'Failed to add payout');
@@ -2302,10 +2238,15 @@ class ProfileController extends GetxController {
     isSavingProfile.value = true;
     try {
       final service = Get.find<InfluencerProfileService>();
-      final result = await service.removePayout(
-        type: payout.payoutType,
-        accountNo: payoutAccountNo,
+      final wrappedResult = await ApiErrorHandler.call(
+        () => service.removePayout(
+          type: payout.payoutType,
+          accountNo: payoutAccountNo,
+        ),
       );
+      final result =
+          wrappedResult.data ??
+          ApiResult.failure(wrappedResult.error ?? 'unknown_error'.tr);
 
       if (result.isSuccess) {
         payoutMethods.removeWhere(
@@ -2333,6 +2274,7 @@ class ProfileController extends GetxController {
     final isInfluencer = accountTypeService.isInfluencer;
 
     profileStatus.value = ProfileStatus.unverified;
+    _apiData.profileUser.value = null;
     profileCompletion.value = 0.35;
     _setBioText('');
     serviceFeeText.value = '';
@@ -2760,7 +2702,6 @@ class ProfileController extends GetxController {
 
   // -------------------- SKILLS (Influencer only) --------------------
   final skillsExpanded = true.obs;
-  final skills = <String>[].obs;
 
   void toggleSkills() => skillsExpanded.toggle();
 
@@ -2810,7 +2751,6 @@ class ProfileController extends GetxController {
 
   // -------------------- LOCATIONS (Influencer only) --------------------
   final locationsExpanded = true.obs;
-  final locations = <UserLocation>[].obs;
 
   final RxBool showNewLocationForm = false.obs;
   final RxnInt editingLocationIndex = RxnInt();
@@ -2882,12 +2822,17 @@ class ProfileController extends GetxController {
     if (accountTypeService.isInfluencer) {
       final service = Get.find<InfluencerProfileService>();
 
-      final result = await service.addAddress(
-        addressName: name,
-        thana: thana,
-        zilla: zilla,
-        fullAddress: full,
+      final wrappedResult = await ApiErrorHandler.call(
+        () => service.addAddress(
+          addressName: name,
+          thana: thana,
+          zilla: zilla,
+          fullAddress: full,
+        ),
       );
+      final result =
+          wrappedResult.data ??
+          ApiResult.failure(wrappedResult.error ?? 'unknown_error'.tr);
 
       if (result.isSuccess && result.data != null) {
         influencerProfile.value = result.data;
@@ -3000,7 +2945,11 @@ class ProfileController extends GetxController {
     if (confirmed != true) return;
 
     try {
-      await _authService.logout();
+      final logoutResult = await ApiErrorHandler.call(
+        () => _authService.logout(),
+      );
+      if (!logoutResult.isSuccess) return;
+
       accountTypeService.setRole(null);
 
       appUserSession.userEmail.value = '';
@@ -3252,17 +3201,35 @@ class ProfileController extends GetxController {
             ? (profileFieldValues['Website'] ?? '').trim()
             : null;
 
-        await service.updateBasicInfo(
-          firstName: firstNameValue,
-          lastName: lastNameValue,
-          bio: bioText.value,
-          website: websiteValue,
+        final basicInfoWrapped = await ApiErrorHandler.call(
+          () => service.updateBasicInfo(
+            firstName: firstNameValue,
+            lastName: lastNameValue,
+            bio: bioText.value,
+            website: websiteValue,
+          ),
         );
+        final basicInfoResult =
+            basicInfoWrapped.data ??
+            ApiResult.failure(basicInfoWrapped.error ?? 'unknown_error'.tr);
+        if (!basicInfoResult.isSuccess) return;
 
-        await service.updateNiches(niches.toList(growable: false));
+        final nichesWrapped = await ApiErrorHandler.call(
+          () => service.updateNiches(niches.toList(growable: false)),
+        );
+        final nichesResult =
+            nichesWrapped.data ??
+            ApiResult.failure(nichesWrapped.error ?? 'unknown_error'.tr);
+        if (!nichesResult.isSuccess) return;
 
         if (skills.isNotEmpty) {
-          await service.updateSkills(skills.toList());
+          final skillsWrapped = await ApiErrorHandler.call(
+            () => service.updateSkills(skills.toList()),
+          );
+          final skillsResult =
+              skillsWrapped.data ??
+              ApiResult.failure(skillsWrapped.error ?? 'unknown_error'.tr);
+          if (!skillsResult.isSuccess) return;
         }
 
         if (socialAccounts.isNotEmpty) {
@@ -3289,7 +3256,13 @@ class ProfileController extends GetxController {
               .toList(growable: false);
 
           if (updatedLinks.isNotEmpty) {
-            await service.updateSocialLinks(updatedLinks);
+            final socialWrapped = await ApiErrorHandler.call(
+              () => service.updateSocialLinks(updatedLinks),
+            );
+            final socialResult =
+                socialWrapped.data ??
+                ApiResult.failure(socialWrapped.error ?? 'unknown_error'.tr);
+            if (!socialResult.isSuccess) return;
           }
         }
 
@@ -3317,11 +3290,17 @@ class ProfileController extends GetxController {
             frontUrl.isNotEmpty &&
             backUrl != null &&
             backUrl.isNotEmpty) {
-          await service.submitNidVerification(
-            nidNumber: nidNumber,
-            nidFrontImg: frontUrl,
-            nidBackImg: backUrl,
+          final nidWrapped = await ApiErrorHandler.call(
+            () => service.submitNidVerification(
+              nidNumber: nidNumber,
+              nidFrontImg: frontUrl ?? '',
+              nidBackImg: backUrl ?? '',
+            ),
           );
+          final nidResult =
+              nidWrapped.data ??
+              ApiResult.failure(nidWrapped.error ?? 'unknown_error'.tr);
+          if (!nidResult.isSuccess) return;
         }
       } else if (accountTypeService.isBrand) {
         final brandService = Get.find<BrandOnboardingService>();
