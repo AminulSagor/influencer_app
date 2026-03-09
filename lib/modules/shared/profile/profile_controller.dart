@@ -98,15 +98,15 @@ class ProfileController extends GetxController {
   // SECTION DATA
   // ---------------------------------------------------------------------------
 
-    RxList<SocialAccount> get socialAccounts => _apiData.socialAccounts;
-    RxList<String> get niches => _apiData.niches;
-    RxMap<String, String> get nicheStatuses => _apiData.nicheStatuses;
-    RxList<ProfileField> get profileFields => _apiData.profileFields;
-    RxList<VerificationInprogressItem> get verificationInprogressItems =>
+  RxList<SocialAccount> get socialAccounts => _apiData.socialAccounts;
+  RxList<String> get niches => _apiData.niches;
+  RxMap<String, String> get nicheStatuses => _apiData.nicheStatuses;
+  RxList<ProfileField> get profileFields => _apiData.profileFields;
+  RxList<VerificationInprogressItem> get verificationInprogressItems =>
       _apiData.verificationInprogressItems;
-    RxList<PayoutMethod> get payoutMethods => _apiData.payoutMethods;
-    RxList<String> get skills => _apiData.skills;
-    RxList<UserLocation> get locations => _apiData.locations;
+  RxList<PayoutMethod> get payoutMethods => _apiData.payoutMethods;
+  RxList<String> get skills => _apiData.skills;
+  RxList<UserLocation> get locations => _apiData.locations;
 
   final RxnString newSocialPlatform = RxnString();
   final TextEditingController newSocialHandleController =
@@ -237,7 +237,9 @@ class ProfileController extends GetxController {
   /// Fetches influencer profile from API and populates UI fields
   Future<void> _fetchInfluencerProfile() async {
     final service = Get.find<InfluencerProfileService>();
-    final wrappedResult = await ApiErrorHandler.call(() => service.getProfile());
+    final wrappedResult = await ApiErrorHandler.call(
+      () => service.getProfile(),
+    );
     final result =
         wrappedResult.data ??
         ApiResult.failure(wrappedResult.error ?? 'unknown_error'.tr);
@@ -1269,9 +1271,9 @@ class ProfileController extends GetxController {
 
     // Brand uses similar structure - reuse agency logic with slight modifications
     final companyName =
-      _stringOrNull(json['brandName']) ??
-      _stringOrNull(json['companyName']) ??
-      '';
+        _stringOrNull(json['brandName']) ??
+        _stringOrNull(json['companyName']) ??
+        '';
     final firstName = json['firstName'] as String? ?? '';
     final lastName = json['lastName'] as String? ?? '';
     brandName.value = companyName;
@@ -1945,10 +1947,7 @@ class ProfileController extends GetxController {
       if (accountTypeService.isInfluencer) {
         final service = Get.find<InfluencerProfileService>();
         final wrappedResult = await ApiErrorHandler.call(
-          () => service.updateBasicInfo(
-            profileImage: url,
-            bio: bioText.value,
-          ),
+          () => service.updateBasicInfo(profileImage: url, bio: bioText.value),
         );
         final result =
             wrappedResult.data ??

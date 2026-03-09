@@ -69,8 +69,14 @@ class ProfileIdentityModel {
       json['logo'],
     ]);
 
-    final email = _firstNonEmpty([json['email'], (json['user'] as Map?)?['email']]);
-    final phone = _firstNonEmpty([json['phone'], (json['user'] as Map?)?['phone']]);
+    final email = _firstNonEmpty([
+      json['email'],
+      (json['user'] as Map?)?['email'],
+    ]);
+    final phone = _firstNonEmpty([
+      json['phone'],
+      (json['user'] as Map?)?['phone'],
+    ]);
 
     final address = json['address'];
     String location = 'Dhaka, Bangladesh';
@@ -103,7 +109,10 @@ class ProfileIdentityModel {
     String fallbackEmail = '',
     String fallbackPhone = '',
   }) {
-    final companyName = _firstNonEmpty([json['brandName'], json['companyName']]);
+    final companyName = _firstNonEmpty([
+      json['brandName'],
+      json['companyName'],
+    ]);
     final firstName = (json['firstName'] ?? '').toString().trim();
     final lastName = (json['lastName'] ?? '').toString().trim();
 
@@ -117,8 +126,14 @@ class ProfileIdentityModel {
       json['logo'],
     ]);
 
-    final email = _firstNonEmpty([json['email'], (json['user'] as Map?)?['email']]);
-    final phone = _firstNonEmpty([json['phone'], (json['user'] as Map?)?['phone']]);
+    final email = _firstNonEmpty([
+      json['email'],
+      (json['user'] as Map?)?['email'],
+    ]);
+    final phone = _firstNonEmpty([
+      json['phone'],
+      (json['user'] as Map?)?['phone'],
+    ]);
 
     String location = 'Dhaka, Bangladesh';
     final addresses = json['addresses'] as List?;
