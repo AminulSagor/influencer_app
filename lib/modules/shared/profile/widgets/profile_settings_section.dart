@@ -99,6 +99,19 @@ class ProfileSettingsSection extends StatelessWidget {
               ),
             );
           }).toList(),
+          if (controller.accountTypeService.isBrand) ...[
+            8.h.verticalSpace,
+            CustomButton(
+              onTap: controller.isSavingProfileSettings.value
+                  ? null
+                  : controller.saveClientProfileSettings,
+              btnText: 'Update Profile',
+              width: double.infinity,
+              btnColor: AppPalette.secondary,
+              textColor: AppPalette.white,
+              isLoading: controller.isSavingProfileSettings.value,
+            ),
+          ],
         ],
       ),
     );
