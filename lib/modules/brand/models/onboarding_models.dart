@@ -7,7 +7,7 @@
 /// binNumber
 class BrandOnboardingRequest {
   final String? thana;
-  final String? zila;
+  final String? zilla;
   final String? fullAddress;
   final String? website;
   final List<BrandSocialLink> socialLinks;
@@ -25,7 +25,7 @@ class BrandOnboardingRequest {
 
   const BrandOnboardingRequest({
     this.thana,
-    this.zila,
+    this.zilla,
     this.fullAddress,
     this.website,
     this.socialLinks = const [],
@@ -41,7 +41,7 @@ class BrandOnboardingRequest {
 
   Map<String, dynamic> toJson() => {
     if (thana != null) 'thana': thana,
-    if (zila != null) 'zila': zila,
+    if (zilla != null) 'zilla ': zilla,
     if (fullAddress != null) 'fullAddress': fullAddress,
     if (website != null) 'website': website,
     'socialLinks': socialLinks.map((e) => e.toJson()).toList(),
@@ -85,7 +85,7 @@ class BrandSocialLink {
   Map<String, dynamic> toJson() => {
     'platform': platform,
     // If your backend expects profileUrl for client, keep this:
-    'profileUrl': link,
+    'url': link,
     // If it expects url instead, swap to 'url': link
     // 'url': link,
     if (status != null) 'status': status,

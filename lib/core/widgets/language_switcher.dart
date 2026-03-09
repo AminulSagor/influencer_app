@@ -33,7 +33,7 @@ class LanguageSwitcher extends GetView<LanguageController> {
                     borderRadius: BorderRadius.circular(999.r),
                   ),
                   child: Text(
-                    'En',
+                    'English',
                     style: TextStyle(
                       fontSize: 10.sp,
                       fontWeight: FontWeight.w500,
@@ -55,7 +55,7 @@ class LanguageSwitcher extends GetView<LanguageController> {
                     borderRadius: BorderRadius.circular(999.r),
                   ),
                   child: Text(
-                    'বাং',
+                    'বাংলা',
                     style: TextStyle(
                       fontSize: 10.sp,
                       fontWeight: FontWeight.w500,

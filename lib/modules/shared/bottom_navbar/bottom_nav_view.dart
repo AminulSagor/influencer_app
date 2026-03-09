@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:influencer_app/core/controllers/app_user_session_controller.dart';
 import 'package:influencer_app/core/services/account_type_service.dart';
+import 'package:influencer_app/core/utils/constants.dart';
+import 'package:influencer_app/core/widgets/custom_button.dart';
 import 'bottom_nav_controller.dart';
 import 'package:influencer_app/routes/app_routes.dart';
 import 'package:influencer_app/core/theme/app_palette.dart';
@@ -295,14 +297,22 @@ class _ProfileDrawer extends StatelessWidget {
         AlertDialog(
           title: const Text('Confirm Logout'),
           content: const Text('Are you sure you want to log out?'),
+          backgroundColor: AppPalette.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(kBorderRadius.r),
+          ),
           actions: [
-            TextButton(
-              onPressed: () => Get.back(result: false),
-              child: const Text('Cancel'),
+            CustomButton(
+              onTap: () => Get.back(result: false),
+              btnText: 'Cancel',
+              btnColor: AppPalette.defaultFill,
+              textColor: AppPalette.black,
             ),
-            TextButton(
-              onPressed: () => Get.back(result: true),
-              child: const Text('Logout'),
+            CustomButton(
+              onTap: () => Get.back(result: true),
+              btnText: 'Logout',
+              btnColor: AppPalette.reportFlaggedActive,
+              textColor: AppPalette.white,
             ),
           ],
         ),
@@ -324,74 +334,80 @@ class _ProfileDrawer extends StatelessWidget {
       }
     }
 
-    return SizedBox(
-      width: width,
-      child: Drawer(
-        elevation: 12,
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(35.r),
-            bottomLeft: Radius.circular(35.r),
+    return SafeArea(
+      top: false,
+      child: SizedBox(
+        width: width,
+        child: Drawer(
+          elevation: 12,
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(35.r),
+              bottomLeft: Radius.circular(35.r),
+            ),
           ),
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const _DrawerProfileHeader(),
-              SizedBox(height: 40.h),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const _DrawerProfileHeader(),
+                SizedBox(height: 40.h),
 
-              _DrawerActionItem(
-                icon: Icons.flag_rounded,
-                color: AppPalette.complemetary,
-                label: 'Report',
-                onTap: () {
-                  Get.toNamed(AppRoutes.reportLog, id: 1);
-                },
-              ),
-              SizedBox(height: 8.h),
-
-              _DrawerActionItem(
-                icon: Icons.headset_mic_rounded,
-                color: AppPalette.secondary,
-                label: 'Support',
-                onTap: () => Get.toNamed(AppRoutes.support, id: 1),
-              ),
-              SizedBox(height: 8.h),
-
-              if (_accountTypeService.isInfluencer ||
-                  _accountTypeService.isBrand)
                 _DrawerActionItem(
-                  iconPath: 'assets/icons/language.png',
+                  icon: Icons.flag_rounded,
                   color: AppPalette.complemetary,
-                  label: 'Language',
-                  onTap: () => Get.toNamed(AppRoutes.language, id: 1),
+                  label: 'Report',
+                  onTap: () {
+                    Get.toNamed(AppRoutes.reportLog, id: 1);
+                  },
+                ),
+                SizedBox(height: 8.h),
+
+                _DrawerActionItem(
+                  icon: Icons.headset_mic_rounded,
+                  color: AppPalette.secondary,
+                  label: 'Support',
+                  onTap: () => Get.toNamed(AppRoutes.support, id: 1),
+                ),
+                SizedBox(height: 8.h),
+
+                if (_accountTypeService.isInfluencer ||
+                    _accountTypeService.isBrand)
+                  _DrawerActionItem(
+                    iconPath: 'assets/icons/language.png',
+                    color: AppPalette.complemetary,
+                    label: 'Language',
+                    onTap: () => Get.toNamed(AppRoutes.language, id: 1),
+                  ),
+
+                _DrawerActionItem(
+                  icon: Icons.person_rounded,
+                  color: AppPalette.complemetary,
+                  label: 'Profile',
+                  onTap: () {
+                    final index = _accountTypeService.isBrand ? 4 : 3;
+                    Get.find<BottomNavController>().onTabChanged(index);
+                  },
                 ),
 
-              _DrawerActionItem(
-                icon: Icons.person_rounded,
-                color: AppPalette.complemetary,
-                label: 'Profile',
-                onTap: () {
-                  // Example: go to profile tab
-                  Get.find<BottomNavController>().onTabChanged(3);
-                },
-              ),
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 32.w,
+                    vertical: 24.h,
+                  ),
+                  child: Divider(height: 1, color: Colors.grey[300]),
+                ),
 
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 32.w, vertical: 24.h),
-                child: Divider(height: 1, color: Colors.grey[300]),
-              ),
-
-              _DrawerActionItem(
-                icon: Icons.logout_rounded,
-                color: AppPalette.complemetary,
-                label: 'Logout',
-                onTap: logout,
-              ),
-              40.h.verticalSpace,
-            ],
+                _DrawerActionItem(
+                  icon: Icons.logout_rounded,
+                  color: AppPalette.complemetary,
+                  label: 'Logout',
+                  onTap: logout,
+                ),
+                40.h.verticalSpace,
+              ],
+            ),
           ),
         ),
       ),
@@ -488,8 +504,13 @@ class _DrawerProfileHeader extends StatelessWidget {
           : 'User';
       final shouldShowRating =
           accountTypeService.isInfluencer || accountTypeService.isAdAgency;
+
+      final ratingValue = shouldShowRating
+          ? _resolveRating(session, accountTypeService)
+          : 0.0;
+
       final ratingLabel = shouldShowRating
-          ? _resolveRating(session, accountTypeService).toStringAsFixed(1)
+          ? ratingValue.toStringAsFixed(1)
           : '';
       final location = _resolveLocation(session, accountTypeService);
       final isVerified = _resolveVerified(session, accountTypeService);
@@ -527,24 +548,11 @@ class _DrawerProfileHeader extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  ...List.generate(
-                    4,
-                    (_) => Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 2.w),
-                      child: Icon(
-                        Icons.star_rounded,
-                        size: 20.sp,
-                        color: AppPalette.starDark,
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 2.w),
-                    child: Icon(
-                      Icons.star_half_rounded,
-                      size: 20.sp,
-                      color: AppPalette.starDark,
-                    ),
+                  ..._buildRatingStars(
+                    rating: ratingValue,
+                    size: 20.sp,
+                    filledColor: AppPalette.starDark,
+                    emptyColor: AppPalette.starDark.withOpacity(0.35),
                   ),
                   SizedBox(width: 8.w),
                   Text(
@@ -582,7 +590,7 @@ class _DrawerProfileHeader extends StatelessWidget {
             ),
             SizedBox(height: 6.h),
             Text(
-              location,
+              '${location.split(',').last}, Bangladesh',
               textAlign: TextAlign.center,
               style: TextStyle(color: AppPalette.secondary, fontSize: 16.sp),
             ),
@@ -591,6 +599,35 @@ class _DrawerProfileHeader extends StatelessWidget {
       );
     });
   }
+}
+
+List<Widget> _buildRatingStars({
+  required double rating,
+  required double size,
+  required Color filledColor,
+  required Color emptyColor,
+}) {
+  final clamped = rating.clamp(0.0, 5.0);
+  final full = clamped.floor();
+  final hasHalf = (clamped - full) >= 0.5;
+
+  return List.generate(5, (i) {
+    final IconData icon;
+    if (i < full) {
+      icon = Icons.star_rounded;
+    } else if (i == full && hasHalf) {
+      icon = Icons.star_half_rounded;
+    } else {
+      icon = Icons.star_outline_rounded;
+    }
+
+    final isFilled = i < full || (i == full && hasHalf);
+
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 2.w),
+      child: Icon(icon, size: size, color: isFilled ? filledColor : emptyColor),
+    );
+  });
 }
 
 class _DrawerActionItem extends StatelessWidget {

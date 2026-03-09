@@ -27,7 +27,7 @@ class ForgotPasswordOtpView extends GetView<ForgotPasswordController> {
               GestureDetector(
                 onTap: controller.goBack,
                 child: Icon(
-                  Icons.arrow_back_ios_new_rounded,
+                  Icons.arrow_back,
                   size: 20.sp,
                   color: AppPalette.primary,
                 ),

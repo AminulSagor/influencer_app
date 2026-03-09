@@ -15,6 +15,7 @@ import '../../../core/services/api_client.dart';
 import '../../../core/services/api_error_handler.dart';
 import '../../../core/services/campaign_service.dart';
 import '../../../core/theme/app_palette.dart';
+import 'widgets/bonus_payment_dialog.dart';
 import 'widgets/brand_submission_card.dart';
 
 /// Local status used for the big status card
@@ -160,6 +161,43 @@ class MilestoneDetailsController extends GetxController {
   String get submitButtonText =>
       hasDeclinedEditMode ? 'Resubmit' : 'Submit For Admin Review';
 
+  final RxBool isBonusPaymentLoading = false.obs;
+  final TextEditingController bonusAmountController = TextEditingController();
+  final RxString selectedBonusPaymentMethod = 'Credit / Debit Card'.obs;
+
+  bool get canShowBonusSection {
+    if (!_accountTypeService.isBrand) return false;
+    if (currentMilestone.status != MilestoneStatus.approved) return false;
+
+    return brandSubmissions.any(
+      (s) =>
+          s.status.value == BrandSubmissionStatus.completed &&
+          s.hasBonusEligibleMetric,
+    );
+  }
+
+  BrandSubmissionUiModel? get bonusTargetSubmission {
+    for (final s in brandSubmissions) {
+      if (s.status.value == BrandSubmissionStatus.completed &&
+          s.hasBonusEligibleMetric) {
+        return s;
+      }
+    }
+    return null;
+  }
+
+  String get bonusReceiverName {
+    if (job.campaignType == CampaignType.paidAd) {
+      return job.clientName.trim().isNotEmpty == true
+          ? job.clientName.trim()
+          : 'Agency';
+    }
+
+    return job.clientName.trim().isNotEmpty == true
+        ? job.clientName.trim()
+        : 'Influencer';
+  }
+
   @override
   void onInit() {
     super.onInit();
@@ -183,6 +221,7 @@ class MilestoneDetailsController extends GetxController {
 
   @override
   void onClose() {
+    bonusAmountController.dispose();
     for (final s in submissions) {
       s.dispose();
     }
@@ -403,7 +442,8 @@ class MilestoneDetailsController extends GetxController {
         id: raw['id']?.toString() ?? milestone.id,
         title: raw['contentTitle']?.toString() ?? milestone.title,
         platform: raw['platform']?.toString(),
-        deliverable: raw['contentQuantity']?.toString(),
+        deliverable:
+            '${raw['platform']?.toString()} - ${raw['contentQuantity']?.toString()}',
         dayIndex: _intFrom(raw['deliveryDays']),
         amountLabel: _amountLabelFrom(raw['amount']),
         promotionGoal: raw['promotionGoal']?.toString(),
@@ -534,20 +574,28 @@ class MilestoneDetailsController extends GetxController {
     final metrics = <BrandSubmissionMetric>[];
     final targets = milestone.targets ?? const PromotionTarget();
 
+    bool hasBonusEligibleMetric = false;
+
     void addMetric({
       required String labelKey,
       required int achieved,
       required int expected,
     }) {
       if (expected <= 0) return;
-      final progress = expected == 0 ? 0 : achieved / expected;
-      final pct = (progress * 100).clamp(0, 999).toStringAsFixed(0);
+
+      final rawProgress = achieved / expected;
+      final pct = (rawProgress * 100).toStringAsFixed(0);
+
+      if (rawProgress > 1.0) {
+        hasBonusEligibleMetric = true;
+      }
+
       metrics.add(
         BrandSubmissionMetric(
           labelKey: labelKey,
           leftValue: _compactNumber(achieved),
           rightValue: _compactNumber(expected),
-          progress: progress.clamp(0.0, 1.0).toDouble(),
+          progress: rawProgress.clamp(0.0, 1.0).toDouble(),
           targetKey: 'Target $pct%',
         ),
       );
@@ -596,6 +644,7 @@ class MilestoneDetailsController extends GetxController {
       avgPercent: avgPercent,
       metrics: metrics,
       proofUrls: proofUrls,
+      hasBonusEligibleMetric: hasBonusEligibleMetric,
       initialStatus: _mapBrandSubmissionStatus(json['status']?.toString()),
       expanded: expanded,
     );
@@ -1110,7 +1159,8 @@ class MilestoneDetailsController extends GetxController {
         id: m['id']?.toString() ?? milestone.id,
         title: m['contentTitle']?.toString() ?? milestone.title,
         platform: m['platform']?.toString(),
-        deliverable: m['contentQuantity']?.toString(),
+        deliverable:
+            '${m['platform']?.toString()} - ${m['contentQuantity']?.toString()}',
         dayIndex: _intSmart(m['deliveryDays']),
         amountLabel: formatCurrencyByLocale(m['amount'] as num),
         promotionGoal:
@@ -1772,6 +1822,74 @@ class MilestoneDetailsController extends GetxController {
     target.declinedReason.value = reason;
     _setMilestone(milestone.copyWith(status: MilestoneStatus.declined));
     milestoneStatus.value = MilestoneLocalStatus.declined;
+  }
+
+  void openBonusDialog() {
+    bonusAmountController.clear();
+    selectedBonusPaymentMethod.value = 'Credit / Debit Card';
+
+    Get.dialog(const BonusPaymentDialog());
+  }
+
+  void setBonusPaymentMethod(String value) {
+    selectedBonusPaymentMethod.value = value;
+  }
+
+  Future<void> payBonus() async {
+    final rawAmount = bonusAmountController.text.trim();
+    final amount = _parseAmount(rawAmount);
+
+    if (amount <= 0) {
+      Get.snackbar('Required', 'Please enter a valid bonus amount.');
+      return;
+    }
+
+    final target = bonusTargetSubmission;
+    if (target == null) {
+      Get.snackbar('Unavailable', 'No eligible submission found for bonus.');
+      return;
+    }
+
+    isBonusPaymentLoading.value = true;
+
+    final result = await ApiErrorHandler.call(() async {
+      if (job.campaignType == CampaignType.paidAd) {
+        final milestoneId = milestone.id?.trim() ?? '';
+        if (milestoneId.isEmpty) {
+          throw Exception('Milestone id not found.');
+        }
+
+        dev.log('BONUS PAID : Influencer - $amount $milestoneId');
+
+        return await _campaignService.payClientMilestoneBonus(
+          milestoneId: milestoneId,
+          amount: amount,
+        );
+      } else {
+        final submissionId = (target.serverId ?? '').trim();
+        if (submissionId.isEmpty) {
+          throw Exception('Submission id not found.');
+        }
+
+        dev.log('BONUS PAID : Influencer - $amount $submissionId');
+        return await _campaignService.payClientSubmissionBonus(
+          submissionId: submissionId,
+          amount: amount,
+        );
+      }
+    });
+
+    isBonusPaymentLoading.value = false;
+
+    if (!result.isSuccess) return;
+
+    Get.back();
+    Get.snackbar('Success', 'Bonus payment completed successfully.');
+
+    _markNeedsParentRefresh();
+    await _loadBrandMilestoneDetails(
+      isPaidAd: job.campaignType == CampaignType.paidAd,
+    );
   }
 }
 

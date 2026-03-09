@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:influencer_app/core/theme/app_theme.dart';
+import 'package:influencer_app/core/widgets/custom_text_form_field.dart';
 
 import '../../../core/theme/app_palette.dart';
 import '../../../core/widgets/custom_button.dart';
@@ -12,6 +14,7 @@ class ForgotPasswordView extends GetView<ForgotPasswordController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppPalette.white,
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
@@ -28,7 +31,7 @@ class ForgotPasswordView extends GetView<ForgotPasswordController> {
                   child: Padding(
                     padding: EdgeInsets.all(6.w),
                     child: Icon(
-                      Icons.arrow_back_ios_new_rounded,
+                      Icons.arrow_back,
                       size: 22.sp,
                       color: AppPalette.primary,
                     ),
@@ -37,60 +40,49 @@ class ForgotPasswordView extends GetView<ForgotPasswordController> {
                 SizedBox(height: 80.h),
 
                 // title
-                Text(
-                  'fp_title'.tr,
-                  style: TextStyle(
-                    fontSize: 36.sp,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF111827),
-                    height: 1.2,
+                Center(
+                  child: Text(
+                    'fp_title'.tr,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 32.sp,
+                      fontWeight: FontWeight.w500,
+                      color: AppPalette.black,
+                      height: 1.2,
+                    ),
                   ),
                 ),
-                SizedBox(height: 16.h),
+                SizedBox(height: 10.h),
 
                 Text(
                   'fp_subtitle'.tr,
+                  textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 16.sp,
-                    color: const Color(0xFF6B7280),
+                    color: AppPalette.black.withAlpha(220),
                     height: 1.5,
                   ),
                 ),
 
-                SizedBox(height: 40.h),
+                SizedBox(height: 20.h),
 
                 // input
-                TextFormField(
+                CustomTextFormField(
                   controller: controller.contactController,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: InputDecoration(
-                    hintText: 'fp_input_hint'.tr,
-                    prefixIcon: Icon(
-                      Icons.person_outline,
-                      color: const Color(0xFF9CA3AF),
-                      size: 22.sp,
-                    ),
-                    filled: true,
-                    fillColor: const Color(0xFFF9FAFB),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16.r),
-                      borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16.r),
-                      borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16.r),
-                      borderSide: BorderSide(
-                        color: AppPalette.primary,
-                        width: 1.4,
-                      ),
-                    ),
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 16.w,
-                      vertical: 14.h,
-                    ),
+                  hintText: 'fp_input_hint'.tr,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 25.w,
+                    vertical: 16.h,
+                  ),
+                  prefixIcon: Icon(
+                    Icons.person_outline,
+                    color: AppPalette.greyText,
+                    size: 22.sp,
+                  ),
+                  textStyle: AppTheme.textStyle.copyWith(
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
 
@@ -99,7 +91,7 @@ class ForgotPasswordView extends GetView<ForgotPasswordController> {
                 CustomButton(
                   onTap: controller.onSendResetLink,
                   btnText: 'fp_continue'.tr,
-                  height: 56.h,
+                  height: 64.h,
                   width: double.infinity,
                   textStyle: TextStyle(
                     fontSize: 18.sp,
@@ -108,7 +100,7 @@ class ForgotPasswordView extends GetView<ForgotPasswordController> {
                   ),
                 ),
 
-                SizedBox(height: 24.h),
+                SizedBox(height: 60.h),
 
                 Center(
                   child: GestureDetector(
@@ -118,15 +110,16 @@ class ForgotPasswordView extends GetView<ForgotPasswordController> {
                         text: 'fp_login_question'.tr,
                         style: TextStyle(
                           fontSize: 14.sp,
-                          color: const Color(0xFFD1D5DB),
+                          fontWeight: FontWeight.w500,
+                          color: AppPalette.greyText,
                         ),
                         children: [
                           TextSpan(
                             text: '  ${'fp_login'.tr}',
                             style: TextStyle(
                               fontSize: 14.sp,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFF111827),
+                              fontWeight: FontWeight.w500,
+                              color: AppPalette.black,
                             ),
                           ),
                         ],

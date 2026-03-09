@@ -179,4 +179,37 @@ class BrandOnboardingService {
     }
     return (res.data as Map).cast<String, dynamic>();
   }
+
+  Future<Map<String, dynamic>?> updateTin({
+    required String tinNumber,
+    required String tinImage,
+  }) async {
+    final res = await _api.dio.patch(
+      '/client/profile/tin',
+      data: {'tinNumber': tinNumber, 'tinImage': tinImage},
+    );
+
+    if (res.data is! Map) {
+      throw DioException(
+        requestOptions: res.requestOptions,
+        message: '/client/profile/tin response is not a valid Map',
+      );
+    }
+    return (res.data as Map).cast<String, dynamic>();
+  }
+
+  Future<Map<String, dynamic>?> updateBin({required String binNumber}) async {
+    final res = await _api.dio.patch(
+      '/client/profile/bin',
+      data: {'binNumber': binNumber},
+    );
+
+    if (res.data is! Map) {
+      throw DioException(
+        requestOptions: res.requestOptions,
+        message: 'client/profile/bin response is not a valid Map',
+      );
+    }
+    return (res.data as Map).cast<String, dynamic>();
+  }
 }

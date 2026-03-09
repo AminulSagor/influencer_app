@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:influencer_app/core/services/account_type_service.dart';
+import 'package:influencer_app/core/utils/bd_phone_input_formatter.dart';
 import 'package:influencer_app/core/widgets/top_back_and_step.dart';
 
 import '../../../core/theme/app_palette.dart';
@@ -122,6 +123,7 @@ class SignupBrandView extends GetView<SignupBrandController> {
                   hintText: 'infl_phone_hint'.tr,
                   controller: controller.phoneController,
                   keyboardType: TextInputType.phone,
+                  inputFormatters: [BdPhoneInputFormatter()],
                   textInputAction: TextInputAction.next,
                   contentPadding: EdgeInsets.all(12.w),
                   validator: (value) => (value == null || value.trim().isEmpty)

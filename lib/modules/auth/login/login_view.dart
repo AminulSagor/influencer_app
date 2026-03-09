@@ -8,6 +8,7 @@ import 'package:influencer_app/core/widgets/custom_button.dart';
 import 'package:influencer_app/core/widgets/custom_text_form_field.dart';
 import 'package:influencer_app/core/widgets/language_switcher.dart';
 
+import '../../../core/utils/bd_phone_input_formatter.dart';
 import 'login_controller.dart';
 
 class LoginView extends GetView<LoginController> {
@@ -66,7 +67,8 @@ class LoginView extends GetView<LoginController> {
               CustomTextFormField(
                 hintText: 'login_phone_hint'.tr,
                 controller: controller.phoneController,
-                //keyboardType: TextInputType.,
+                keyboardType: TextInputType.phone,
+                // inputFormatters: const [BdPhoneInputFormatter()],
                 contentPadding: EdgeInsets.symmetric(
                   horizontal: 22.w,
                   vertical: 16.h,

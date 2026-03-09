@@ -4,6 +4,7 @@ import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:influencer_app/core/theme/app_theme.dart';
 import 'package:influencer_app/core/widgets/custom_text_form_field.dart';
 
 import '../../../../core/theme/app_palette.dart';
@@ -28,6 +29,11 @@ class VerificationSection extends StatelessWidget {
           CustomTextFormField(
             title: 'Your NID Number',
             controller: controller.nidNumberController,
+            titleTextStyle: AppTheme.textStyle.copyWith(
+              color: AppPalette.complemetary,
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w500,
+            ),
           ),
           12.h.verticalSpace,
           Obx(() {
@@ -56,6 +62,11 @@ class VerificationSection extends StatelessWidget {
             CustomTextFormField(
               title: 'Your Trade license Number',
               controller: controller.tradeNumberController,
+              titleTextStyle: AppTheme.textStyle.copyWith(
+                color: AppPalette.complemetary,
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w500,
+              ),
             ),
             12.h.verticalSpace,
             Obx(() {
@@ -69,12 +80,16 @@ class VerificationSection extends StatelessWidget {
                 imageUrl: controller.tradeLicenseUploadedUrl.value,
               );
             }),
-          ],
-          if (isAgency) ...[
+
             40.h.verticalSpace,
             CustomTextFormField(
               title: 'Your TIN Number',
               controller: controller.tinNumberController,
+              titleTextStyle: AppTheme.textStyle.copyWith(
+                color: AppPalette.complemetary,
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w500,
+              ),
             ),
             12.h.verticalSpace,
             Obx(() {
@@ -92,6 +107,11 @@ class VerificationSection extends StatelessWidget {
             CustomTextFormField(
               title: 'Your BIN Number',
               controller: controller.binNumberController,
+              titleTextStyle: AppTheme.textStyle.copyWith(
+                color: AppPalette.complemetary,
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ],

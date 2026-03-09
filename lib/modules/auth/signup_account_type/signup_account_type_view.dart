@@ -31,7 +31,7 @@ class SignupAccountTypeView extends GetView<SignupAccountTypeController> {
                   );
                 }),
 
-                SizedBox(height: 40.h),
+                SizedBox(height: 24.h),
 
                 // Title
                 FittedBox(
@@ -99,7 +99,7 @@ class SignupAccountTypeView extends GetView<SignupAccountTypeController> {
                   ),
                 ),
 
-                55.h.verticalSpace,
+                40.h.verticalSpace,
 
                 // Continue button
                 CustomButton(
@@ -113,6 +113,8 @@ class SignupAccountTypeView extends GetView<SignupAccountTypeController> {
                     color: Colors.white,
                   ),
                 ),
+
+                20.h.verticalSpace,
               ],
             ),
           ),
@@ -151,7 +153,7 @@ class _AccountTypeCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(kBorderRadiusLarge.r),
       child: Container(
         width: double.infinity,
-        padding: EdgeInsets.all(30.w),
+        padding: EdgeInsets.all(26.w),
         decoration: BoxDecoration(
           color: bgColor,
           borderRadius: BorderRadius.circular(kBorderRadiusLarge.r),
@@ -194,8 +196,6 @@ class _AccountTypeCard extends StatelessWidget {
               ),
             ),
 
-            // Tick icon when selected (only per design on Influencer, but we
-            // show for whichever is selected and allow design to match)
             if (isSelected && showCheck) ...[
               SizedBox(width: 12.w),
               Icon(Icons.check, size: 26.sp, color: AppPalette.primary),

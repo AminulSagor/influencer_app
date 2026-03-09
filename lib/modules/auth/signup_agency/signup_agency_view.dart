@@ -6,6 +6,7 @@ import 'package:influencer_app/core/services/account_type_service.dart';
 import 'package:influencer_app/core/widgets/top_back_and_step.dart';
 
 import '../../../core/theme/app_palette.dart';
+import '../../../core/utils/bd_phone_input_formatter.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../../core/widgets/custom_text_form_field.dart';
 import '../../../core/widgets/language_switcher.dart';
@@ -122,6 +123,7 @@ class SignupAgencyView extends GetView<SignupAgencyController> {
                   hintText: 'infl_phone_hint'.tr,
                   controller: controller.phoneController,
                   keyboardType: TextInputType.phone,
+                  inputFormatters: const [BdPhoneInputFormatter()],
                   textInputAction: TextInputAction.next,
                   contentPadding: EdgeInsets.all(12.w),
                   validator: (value) => (value == null || value.trim().isEmpty)

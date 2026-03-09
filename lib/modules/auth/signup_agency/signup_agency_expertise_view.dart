@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:influencer_app/core/theme/app_theme.dart';
+import 'package:influencer_app/core/utils/constants.dart';
 import 'package:influencer_app/core/widgets/custom_text_form_field.dart';
 import 'package:influencer_app/core/widgets/custom_drop_down_menu.dart';
 import 'package:influencer_app/core/widgets/signup_info_row.dart';
@@ -45,7 +47,7 @@ class SignupAgencyExpertiseView extends GetView<SignupAgencyController> {
                 // Info row
                 SignupInfoRow(
                   text: 'agency_expertise_info'.tr,
-                  iconData: Icons.filter_alt_rounded,
+                  iconAsset: 'assets/icons/tracking.png',
                 ),
 
                 SizedBox(height: 32.h),
@@ -53,7 +55,7 @@ class SignupAgencyExpertiseView extends GetView<SignupAgencyController> {
                 // Section title
                 SignupSectionTitle(
                   title: 'agency_expertise_section_title'.tr,
-                  iconData: Icons.category_outlined,
+                  iconAsset: 'assets/icons/place_marker.png',
                 ),
 
                 SizedBox(height: 24.h),
@@ -75,37 +77,16 @@ class SignupAgencyExpertiseView extends GetView<SignupAgencyController> {
                 SizedBox(height: 20.h),
 
                 // Add another platform
-                GestureDetector(
+                CustomButton.dotted(
                   onTap: controller.addPlatform,
-                  child: Container(
-                    width: double.infinity,
-                    padding: EdgeInsets.symmetric(
-                      vertical: 16.h,
-                      horizontal: 16.w,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF9FAFB),
-                      borderRadius: BorderRadius.circular(18.r),
-                      border: Border.all(
-                        color: const Color(0xFFD4E0C2),
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.add, size: 20.sp, color: AppPalette.primary),
-                        SizedBox(width: 8.w),
-                        Text(
-                          'agency_expertise_add_platform'.tr,
-                          style: TextStyle(
-                            fontSize: 15.sp,
-                            fontWeight: FontWeight.w600,
-                            color: AppPalette.primary,
-                          ),
-                        ),
-                      ],
-                    ),
+                  btnText: 'agency_expertise_add_platform'.tr,
+                  btnColor: AppPalette.white,
+                  width: double.infinity,
+                  height: 41.h,
+                  textStyle: AppTheme.textStyle.copyWith(
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w500,
+                    color: AppPalette.secondary,
                   ),
                 ),
 
@@ -153,7 +134,7 @@ class _PlatformBlock extends StatelessWidget {
       padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
         color: const Color(0xFFF9FAFB),
-        borderRadius: BorderRadius.circular(18.r),
+        borderRadius: BorderRadius.circular(kBorderRadius.r),
         border: Border.all(color: const Color(0xFFD1D5DB)),
       ),
       child: Column(
@@ -196,29 +177,143 @@ class _PlatformBlock extends StatelessWidget {
             );
           }),
           SizedBox(height: 12.h),
-          // Niches selector (read-only field that opens dialog)
           GestureDetector(
-            onTap: () => controller.openNicheDialog(entry),
+            onTap: () async {
+              await controller.openNicheDialog(entry);
+              // ✅ force rebuild/validation if you want
+              Form.of(context).validate();
+            },
             child: AbsorbPointer(
-              child: Obx(() {
-                // Rebuild when niches change
-                entry.workedNiches.length;
-                return CustomTextFormField(
-                  title: 'agency_expertise_niches_label'.tr,
-                  hintText: 'agency_expertise_niches_hint'.tr,
-                  controller: entry.nicheSummaryController,
-                  contentPadding: EdgeInsets.all(12.w),
-                  enabled: false,
-                  validator: (value) => (value == null || value.trim().isEmpty)
-                      ? 'Required'
-                      : null,
-                  suffixIcon: Icon(
-                    Icons.arrow_drop_down,
-                    color: AppPalette.secondary,
-                  ),
-                );
-              }),
+              child: CustomTextFormField(
+                title: 'Select Niches *',
+                hintText: 'Search & Select Niches',
+                controller: entry.selectNicheController, // stays empty
+                enabled: false,
+                contentPadding: EdgeInsets.all(12.w),
+                suffixIcon: Icon(
+                  Icons.arrow_drop_down,
+                  color: AppPalette.secondary,
+                ),
+                validator: (_) =>
+                    entry.workedNiches.isEmpty ? 'Required' : null,
+              ),
             ),
+          ),
+
+          SizedBox(height: 12.h),
+
+          // ---------------- Worked Niches (chips container) ----------------
+          FormField<List<String>>(
+            initialValue: entry.workedNiches.toList(growable: false),
+            validator: (_) => entry.workedNiches.isEmpty ? 'Required' : null,
+            builder: (state) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Worked Niches *',
+                    style: TextStyle(
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w600,
+                      color: AppPalette.primary,
+                    ),
+                  ),
+                  SizedBox(height: 8.h),
+                  Obx(() {
+                    entry.workedNiches.length;
+                    final items = entry.workedNiches.toList(growable: false);
+
+                    return Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.all(14.w),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(kBorderRadius.r),
+                        border: Border.all(
+                          color: state.hasError
+                              ? Colors.red
+                              : const Color(0xFFD1D5DB),
+                          width: kBorderWidth0_5,
+                        ),
+                      ),
+                      child: items.isEmpty
+                          ? Text(
+                              'Select From Above',
+                              style: TextStyle(
+                                fontSize: 12.sp,
+                                fontWeight: FontWeight.w300,
+                                color: Colors.grey[500],
+                              ),
+                            )
+                          : Wrap(
+                              spacing: 10.w,
+                              runSpacing: 10.h,
+                              children: items.map((niche) {
+                                return _SelectedNicheChip(
+                                  label: niche,
+                                  onRemove: () {
+                                    controller.removeWorkedNiche(entry, niche);
+                                    state.didChange(
+                                      entry.workedNiches.toList(),
+                                    );
+                                    state.validate();
+                                  },
+                                );
+                              }).toList(),
+                            ),
+                    );
+                  }),
+
+                  if (state.hasError) ...[
+                    SizedBox(height: 6.h),
+                    Text(
+                      state.errorText ?? '',
+                      style: TextStyle(
+                        fontSize: 11.sp,
+                        color: Colors.red,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SelectedNicheChip extends StatelessWidget {
+  final String label;
+  final VoidCallback onRemove;
+
+  const _SelectedNicheChip({required this.label, required this.onRemove});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF6F8D9),
+        borderRadius: BorderRadius.circular(999.r),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10.sp,
+              fontWeight: FontWeight.w400,
+              color: AppPalette.primary,
+            ),
+          ),
+          SizedBox(width: 8.w),
+          GestureDetector(
+            onTap: onRemove,
+            child: Icon(Icons.close, size: 14.sp, color: AppPalette.primary),
           ),
         ],
       ),

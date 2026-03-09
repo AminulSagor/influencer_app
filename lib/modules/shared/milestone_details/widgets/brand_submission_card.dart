@@ -36,6 +36,8 @@ class BrandSubmissionUiModel {
   final List<BrandSubmissionMetric> metrics;
   final List<String> proofUrls;
 
+  final bool hasBonusEligibleMetric;
+
   final RxBool isExpanded;
 
   final Rx<BrandSubmissionStatus> status;
@@ -51,6 +53,7 @@ class BrandSubmissionUiModel {
     required this.avgPercent,
     required this.metrics,
     required this.proofUrls,
+    required this.hasBonusEligibleMetric,
     BrandSubmissionStatus initialStatus = BrandSubmissionStatus.inReview,
     bool expanded = true,
   }) : status = initialStatus.obs,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:influencer_app/core/theme/app_palette.dart';
+import 'package:influencer_app/core/utils/constants.dart';
 import '../../../core/widgets/custom_text_form_field.dart';
 import 'models/report_model.dart';
 import 'report_log_controller.dart';
@@ -122,7 +123,7 @@ class ReportLogView extends GetView<ReportLogController> {
           padding: EdgeInsets.symmetric(vertical: 12.h),
           decoration: BoxDecoration(
             color: isSelected ? color : bgColor,
-            borderRadius: BorderRadius.circular(10.r),
+            borderRadius: BorderRadius.circular(kBorderRadius.r),
             border: Border.all(
               color: isSelected ? color : AppPalette.border1,
               width: 1,
@@ -149,7 +150,6 @@ class ReportLogView extends GetView<ReportLogController> {
                   ),
                 ),
               ),
-              4.h.verticalSpace,
               FittedBox(
                 child: Text(
                   label,

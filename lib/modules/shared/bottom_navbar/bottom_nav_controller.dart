@@ -40,25 +40,26 @@ class BottomNavController extends GetxController {
     super.onInit();
   }
 
-  @override
-  void onReady() {
-    super.onReady();
-    // Dev mode: always show dashboard home (no verification checks)
-    currentIndex.value = 0;
-    Get.offAllNamed(AppRoutes.home, id: 1);
-  }
+  // @override
+  // void onReady() {
+  //   super.onReady();
+  //   // Dev mode: always show dashboard home (no verification checks)
+  //   currentIndex.value = 0;
+  //   Get.offAllNamed(AppRoutes.home, id: 1);
+  // }
 
   void onTabChanged(int index) {
+    if (currentIndex.value == index) return;
     currentIndex.value = index;
 
     // Profile page (last tab) should always be accessible for onboarding
-    // final profileIndex = isBrand ? 4 : 3;
+    final profileIndex = isBrand ? 4 : 3;
 
-    // if (!isAccountVerified && index != profileIndex) {
-    //   currentIndex.value = 0;
-    //   Get.offAllNamed(lockedRoute, id: 1);
-    //   return;
-    // }
+    if (!isAccountVerified && index != profileIndex) {
+      currentIndex.value = 0;
+      Get.offAllNamed(lockedRoute, id: 1);
+      return;
+    }
 
     if (isBrand) {
       switch (index) {

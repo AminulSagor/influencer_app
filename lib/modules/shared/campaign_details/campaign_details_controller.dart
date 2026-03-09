@@ -1104,7 +1104,10 @@ class CampaignDetailsController extends GetxController {
     final lines = milestones
         .whereType<Map>()
         .map((e) => Map<String, dynamic>.from(e))
-        .map((e) => e['contentQuantity']?.toString().trim())
+        .map(
+          (e) =>
+              '${e['platform']?.toString().trim()} - ${e['contentQuantity']?.toString().trim()}',
+        )
         .whereType<String>()
         .where((e) => e.isNotEmpty)
         .toSet()

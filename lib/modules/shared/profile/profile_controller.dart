@@ -1112,7 +1112,7 @@ class ProfileController extends GetxController {
         }
 
         if (item is Map) {
-          final map = Map<String, dynamic>.from(item as Map);
+          final map = Map<String, dynamic>.from(item);
           final name = (map['name'] ?? map['niche'] ?? '').toString().trim();
           if (name.isEmpty) continue;
           final status = (map['status'] ?? 'pending').toString().trim();
@@ -2864,6 +2864,35 @@ class ProfileController extends GetxController {
             ),
           );
           if (!tradeResult.isSuccess) return;
+        }
+
+        final tinNumber = tinNumberController.text.trim();
+        String? tinUrl = tinUploadedUrl.value;
+        if ((tinUrl == null || tinUrl.isEmpty) &&
+            tinCertificatePic.value != null) {
+          tinUrl = await _uploadFile(
+            file: tinCertificatePic.value!,
+            module: _verificationUploadModule(),
+          );
+          tinUploadedUrl.value = tinUrl;
+        }
+
+        if (tinNumber.isNotEmpty && tinUrl != null && tinUrl.isNotEmpty) {
+          final tinResult = await ApiErrorHandler.call(
+            () => brandService.updateTin(
+              tinNumber: tinNumber,
+              tinImage: tinUrl ?? '',
+            ),
+          );
+          if (!tinResult.isSuccess) return;
+        }
+
+        final binNumber = binNumberController.text.trim();
+        if (binNumber.isNotEmpty) {
+          final binResult = await ApiErrorHandler.call(
+            () => brandService.updateBin(binNumber: binNumber),
+          );
+          if (!binResult.isSuccess) return;
         }
       } else if (accountTypeService.isAdAgency) {
         final agencyService = Get.find<AgencyProfileService>();

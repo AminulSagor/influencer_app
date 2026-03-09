@@ -53,7 +53,7 @@ class SignupAgencyKycView extends GetView<SignupAgencyController> {
                 // Section title
                 SignupSectionTitle(
                   title: 'influ_kyc_section_title'.tr,
-                  iconData: Icons.verified_user_outlined,
+                  // iconData: Icons.verified_user_outlined,
                 ),
 
                 SizedBox(height: 24.h),

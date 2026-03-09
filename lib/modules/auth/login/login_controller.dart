@@ -23,13 +23,31 @@ class LoginController extends GetxController {
   final _tokenService = Get.find<TokenService>();
   final _onboardingService = Get.find<OnboardingCheckService>();
 
+  @override
+  void onInit() {
+    super.onInit();
+    // if (phoneController.text.trim().isEmpty) {
+    //   phoneController.text = '+88 ';
+    // }
+  }
+
   void togglePasswordVisibility() {
     isPasswordObscured.toggle();
   }
 
+  String _toApiPhone(String uiText) {
+    return uiText; //TODO TEMPORARY DISABLED
+    // uiText looks like: "+88 01xxxxxxxxx"
+    final trimmed = uiText.trim(); // "+88 01..."
+    final noSpace = trimmed.replaceAll(' ', ''); // "+8801..."
+    return noSpace;
+  }
+
   Future<void> submitLogin() async {
-    final phone = phoneController.text.trim();
+    final phoneUi = phoneController.text;
+    final phone = _toApiPhone(phoneUi);
     final password = passwordController.text.trim();
+
     if (phone.isEmpty || password.isEmpty) {
       Get.snackbar(
         'error'.tr,
@@ -38,6 +56,12 @@ class LoginController extends GetxController {
       );
       return;
     }
+
+    /// TODO TEMPORARY DISABLED!!!
+    // if (!RegExp(r'^\+8801\d{9}$').hasMatch(phone)) {
+    //   Get.snackbar('error'.tr, 'Enter valid phone like 01XXXXXXXXX');
+    //   return;
+    // }
 
     isLoading.value = true;
 

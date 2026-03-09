@@ -80,6 +80,24 @@ class AssignedInfluencerUi {
   });
 }
 
+class RateInfluencerItem {
+  final String influencerId;
+  final String name;
+  final String? image;
+
+  final RxInt rating;
+  final RxBool isExpanded;
+
+  RateInfluencerItem({
+    required this.influencerId,
+    required this.name,
+    this.image,
+    int initialRating = 0,
+    bool expanded = false,
+  }) : rating = initialRating.obs,
+       isExpanded = expanded.obs;
+}
+
 class BrandCampaignDetailsController extends GetxController {
   final CampaignService _campaignService = Get.find<CampaignService>();
 
@@ -201,6 +219,12 @@ class BrandCampaignDetailsController extends GetxController {
   final termsExpanded = true.obs;
   final milestonesExpanded = true.obs;
 
+  final RxList<RateInfluencerItem> rateInfluencerItems =
+      <RateInfluencerItem>[].obs;
+
+  final RxInt agencyDialogRating = 0.obs;
+  final RxBool isSubmittingRatings = false.obs;
+
   @override
   void onInit() {
     super.onInit();
@@ -277,6 +301,41 @@ class BrandCampaignDetailsController extends GetxController {
     }
 
     ///TODO next pagination
+  }
+
+  void prepareInfluencerRatingsDialog() {
+    final items = assignedInfluencers
+        .map((e) {
+          return RateInfluencerItem(
+            influencerId: e.influencerId,
+            name: e.name,
+            image: e.image,
+          );
+        })
+        .toList(growable: false);
+
+    if (items.isNotEmpty) {
+      items.first.isExpanded.value = false;
+    }
+
+    rateInfluencerItems.assignAll(items);
+  }
+
+  void toggleInfluencerRatingExpand(int index) {
+    for (int i = 0; i < rateInfluencerItems.length; i++) {
+      rateInfluencerItems[i].isExpanded.value = i == index
+          ? !rateInfluencerItems[i].isExpanded.value
+          : false;
+    }
+  }
+
+  void setInfluencerDialogRating({required int index, required int rating}) {
+    if (index < 0 || index >= rateInfluencerItems.length) return;
+    rateInfluencerItems[index].rating.value = rating.clamp(0, 5);
+  }
+
+  void setAgencyDialogRating(int value) {
+    agencyDialogRating.value = value.clamp(0, 5);
   }
 
   void _derivePlatformsFromMilestones(List<Milestone> list) {
@@ -1179,36 +1238,108 @@ class BrandCampaignDetailsController extends GetxController {
     rating.value = next;
   }
 
-  void provideRating() async {
-    final campaignId = _extractCampaignId(arguments);
-    if (campaignId == null || campaignId.trim().isEmpty) return;
-    final rate = rating.value;
-    if (rate <= 0) return;
-
+  void provideRating() {
     if (isPaidAd) {
-      ApiErrorHandler.call(
-        () => _campaignService.rateAgency(campaignId: campaignId, rating: rate),
-        showError: false,
-      );
-      return;
+      agencyDialogRating.value = rating.value.clamp(0, 5);
+    } else {
+      prepareInfluencerRatingsDialog();
     }
+  }
 
-    final influencerId = selectedInfluencerId.value?.trim();
-    if (influencerId == null || influencerId.isEmpty) {
+  Future<void> submitAgencyRating() async {
+    final campaignId = _extractCampaignId(arguments);
+    if (campaignId == null || campaignId.trim().isEmpty) {
       Get.snackbar(
         trOr('common_error', 'Error'),
-        trOr('brand_campaign_missing_influencer', 'Missing influencer id.'),
+        trOr('brand_campaign_missing_id', 'Missing campaign id.'),
       );
       return;
     }
 
-    ApiErrorHandler.call(
-      () => _campaignService.rateInfluencer(
-        campaignId: campaignId,
-        influencerId: influencerId,
-        rating: rate,
-      ),
+    final rate = agencyDialogRating.value;
+    if (rate <= 0) {
+      Get.snackbar(
+        trOr('common_error', 'Error'),
+        trOr('brand_campaign_rating_required', 'Please provide a rating.'),
+      );
+      return;
+    }
+
+    isSubmittingRatings.value = true;
+
+    final result = await ApiErrorHandler.call(
+      () => _campaignService.rateAgency(campaignId: campaignId, rating: rate),
       showError: false,
+    );
+
+    isSubmittingRatings.value = false;
+
+    if (!result.isSuccess) return;
+
+    rating.value = rate;
+    Get.back();
+
+    Get.snackbar(
+      trOr('brand_campaign_rating_success_title', 'Success'),
+      trOr(
+        'brand_campaign_rating_success_msg',
+        'Rating submitted successfully.',
+      ),
+    );
+  }
+
+  Future<void> submitInfluencerRatings() async {
+    final campaignId = _extractCampaignId(arguments);
+    if (campaignId == null || campaignId.trim().isEmpty) {
+      Get.snackbar(
+        trOr('common_error', 'Error'),
+        trOr('brand_campaign_missing_id', 'Missing campaign id.'),
+      );
+      return;
+    }
+
+    final ratedItems = rateInfluencerItems
+        .where((e) => e.rating.value > 0)
+        .toList(growable: false);
+
+    if (ratedItems.isEmpty) {
+      Get.snackbar(
+        trOr('common_error', 'Error'),
+        trOr(
+          'brand_campaign_rating_required',
+          'Please provide at least one rating.',
+        ),
+      );
+      return;
+    }
+
+    isSubmittingRatings.value = true;
+
+    for (final item in ratedItems) {
+      final result = await ApiErrorHandler.call(
+        () => _campaignService.rateInfluencer(
+          campaignId: campaignId,
+          influencerId: item.influencerId,
+          rating: item.rating.value,
+        ),
+        showError: false,
+      );
+
+      if (!result.isSuccess) {
+        isSubmittingRatings.value = false;
+        return;
+      }
+    }
+
+    isSubmittingRatings.value = false;
+    Get.back();
+
+    Get.snackbar(
+      trOr('brand_campaign_rating_success_title', 'Success'),
+      trOr(
+        'brand_campaign_rating_success_msg',
+        'Ratings submitted successfully.',
+      ),
     );
   }
 

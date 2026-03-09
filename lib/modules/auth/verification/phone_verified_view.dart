@@ -50,7 +50,7 @@ class PhoneVerifiedView extends GetView<VerificationController> {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 35.sp,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                       color: AppPalette.primary,
                       height: 1.2,
                     ),
@@ -58,7 +58,7 @@ class PhoneVerifiedView extends GetView<VerificationController> {
                 ),
               ),
 
-              SizedBox(height: 78.h),
+              SizedBox(height: 75.h),
 
               // Body text
               Padding(
@@ -94,44 +94,6 @@ class PhoneVerifiedView extends GetView<VerificationController> {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _ProgressBar extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 6.h,
-      child: Row(
-        children: [
-          Expanded(
-            flex: 3, // active segment
-            child: Container(
-              height: 6.h,
-              decoration: BoxDecoration(
-                color: AppPalette.primary,
-                borderRadius: BorderRadius.circular(999.r),
-              ),
-            ),
-          ),
-          SizedBox(width: 6.w),
-          // remaining dots (just 5 small circles like design)
-          ...List.generate(5, (index) {
-            return Padding(
-              padding: EdgeInsets.symmetric(horizontal: 3.w),
-              child: Container(
-                width: 6.w,
-                height: 6.w,
-                decoration: BoxDecoration(
-                  color: AppPalette.secondary,
-                  shape: BoxShape.circle,
-                ),
-              ),
-            );
-          }),
-        ],
       ),
     );
   }

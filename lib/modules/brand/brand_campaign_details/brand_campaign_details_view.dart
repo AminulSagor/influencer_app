@@ -13,6 +13,7 @@ import '../../../core/widgets/custom_button.dart';
 import '../../../core/models/job_item.dart';
 import '../../../core/widgets/sort_toggle_chip.dart';
 import 'brand_campaign_details_controller.dart';
+import 'widgets/provide_rating_dialog.dart';
 
 class BrandCampaignDetailsView extends GetView<BrandCampaignDetailsController> {
   const BrandCampaignDetailsView({super.key});
@@ -1245,8 +1246,13 @@ class _RatingCard extends GetView<BrandCampaignDetailsController> {
           10.h.verticalSpace,
           Obx(() {
             return CustomButton(
-              onTap: controller.provideRating,
-              btnText: 'brand_campaign_details_provide_rating'.tr,
+              onTap: () {
+                controller.provideRating();
+                ProvideRatingDialog.show(isPaidAd: controller.isPaidAd);
+              },
+              btnText: controller.isPaidAd
+                  ? 'Provide Ratings To This Agency'
+                  : 'Provide Ratings To Influencers',
               width: double.infinity,
               btnColor: controller.rating.value > 0
                   ? AppPalette.secondary
@@ -1805,7 +1811,7 @@ class _BrandAssetsCard extends GetView<BrandCampaignDetailsController> {
         children: [
           _CardTitle(
             iconPath: 'assets/icons/download.png',
-            title: 'brand_campaign_details_brand_assets'.tr,
+            title: 'campaign_brand_assets'.tr,
           ),
           12.h.verticalSpace,
           Obx(() {

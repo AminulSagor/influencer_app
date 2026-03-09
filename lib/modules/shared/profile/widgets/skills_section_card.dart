@@ -69,23 +69,23 @@ class SkillsSectionCard extends StatelessWidget {
                           Text(
                             'verified_by_admin'.tr,
                             style: TextStyle(
-                              fontSize: 12.sp,
-                              fontWeight: FontWeight.w500,
-                              color: AppPalette.secondary,
+                              fontSize: 10.sp,
+                              fontWeight: FontWeight.w400,
+                              color: AppPalette.black,
                             ),
                           ),
-                          8.w.horizontalSpace,
+                          4.w.horizontalSpace,
                           Icon(
-                            Icons.check_circle,
-                            size: 18.sp,
+                            Icons.verified_rounded,
+                            size: 16.sp,
                             // if you have a dedicated blue in palette, replace below
-                            color: AppPalette.secondary,
+                            color: Color(0xFF4cbff2),
                           ),
                         ],
                       ),
                     ),
 
-                    10.w.horizontalSpace,
+                    4.w.horizontalSpace,
 
                     Icon(
                       isExpanded

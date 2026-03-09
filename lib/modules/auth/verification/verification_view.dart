@@ -142,17 +142,18 @@ class VerificationView extends GetView<VerificationController> {
                     text: TextSpan(
                       text: 'otp_have_account'.tr,
                       style: TextStyle(
-                        fontSize: 13.sp,
-                        color: Colors.grey[400],
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w500,
+                        color: AppPalette.greyText,
                       ),
                       children: [
                         TextSpan(text: ' '),
                         TextSpan(
                           text: 'auth_login'.tr,
                           style: TextStyle(
-                            fontSize: 13.sp,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black87,
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w500,
+                            color: AppPalette.black,
                           ),
                         ),
                       ],
@@ -160,6 +161,7 @@ class VerificationView extends GetView<VerificationController> {
                   ),
                 ),
               ),
+              16.h.verticalSpace,
             ],
           ),
         ),

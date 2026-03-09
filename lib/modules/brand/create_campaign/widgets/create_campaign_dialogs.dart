@@ -152,15 +152,27 @@ class CreateCampaignDialogs {
                   width: double.infinity,
                   padding: EdgeInsets.all(12.w),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF7FAF3),
-                    borderRadius: BorderRadius.circular(12.r),
-                    border: Border.all(color: AppPalette.border1),
+                    borderRadius: BorderRadius.circular(kBorderRadius.r),
+                    border: Border.all(
+                      color: AppPalette.secondary,
+                      width: kBorderWidth0_5.w,
+                    ),
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomLeft,
+                      end: Alignment.topRight,
+                      colors: [
+                        AppPalette.white,
+                        AppPalette.white,
+                        AppPalette.thirdColor,
+                      ],
+                    ),
                   ),
                   child: Row(
                     children: [
                       Icon(
                         iconForKind(pickedKind.value),
                         color: AppPalette.primary,
+                        size: 24.sp,
                       ),
                       10.w.horizontalSpace,
                       Expanded(
@@ -172,9 +184,9 @@ class CreateCampaignDialogs {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                fontSize: 13.5.sp,
-                                fontWeight: FontWeight.w800,
-                                color: AppPalette.primary,
+                                fontSize: 12.sp,
+                                fontWeight: FontWeight.w500,
+                                color: AppPalette.secondary,
                               ),
                             ),
                             2.h.verticalSpace,
@@ -182,8 +194,8 @@ class CreateCampaignDialogs {
                               '$ext • $sizeText',
                               style: TextStyle(
                                 fontSize: 12.sp,
-                                fontWeight: FontWeight.w600,
-                                color: AppPalette.primary,
+                                fontWeight: FontWeight.w400,
+                                color: AppPalette.secondary,
                               ),
                             ),
                           ],

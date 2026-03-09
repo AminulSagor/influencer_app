@@ -45,16 +45,13 @@ class SignupAgencyTinView extends GetView<SignupAgencyController> {
                 // Info row
                 SignupInfoRow(
                   text: 'brand_tin_info'.tr,
-                  iconData: Icons.verified_outlined,
+                  iconAsset: 'assets/icons/security_lock.png',
                 ),
 
                 SizedBox(height: 32.h),
 
                 // Section title
-                SignupSectionTitle(
-                  title: 'brand_tin_section_title'.tr,
-                  iconData: Icons.verified_user_outlined,
-                ),
+                SignupSectionTitle(title: 'brand_tin_section_title'.tr),
 
                 SizedBox(height: 24.h),
 

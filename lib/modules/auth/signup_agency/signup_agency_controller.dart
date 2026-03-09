@@ -8,6 +8,7 @@ import 'package:path/path.dart' as path;
 import '../../../core/enums/account_type.dart';
 import '../../../core/models/social_link.dart';
 import '../../../core/services/campaign_service.dart';
+import '../../../core/utils/bd_phone_input_formatter.dart';
 import '../../../routes/app_routes.dart';
 import 'widgets/experienced_niche_dialog.dart';
 import 'package:influencer_app/core/services/account_type_service.dart';
@@ -48,12 +49,14 @@ class SignupAgencyController extends GetxController {
     if (formKey.currentState?.validate() != true) return;
     isSubmitting.value = true;
 
+    final phone = BdPhoneInputFormatter().toApiPhone(phoneController.text);
+
     final result = await ApiErrorHandler.call(
       () => authService.signup(
         firstName: firstNameController.text.trim(),
         lastName: lastNameController.text.trim(),
         email: emailController.text.trim(),
-        phone: phoneController.text.trim(),
+        phone: phone,
         password: passwordController.text.trim(),
         role: 'agency',
       ),
@@ -130,6 +133,9 @@ class SignupAgencyController extends GetxController {
   void onInit() {
     super.onInit();
     // start with one block
+    if (phoneController.text.trim().isEmpty) {
+      phoneController.text = '+88 ';
+    }
     platforms.add(AgencyPlatformEntry());
     _loadNiches();
   }
@@ -178,18 +184,11 @@ class SignupAgencyController extends GetxController {
 
     if (result != null) {
       entry.workedNiches.assignAll(result);
-      // Update the read-only summary field text
-      entry.nicheSummaryController.text = result.isEmpty
-          ? ''
-          : result.join(', ');
     }
   }
 
   void removeWorkedNiche(AgencyPlatformEntry entry, String niche) {
     entry.workedNiches.remove(niche);
-    entry.nicheSummaryController.text = entry.workedNiches.isEmpty
-        ? ''
-        : entry.workedNiches.join(', ');
   }
 
   void onExpertiseContinue() {
@@ -566,18 +565,15 @@ class SignupAgencyController extends GetxController {
   }
 }
 
-/// One block of "platform + niches + worked niches"
 class AgencyPlatformEntry {
   final RxnString selectedPlatform = RxnString();
 
-  /// What the user has selected for this platform
   final RxList<String> workedNiches = <String>[].obs;
 
-  /// Read-only summary text shown in the "Select Niches" field
-  final TextEditingController nicheSummaryController = TextEditingController();
+  final TextEditingController selectNicheController = TextEditingController();
 
   void dispose() {
-    nicheSummaryController.dispose();
+    selectNicheController.dispose();
   }
 }
 

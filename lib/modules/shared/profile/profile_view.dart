@@ -416,6 +416,7 @@ class _SocialLinksSection extends StatelessWidget {
                     width: 21.w,
                     height: 21.w,
                     fit: BoxFit.cover,
+                    color: AppPalette.black,
                     errorBuilder: (context, error, stackTrace) =>
                         Icon(Icons.link, size: 21.w, color: AppPalette.subtext),
                   ),
@@ -607,12 +608,27 @@ class _VerificationProgressList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final accountTypeService = Get.find<AccountTypeService>();
+    final isBrand = accountTypeService.isBrand;
+    final isInfluencer = accountTypeService.isInfluencer;
+    final isAdAgency = accountTypeService.isAdAgency;
+
     return Obx(
       () => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (isBrand) ...[
+            Obx(
+              () => BrandContactInfoCard(
+                email: controller.userEmail.value,
+                phone: controller.userPhone.value,
+                website: controller.brandWebsite.value,
+              ),
+            ),
+            SizedBox(height: 16.h),
+          ],
           Container(
-            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
+            padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
             decoration: BoxDecoration(
               color: AppPalette.white,
               borderRadius: BorderRadius.circular(kBorderRadius.r),
@@ -628,15 +644,15 @@ class _VerificationProgressList extends StatelessWidget {
                   children: [
                     Icon(
                       Icons.check_circle,
-                      color: AppPalette.secondary,
-                      size: 18.sp,
+                      color: AppPalette.primary,
+                      size: 23.sp,
                     ),
                     SizedBox(width: 8.w),
                     Text(
                       'Verification Progress',
                       style: TextStyle(
                         color: AppPalette.black,
-                        fontSize: 14.sp,
+                        fontSize: 16.sp,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -647,8 +663,8 @@ class _VerificationProgressList extends StatelessWidget {
                   borderRadius: BorderRadius.circular(999.r),
                   child: LinearProgressIndicator(
                     value: overallProgress,
-                    minHeight: 6.h,
-                    backgroundColor: AppPalette.border1,
+                    minHeight: 9.h,
+                    backgroundColor: AppPalette.secondary.withAlpha(120),
                     color: AppPalette.secondary,
                   ),
                 ),
@@ -740,17 +756,17 @@ class _VerificationItemCard extends StatelessWidget {
       padding: EdgeInsets.only(bottom: 12.h),
       child: Material(
         color: AppPalette.white,
-        borderRadius: BorderRadius.circular(12.r),
+        borderRadius: BorderRadius.circular(kBorderRadius.r),
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(12.r),
           child: Container(
-            padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+            padding: EdgeInsets.symmetric(horizontal: 28.w, vertical: 20.h),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12.r),
+              borderRadius: BorderRadius.circular(kBorderRadius.r),
               border: Border.all(
                 color: AppPalette.border1,
-                width: kBorderWidth0_5,
+                width: kBorderWidth0_5.w,
               ),
             ),
             child: Row(

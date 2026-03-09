@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:influencer_app/core/utils/bd_phone_input_formatter.dart';
 import 'package:path/path.dart' as path;
 
 import '../../../core/enums/account_type.dart';
@@ -41,6 +42,14 @@ class SignupInfluencerController extends GetxController {
   final phoneController = TextEditingController();
   final passwordController = TextEditingController(); // ✅ required
 
+  @override
+  void onInit() {
+    super.onInit();
+    if (phoneController.text.trim().isEmpty) {
+      phoneController.text = '+88 ';
+    }
+  }
+
   Future<void> onStep1Continue() async {
     if (isSubmitting.value) return;
 
@@ -49,7 +58,7 @@ class SignupInfluencerController extends GetxController {
     final firstName = firstNameController.text.trim();
     final lastName = lastNameController.text.trim();
     final email = emailController.text.trim();
-    final phone = phoneController.text.trim();
+    final phone = BdPhoneInputFormatter().toApiPhone(phoneController.text);
     final password = passwordController.text;
 
     isSubmitting.value = true;

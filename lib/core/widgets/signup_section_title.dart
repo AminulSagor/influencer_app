@@ -29,7 +29,7 @@ class SignupSectionTitle extends StatelessWidget {
           Image.asset(iconAsset!, width: 34.w)
         else if (iconData != null)
           Icon(iconData, size: 24.sp, color: iconColor ?? AppPalette.primary),
-        SizedBox(width: 10.w),
+        if (!(iconData == null && iconAsset == null)) SizedBox(width: 10.w),
         Expanded(
           child: Text(
             title,

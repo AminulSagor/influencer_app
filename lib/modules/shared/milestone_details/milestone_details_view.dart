@@ -289,6 +289,16 @@ class MilestoneDetailsView extends GetView<MilestoneDetailsController> {
                           ),
                           SizedBox(height: 12.h),
                         ],
+                        Obx(() {
+                          if (!controller.canShowBonusSection) {
+                            return const SizedBox.shrink();
+                          }
+
+                          return _BonusSectionCard(
+                            onTap: controller.openBonusDialog,
+                          );
+                        }),
+                        SizedBox(height: 12.h),
                       ],
                     );
                   }),
@@ -900,6 +910,73 @@ void _showWriteReportDialog({
     ),
     barrierDismissible: true,
   );
+}
+
+class _BonusSectionCard extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _BonusSectionCard({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(kBorderRadius.r),
+        gradient: const LinearGradient(
+          colors: [AppPalette.gradient1, AppPalette.secondary],
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.card_giftcard_rounded,
+                color: AppPalette.thirdColor,
+                size: 20.sp,
+              ),
+              SizedBox(width: 12.w),
+              Text(
+                'bonus_title'.tr,
+                style: TextStyle(
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w500,
+                  color: AppPalette.thirdColor,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 8.h),
+          Text(
+            'bonus_subtitle'.tr,
+            style: TextStyle(
+              fontSize: 10.sp,
+              fontWeight: FontWeight.w400,
+              color: AppPalette.thirdColor,
+            ),
+          ),
+          SizedBox(height: 16.h),
+          CustomButton(
+            onTap: onTap,
+            btnText: 'provide_bonus_btn'.tr,
+            gradient: LinearGradient(
+              colors: [AppPalette.thirdColor, AppPalette.white],
+            ),
+            textColor: AppPalette.primary,
+            height: 40.h,
+            width: double.infinity,
+            textStyle: AppTheme.textStyle.copyWith(
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 void _showSubmittedReportsDialog({required BuildContext context}) {

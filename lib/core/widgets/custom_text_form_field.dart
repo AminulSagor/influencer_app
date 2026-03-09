@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../theme/app_palette.dart';
@@ -25,6 +26,7 @@ class CustomTextFormField extends StatelessWidget {
   final TextInputAction? textInputAction;
   final Color? borderColor;
   final double? borderRadius;
+  final List<TextInputFormatter>? inputFormatters;
 
   const CustomTextFormField({
     super.key,
@@ -48,6 +50,7 @@ class CustomTextFormField extends StatelessWidget {
     this.titleTextStyle,
     this.borderColor,
     this.borderRadius,
+    this.inputFormatters,
   });
 
   @override
@@ -84,6 +87,7 @@ class CustomTextFormField extends StatelessWidget {
       keyboardType: keyboardType,
       obscureText: obscureText,
       textInputAction: textInputAction,
+      inputFormatters: inputFormatters,
       decoration: InputDecoration(
         hintText: hintText ?? (title != null ? 'Enter $title' : ''),
         hintStyle: style.copyWith(color: AppPalette.subtext),

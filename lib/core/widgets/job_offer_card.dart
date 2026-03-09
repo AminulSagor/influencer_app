@@ -243,6 +243,7 @@ class JobOfferCard extends StatelessWidget {
               onTap: onView,
               btnText: 'View Details',
               textColor: AppPalette.white,
+              width: double.infinity,
             ),
           ],
 

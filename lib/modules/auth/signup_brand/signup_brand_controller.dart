@@ -12,13 +12,14 @@ import 'package:influencer_app/modules/brand/models/onboarding_models.dart';
 import 'package:influencer_app/modules/brand/services/brand_onboarding_services.dart';
 import '../../../core/enums/account_type.dart';
 import '../../../core/models/social_link.dart';
+import '../../../core/utils/bd_phone_input_formatter.dart';
 import '../../../routes/app_routes.dart';
 import 'package:path/path.dart' as path;
 
 // Helper class to collect onboarding data across steps
 class _MutableBrandOnboardingData {
   String? thana;
-  String? zila;
+  String? zilla;
   String? fullAddress;
   String? website;
   List<BrandSocialLink> socialLinks = [];
@@ -59,6 +60,14 @@ class SignupBrandController extends GetxController {
   // language toggle
   final isEnglish = true.obs;
 
+  @override
+  void onInit() {
+    super.onInit();
+    if (phoneController.text.trim().isEmpty) {
+      phoneController.text = '+88 ';
+    }
+  }
+
   void setLanguage(String code) {
     if (code == 'en') {
       isEnglish.value = true;
@@ -76,12 +85,14 @@ class SignupBrandController extends GetxController {
     if (formKey.currentState?.validate() != true) return;
     isSubmitting.value = true;
 
+    final phone = BdPhoneInputFormatter().toApiPhone(phoneController.text);
+
     final result = await ApiErrorHandler.call(
       () => authService.signup(
         firstName: firstNameController.text.trim(),
         lastName: lastNameController.text.trim(),
         email: emailController.text.trim(),
-        phone: phoneController.text.trim(),
+        phone: phone,
         password: passwordController.text.trim(),
         role: 'client',
       ),
@@ -127,7 +138,7 @@ class SignupBrandController extends GetxController {
 
     // Save address data to onboarding model
     onboardingData.thana = selectedThana.value?.trim();
-    onboardingData.zila = selectedZilla.value?.trim();
+    onboardingData.zilla = selectedZilla.value?.trim();
     onboardingData.fullAddress = fullAddressController.text.trim();
 
     Get.toNamed(AppRoutes.signupBrandSocial);
@@ -475,7 +486,7 @@ class SignupBrandController extends GetxController {
       // Build final onboarding request with all collected data
       final request = BrandOnboardingRequest(
         thana: onboardingData.thana,
-        zila: onboardingData.zila,
+        zilla: onboardingData.zilla,
         fullAddress: onboardingData.fullAddress,
         website: onboardingData.website,
         socialLinks: onboardingData.socialLinks,

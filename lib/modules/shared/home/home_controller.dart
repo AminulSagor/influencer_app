@@ -113,7 +113,7 @@ class HomeController extends GetxController {
     );
 
     final workInProgressResult = await ApiErrorHandler.call(
-      () => _agencyDashboardService.fetchWorkInProgress(page: 1, limit: 5),
+      () => _agencyDashboardService.fetchWorkInProgress(page: 1, limit: 3),
       showError: false,
     );
 
@@ -181,7 +181,7 @@ class HomeController extends GetxController {
     );
 
     final workInProgressResult = await ApiErrorHandler.call(
-      () => _influencerDashboardService.fetchWorkInProgress(page: 1, limit: 5),
+      () => _influencerDashboardService.fetchWorkInProgress(page: 1, limit: 3),
       showError: false,
     );
 

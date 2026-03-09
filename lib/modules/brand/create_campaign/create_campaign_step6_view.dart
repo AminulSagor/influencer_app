@@ -319,6 +319,7 @@ class _CampaignOverviewCard extends StatelessWidget {
                       width: 24.w,
                       height: 24.w,
                       fit: BoxFit.cover,
+                      color: AppPalette.thirdColor,
                     ),
                   ),
                 ),

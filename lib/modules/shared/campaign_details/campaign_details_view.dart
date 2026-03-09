@@ -438,7 +438,7 @@ class _QuoteDetailsCard extends StatelessWidget {
     final estimatedProfit =
         job.estimatedProfitAmount ?? _tryParseCurrency(job.profitLabel) ?? 0;
 
-    final platformFeePercent = (job.platformFeePercent ?? 2).round();
+    final platformFeePercent = (job.platformFeePercent ?? 0).round();
     final platformFeeAmount = job.platformFeeAmount ?? 0;
 
     final actualProfit =
@@ -451,23 +451,24 @@ class _QuoteDetailsCard extends StatelessWidget {
 
     final labelStyle = TextStyle(
       fontSize: 12.sp,
-      fontWeight: FontWeight.w400,
-      color: const Color(0xFF1B1B1B),
+      fontWeight: FontWeight.w300,
+      color: AppPalette.black,
+      overflow: TextOverflow.ellipsis,
     );
 
     final valueStyle = TextStyle(
       fontSize: 12.sp,
-      fontWeight: FontWeight.w600,
-      color: const Color(0xFF5C7F2C),
+      fontWeight: FontWeight.w500,
+      color: AppPalette.secondary,
     );
 
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 20.w),
       padding: EdgeInsets.all(14.w),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7FCEB),
-        borderRadius: BorderRadius.circular(18.r),
-        border: Border.all(color: const Color(0xFFB9D88B), width: 1),
+        color: AppPalette.white,
+        borderRadius: BorderRadius.circular(kBorderRadius.r),
+        border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -478,9 +479,9 @@ class _QuoteDetailsCard extends StatelessWidget {
               Text(
                 'Quote Details',
                 style: TextStyle(
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF1B1B1B),
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w600,
+                  color: AppPalette.primary,
                 ),
               ),
               const Spacer(),
@@ -488,7 +489,7 @@ class _QuoteDetailsCard extends StatelessWidget {
                 width: 34.w,
                 height: 34.w,
                 decoration: const BoxDecoration(
-                  color: Color(0xFFE7F6C9),
+                  color: AppPalette.thirdColor,
                   shape: BoxShape.circle,
                 ),
                 alignment: Alignment.center,
@@ -510,9 +511,14 @@ class _QuoteDetailsCard extends StatelessWidget {
           Container(
             padding: EdgeInsets.all(14.w),
             decoration: BoxDecoration(
-              color: const Color(0xFFF2FAD9),
-              borderRadius: BorderRadius.circular(14.r),
-              border: Border.all(color: const Color(0xFFB9D88B), width: 1),
+              borderRadius: BorderRadius.circular(kBorderRadius),
+              border: Border.all(
+                color: AppPalette.secondary,
+                width: kBorderWidth0_5,
+              ),
+              gradient: LinearGradient(
+                colors: [AppPalette.thirdColor, AppPalette.white],
+              ),
             ),
             child: Column(
               children: [
@@ -532,24 +538,18 @@ class _QuoteDetailsCard extends StatelessWidget {
                 ),
 
                 SizedBox(height: 10.h),
-                Divider(
-                  color: const Color(0xFFB9D88B).withOpacity(0.8),
-                  height: 1,
-                ),
+                Divider(color: AppPalette.border1, height: 1),
                 SizedBox(height: 10.h),
 
                 _row(
                   label: 'Total Payable By Client',
                   value: formatCurrencyByLocale(totalPayable),
-                  labelStyle: labelStyle.copyWith(fontWeight: FontWeight.w700),
-                  valueStyle: valueStyle.copyWith(fontWeight: FontWeight.w800),
+                  labelStyle: labelStyle,
+                  valueStyle: valueStyle,
                 ),
 
                 SizedBox(height: 10.h),
-                Divider(
-                  color: const Color(0xFFB9D88B).withOpacity(0.35),
-                  height: 1,
-                ),
+                Divider(color: AppPalette.border1, height: 1),
                 SizedBox(height: 10.h),
 
                 _row(
@@ -579,8 +579,8 @@ class _QuoteDetailsCard extends StatelessWidget {
                   value: formatCurrencyByLocale(
                     actualProfit < 0 ? 0 : actualProfit,
                   ),
-                  labelStyle: labelStyle.copyWith(fontWeight: FontWeight.w700),
-                  valueStyle: valueStyle.copyWith(fontWeight: FontWeight.w800),
+                  labelStyle: labelStyle,
+                  valueStyle: valueStyle,
                 ),
               ],
             ),
@@ -593,8 +593,11 @@ class _QuoteDetailsCard extends StatelessWidget {
             padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(14.r),
-              border: Border.all(color: const Color(0xFFB9D88B), width: 1),
+              borderRadius: BorderRadius.circular(kBorderRadius.r),
+              border: Border.all(
+                color: AppPalette.secondary,
+                width: kBorderWidth0_5.w,
+              ),
             ),
             child: Column(
               children: [
@@ -603,7 +606,7 @@ class _QuoteDetailsCard extends StatelessWidget {
                   value: totalSpent == null
                       ? '—'
                       : formatCurrencyByLocale(totalSpent),
-                  labelStyle: labelStyle,
+                  labelStyle: labelStyle.copyWith(fontSize: 10.sp),
                   valueStyle: valueStyle,
                 ),
                 SizedBox(height: 8.h),
@@ -615,8 +618,12 @@ class _QuoteDetailsCard extends StatelessWidget {
                   value: spentUsd == null
                       ? '—'
                       : '\$${spentUsd.toStringAsFixed(2)}',
-                  labelStyle: labelStyle.copyWith(fontWeight: FontWeight.w700),
-                  valueStyle: valueStyle.copyWith(fontWeight: FontWeight.w800),
+                  labelStyle: labelStyle.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: AppPalette.primary,
+                    fontSize: 10.sp,
+                  ),
+                  valueStyle: valueStyle.copyWith(fontWeight: FontWeight.w600),
                 ),
               ],
             ),

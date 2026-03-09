@@ -252,14 +252,14 @@ class AppTranslations extends Translations {
           'This is a one-time security check to ensure payments are sent to the correct person. Your data is safe with us.',
 
       // Agency Expertise
-      'agency_expertise_title': 'What\'s Your Expertise?',
-      'agency_expertise_subtitle': 'Tell Us About Your Specializations',
+      'agency_expertise_title': 'Define Your Expertise',
+      'agency_expertise_subtitle': 'Showcase Your Experience',
       'agency_expertise_body':
-          'Help brands understand what you excel at. Select the platforms you specialize in and the niches you serve best.',
+          'Tell us which industries you specialize in so we can match you with the most relevant campaign briefs.',
       'agency_expertise_info':
-          'This helps us match you with the right campaigns. The more details you provide, the better offers you\'ll receive.',
-      'agency_expertise_section_title': 'Your Expertise',
-      'agency_expertise_add_platform': '+ Add Another Platform',
+          'We use these preferences to filter out irrelevant briefs, saving you time.',
+      'agency_expertise_section_title': 'Select Industries',
+      'agency_expertise_add_platform': 'Add Another Platform',
       'agency_expertise_platform': 'Platform',
       'agency_expertise_platform_label': 'Select Platform *',
       'agency_expertise_platform_hint': 'Choose a platform',
@@ -378,7 +378,7 @@ class AppTranslations extends Translations {
       'home_lifetime_summary': 'Lifetime Summary',
       'home_jobs_completed_suffix': 'Jobs Completed',
       'home_top_client': 'Top client',
-      'home_last_job': 'Last Job: 12 Dec 2025',
+      'home_last_job': 'Last Job:',
 
       'home_total_jobs_completed': 'Total Jobs Completed',
       'home_total_earnings': 'Total Earnings',
@@ -1102,6 +1102,15 @@ class AppTranslations extends Translations {
       "no_content_assets_found": "No content assets found",
       "no_terms_found": "No terms & condition details found",
       "no_brand_assets_found": "No brand assets found",
+
+      "bonus_title": "Bonus",
+      "bonus_subtitle":
+          "The creator has acquired more than the target required",
+      "provide_bonus_btn": "Provide Bonus",
+      "provide_bonus_amount_title": "Provide Bonus Amount",
+      "bonus_to_label": "To",
+      "payment_method": "Payment Method",
+      "pay_now": "Pay Now",
     },
 
     // Bangla
@@ -1485,7 +1494,7 @@ class AppTranslations extends Translations {
       'home_lifetime_summary': 'আজীবন কাজের সংক্ষিপ্তসার',
       'home_jobs_completed_suffix': 'টি কাজ করেছেন',
       'home_top_client': 'সেরা ক্লায়েন্ট',
-      'home_last_job': 'সর্বশেষ কাজ: ১২ Dec ২০২৫',
+      'home_last_job': 'সর্বশেষ কাজ:',
 
       'home_total_jobs_completed': 'সফল কাজের সংখ্যা',
       'home_total_earnings': 'মোট ইনকাম',
@@ -2216,6 +2225,13 @@ class AppTranslations extends Translations {
       "no_content_assets_found": "কোনো কনটেন্ট অ্যাসেট পাওয়া যায়নি",
       "no_terms_found": "কোনো শর্তাবলী বা তথ্য পাওয়া যায়নি",
       "no_brand_assets_found": "কোনো ব্র্যান্ড অ্যাসেট পাওয়া যায়নি",
+      "bonus_title": "বোনাস",
+      "bonus_subtitle": "নির্ধারিত টার্গেটের থেকে বেশি ফলাফল অর্জন করেছে",
+      "provide_bonus_btn": "বোনাস প্রদান করুন",
+      "provide_bonus_amount_title": "বোনাসের পরিমাণ দিন",
+      "bonus_to_label": "To",
+      "payment_method": "পেমেন্টের মাধ্যম",
+      "pay_now": "পে করুন",
     },
   };
 }

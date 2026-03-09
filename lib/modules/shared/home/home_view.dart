@@ -224,7 +224,7 @@ class HomeView extends GetView<HomeController> {
               ),
               const Spacer(),
               Obx(() {
-                final count = controller.dashboard.value.jobsInProgress.length;
+                final count = controller.dashboard.value.activeJobs;
                 return Container(
                   padding: EdgeInsets.symmetric(
                     horizontal: 22.w,
@@ -658,7 +658,7 @@ class HomeView extends GetView<HomeController> {
               Text(
                 value,
                 style: TextStyle(
-                  fontSize: 24.sp,
+                  fontSize: 22.sp,
                   fontWeight: FontWeight.w500,
                   color: isDeclined
                       ? AppPalette.complemetary
