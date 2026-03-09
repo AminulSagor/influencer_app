@@ -103,9 +103,9 @@ class _AgencyRequoteDialogState extends State<AgencyRequoteDialog> {
                 Text(
                   'Requote',
                   style: TextStyle(
-                    fontSize: 18.sp,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF5C7F2C),
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w600,
+                    color: AppPalette.secondary,
                   ),
                 ),
                 const Spacer(),
@@ -119,6 +119,7 @@ class _AgencyRequoteDialogState extends State<AgencyRequoteDialog> {
 
             _label('Requote your charge in percentage'),
             SizedBox(height: 8.h),
+
             _inputBox(
               controller: _percentC,
               suffix: '%',
@@ -166,44 +167,41 @@ class _AgencyRequoteDialogState extends State<AgencyRequoteDialog> {
                 width: double.infinity,
                 padding: EdgeInsets.all(14.w),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF7FCEB),
-                  borderRadius: BorderRadius.circular(14.r),
-                  border: Border.all(color: const Color(0xFFB9D88B), width: 1),
+                  borderRadius: BorderRadius.circular(kBorderRadius.r),
+                  border: Border.all(
+                    color: AppPalette.secondary,
+                    width: kBorderWidth0_5.w,
+                  ),
+                  gradient: LinearGradient(
+                    colors: [AppPalette.thirdColor, AppPalette.white],
+                  ),
                 ),
                 child: Column(
                   children: [
                     _ovRow(
                       'Total Payable By Client',
                       formatCurrencyByLocale(totalPayable),
-                      isBold: true,
                     ),
-                    SizedBox(height: 8.h),
+                    SizedBox(height: 4.h),
                     _ovRow('Your Profit', formatCurrencyByLocale(yourProfit)),
-                    SizedBox(height: 8.h),
+                    SizedBox(height: 4.h),
                     _ovRow(
                       'Platform Charge',
                       '-${formatCurrencyByLocale(platformCharge)}',
                     ),
-                    SizedBox(height: 8.h),
+                    SizedBox(height: 4.h),
                     _ovRow(
                       'Actual Profit',
                       formatCurrencyByLocale(actualProfitSafe),
-                      isBold: true,
                     ),
 
-                    SizedBox(height: 10.h),
-                    Divider(
-                      height: 1,
-                      color: const Color(0xFFB9D88B).withOpacity(0.6),
-                    ),
-                    SizedBox(height: 10.h),
+                    SizedBox(height: 12.h),
 
                     _ovRow(
                       'Total Campaign Spent',
                       formatCurrencyByLocale(_base),
-                      isBold: true,
                     ),
-                    SizedBox(height: 8.h),
+                    SizedBox(height: 4.h),
                     _ovRow(
                       dollarRate > 0
                           ? 'Campaign Spent In Dollar (${dollarRate.toStringAsFixed(2)} BDT/\$ )'
@@ -246,6 +244,7 @@ class _AgencyRequoteDialogState extends State<AgencyRequoteDialog> {
               btnText: 'Requote To Client',
               btnColor: const Color(0xFF7C9A57),
               textColor: Colors.white,
+              width: double.infinity,
             ),
           ],
         ),
@@ -257,9 +256,9 @@ class _AgencyRequoteDialogState extends State<AgencyRequoteDialog> {
     return Text(
       text,
       style: TextStyle(
-        fontSize: 13.sp,
-        fontWeight: FontWeight.w600,
-        color: AppPalette.primary,
+        fontSize: 12.sp,
+        fontWeight: FontWeight.w500,
+        color: AppPalette.black,
       ),
     );
   }
@@ -272,10 +271,10 @@ class _AgencyRequoteDialogState extends State<AgencyRequoteDialog> {
     List<TextInputFormatter>? inputFormatters,
   }) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 6.h),
+      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: const Color(0xFFB9D88B), width: 1),
+        borderRadius: BorderRadius.circular(kBorderRadius.r),
+        border: Border.all(color: AppPalette.secondary, width: kBorderWidth0_5),
       ),
       child: Row(
         children: [
@@ -283,9 +282,9 @@ class _AgencyRequoteDialogState extends State<AgencyRequoteDialog> {
             Text(
               prefix,
               style: TextStyle(
-                fontSize: 16.sp,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF5C7F2C),
+                fontSize: 15.sp,
+                fontWeight: FontWeight.w400,
+                color: AppPalette.secondary,
               ),
             ),
           ],
@@ -296,9 +295,9 @@ class _AgencyRequoteDialogState extends State<AgencyRequoteDialog> {
               inputFormatters: inputFormatters,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 16.sp,
-                fontWeight: FontWeight.w700,
-                color: const Color(0xFF5C7F2C),
+                fontSize: 15.sp,
+                fontWeight: FontWeight.w400,
+                color: AppPalette.secondary,
               ),
               decoration: const InputDecoration(
                 border: InputBorder.none,
@@ -310,9 +309,9 @@ class _AgencyRequoteDialogState extends State<AgencyRequoteDialog> {
             Text(
               suffix,
               style: TextStyle(
-                fontSize: 16.sp,
-                fontWeight: FontWeight.w700,
-                color: const Color(0xFF5C7F2C),
+                fontSize: 15.sp,
+                fontWeight: FontWeight.w400,
+                color: AppPalette.secondary,
               ),
             ),
           ],
@@ -323,13 +322,13 @@ class _AgencyRequoteDialogState extends State<AgencyRequoteDialog> {
 
   Widget _ovRow(String label, String value, {bool isBold = false}) {
     final labelStyle = TextStyle(
-      fontSize: 12.sp,
-      fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
+      fontSize: 10.sp,
+      fontWeight: isBold ? FontWeight.w600 : FontWeight.w300,
       color: AppPalette.primary,
     );
     final valueStyle = TextStyle(
       fontSize: 12.sp,
-      fontWeight: isBold ? FontWeight.w800 : FontWeight.w700,
+      fontWeight: isBold ? FontWeight.w600 : FontWeight.w500,
       color: const Color(0xFF5C7F2C),
     );
 

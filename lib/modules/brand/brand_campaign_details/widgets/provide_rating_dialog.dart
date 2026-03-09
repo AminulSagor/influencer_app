@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:influencer_app/core/utils/constants.dart';
 
 import '../../../../core/theme/app_palette.dart';
 import '../../../../core/widgets/custom_button.dart';
@@ -75,11 +76,11 @@ class _InfluencerRatingContent extends GetView<BrandCampaignDetailsController> {
                     width: double.infinity,
                     padding: EdgeInsets.all(14.w),
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16.r),
+                      borderRadius: BorderRadius.circular(kBorderRadius.r),
                       gradient: const LinearGradient(
                         begin: Alignment.centerLeft,
                         end: Alignment.centerRight,
-                        colors: [Color(0xFF7E9F58), Color(0xFF4F712D)],
+                        colors: [AppPalette.secondary, AppPalette.gradient1],
                       ),
                     ),
                     child: Column(
@@ -95,7 +96,7 @@ class _InfluencerRatingContent extends GetView<BrandCampaignDetailsController> {
                                 child: Text(
                                   item.name,
                                   style: TextStyle(
-                                    fontSize: 16.sp,
+                                    fontSize: 14.sp,
                                     fontWeight: FontWeight.w600,
                                     color: Colors.white,
                                   ),
@@ -107,10 +108,10 @@ class _InfluencerRatingContent extends GetView<BrandCampaignDetailsController> {
                                   final filled = i < item.rating.value;
                                   return Icon(
                                     Icons.star_rounded,
-                                    size: 16.sp,
+                                    size: 18.sp,
                                     color: filled
-                                        ? const Color(0xFFF7C948)
-                                        : Colors.white,
+                                        ? AppPalette.starDark
+                                        : AppPalette.white,
                                   );
                                 }),
                               ),
@@ -142,7 +143,7 @@ class _InfluencerRatingContent extends GetView<BrandCampaignDetailsController> {
                             style: TextStyle(
                               fontSize: 14.sp,
                               fontWeight: FontWeight.w600,
-                              color: Colors.white,
+                              color: AppPalette.thirdColor,
                             ),
                           ),
                         ],
@@ -188,8 +189,8 @@ class _AgencyRatingContent extends GetView<BrandCampaignDetailsController> {
 
   @override
   Widget build(BuildContext context) {
-    final agencyName = controller.job?.clientName?.trim().isNotEmpty == true
-        ? controller.job!.clientName!
+    final agencyName = controller.job?.clientName.trim().isNotEmpty == true
+        ? controller.job!.clientName
         : 'Agency';
 
     return Obx(() {
@@ -202,8 +203,8 @@ class _AgencyRatingContent extends GetView<BrandCampaignDetailsController> {
           Text(
             'Rate This Agency',
             style: TextStyle(
-              fontSize: 18.sp,
-              fontWeight: FontWeight.w700,
+              fontSize: 16.sp,
+              fontWeight: FontWeight.w600,
               color: AppPalette.primary,
             ),
           ),
@@ -213,11 +214,11 @@ class _AgencyRatingContent extends GetView<BrandCampaignDetailsController> {
             width: double.infinity,
             padding: EdgeInsets.fromLTRB(16.w, 18.h, 16.w, 24.h),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16.r),
+              borderRadius: BorderRadius.circular(kBorderRadius.r),
               gradient: const LinearGradient(
                 begin: Alignment.centerLeft,
                 end: Alignment.centerRight,
-                colors: [Color(0xFF7E9F58), Color(0xFF4F712D)],
+                colors: [AppPalette.secondary, AppPalette.gradient1],
               ),
             ),
             child: Column(
@@ -230,9 +231,9 @@ class _AgencyRatingContent extends GetView<BrandCampaignDetailsController> {
                       child: Text(
                         agencyName,
                         style: TextStyle(
-                          fontSize: 16.sp,
+                          fontSize: 14.sp,
                           fontWeight: FontWeight.w600,
-                          color: Colors.white,
+                          color: AppPalette.thirdColor,
                         ),
                       ),
                     ),
@@ -241,7 +242,9 @@ class _AgencyRatingContent extends GetView<BrandCampaignDetailsController> {
                 SizedBox(height: 24.h),
                 _StarPicker(
                   rating: rating,
-                  onTap: controller.setAgencyDialogRating,
+                  onTap: controller.isRated.value
+                      ? null
+                      : controller.setAgencyDialogRating,
                 ),
                 SizedBox(height: 12.h),
                 Text(
@@ -249,7 +252,7 @@ class _AgencyRatingContent extends GetView<BrandCampaignDetailsController> {
                   style: TextStyle(
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w600,
-                    color: Colors.white,
+                    color: AppPalette.thirdColor,
                   ),
                 ),
               ],
@@ -259,6 +262,7 @@ class _AgencyRatingContent extends GetView<BrandCampaignDetailsController> {
           SizedBox(height: 20.h),
 
           Obx(() {
+            final isDisabled = controller.isRated.value;
             return CustomButton(
               onTap: controller.isSubmittingRatings.value
                   ? null
@@ -266,6 +270,7 @@ class _AgencyRatingContent extends GetView<BrandCampaignDetailsController> {
               btnText: controller.isSubmittingRatings.value
                   ? 'Submitting...'
                   : 'Submit Your Ratings',
+              isDisabled: isDisabled,
               width: double.infinity,
               btnColor: AppPalette.secondary,
               textColor: AppPalette.white,
@@ -273,12 +278,13 @@ class _AgencyRatingContent extends GetView<BrandCampaignDetailsController> {
           }),
 
           SizedBox(height: 8.h),
-          Center(
-            child: Text(
-              "You Haven't Submitted Your Ratings Yet",
-              style: TextStyle(fontSize: 11.sp, color: AppPalette.greyText),
+          if (!controller.isRated.value)
+            Center(
+              child: Text(
+                "You Haven't Submitted Your Ratings Yet",
+                style: TextStyle(fontSize: 11.sp, color: AppPalette.greyText),
+              ),
             ),
-          ),
         ],
       );
     });
@@ -287,7 +293,7 @@ class _AgencyRatingContent extends GetView<BrandCampaignDetailsController> {
 
 class _StarPicker extends StatelessWidget {
   final int rating;
-  final ValueChanged<int> onTap;
+  final ValueChanged<int>? onTap;
 
   const _StarPicker({required this.rating, required this.onTap});
 
@@ -301,11 +307,11 @@ class _StarPicker extends StatelessWidget {
         final filled = index <= rating;
 
         return InkWell(
-          onTap: () => onTap(index),
+          onTap: onTap == null ? null : () => onTap!(index),
           child: Icon(
             Icons.star_rounded,
             size: 34.sp,
-            color: filled ? const Color(0xFFF7C948) : Colors.white,
+            color: filled ? AppPalette.starDark : AppPalette.white,
           ),
         );
       }),
@@ -321,11 +327,11 @@ class _AvatarCircle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 38.w,
-      height: 38.w,
+      width: 34.w,
+      height: 34.w,
       decoration: const BoxDecoration(
         shape: BoxShape.circle,
-        color: Color(0xFFE7E4C8),
+        color: AppPalette.thirdColor,
       ),
       clipBehavior: Clip.antiAlias,
       child: (imageUrl != null && imageUrl!.trim().isNotEmpty)

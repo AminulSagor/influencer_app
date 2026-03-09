@@ -326,6 +326,10 @@ class MilestoneDetailsView extends GetView<MilestoneDetailsController> {
                                   controller.enableEditForDeclined(
                                     controller.submissions[i],
                                   ),
+                              onAddLiveLink: () =>
+                                  controller.addLiveLinkField(i),
+                              onRemoveLiveLink: (linkIndex) =>
+                                  controller.removeLiveLinkField(i, linkIndex),
                               accountTypeService: accountTypeService,
                             ),
                           ),
@@ -335,7 +339,8 @@ class MilestoneDetailsView extends GetView<MilestoneDetailsController> {
                 ),
 
               if (!accountTypeService.isBrand) ...[
-                if (!accountTypeService.isInfluencer) ...[
+                if (!accountTypeService.isInfluencer &&
+                    controller.shouldShowSubmitSection) ...[
                   SizedBox(height: 8.h),
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16.w),
@@ -346,17 +351,20 @@ class MilestoneDetailsView extends GetView<MilestoneDetailsController> {
                   SizedBox(height: 24.h),
                 ],
 
-                Obx(
-                  () => _MilestoneBottomSection(
+                Obx(() {
+                  if (!controller.shouldShowSubmitSection) {
+                    return const SizedBox.shrink();
+                  }
+
+                  return _MilestoneBottomSection(
                     confirmOwnership: controller.confirmOwnership.value,
                     acceptLicense: controller.acceptLicense.value,
                     onToggleOwnership: controller.toggleOwnership,
                     onToggleLicense: controller.toggleLicense,
                     onSubmit: controller.submitForReview,
-                    // ✅ add this param
                     submitText: controller.submitButtonText,
-                  ),
-                ),
+                  );
+                }),
               ],
 
               // if (accountTypeService.isBrand) ...[

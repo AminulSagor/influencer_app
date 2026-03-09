@@ -12,6 +12,12 @@ class PagedResult<T> {
     required this.page,
     required this.limit,
   });
+
+  int get totalPages {
+    if (limit <= 0) return 1;
+    final pages = (total / limit).ceil();
+    return pages <= 0 ? 1 : pages;
+  }
 }
 
 class ReportService {
@@ -21,10 +27,17 @@ class ReportService {
   Future<PagedResult<Map<String, dynamic>>> fetchInfluencerReportLogs({
     int page = 1,
     int limit = 10,
+    String? status,
+    String? search,
   }) async {
     final res = await _api.dio.get(
       '/influencer/report-logs',
-      queryParameters: {'page': page, 'limit': limit},
+      queryParameters: {
+        'page': page,
+        'limit': limit,
+        if (status != null && status.trim().isNotEmpty) 'status': status.trim(),
+        if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
+      },
     );
     return _parsePaged(res.data, page: page, limit: limit);
   }
@@ -32,6 +45,7 @@ class ReportService {
   Future<PagedResult<Map<String, dynamic>>> fetchClientReports({
     int page = 1,
     int limit = 10,
+    String? status,
     String? search,
   }) async {
     final res = await _api.dio.get(
@@ -39,6 +53,7 @@ class ReportService {
       queryParameters: {
         'page': page,
         'limit': limit,
+        if (status != null && status.trim().isNotEmpty) 'status': status.trim(),
         if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
       },
     );
@@ -48,6 +63,7 @@ class ReportService {
   Future<PagedResult<Map<String, dynamic>>> fetchAgencyReports({
     int page = 1,
     int limit = 10,
+    String? status,
     String? search,
   }) async {
     final res = await _api.dio.get(
@@ -55,6 +71,7 @@ class ReportService {
       queryParameters: {
         'page': page,
         'limit': limit,
+        if (status != null && status.trim().isNotEmpty) 'status': status.trim(),
         if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
       },
     );
@@ -69,21 +86,32 @@ class ReportService {
     if (data is Map<String, dynamic>) {
       final list = data['data'];
       final meta = data['meta'];
+
       final total = meta is Map<String, dynamic>
-          ? (meta['total'] is int ? meta['total'] as int : 0)
+          ? ((meta['total'] as num?)?.toInt() ?? 0)
           : 0;
+
+      final currentPage = meta is Map<String, dynamic>
+          ? ((meta['page'] as num?)?.toInt() ?? page)
+          : page;
+
+      final currentLimit = meta is Map<String, dynamic>
+          ? ((meta['limit'] as num?)?.toInt() ?? limit)
+          : limit;
+
       if (list is List) {
         return PagedResult(
           items: list
               .whereType<Map>()
               .map((e) => e.cast<String, dynamic>())
-              .toList(),
+              .toList(growable: false),
           total: total,
-          page: page,
-          limit: limit,
+          page: currentPage,
+          limit: currentLimit,
         );
       }
     }
+
     return PagedResult(items: const [], total: 0, page: page, limit: limit);
   }
 }

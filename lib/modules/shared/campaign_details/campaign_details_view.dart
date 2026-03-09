@@ -1,4 +1,6 @@
 // campaign_details_view.dart
+import 'dart:developer' as dev;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -27,112 +29,117 @@ class CampaignDetailsView extends GetView<CampaignDetailsController> {
 
       return Scaffold(
         backgroundColor: AppPalette.background,
-        body: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              16.h.verticalSpace,
-              _CampaignOverviewCard(job: job),
-              SizedBox(height: 12.h),
+        body: RefreshIndicator(
+          onRefresh: controller.refreshCampaignDetails,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                16.h.verticalSpace,
+                _CampaignOverviewCard(job: job),
+                SizedBox(height: 12.h),
 
-              // NEW OFFER ONLY: quote card
-              if (controller.showQuoteCard &&
-                  accountTypeService.isAdAgency) ...[
-                _QuoteDetailsCard(
-                  job: job,
-                  onRequestRequote: controller.requestRequote,
-                  isRequoteLoading: controller.isRequoteLoading.value,
-                ),
-                SizedBox(height: 16.h),
-              ],
+                // NEW OFFER ONLY: quote card
+                if (controller.showQuoteCard &&
+                    accountTypeService.isAdAgency) ...[
+                  _QuoteDetailsCard(
+                    job: job,
+                    onRequestRequote: controller.requestRequote,
+                    isRequoteLoading: controller.isRequoteLoading.value,
+                  ),
+                  SizedBox(height: 16.h),
+                ],
 
-              // --------- Payment Milestones ----------
-              Obx(() {
-                return _PaymentMilestonesSection(
-                  job: job,
-                  milestones: controller.milestones,
-                  status: status,
-                  isExpanded: controller.milestonesExpanded.value,
-                  onToggle: controller.toggleMilestones,
-                  paidCountOverride: controller.accountTypeService.isInfluencer
-                      ? controller.withdrawPaidCount.value
-                      : null,
-                  totalEarningsOverride:
-                      controller.accountTypeService.isInfluencer
-                      ? formatCurrencyByLocale(
-                          controller.withdrawApprovedAmount.value,
-                        )
-                      : null,
-                  canWithdraw:
-                      controller.accountTypeService.isInfluencer &&
-                      controller.withdrawAvailableAmount.value > 0,
-                  isWithdrawLoading: controller.isWithdrawalLoading.value,
-                );
-              }),
-              SizedBox(height: 12.h),
+                // --------- Payment Milestones ----------
+                Obx(() {
+                  return _PaymentMilestonesSection(
+                    job: job,
+                    milestones: controller.milestones,
+                    status: status,
+                    isExpanded: controller.milestonesExpanded.value,
+                    onToggle: controller.toggleMilestones,
+                    paidCountOverride:
+                        controller.accountTypeService.isInfluencer
+                        ? controller.withdrawPaidCount.value
+                        : null,
+                    totalEarningsOverride:
+                        controller.accountTypeService.isInfluencer
+                        ? formatCurrencyByLocale(
+                            controller.withdrawApprovedAmount.value,
+                          )
+                        : null,
+                    canWithdraw:
+                        controller.accountTypeService.isInfluencer &&
+                        controller.withdrawAvailableAmount.value > 0,
+                    isWithdrawLoading: controller.isWithdrawalLoading.value,
+                  );
+                }),
+                SizedBox(height: 12.h),
 
-              // --------- Campaign Brief ----------
-              Obx(
-                () => _ExpandableSection(
-                  title: 'campaign_brief'.tr,
-                  iconPath: 'assets/icons/terms_condition.png',
-                  isExpanded: controller.briefExpanded.value,
-                  onToggle: controller.toggleBrief,
-                  child: _CampaignBrief(),
-                ),
-              ),
-              SizedBox(height: 12.h),
-
-              // --------- Content Assets ----------
-              Obx(
-                () => _ExpandableSection(
-                  title: 'campaign_content_assets'.tr,
-                  iconPath: 'assets/icons/download.png',
-                  isExpanded: controller.contentAssetsExpanded.value,
-                  onToggle: controller.toggleContentAssets,
-                  child: _ContentAssets(),
-                ),
-              ),
-              SizedBox(height: 12.h),
-
-              // --------- Terms & Conditions ----------
-              Obx(
-                () => _ExpandableSection(
-                  title: 'campaign_terms_conditions'.tr,
-                  iconPath: 'assets/icons/terms_condition.png',
-                  isExpanded: controller.termsExpanded.value,
-                  onToggle: controller.toggleTerms,
-                  child: _TermsAndConditions(),
-                ),
-              ),
-              SizedBox(height: 12.h),
-
-              // --------- Brand Assets ----------
-              if (controller.accountTypeService.isAdAgency)
+                // --------- Campaign Brief ----------
                 Obx(
                   () => _ExpandableSection(
-                    title: 'campaign_brand_assets'.tr,
-                    iconPath: 'assets/icons/download.png',
-                    isExpanded: controller.brandAssetsExpanded.value,
-                    onToggle: controller.toggleBrandAssets,
-                    child: _BrandAssets(),
+                    title: 'campaign_brief'.tr,
+                    iconPath: 'assets/icons/terms_condition.png',
+                    isExpanded: controller.briefExpanded.value,
+                    onToggle: controller.toggleBrief,
+                    child: _CampaignBrief(),
                   ),
                 ),
-              SizedBox(height: 24.h),
+                SizedBox(height: 12.h),
 
-              if (controller.showAgencyNegotiatingCard) ...[
-                _AgencyNegotiatingCard(),
-                SizedBox(height: 16.h),
-              ] else if (controller.showAgreementBar) ...[
-                _AgreementSection(
-                  isChecked: controller.agreeToTerms.value,
-                  onToggle: controller.toggleAgree,
-                  onAccept: controller.onAccept,
-                  onDecline: controller.onDecline,
+                // --------- Content Assets ----------
+                Obx(
+                  () => _ExpandableSection(
+                    title: 'campaign_content_assets'.tr,
+                    iconPath: 'assets/icons/download.png',
+                    isExpanded: controller.contentAssetsExpanded.value,
+                    onToggle: controller.toggleContentAssets,
+                    child: _ContentAssets(),
+                  ),
                 ),
+                SizedBox(height: 12.h),
+
+                // --------- Terms & Conditions ----------
+                Obx(
+                  () => _ExpandableSection(
+                    title: 'campaign_terms_conditions'.tr,
+                    iconPath: 'assets/icons/terms_condition.png',
+                    isExpanded: controller.termsExpanded.value,
+                    onToggle: controller.toggleTerms,
+                    child: _TermsAndConditions(),
+                  ),
+                ),
+                SizedBox(height: 12.h),
+
+                // --------- Brand Assets ----------
+                if (controller.accountTypeService.isAdAgency)
+                  Obx(
+                    () => _ExpandableSection(
+                      title: 'campaign_brand_assets'.tr,
+                      iconPath: 'assets/icons/download.png',
+                      isExpanded: controller.brandAssetsExpanded.value,
+                      onToggle: controller.toggleBrandAssets,
+                      child: _BrandAssets(),
+                    ),
+                  ),
+                SizedBox(height: 24.h),
+
+                if (controller.showAgencyNegotiatingCard) ...[
+                  _AgencyNegotiatingCard(),
+                ] else if (controller.showAgreementBar) ...[
+                  _AgreementSection(
+                    isChecked: controller.agreeToTerms.value,
+                    onToggle: controller.toggleAgree,
+                    onAccept: controller.onAccept,
+                    onDecline: controller.onDecline,
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       );
@@ -170,23 +177,36 @@ class _CampaignOverviewCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Back + label
-          Row(
-            children: [
-              GestureDetector(
-                onTap: () => Get.back(id: 1),
-                child: Icon(Icons.arrow_back, size: 16.sp, color: Colors.white),
-              ),
-              SizedBox(width: 6.w),
-              Text(
-                'campaign_details_title'.tr,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w600,
+          Obx(() {
+            final showRating =
+                accountTypeService.isAdAgency &&
+                controller.isCampaignRated.value;
+            final rating = controller.campaignRating.value;
+
+            return Row(
+              children: [
+                GestureDetector(
+                  onTap: () => Get.back(id: 1),
+                  child: Icon(
+                    Icons.arrow_back,
+                    size: 16.sp,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
-            ],
-          ),
+                SizedBox(width: 6.w),
+                Text(
+                  'campaign_details_title'.tr,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const Spacer(),
+                if (showRating) _RatingStars(rating: rating),
+              ],
+            );
+          }),
           SizedBox(height: 18.h),
 
           // Icon + Title + Budget
@@ -438,6 +458,8 @@ class _QuoteDetailsCard extends StatelessWidget {
     final estimatedProfit =
         job.estimatedProfitAmount ?? _tryParseCurrency(job.profitLabel) ?? 0;
 
+    dev.log('PROFIT: ${job.estimatedProfitAmount}');
+
     final platformFeePercent = (job.platformFeePercent ?? 0).round();
     final platformFeeAmount = job.platformFeeAmount ?? 0;
 
@@ -592,11 +614,13 @@ class _QuoteDetailsCard extends StatelessWidget {
           Container(
             padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
             decoration: BoxDecoration(
-              color: Colors.white,
               borderRadius: BorderRadius.circular(kBorderRadius.r),
               border: Border.all(
                 color: AppPalette.secondary,
                 width: kBorderWidth0_5.w,
+              ),
+              gradient: LinearGradient(
+                colors: [AppPalette.thirdColor, AppPalette.white],
               ),
             ),
             child: Column(
@@ -1205,7 +1229,7 @@ class _AgreementSection extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Icon(
-                      Icons.hourglass_empty_rounded,
+                      Icons.hourglass_bottom_rounded,
                       size: 22.sp,
                       color: const Color(0xFFD1842A), // orange
                     ),
@@ -1355,12 +1379,11 @@ class _AgencyNegotiatingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: 20.w),
       padding: EdgeInsets.fromLTRB(18.w, 18.h, 18.w, 18.h),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18.r),
-        border: Border.all(color: AppPalette.border1, width: 1),
+        borderRadius: BorderRadius.circular(kBorderRadius.r),
+        border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5.w),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.06),
@@ -2054,6 +2077,41 @@ class _WithdrawalSuccessDialog extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _RatingStars extends StatelessWidget {
+  final double rating;
+
+  const _RatingStars({required this.rating});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: List.generate(5, (index) {
+        final starValue = index + 1;
+        final diff = rating - index;
+
+        IconData icon;
+        Color color;
+
+        if (diff >= 0.75) {
+          icon = Icons.star_rounded;
+          color = AppPalette.starDark;
+        } else if (diff >= 0.25) {
+          icon = Icons.star_half_rounded;
+          color = AppPalette.starDark;
+        } else {
+          icon = Icons.star_rounded;
+          color = AppPalette.white;
+        }
+
+        return Padding(
+          padding: EdgeInsets.only(left: 4.w),
+          child: Icon(icon, size: 18.sp, color: color),
+        );
+      }),
     );
   }
 }

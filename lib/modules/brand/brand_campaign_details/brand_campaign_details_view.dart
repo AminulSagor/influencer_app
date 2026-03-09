@@ -400,7 +400,7 @@ class _CampaignDetailsCard extends GetView<BrandCampaignDetailsController> {
                   controller.progressStep.value == CampaignProgressStep.paid ||
                   controller.progressStep.value ==
                       CampaignProgressStep.completed;
-              if (isActive) {
+              if (isActive && controller.showDueButton.value) {
                 return Column(
                   children: [
                     Image.asset(
@@ -428,6 +428,9 @@ class _CampaignDetailsCard extends GetView<BrandCampaignDetailsController> {
                     ),
                   ],
                 );
+              }
+              if (isActive && !controller.showDueButton.value) {
+                return SizedBox.shrink();
               }
               return Container(
                 padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 7.h),
@@ -544,35 +547,35 @@ class _CampaignProgressCard extends GetView<BrandCampaignDetailsController> {
             return Column(
               children: [
                 _ProgressRow(
-                  icon: Icons.check_circle_rounded,
+                  iconAssetPath: 'assets/icons/done2.png',
                   title: 'brand_campaign_details_submitted'.tr,
                   subtitle: 'brand_campaign_details_submitted_sub'.tr,
                   active: isActive(CampaignProgressStep.submitted),
                 ),
                 _ProgressRow(
-                  icon: Icons.format_quote_rounded,
+                  iconAssetPath: 'assets/icons/get_quote.png',
                   title: 'brand_campaign_details_quoted'.tr,
                   subtitle: 'brand_campaign_details_quoted_sub'.tr,
                   active: isActive(CampaignProgressStep.quoted),
                 ),
                 _ProgressRow(
-                  icon: Icons.payments_rounded,
+                  iconAssetPath: 'assets/icons/paid_bill.png',
                   title: 'brand_campaign_details_paid'.tr,
                   subtitle: 'brand_campaign_details_paid_sub'.tr,
                   active: isActive(CampaignProgressStep.paid),
                 ),
                 _ProgressRow(
-                  icon: Icons.campaign_rounded,
+                  iconAssetPath: 'assets/icons/online_ads.png',
                   title: 'brand_campaign_details_promoting'.tr,
                   subtitle: 'brand_campaign_details_promoting_sub'.tr,
                   active: isActive(CampaignProgressStep.promoting),
                 ),
-                30.h.horizontalSpace,
                 _ProgressRow(
-                  icon: Icons.task_alt_rounded,
+                  iconAssetPath: 'assets/icons/task_completed.png',
                   title: 'brand_campaign_details_completed'.tr,
                   subtitle: 'brand_campaign_details_completed_sub'.tr,
                   active: isActive(CampaignProgressStep.completed),
+                  isLast: true,
                 ),
                 _QuoteDetailsCard(),
               ],
@@ -585,61 +588,89 @@ class _CampaignProgressCard extends GetView<BrandCampaignDetailsController> {
 }
 
 class _ProgressRow extends StatelessWidget {
-  final IconData icon;
+  final String iconAssetPath;
   final String title;
   final String subtitle;
   final bool active;
+  final bool isLast;
 
   const _ProgressRow({
-    required this.icon,
+    required this.iconAssetPath,
     required this.title,
     required this.subtitle,
     required this.active,
+    this.isLast = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final titleColor = active ? AppPalette.primary : AppPalette.greyText;
-    final subColor = active
-        ? AppPalette.greyText
-        : AppPalette.greyText.withOpacity(.75);
+    final titleColor = AppPalette.black;
+    final subColor = AppPalette.greyText;
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: 10.h),
+    final circleBg = active ? AppPalette.primary : AppPalette.greyFill;
+    final lineColor = active ? AppPalette.primary : AppPalette.greyFill;
+    final iconColor = active ? AppPalette.white : AppPalette.greyText;
+
+    return IntrinsicHeight(
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            icon,
-            color: active ? AppPalette.primary : AppPalette.border1,
-            size: 18.sp,
-          ),
-          10.w.horizontalSpace,
-          Expanded(
+          SizedBox(
+            width: 58.w,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w400,
-                    color: titleColor,
+                Container(
+                  width: 34.w,
+                  height: 34.w,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: circleBg,
+                  ),
+                  alignment: Alignment.center,
+                  child: Image.asset(
+                    iconAssetPath,
+                    width: 18.w,
+                    fit: BoxFit.cover,
+                    color: iconColor,
                   ),
                 ),
-                2.h.verticalSpace,
-                Text(
-                  subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 8.sp,
-                    fontWeight: FontWeight.w400,
-                    color: subColor,
+                if (!isLast)
+                  Expanded(
+                    child: Container(
+                      width: 2.w,
+                      margin: EdgeInsets.symmetric(vertical: 2.h),
+                      color: lineColor,
+                    ),
                   ),
-                ),
               ],
+            ),
+          ),
+          SizedBox(width: 10.w),
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(top: 2.h, bottom: 18.h),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w500,
+                      color: titleColor,
+                    ),
+                  ),
+                  SizedBox(height: 2.h),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 10.sp,
+                      fontWeight: FontWeight.w400,
+                      color: subColor,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -1227,39 +1258,30 @@ class _RatingCard extends GetView<BrandCampaignDetailsController> {
             return Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(5, (i) {
-                final idx = i + 1;
-                final filled = idx <= r;
-                return InkWell(
-                  onTap: () => controller.setRating(idx),
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 4.w),
-                    child: Icon(
-                      Icons.star_rounded,
-                      size: 25.sp,
-                      color: filled ? AppPalette.secondary : AppPalette.border1,
-                    ),
+                return Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4.w),
+                  child: Icon(
+                    Icons.star_rounded,
+                    size: 25.sp,
+                    color: AppPalette.starDark,
                   ),
                 );
               }),
             );
           }),
           10.h.verticalSpace,
-          Obx(() {
-            return CustomButton(
-              onTap: () {
-                controller.provideRating();
-                ProvideRatingDialog.show(isPaidAd: controller.isPaidAd);
-              },
-              btnText: controller.isPaidAd
-                  ? 'Provide Ratings To This Agency'
-                  : 'Provide Ratings To Influencers',
-              width: double.infinity,
-              btnColor: controller.rating.value > 0
-                  ? AppPalette.secondary
-                  : AppPalette.border1,
-              textColor: AppPalette.white,
-            );
-          }),
+          CustomButton(
+            onTap: () {
+              controller.provideRating();
+              ProvideRatingDialog.show(isPaidAd: controller.isPaidAd);
+            },
+            btnText: controller.isPaidAd
+                ? 'Provide Ratings To This Agency'
+                : 'Provide Ratings To Influencers',
+            width: double.infinity,
+            btnColor: AppPalette.secondary,
+            textColor: AppPalette.white,
+          ),
         ],
       ),
     );
@@ -1894,7 +1916,7 @@ class _BrandAssetTile extends StatelessWidget {
                 ),
                 2.h.verticalSpace,
                 Text(
-                  asset.subtitle,
+                  asset.url ?? '-',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(

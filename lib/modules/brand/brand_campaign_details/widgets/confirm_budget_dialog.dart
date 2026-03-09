@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:influencer_app/core/theme/app_palette.dart';
+import 'package:influencer_app/core/utils/constants.dart';
+import 'package:influencer_app/core/widgets/custom_button.dart';
 
 typedef AcceptQuote = Future<bool> Function();
 typedef FmtAmount = String Function(int amount);
@@ -16,10 +19,6 @@ class ConfirmBudgetDialog {
     required VoidCallback onRequote,
     required AcceptQuote onConfirm,
   }) {
-    const primary = Color(0xFF2F4F1F);
-    const borderGreen = Color(0xFFBFD7A5);
-    const softFill = Color(0xFFF7FAF3);
-
     return Get.dialog(
       Dialog(
         backgroundColor: Colors.transparent,
@@ -28,8 +27,7 @@ class ConfirmBudgetDialog {
           padding: EdgeInsets.all(16.w),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(22.r),
-            border: Border.all(color: Colors.black12),
+            borderRadius: BorderRadius.circular(kBorderRadius.r),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -38,9 +36,9 @@ class ConfirmBudgetDialog {
               Text(
                 trOr('brand_campaign_confirm_title', 'Confirm Budget ?'),
                 style: TextStyle(
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w900,
-                  color: primary.withOpacity(.75),
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w600,
+                  color: AppPalette.secondary,
                 ),
               ),
               12.h.verticalSpace,
@@ -48,23 +46,20 @@ class ConfirmBudgetDialog {
                 width: double.infinity,
                 padding: EdgeInsets.all(14.w),
                 decoration: BoxDecoration(
-                  color: softFill,
-                  borderRadius: BorderRadius.circular(16.r),
-                  border: Border.all(color: borderGreen),
+                  borderRadius: BorderRadius.circular(kBorderRadius.r),
+                  border: Border.all(
+                    color: AppPalette.secondary,
+                    width: kBorderWidth0_5.w,
+                  ),
+                  gradient: LinearGradient(
+                    colors: [AppPalette.thirdColor, AppPalette.white],
+                  ),
                 ),
                 child: Column(
                   children: [
-                    _kv(
-                      left: 'Base Campaign Budget',
-                      right: fmt(baseBudget),
-                      color: primary,
-                    ),
+                    _kv(left: 'Base Campaign Budget', right: fmt(baseBudget)),
                     10.h.verticalSpace,
-                    _kv(
-                      left: 'VAT/Tax (15%)',
-                      right: fmt(vatAmount),
-                      color: primary,
-                    ),
+                    _kv(left: 'VAT/Tax (15%)', right: fmt(vatAmount)),
                   ],
                 ),
               ),
@@ -72,9 +67,9 @@ class ConfirmBudgetDialog {
               Text(
                 'Total Campaign Cost',
                 style: TextStyle(
-                  fontSize: 13.sp,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.black87,
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w600,
+                  color: AppPalette.primary,
                 ),
               ),
               6.h.verticalSpace,
@@ -82,50 +77,35 @@ class ConfirmBudgetDialog {
                 fmt(totalCost),
                 style: TextStyle(
                   fontSize: 30.sp,
-                  fontWeight: FontWeight.w900,
-                  color: primary.withOpacity(.75),
+                  fontWeight: FontWeight.w600,
+                  color: AppPalette.secondary,
                 ),
               ),
               18.h.verticalSpace,
               Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton(
-                      onPressed: () {
+                    child: CustomButton(
+                      onTap: () {
                         Get.back();
                         onRequote();
                       },
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: Size(double.infinity, 46.h),
-                        side: const BorderSide(color: Colors.black12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14.r),
-                        ),
+                      btnText: trOr(
+                        'brand_campaign_details_requote',
+                        'Requote',
                       ),
-                      child: Text(
-                        trOr('brand_campaign_details_requote', 'Requote'),
-                      ),
+                      btnColor: AppPalette.defaultFill,
                     ),
                   ),
                   12.w.horizontalSpace,
                   Expanded(
-                    child: ElevatedButton(
-                      onPressed: () async {
+                    child: CustomButton(
+                      onTap: () async {
                         final ok = await onConfirm();
                         if (ok) Get.back();
                       },
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: Size(double.infinity, 46.h),
-                        backgroundColor: primary.withOpacity(.65),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14.r),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: Text(
-                        trOr('brand_campaign_confirm_btn', 'Confirm'),
-                        style: const TextStyle(fontWeight: FontWeight.w900),
-                      ),
+                      btnText: trOr('brand_campaign_confirm_btn', 'Confirm'),
+                      textColor: AppPalette.white,
                     ),
                   ),
                 ],
@@ -138,29 +118,25 @@ class ConfirmBudgetDialog {
     );
   }
 
-  static Widget _kv({
-    required String left,
-    required String right,
-    required Color color,
-  }) {
+  static Widget _kv({required String left, required String right}) {
     return Row(
       children: [
         Expanded(
           child: Text(
             left,
             style: TextStyle(
-              fontSize: 12.sp,
-              fontWeight: FontWeight.w700,
-              color: Colors.black87,
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w300,
+              color: AppPalette.black,
             ),
           ),
         ),
         Text(
           right,
           style: TextStyle(
-            fontSize: 13.sp,
-            fontWeight: FontWeight.w900,
-            color: color.withOpacity(.75),
+            fontSize: 14.sp,
+            fontWeight: FontWeight.w600,
+            color: AppPalette.secondary,
           ),
         ),
       ],

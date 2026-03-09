@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as dev;
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -1204,8 +1205,11 @@ class CreateCampaignController extends GetxController {
       if (mapped != null) assets.add(mapped);
     }
 
+    dev.log('Brand Assest: ${brandAssets.length}');
+
     for (final asset in brandAssets) {
       final mapped = _mapBrandAsset(asset);
+      dev.log('Brand Assest: ${mapped}');
       if (mapped != null) assets.add(mapped);
     }
 
@@ -1271,7 +1275,7 @@ class CreateCampaignController extends GetxController {
 
     final value = asset.value?.trim();
     final isUrl = value != null && _isHttpUrl(value);
-    if (!isUrl) return null;
+    // if (!isUrl) return null;
 
     return _removeNulls({
       'fileName': title,

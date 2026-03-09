@@ -64,6 +64,9 @@ class CampaignDetailsController extends GetxController {
 
   final influencerJobCampaignId = RxnString();
 
+  final isCampaignRated = false.obs;
+  final campaignRating = 0.0.obs;
+
   @override
   void onInit() {
     super.onInit();
@@ -106,12 +109,20 @@ class CampaignDetailsController extends GetxController {
     return _formatDeadline(dl);
   }
 
-  void _startAgencyRequoteCountdownFromUpdatedAt(DateTime updatedAtUtc) {
-    // updatedAt comes in UTC (Z)
-    _requoteDeadlineUtc = updatedAtUtc.toUtc().add(const Duration(hours: 12));
+  Future<void> refreshCampaignDetails() async {
+    await _loadCampaignDetails();
+  }
+
+  void _startAgencyRequoteCountdownFromRemainingMinutes(int remainingMinutes) {
+    final safeMinutes = remainingMinutes < 0 ? 0 : remainingMinutes;
+
+    _requoteDeadlineUtc = DateTime.now().toUtc().add(
+      Duration(minutes: safeMinutes),
+    );
+
     _requoteTimer?.cancel();
 
-    _tickRequote(); // immediate UI update
+    _tickRequote();
 
     _requoteTimer = Timer.periodic(const Duration(minutes: 1), (_) {
       _tickRequote();
@@ -288,9 +299,7 @@ class CampaignDetailsController extends GetxController {
     final baseBudget = (job.baseBudget ?? job.totalCampaignSpent ?? job.budget)
         .toDouble();
 
-    final initialPercent =
-        _proposedServiceFeePercent ??
-        (job.sharePercent > 0 ? job.sharePercent : 14);
+    final initialPercent = (job.sharePercent > 0 ? job.sharePercent : 0);
 
     final initialDollar = _proposedDollarRate ?? (job.dollarRate ?? 122.37);
 
@@ -392,6 +401,8 @@ class CampaignDetailsController extends GetxController {
 
     final result = await ApiErrorHandler.call(() async {
       if (accountTypeService.isInfluencer) {
+        isCampaignRated.value = false;
+        campaignRating.value = 0.0;
         await _loadInfluencerJobDetails(id);
         if (influencerJobCampaignId.value != null) {
           await _loadInfluencerWithdrawableBalance(
@@ -684,16 +695,23 @@ class CampaignDetailsController extends GetxController {
     );
     final raw = _extractDataMap(res);
 
+    isCampaignRated.value = raw['isRated'] == true;
+    campaignRating.value = _toDouble(raw['rating']);
+
     // ✅ Agency requote timer based on updatedAt (Agency only)
-    final updatedAtIso = raw['updatedAt']?.toString().trim();
-    final updatedAt = _safeParseDate(updatedAtIso);
-    if (accountTypeService.isAdAgency && updatedAt != null) {
-      _startAgencyRequoteCountdownFromUpdatedAt(updatedAt.toUtc());
+    final timeLeftToRequoteMinutes =
+        _toInt(raw['timeLeftToRequoteMinutes']) ?? 0;
+
+    if (accountTypeService.isAdAgency && timeLeftToRequoteMinutes > 0) {
+      _startAgencyRequoteCountdownFromRemainingMinutes(
+        timeLeftToRequoteMinutes,
+      );
     } else if (accountTypeService.isAdAgency) {
-      // if missing, disable requote
       _requoteDeadlineUtc = null;
       requoteRemaining.value = Duration.zero;
       isRequoteExpired.value = true;
+      _requoteTimer?.cancel();
+      _requoteTimer = null;
     }
 
     final milestoneList = (raw['milestones'] as List?) ?? const [];
@@ -720,6 +738,9 @@ class CampaignDetailsController extends GetxController {
     final netAvailableForAgency = _toDouble(
       budgetBreakdown?['netAvailableForAgency'],
     );
+
+    final agencyProfitPercentage =
+        ((estimatedProfitAmount + platformFeeAmount) / baseBudget) * 100;
 
     // VAT % derived from base+vat (fallback to 15 if not derivable)
     final double vatPercent = (baseBudget > 0 && vatAmount > 0)
@@ -765,7 +786,7 @@ class CampaignDetailsController extends GetxController {
 
       // main visible numbers
       budget: totalBudget > 0 ? totalBudget : job.budget,
-      sharePercent: _proposedServiceFeePercent ?? job.sharePercent,
+      sharePercent: agencyProfitPercentage.toInt(),
 
       // existing labels (keep)
       vatLabel: vatAmount > 0 ? formatCurrencyByLocale(vatAmount) : null,
@@ -795,7 +816,7 @@ class CampaignDetailsController extends GetxController {
       progressPercent: updated.progressPercent,
       dueInDays: updated.dueInDays,
       dueLabel: updated.dueLabel,
-      rating: updated.rating,
+      rating: campaignRating.value.round(),
       profitLabel: updated.profitLabel,
       vatLabel: updated.vatLabel,
       totalCostLabel: updated.totalCostLabel,

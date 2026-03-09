@@ -138,7 +138,7 @@ class CustomButton extends StatelessWidget {
               : gradient);
 
     final button = Container(
-      height: height ?? 31.h,
+      height: height ?? 34.h,
       width: width,
       decoration: BoxDecoration(
         color: paintedGradient == null ? paintedColor : null,

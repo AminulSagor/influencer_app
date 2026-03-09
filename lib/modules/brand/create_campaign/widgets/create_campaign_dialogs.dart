@@ -55,7 +55,7 @@ class CreateCampaignDialogs {
           padding: EdgeInsets.all(16.w),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(18.r),
+            borderRadius: BorderRadius.circular(kBorderRadius.r),
             border: Border.all(color: Colors.black12),
           ),
           child: Column(
@@ -278,31 +278,84 @@ class CreateCampaignDialogs {
     required TextEditingController valueCtrl,
     required VoidCallback onDone,
   }) {
-    Get.defaultDialog(
-      title: title,
-      content: Column(
-        children: [
-          TextField(
-            controller: titleCtrl,
-            decoration: InputDecoration(
-              hintText: 'create_campaign_brand_asset_name_hint'.tr,
-            ),
+    Get.dialog(
+      Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: EdgeInsets.symmetric(horizontal: 18.w),
+        child: Container(
+          padding: EdgeInsets.all(16.w),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(kBorderRadius.r),
+            border: Border.all(color: Colors.black12),
           ),
-          10.h.verticalSpace,
-          TextField(
-            controller: valueCtrl,
-            decoration: InputDecoration(
-              hintText: 'create_campaign_brand_asset_value_hint'.tr,
-            ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.w600,
+                        color: AppPalette.primary,
+                      ),
+                    ),
+                  ),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(999.r),
+                    onTap: () => Get.back(),
+                    child: Padding(
+                      padding: EdgeInsets.all(6.w),
+                      child: Icon(
+                        Icons.close,
+                        size: 20.sp,
+                        color: AppPalette.secondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              20.h.verticalSpace,
+              CustomTextFormField(
+                controller: titleCtrl,
+                hintText: 'create_campaign_brand_asset_name_hint'.tr,
+              ),
+              10.h.verticalSpace,
+              CustomTextFormField(
+                controller: valueCtrl,
+                hintText: 'create_campaign_brand_asset_value_hint'.tr,
+              ),
+              20.h.verticalSpace,
+              Row(
+                children: [
+                  Expanded(
+                    child: CustomButton(
+                      onTap: Get.back,
+                      btnText: 'skills_cancel'.tr,
+                      btnColor: AppPalette.defaultFill,
+                    ),
+                  ),
+                  12.w.horizontalSpace,
+                  Expanded(
+                    child: CustomButton(
+                      onTap: () {
+                        onDone();
+                        Get.back();
+                      },
+                      btnText: 'common_done'.tr,
+                      btnColor: AppPalette.secondary,
+                      textColor: AppPalette.white,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-        ],
+        ),
       ),
-      textConfirm: 'common_done'.tr,
-      textCancel: 'common_cancel'.tr,
-      onConfirm: () {
-        onDone();
-        Get.back();
-      },
     );
   }
 

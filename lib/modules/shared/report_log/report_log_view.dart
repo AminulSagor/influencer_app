@@ -19,7 +19,7 @@ class ReportLogView extends GetView<ReportLogController> {
         child: Column(
           children: [
             20.h.verticalSpace,
-            // 1. Top Filters Row
+
             Obx(() {
               final isBrand = controller.isBrand;
 
@@ -28,23 +28,21 @@ class ReportLogView extends GetView<ReportLogController> {
                 children: [
                   if (!isBrand)
                     _buildFilterCard(
-                      count: controller.flaggedCount,
+                      count: controller.flaggedCount.value,
                       label: 'flagged'.tr,
                       color: AppPalette.reportFlaggedActive,
                       bgColor: AppPalette.reportFlaggedInactive,
                       status: ReportStatus.flagged,
                     ),
-
                   _buildFilterCard(
-                    count: controller.pendingCount,
+                    count: controller.pendingCount.value,
                     label: 'pending'.tr,
                     color: AppPalette.reportPendingActive,
                     bgColor: AppPalette.reportPendingInactive,
                     status: ReportStatus.pending,
                   ),
-
                   _buildFilterCard(
-                    count: controller.resolvedCount,
+                    count: controller.resolvedCount.value,
                     label: 'resolved'.tr,
                     color: AppPalette.reportResolvedActive,
                     bgColor: AppPalette.reportResolvedInactive,
@@ -56,8 +54,8 @@ class ReportLogView extends GetView<ReportLogController> {
 
             14.h.verticalSpace,
 
-            // 2. Search Bar
             CustomTextFormField(
+              controller: controller.searchController,
               hintText: 'search_hint'.tr,
               fillColor: AppPalette.thirdColor,
               onChanged: controller.onSearchChanged,
@@ -70,16 +68,19 @@ class ReportLogView extends GetView<ReportLogController> {
               ),
               contentPadding: EdgeInsets.symmetric(
                 horizontal: 20.w,
-                vertical: 17.h,
+                vertical: 12.h,
               ),
               textStyle: TextStyle(fontSize: 14.sp, color: AppPalette.greyText),
             ),
 
             14.h.verticalSpace,
 
-            // 3. List of Reports
             Expanded(
               child: Obx(() {
+                if (controller.isLoading.value) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
                 if (controller.displayedReports.isEmpty) {
                   return Center(
                     child: Text(
@@ -88,13 +89,37 @@ class ReportLogView extends GetView<ReportLogController> {
                     ),
                   );
                 }
-                return ListView.separated(
-                  itemCount: controller.displayedReports.length,
-                  padding: EdgeInsets.only(bottom: 20.h),
-                  separatorBuilder: (c, i) => 15.h.verticalSpace,
-                  itemBuilder: (context, index) {
-                    return _buildReportCard(controller.displayedReports[index]);
+
+                return NotificationListener<ScrollNotification>(
+                  onNotification: (notification) {
+                    if (notification.metrics.pixels >=
+                        notification.metrics.maxScrollExtent - 200) {
+                      controller.loadNextPage();
+                    }
+                    return false;
                   },
+                  child: ListView.separated(
+                    controller: controller.scrollController,
+                    itemCount:
+                        controller.displayedReports.length +
+                        (controller.isLoadingMore.value ? 1 : 0),
+                    padding: EdgeInsets.only(bottom: 20.h),
+                    separatorBuilder: (context, index) => 15.h.verticalSpace,
+                    itemBuilder: (context, index) {
+                      if (index >= controller.displayedReports.length) {
+                        return Padding(
+                          padding: EdgeInsets.symmetric(vertical: 12.h),
+                          child: const Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                        );
+                      }
+
+                      return _buildReportCard(
+                        controller.displayedReports[index],
+                      );
+                    },
+                  ),
                 );
               }),
             ),
@@ -103,8 +128,6 @@ class ReportLogView extends GetView<ReportLogController> {
       ),
     );
   }
-
-  // --- Widgets ---
 
   Widget _buildFilterCard({
     required int count,
@@ -120,7 +143,7 @@ class ReportLogView extends GetView<ReportLogController> {
         onTap: () => controller.toggleFilter(status),
         child: Container(
           margin: EdgeInsets.symmetric(horizontal: 6.w),
-          padding: EdgeInsets.symmetric(vertical: 12.h),
+          padding: EdgeInsets.symmetric(vertical: 6.h),
           decoration: BoxDecoration(
             color: isSelected ? color : bgColor,
             borderRadius: BorderRadius.circular(kBorderRadius.r),
@@ -168,7 +191,6 @@ class ReportLogView extends GetView<ReportLogController> {
   }
 
   Widget _buildReportCard(ReportModel report) {
-    // Define colors based on status
     Color themeColor;
     Color bgTint;
     String btnText;
@@ -188,7 +210,7 @@ class ReportLogView extends GetView<ReportLogController> {
         btnIcon = Icons.access_time_filled;
         break;
       case ReportStatus.resolved:
-        themeColor = AppPalette.reportResolvedActive; // Green
+        themeColor = AppPalette.reportResolvedActive;
         bgTint = AppPalette.reportResolvedInactive;
         btnText = 'resolved'.tr;
         btnIcon = Icons.check_circle;
@@ -197,7 +219,7 @@ class ReportLogView extends GetView<ReportLogController> {
 
     return Container(
       decoration: BoxDecoration(
-        color: bgTint, // Very light background tint
+        color: bgTint,
         borderRadius: BorderRadius.circular(12.r),
         border: Border.all(color: Colors.grey.withOpacity(0.2)),
       ),
@@ -205,7 +227,6 @@ class ReportLogView extends GetView<ReportLogController> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header: Campaign Name
           Text(
             report.campaignName,
             maxLines: 1,
@@ -217,8 +238,6 @@ class ReportLogView extends GetView<ReportLogController> {
             ),
           ),
           4.h.verticalSpace,
-
-          // Milestone & Time
           Text(
             '${'milestone'.tr} ${report.milestone}',
             style: TextStyle(
@@ -232,10 +251,7 @@ class ReportLogView extends GetView<ReportLogController> {
             '${report.timeAgo} ${'hours_ago'.tr}',
             style: TextStyle(fontSize: 12.sp, color: AppPalette.subtext),
           ),
-
           12.h.verticalSpace,
-
-          // Message Box
           Container(
             width: double.infinity,
             padding: EdgeInsets.all(12.w),
@@ -245,17 +261,13 @@ class ReportLogView extends GetView<ReportLogController> {
               border: Border.all(color: AppPalette.border1),
             ),
             child: Text(
-              report.message.tr,
+              report.message,
               style: TextStyle(fontSize: 12.sp, color: AppPalette.greyText),
             ),
           ),
-
           12.h.verticalSpace,
-
-          // Footer Row
           Row(
             children: [
-              // Left Side: Company & Date
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -265,7 +277,7 @@ class ReportLogView extends GetView<ReportLogController> {
                         Icons.person,
                         size: 12.sp,
                         color: AppPalette.complemetary,
-                      ), // Brown/Orange in img
+                      ),
                       4.w.horizontalSpace,
                       Text(
                         report.companyName,
@@ -287,7 +299,7 @@ class ReportLogView extends GetView<ReportLogController> {
                       ),
                       4.w.horizontalSpace,
                       Text(
-                        report.date, // e.g., Dec 15, 2025
+                        report.date,
                         style: TextStyle(
                           fontSize: 11.sp,
                           color: AppPalette.complemetary,
@@ -298,14 +310,11 @@ class ReportLogView extends GetView<ReportLogController> {
                   ),
                 ],
               ),
-
-              // Right Side: Status Button
-              // Using CustomButton here, adapted to look like a Chip/Capsule
-              Spacer(),
+              const Spacer(),
               SizedBox(
                 height: 30.h,
                 child: ElevatedButton(
-                  onPressed: () {}, // Action if needed
+                  onPressed: () {},
                   style: ElevatedButton.styleFrom(
                     backgroundColor: themeColor,
                     elevation: 0,
@@ -331,7 +340,6 @@ class ReportLogView extends GetView<ReportLogController> {
                   ),
                 ),
               ),
-              // Small Arrow next to button
               Icon(Icons.chevron_right, size: 18.sp, color: Colors.black54),
             ],
           ),

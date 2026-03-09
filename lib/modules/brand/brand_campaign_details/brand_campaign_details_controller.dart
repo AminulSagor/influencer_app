@@ -191,6 +191,7 @@ class BrandCampaignDetailsController extends GetxController {
   final RxnString selectedAssignmentId = RxnString();
 
   // Rating
+  final isRated = false.obs;
   final rating = 0.obs;
 
   // Brief
@@ -827,6 +828,7 @@ class BrandCampaignDetailsController extends GetxController {
     if (totalBudget > 0) budgetText.value = formatCurrencyByLocale(totalBudget);
 
     // Rating
+    isRated.value = data['isRated'];
     rating.value = (_numToDouble(data['rating']).round()).clamp(0, 5);
     selectedInfluencerId.value = _extractInfluencerId(data);
 

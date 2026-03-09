@@ -21,6 +21,8 @@ class SubmissionCard extends StatelessWidget {
   final Function(int proofIndex) onRemoveProof;
   final VoidCallback onEditDeclined;
   final AccountTypeService accountTypeService;
+  final VoidCallback onAddLiveLink;
+  final Function(int linkIndex) onRemoveLiveLink;
 
   const SubmissionCard({
     super.key,
@@ -29,6 +31,8 @@ class SubmissionCard extends StatelessWidget {
     required this.onPickFiles,
     required this.onRemoveProof,
     required this.onEditDeclined,
+    required this.onAddLiveLink,
+    required this.onRemoveLiveLink,
     required this.accountTypeService,
   });
 
@@ -76,6 +80,8 @@ class SubmissionCard extends StatelessWidget {
           .whereType<String>()
           .map((p) => File(p))
           .toList();
+
+      final hasAnyProof = remoteUrls.isNotEmpty || localFiles.isNotEmpty;
 
       return Container(
         decoration: BoxDecoration(
@@ -232,38 +238,96 @@ class SubmissionCard extends StatelessWidget {
                           _IconTitle(
                             iconPath: 'assets/icons/webpage_click.png',
                             title: 'Add Live Links',
-                            trailing: GestureDetector(
-                              onTap: isEditable
-                                  ? () {
-                                      submission.linkController.clear();
-                                    }
-                                  : null,
-                              child: Image.asset(
-                                'assets/icons/trash_can.png',
-                                width: 20.w,
-                                height: 20.w,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
                           ),
-                          SizedBox(height: 4.h),
-                          isEditable
-                              ? CustomTextField(
-                                  hintText: 'https://instagram.com/...',
-                                  textStyle: textStyle,
-                                  controller: submission.linkController,
-                                  enabled: isEditable,
-                                )
-                              : Text(
-                                  submission.linkController.text.trim().isEmpty
-                                      ? '—'
-                                      : submission.linkController.text.trim(),
+                          SizedBox(height: 8.h),
+                          Obx(() {
+                            final controllers = submission.linkControllers;
+
+                            if (!isEditable) {
+                              final links = submission.liveLinks;
+                              if (links.isEmpty) {
+                                return Text(
+                                  '—',
                                   style: TextStyle(
                                     fontSize: 12.sp,
-                                    color: AppPalette.primary,
-                                    decoration: TextDecoration.underline,
+                                    color: Colors.grey[700],
                                   ),
-                                ),
+                                );
+                              }
+
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  for (final link in links) ...[
+                                    Text(
+                                      link,
+                                      style: TextStyle(
+                                        fontSize: 12.sp,
+                                        color: AppPalette.primary,
+                                        decoration: TextDecoration.underline,
+                                      ),
+                                    ),
+                                    SizedBox(height: 8.h),
+                                  ],
+                                ],
+                              );
+                            }
+
+                            return Column(
+                              children: [
+                                for (
+                                  int i = 0;
+                                  i < controllers.length;
+                                  i++
+                                ) ...[
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: CustomTextField(
+                                          hintText: 'https://instagram.com/...',
+                                          textStyle: textStyle,
+                                          controller: controllers[i],
+                                          enabled: isEditable,
+                                        ),
+                                      ),
+                                      SizedBox(width: 8.w),
+                                      GestureDetector(
+                                        onTap: () {
+                                          if (i == controllers.length - 1) {
+                                            onAddLiveLink();
+                                          } else {
+                                            onRemoveLiveLink(i);
+                                          }
+                                        },
+                                        child: Container(
+                                          width: 40.w,
+                                          height: 40.w,
+                                          decoration: BoxDecoration(
+                                            color: AppPalette.defaultFill,
+                                            borderRadius: BorderRadius.circular(
+                                              10.r,
+                                            ),
+                                            border: Border.all(
+                                              color: AppPalette.border1,
+                                            ),
+                                          ),
+                                          child: Icon(
+                                            i == controllers.length - 1
+                                                ? Icons.add
+                                                : Icons.remove,
+                                            color: AppPalette.primary,
+                                            size: 20.sp,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  if (i != controllers.length - 1)
+                                    SizedBox(height: 10.h),
+                                ],
+                              ],
+                            );
+                          }),
                           SizedBox(height: 16.h),
 
                           _IconTitle(
@@ -383,7 +447,7 @@ class SubmissionCard extends StatelessWidget {
                           }),
                           SizedBox(height: 8.h),
 
-                          if (isEditable) ...[
+                          if (isEditable && !hasAnyProof) ...[
                             GestureDetector(
                               onTap: onPickFiles,
                               child: Container(
@@ -405,9 +469,7 @@ class SubmissionCard extends StatelessWidget {
                                     Icon(
                                       Icons.file_upload_outlined,
                                       size: 26.sp,
-                                      color: isEditable
-                                          ? Colors.grey[700]
-                                          : Colors.grey[400],
+                                      color: Colors.grey[700],
                                     ),
                                     SizedBox(height: 8.h),
                                     Text(
@@ -430,6 +492,8 @@ class SubmissionCard extends StatelessWidget {
                                 ),
                               ),
                             ),
+                          ],
+                          if (isEditable && hasAnyProof) ...[
                             SizedBox(height: 12.h),
                             _AddAnotherProofButton(onTap: onPickFiles),
                           ],
