@@ -211,6 +211,7 @@ class ProfileUserModel {
   final socialAccounts = <SocialAccount>[].obs;
   final niches = <String>[].obs;
   final nicheStatuses = <String, String>{}.obs;
+  final skillStatuses = <String, String>{}.obs;
   final profileFields = <ProfileField>[].obs;
   final verificationInprogressItems = <VerificationInprogressItem>[].obs;
   final payoutMethods = <PayoutMethod>[].obs;

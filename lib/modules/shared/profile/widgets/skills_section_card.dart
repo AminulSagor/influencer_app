@@ -64,24 +64,37 @@ class SkillsSectionCard extends StatelessWidget {
                     // Verified by admin
                     FittedBox(
                       fit: BoxFit.scaleDown,
-                      child: Row(
-                        children: [
-                          Text(
-                            'verified_by_admin'.tr,
-                            style: TextStyle(
-                              fontSize: 10.sp,
-                              fontWeight: FontWeight.w400,
-                              color: AppPalette.black,
-                            ),
-                          ),
-                          4.w.horizontalSpace,
-                          Icon(
-                            Icons.verified_rounded,
-                            size: 16.sp,
-                            // if you have a dedicated blue in palette, replace below
-                            color: Color(0xFF4cbff2),
-                          ),
-                        ],
+                      child: Builder(
+                        builder: (_) {
+                          final total = controller.skills.length;
+                          final verified = controller.skills
+                              .where(controller.isSkillVerified)
+                              .length;
+                          final allVerified = total > 0 && verified == total;
+
+                          return Row(
+                            children: [
+                              Text(
+                                '$verified/$total Verified',
+                                style: TextStyle(
+                                  fontSize: 10.sp,
+                                  fontWeight: FontWeight.w400,
+                                  color: AppPalette.black,
+                                ),
+                              ),
+                              4.w.horizontalSpace,
+                              Icon(
+                                allVerified
+                                    ? Icons.verified_rounded
+                                    : Icons.access_time_filled,
+                                size: 16.sp,
+                                color: allVerified
+                                    ? const Color(0xFF4cbff2)
+                                    : AppPalette.complemetary,
+                              ),
+                            ],
+                          );
+                        },
                       ),
                     ),
 
@@ -132,8 +145,25 @@ class _SkillsBody extends StatelessWidget {
             spacing: 8.w,
             runSpacing: 8.h,
             children: [
-              ...controller.skills.map(
-                (skill) => Chip(
+              ...controller.skills.map((skill) {
+                final status = controller.skillStatusValue(skill).toLowerCase();
+                final isVerified = status == 'approved' || status == 'verified';
+                final isPending =
+                    status == 'pending' ||
+                    status == 'under_review' ||
+                    status == 'under review' ||
+                    status == 'in_review' ||
+                    status == 'in review' ||
+                    status == 'reviewing';
+
+                final icon = isVerified
+                    ? Icons.check_circle
+                    : (isPending ? Icons.access_time_filled : Icons.cancel);
+                final iconColor = isVerified
+                    ? AppPalette.primary
+                    : (isPending ? AppPalette.complemetary : AppPalette.error);
+
+                return Chip(
                   backgroundColor: AppPalette.thirdColor,
                   padding: EdgeInsets.symmetric(
                     horizontal: 10.w,
@@ -154,15 +184,11 @@ class _SkillsBody extends StatelessWidget {
                         ),
                       ),
                       6.w.horizontalSpace,
-                      Icon(
-                        Icons.check_circle,
-                        size: 12.sp,
-                        color: AppPalette.primary,
-                      ),
+                      Icon(icon, size: 12.sp, color: iconColor),
                     ],
                   ),
-                ),
-              ),
+                );
+              }),
             ],
           ),
 

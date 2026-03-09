@@ -101,6 +101,7 @@ class ProfileController extends GetxController {
   RxList<SocialAccount> get socialAccounts => _apiData.socialAccounts;
   RxList<String> get niches => _apiData.niches;
   RxMap<String, String> get nicheStatuses => _apiData.nicheStatuses;
+  RxMap<String, String> get skillStatuses => _apiData.skillStatuses;
   RxList<ProfileField> get profileFields => _apiData.profileFields;
   RxList<VerificationInprogressItem> get verificationInprogressItems =>
       _apiData.verificationInprogressItems;
@@ -330,9 +331,21 @@ class ProfileController extends GetxController {
 
     // Skills
     if (profile.skills != null && profile.skills!.isNotEmpty) {
-      skills.assignAll(profile.skills!.map((s) => s.name).toList());
+      final names = <String>[];
+      final statuses = <String, String>{};
+      for (final skill in profile.skills!) {
+        final name = skill.name.trim();
+        if (name.isEmpty) continue;
+        names.add(name);
+        statuses[name.toLowerCase()] = (skill.status ?? 'pending')
+            .toLowerCase()
+            .trim();
+      }
+      skills.assignAll(names);
+      skillStatuses.assignAll(statuses);
     } else {
       skills.clear();
+      skillStatuses.clear();
     }
 
     // Locations/Addresses
@@ -402,8 +415,18 @@ class ProfileController extends GetxController {
             : VerificationState.unverified,
       ),
       VerificationInprogressItem(
+        title: 'Phone No. Verification',
+        state: profile.isPhoneVerified == null
+            ? (userPhone.value.trim().isNotEmpty
+                  ? VerificationState.verified
+                  : VerificationState.unverified)
+            : (profile.isPhoneVerified == true
+                  ? VerificationState.verified
+                  : VerificationState.unverified),
+      ),
+      VerificationInprogressItem(
         title: 'Payment Setup',
-        state: profile.payouts != null
+        state: payoutMethods.isNotEmpty
             ? VerificationState.verified
             : VerificationState.unverified,
       ),
@@ -412,8 +435,20 @@ class ProfileController extends GetxController {
         state: _getNidVerificationState(profile),
       ),
       VerificationInprogressItem(
+        title: 'Skills',
+        state: _statusGroupVerificationState(skills, skillStatuses),
+      ),
+      VerificationInprogressItem(
+        title: 'Niches',
+        state: _statusGroupVerificationState(niches, nicheStatuses),
+      ),
+      VerificationInprogressItem(
         title: 'Email',
-        state: VerificationState.verified, // Email is verified during signup
+        state: profile.isEmailVerified == null
+            ? VerificationState.verified
+            : (profile.isEmailVerified == true
+                  ? VerificationState.verified
+                  : VerificationState.unverified),
       ),
     ]);
 
@@ -472,6 +507,49 @@ class ProfileController extends GetxController {
   bool isNicheVerified(String nicheName) {
     final status = nicheStatusValue(nicheName).toLowerCase();
     return status == 'approved' || status == 'verified';
+  }
+
+  String skillStatusValue(String skillName) {
+    return skillStatuses[skillName.toLowerCase()] ?? 'pending';
+  }
+
+  bool isSkillVerified(String skillName) {
+    final status = skillStatusValue(skillName).toLowerCase();
+    return status == 'approved' || status == 'verified';
+  }
+
+  VerificationState _statusGroupVerificationState(
+    List<String> values,
+    Map<String, String> statuses,
+  ) {
+    if (values.isEmpty) return VerificationState.unverified;
+
+    var hasVerified = false;
+    var hasUnderReview = false;
+    var hasUnverified = false;
+
+    for (final value in values) {
+      final parsed =
+          _parseVerificationState(statuses[value.toLowerCase()]) ??
+          VerificationState.underReview;
+      switch (parsed) {
+        case VerificationState.verified:
+          hasVerified = true;
+          break;
+        case VerificationState.underReview:
+          hasUnderReview = true;
+          break;
+        case VerificationState.unverified:
+          hasUnverified = true;
+          break;
+      }
+    }
+
+    if (hasVerified && !hasUnderReview && !hasUnverified) {
+      return VerificationState.verified;
+    }
+    if (hasUnderReview || hasVerified) return VerificationState.underReview;
+    return VerificationState.unverified;
   }
 
   /// Adds an empty social account entry so the UI can render an input field.
@@ -1043,24 +1121,38 @@ class ProfileController extends GetxController {
     final skills_ = json['skills'] as List?;
     if (skills_ != null && skills_.isNotEmpty) {
       final names = <String>[];
+      final statuses = <String, String>{};
 
       for (final item in skills_) {
         if (item is String) {
           final name = item.trim();
-          if (name.isNotEmpty) names.add(name);
+          if (name.isNotEmpty) {
+            names.add(name);
+            statuses[name.toLowerCase()] = 'pending';
+          }
           continue;
         }
 
         if (item is Map) {
           final map = Map<String, dynamic>.from(item);
           final name = (map['name'] ?? map['skill'] ?? '').toString().trim();
-          if (name.isNotEmpty) names.add(name);
+          if (name.isNotEmpty) {
+            final status =
+                (map['status'] ?? map['verificationStatus'] ?? 'pending')
+                    .toString()
+                    .trim()
+                    .toLowerCase();
+            names.add(name);
+            statuses[name.toLowerCase()] = status;
+          }
         }
       }
 
       skills.assignAll(names);
+      skillStatuses.assignAll(statuses);
     } else {
       skills.clear();
+      skillStatuses.clear();
     }
 
     // Locations/Addresses
@@ -1149,7 +1241,7 @@ class ProfileController extends GetxController {
       ),
       VerificationInprogressItem(
         title: 'Payment Setup',
-        state: json['payouts'] != null
+        state: payoutMethods.isNotEmpty
             ? VerificationState.verified
             : VerificationState.unverified,
       ),
@@ -2394,15 +2486,11 @@ class ProfileController extends GetxController {
           state: VerificationState.unverified,
         ),
         VerificationInprogressItem(
-          title: 'Trade License',
+          title: 'Skills',
           state: VerificationState.unverified,
         ),
         VerificationInprogressItem(
-          title: 'TIN',
-          state: VerificationState.unverified,
-        ),
-        VerificationInprogressItem(
-          title: 'BIN',
+          title: 'Niches',
           state: VerificationState.unverified,
         ),
         VerificationInprogressItem(
@@ -2432,8 +2520,10 @@ class ProfileController extends GetxController {
 
     if (isInfluencer) {
       skills.clear();
+      skillStatuses.clear();
     } else {
       skills.clear();
+      skillStatuses.clear();
     }
 
     if (isInfluencer) {
@@ -2726,7 +2816,13 @@ class ProfileController extends GetxController {
     );
 
     if (selected == null) return;
+    final nextStatuses = <String, String>{};
+    for (final skill in selected) {
+      final key = skill.toLowerCase();
+      nextStatuses[key] = skillStatuses[key] ?? 'pending';
+    }
     skills.assignAll(selected);
+    skillStatuses.assignAll(nextStatuses);
   }
 
   Future<void> _ensureAllowedSkillsLoaded() async {
