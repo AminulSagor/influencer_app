@@ -7,6 +7,7 @@ import '../../../../core/models/job_item.dart';
 import '../../../../core/services/account_type_service.dart';
 import '../../../../core/theme/app_palette.dart';
 import '../../../../core/utils/constants.dart';
+import '../../../../core/utils/metric_number_util.dart';
 
 class MilestoneHeaderCard extends StatelessWidget {
   final JobItem job;
@@ -39,9 +40,7 @@ class MilestoneHeaderCard extends StatelessWidget {
 
   String _metricValue(int? value) {
     if (value == null || value <= 0) return '—';
-    if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M';
-    if (value >= 1000) return '${(value / 1000).toStringAsFixed(0)}K';
-    return value.toString();
+    return MetricNumberUtil.format(value);
   }
 
   @override
@@ -211,8 +210,13 @@ class MilestoneHeaderCard extends StatelessWidget {
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              SizedBox(height: 8.h),
-              _TargetCard(title: 'Reach', value: _metricValue(targets?.reach)),
+              if ((targets?.reach ?? 0) > 0) ...[
+                SizedBox(height: 8.h),
+                _TargetCard(
+                  title: 'Reach',
+                  value: _metricValue(targets?.reach),
+                ),
+              ],
               if ((targets?.views ?? 0) > 0) ...[
                 SizedBox(height: 8.h),
                 _TargetCard(
@@ -398,7 +402,10 @@ class _HeaderSectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasSubtitle = subTitle != null && subTitle!.trim().isNotEmpty;
+
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Image.asset(
           iconPath,
@@ -409,30 +416,35 @@ class _HeaderSectionTitle extends StatelessWidget {
           filterQuality: FilterQuality.high,
         ),
         SizedBox(width: 6.w),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: TextStyle(
-                color: AppPalette.thirdColor,
-                fontSize: 16.sp,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            if (subTitle!.isNotEmpty) ...[
-              3.h.verticalSpace,
-
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
               Text(
-                subTitle!,
+                title,
                 style: TextStyle(
                   color: AppPalette.thirdColor,
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w400,
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
+              if (hasSubtitle) ...[
+                3.h.verticalSpace,
+                Text(
+                  subTitle!.trim(),
+                  softWrap: true,
+                  overflow: TextOverflow.visible,
+                  style: TextStyle(
+                    color: AppPalette.thirdColor,
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w400,
+                    height: 1.4,
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ],
     );

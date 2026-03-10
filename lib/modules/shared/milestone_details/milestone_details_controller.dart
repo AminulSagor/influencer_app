@@ -8,6 +8,7 @@ import 'package:get/get.dart';
 import 'package:influencer_app/core/utils/currency_formatter.dart';
 import 'package:path/path.dart' as path;
 
+import '../../../core/utils/metric_number_util.dart';
 import '../../ad_agency/services/upload_service.dart';
 import '../../../core/models/job_item.dart';
 import '../../../core/services/account_type_service.dart';
@@ -203,21 +204,60 @@ class MilestoneDetailsController extends GetxController {
   final TextEditingController bonusAmountController = TextEditingController();
   final RxString selectedBonusPaymentMethod = 'Credit / Debit Card'.obs;
 
+  final RxBool isRefreshing = false.obs;
+  final RxBool isInitialLoading = false.obs;
+
   bool get canShowBonusSection {
     if (!_accountTypeService.isBrand) return false;
     if (currentMilestone.status != MilestoneStatus.approved) return false;
 
-    return brandSubmissions.any(
-      (s) =>
-          s.status.value == BrandSubmissionStatus.completed &&
-          s.hasBonusEligibleMetric,
-    );
+    int totalReach = 0;
+    int totalViews = 0;
+    int totalLikes = 0;
+    int totalComments = 0;
+
+    int expectedReach = 0;
+    int expectedViews = 0;
+    int expectedLikes = 0;
+    int expectedComments = 0;
+
+    for (final submission in brandSubmissions) {
+      if (submission.status.value != BrandSubmissionStatus.completed) continue;
+
+      for (final metric in submission.metrics) {
+        switch (metric.labelKey) {
+          case 'brand_metric_reach':
+            totalReach += metric.achievedValue;
+            expectedReach = metric.expectedValue;
+            break;
+          case 'brand_metric_views':
+            totalViews += metric.achievedValue;
+            expectedViews = metric.expectedValue;
+            break;
+          case 'brand_metric_likes':
+            totalLikes += metric.achievedValue;
+            expectedLikes = metric.expectedValue;
+            break;
+          case 'brand_metric_comments':
+            totalComments += metric.achievedValue;
+            expectedComments = metric.expectedValue;
+            break;
+        }
+      }
+    }
+
+    final reachExceeded = expectedReach > 0 && totalReach > expectedReach;
+    final viewsExceeded = expectedViews > 0 && totalViews > expectedViews;
+    final likesExceeded = expectedLikes > 0 && totalLikes > expectedLikes;
+    final commentsExceeded =
+        expectedComments > 0 && totalComments > expectedComments;
+
+    return reachExceeded || viewsExceeded || likesExceeded || commentsExceeded;
   }
 
   BrandSubmissionUiModel? get bonusTargetSubmission {
     for (final s in brandSubmissions) {
-      if (s.status.value == BrandSubmissionStatus.completed &&
-          s.hasBonusEligibleMetric) {
+      if (s.status.value == BrandSubmissionStatus.completed) {
         return s;
       }
     }
@@ -252,7 +292,7 @@ class MilestoneDetailsController extends GetxController {
     _syncLocalStatusFromModel();
 
     // ✅ ALWAYS FETCH FROM SERVER FOR ALL USERS
-    _loadMilestoneDetailsByRole();
+    _loadMilestoneDetailsByRole(showInitialLoader: true);
   }
 
   void toggleHeader() => headerExpanded.toggle();
@@ -266,18 +306,44 @@ class MilestoneDetailsController extends GetxController {
     super.onClose();
   }
 
-  Future<void> _loadMilestoneDetailsByRole() async {
+  int _parseCompactMetricValue(String raw) {
+    return MetricNumberUtil.parseToInt(raw.trim()) ?? 0;
+  }
+
+  Future<void> _loadMilestoneDetailsByRole({
+    bool isRefresh = false,
+    bool showInitialLoader = false,
+  }) async {
     final milestoneId = milestone.id?.trim();
     if (milestoneId == null || milestoneId.isEmpty) return;
 
-    if (_accountTypeService.isInfluencer) {
-      await _loadInfluencerMilestoneDetails();
-    } else {
-      // Brand + AdAgency both use same endpoint
-      await _loadBrandMilestoneDetails(
-        isPaidAd: job.campaignType == CampaignType.paidAd,
-      );
+    if (showInitialLoader) {
+      isInitialLoading.value = true;
     }
+    if (isRefresh) {
+      isRefreshing.value = true;
+    }
+
+    try {
+      if (_accountTypeService.isInfluencer) {
+        await _loadInfluencerMilestoneDetails();
+      } else {
+        await _loadBrandMilestoneDetails(
+          isPaidAd: job.campaignType == CampaignType.paidAd,
+        );
+      }
+    } finally {
+      if (showInitialLoader) {
+        isInitialLoading.value = false;
+      }
+      if (isRefresh) {
+        isRefreshing.value = false;
+      }
+    }
+  }
+
+  Future<void> refreshMilestoneDetails() async {
+    await _loadMilestoneDetailsByRole(isRefresh: true);
   }
 
   void addLiveLinkField(int submissionIndex) {
@@ -293,6 +359,15 @@ class MilestoneDetailsController extends GetxController {
   }
 
   void _applyAgencyMetricFromMilestone(SubmissionUiModel ui) {
+    final targets = currentMilestone.targets;
+
+    final availableTargetLabels = <String>[
+      if ((targets?.reach ?? 0) > 0) 'Reach',
+      if ((targets?.views ?? 0) > 0) 'Views',
+      if ((targets?.likes ?? 0) > 0) 'Likes',
+      if ((targets?.comments ?? 0) > 0) 'Comments',
+    ];
+
     final metricMap = <String, int?>{
       'Reach': ui.achievedReach.value,
       'Views': ui.achievedViews.value,
@@ -300,16 +375,21 @@ class MilestoneDetailsController extends GetxController {
       'Comments': ui.achievedComments.value,
     };
 
-    for (final entry in metricMap.entries) {
-      final value = entry.value ?? 0;
+    for (final label in availableTargetLabels) {
+      final value = metricMap[label] ?? 0;
       if (value > 0) {
-        ui.metricLabelController.text = entry.key;
-        ui.metricValueController.text = value.toString();
+        ui.metricLabelController.text = label;
+        ui.metricValueController.text = MetricNumberUtil.format(value);
         return;
       }
     }
 
-    ui.metricLabelController.text = 'Reach';
+    if (availableTargetLabels.isNotEmpty) {
+      ui.metricLabelController.text = availableTargetLabels.first;
+    } else {
+      ui.metricLabelController.text = 'Reach';
+    }
+
     ui.metricValueController.text = '';
   }
 
@@ -491,10 +571,6 @@ class MilestoneDetailsController extends GetxController {
         milestoneStatus.value = MilestoneLocalStatus.declined;
         break;
     }
-
-    if (_accountTypeService.isInfluencer) {
-      _loadInfluencerMilestoneDetails();
-    }
   }
 
   Future<void> _loadBrandMilestoneDetails({required bool isPaidAd}) async {
@@ -523,7 +599,9 @@ class MilestoneDetailsController extends GetxController {
         deliverable:
             '${raw['platform']?.toString()} - ${raw['contentQuantity']?.toString()}',
         dayIndex: _intFrom(raw['deliveryDays']),
-        amountLabel: _amountLabelFrom(raw['amount']),
+        amountLabel: formatCurrencyByLocale(
+          double.tryParse(raw['amount']) as num,
+        ),
         promotionGoal: raw['promotionGoal']?.toString(),
         targets: PromotionTarget(
           reach: _intFrom(raw['expectedReach']),
@@ -603,7 +681,9 @@ class MilestoneDetailsController extends GetxController {
       }
 
       if (submissions.isEmpty) {
-        submissions.add(SubmissionUiModel(index: 1));
+        final ui = SubmissionUiModel(index: 1);
+        _applyAgencyMetricFromMilestone(ui);
+        submissions.add(ui);
       }
     }
 
@@ -668,10 +748,6 @@ class MilestoneDetailsController extends GetxController {
       final rawProgress = achieved / expected;
       final pct = (rawProgress * 100).toStringAsFixed(0);
 
-      if (rawProgress > 1.0) {
-        hasBonusEligibleMetric = true;
-      }
-
       metrics.add(
         BrandSubmissionMetric(
           labelKey: labelKey,
@@ -679,6 +755,8 @@ class MilestoneDetailsController extends GetxController {
           rightValue: _compactNumber(expected),
           progress: rawProgress.clamp(0.0, 1.0).toDouble(),
           targetKey: 'Target $pct%',
+          achievedValue: achieved,
+          expectedValue: expected,
         ),
       );
     }
@@ -762,13 +840,7 @@ class MilestoneDetailsController extends GetxController {
   }
 
   String _compactNumber(int value) {
-    if (value >= 1000000) {
-      return '${(value / 1000000).toStringAsFixed(1)}M';
-    }
-    if (value >= 1000) {
-      return '${(value / 1000).toStringAsFixed(0)}K';
-    }
-    return value.toStringAsFixed(0);
+    return MetricNumberUtil.format(value);
   }
 
   int get declinedSubmissionCount => submissions
@@ -909,7 +981,13 @@ class MilestoneDetailsController extends GetxController {
   void toggleLicense() => acceptLicense.toggle();
 
   void addSubmission() {
-    submissions.add(SubmissionUiModel(index: submissions.length + 1));
+    final ui = SubmissionUiModel(index: submissions.length + 1);
+
+    if (_accountTypeService.isAdAgency) {
+      _applyAgencyMetricFromMilestone(ui);
+    }
+
+    submissions.add(ui);
   }
 
   Future<void> pickProofFor(int submissionIndex) async {
@@ -938,9 +1016,7 @@ class MilestoneDetailsController extends GetxController {
   }
 
   int? _metricInt(String raw) {
-    final cleaned = raw.replaceAll(RegExp(r'[^0-9]'), '');
-    if (cleaned.isEmpty) return null;
-    return int.tryParse(cleaned);
+    return MetricNumberUtil.parseToInt(raw);
   }
 
   Map<String, dynamic> _buildAgencySubmitPayload({
@@ -967,11 +1043,12 @@ class MilestoneDetailsController extends GetxController {
 
     if (value == null || value <= 0) return {};
 
+    ui.metricValueController.text = MetricNumberUtil.format(value);
+
     if (label.contains('view')) return {'achievedViews': value};
     if (label.contains('like')) return {'achievedLikes': value};
     if (label.contains('comment')) return {'achievedComments': value};
 
-    // default -> reach
     return {'achievedReach': value};
   }
 
@@ -979,14 +1056,19 @@ class MilestoneDetailsController extends GetxController {
     required SubmissionUiModel ui,
     required List<String> proofUrls,
   }) {
+    final achievedReach = _metricInt(ui.reachController.text.trim());
+    final achievedViews = _metricInt(ui.viewsController.text.trim());
+    final achievedLikes = _metricInt(ui.likesController.text.trim());
+    final achievedComments = _metricInt(ui.commentsController.text.trim());
+
     return {
       'description': ui.descriptionController.text.trim(),
       'liveLinks': ui.liveLinks,
       'proofAttachments': proofUrls,
-      'achievedReach': _metricInt(ui.reachController.text.trim()),
-      'achievedViews': _metricInt(ui.viewsController.text.trim()),
-      'achievedLikes': _metricInt(ui.likesController.text.trim()),
-      'achievedComments': _metricInt(ui.commentsController.text.trim()),
+      if (achievedReach != null) 'achievedReach': achievedReach,
+      if (achievedViews != null) 'achievedViews': achievedViews,
+      if (achievedLikes != null) 'achievedLikes': achievedLikes,
+      if (achievedComments != null) 'achievedComments': achievedComments,
     };
   }
 
@@ -1234,10 +1316,18 @@ class MilestoneDetailsController extends GetxController {
     ui.achievedComments.value = aComments;
 
     // fill controllers (avoid "null")
-    ui.reachController.text = aReach?.toString() ?? '';
-    ui.viewsController.text = aViews?.toString() ?? '';
-    ui.likesController.text = aLikes?.toString() ?? '';
-    ui.commentsController.text = aComments?.toString() ?? '';
+    ui.reachController.text = aReach != null
+        ? MetricNumberUtil.format(aReach)
+        : '';
+    ui.viewsController.text = aViews != null
+        ? MetricNumberUtil.format(aViews)
+        : '';
+    ui.likesController.text = aLikes != null
+        ? MetricNumberUtil.format(aLikes)
+        : '';
+    ui.commentsController.text = aComments != null
+        ? MetricNumberUtil.format(aComments)
+        : '';
 
     // ✅ proofs (your server uses "submissionAttachments")
     ui.serverProofUrls.assignAll(

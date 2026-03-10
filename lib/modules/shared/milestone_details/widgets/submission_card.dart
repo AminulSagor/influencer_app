@@ -9,6 +9,7 @@ import '../../../../core/models/job_item.dart';
 import '../../../../core/services/account_type_service.dart';
 import '../../../../core/theme/app_palette.dart';
 import '../../../../core/utils/constants.dart';
+import '../../../../core/utils/metric_number_util.dart';
 import '../../../../core/widgets/custom_text_field.dart';
 import '../../../../core/widgets/custom_text_form_field.dart';
 import '../milestone_details_controller.dart';
@@ -345,19 +346,31 @@ class SubmissionCard extends StatelessWidget {
                                     textStyle: textStyle,
                                     controller:
                                         submission.metricLabelController,
-                                    enabled: isEditable,
+                                    enabled: false,
                                     fillColor: AppPalette.gradient3,
                                   ),
                                 ),
                                 SizedBox(width: 10.w),
                                 Expanded(
                                   flex: 3,
-                                  child: CustomTextField(
-                                    hintText: '2.5M',
-                                    textStyle: textStyle,
-                                    controller:
-                                        submission.metricValueController,
-                                    enabled: isEditable,
+                                  child: Focus(
+                                    onFocusChange: (hasFocus) {
+                                      if (!hasFocus) {
+                                        submission.metricValueController.text =
+                                            MetricNumberUtil.normalizeInput(
+                                              submission
+                                                  .metricValueController
+                                                  .text,
+                                            );
+                                      }
+                                    },
+                                    child: CustomTextField(
+                                      hintText: '2.5M',
+                                      textStyle: textStyle,
+                                      controller:
+                                          submission.metricValueController,
+                                      enabled: isEditable,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -666,15 +679,24 @@ class _MetricBox extends StatelessWidget {
           ],
         ),
         SizedBox(height: 8.h),
-        CustomTextFormField(
-          hintText: '0',
-          controller: controller,
-          enabled: enabled,
-          textAlign: TextAlign.center,
-          keyboardType: TextInputType.number,
-          contentPadding: EdgeInsets.symmetric(
-            horizontal: 12.w,
-            vertical: 14.h,
+        Focus(
+          onFocusChange: (hasFocus) {
+            if (!hasFocus) {
+              controller.text = MetricNumberUtil.normalizeInput(
+                controller.text,
+              );
+            }
+          },
+          child: CustomTextFormField(
+            hintText: '0 / 2K / 2.4M',
+            controller: controller,
+            enabled: enabled,
+            textAlign: TextAlign.center,
+            keyboardType: TextInputType.text,
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: 12.w,
+              vertical: 14.h,
+            ),
           ),
         ),
       ],

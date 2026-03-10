@@ -45,7 +45,7 @@ class BrandOnboardingService {
 
   /// PATCH /client/profile/address
   Future<Map<String, dynamic>> updateAddress({
-    required String addressName,
+    // required String addressName,
     required String thana,
     required String zilla,
     required String fullAddress,
@@ -53,7 +53,7 @@ class BrandOnboardingService {
     final res = await _api.dio.patch(
       '/client/profile/address',
       data: {
-        'addressName': addressName,
+        // 'addressName': addressName,
         'thana': thana,
         'zilla': zilla,
         'fullAddress': fullAddress,

@@ -2654,7 +2654,7 @@ class ProfileController extends GetxController {
 
       final addressResult = await ApiErrorHandler.call(
         () => brandService.updateAddress(
-          addressName: 'Office',
+          // addressName: 'Office',
           thana: thana,
           zilla: zilla,
           fullAddress: fullAddress,
@@ -2942,7 +2942,7 @@ class ProfileController extends GetxController {
         final brandService = Get.find<BrandOnboardingService>();
         final result = await ApiErrorHandler.call(
           () => brandService.updateAddress(
-            addressName: name,
+            // addressName: name,
             thana: thana,
             zilla: zilla,
             fullAddress: full,

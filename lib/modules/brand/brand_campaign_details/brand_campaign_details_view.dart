@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:influencer_app/core/theme/app_theme.dart';
 import 'package:influencer_app/core/utils/currency_formatter.dart';
+import 'package:influencer_app/core/widgets/custom_text_form_field.dart';
 import 'package:influencer_app/routes/app_routes.dart';
 
 import '../../../core/theme/app_palette.dart';
@@ -23,92 +24,104 @@ class BrandCampaignDetailsView extends GetView<BrandCampaignDetailsController> {
     return Scaffold(
       backgroundColor: AppPalette.background,
       body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(14.w, 12.h, 14.w, 18.h),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _CampaignDetailsCard(),
-                12.h.verticalSpace,
+        child: RefreshIndicator(
+          onRefresh: controller.refreshCampaignDetails,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
+            ),
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(14.w, 12.h, 14.w, 18.h),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _CampaignDetailsCard(),
+                  12.h.verticalSpace,
 
-                // ✅ Show agency quotations tab if bids exist (any campaign type)
-                Obx(() {
-                  controller.campaignType.value;
-                  final isPaidAd = controller.isPaidAd;
-                  final isActive =
-                      controller.progressStep.value ==
-                          CampaignProgressStep.promoting ||
-                      controller.progressStep.value ==
-                          CampaignProgressStep.completed;
-                  final showAgencyTabs =
-                      !isActive && controller.agencyOffers.isNotEmpty;
+                  Obx(() {
+                    controller.campaignType.value;
+                    final isPaidAd = controller.isPaidAd;
+                    final isActive =
+                        controller.progressStep.value ==
+                            CampaignProgressStep.promoting ||
+                        controller.progressStep.value ==
+                            CampaignProgressStep.completed;
+                    final showAgencyTabs =
+                        !isActive && controller.agencyOffers.isNotEmpty;
 
-                  Widget detailsColumn() {
-                    return Column(
-                      children: [
-                        _CampaignProgressCard(),
-                        12.h.verticalSpace,
-                        _MilestonesCard(),
-                        14.h.verticalSpace,
-                        _RatingCard(),
-                        12.h.verticalSpace,
-                        _BriefCard(),
-                        12.h.verticalSpace,
-                        _ContentAssetsCard(),
-                        12.h.verticalSpace,
-                        _TermsCard(),
-                        if (isPaidAd) ...[
+                    Widget detailsColumn() {
+                      return Column(
+                        children: [
+                          _CampaignProgressCard(),
                           12.h.verticalSpace,
-                          _BrandAssetsCard(),
+                          _MilestonesCard(),
+                          14.h.verticalSpace,
+                          _RatingCard(),
+                          12.h.verticalSpace,
+                          _BriefCard(),
+                          12.h.verticalSpace,
+                          _ContentAssetsCard(),
+                          12.h.verticalSpace,
+                          _TermsCard(),
+                          if (isPaidAd) ...[
+                            12.h.verticalSpace,
+                            _BrandAssetsCard(),
+                          ],
+                          Obx(() {
+                            if (!controller.showDangerZone) {
+                              return const SizedBox.shrink();
+                            }
+
+                            return Column(
+                              children: [12.h.verticalSpace, _DangerZoneCard()],
+                            );
+                          }),
                         ],
+                      );
+                    }
+
+                    if (!showAgencyTabs) {
+                      return detailsColumn();
+                    }
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Obx(
+                          () => AppPillTabs<bool>(
+                            selected: controller.paidAdTabIndex.value == 0,
+                            onChanged: (v) =>
+                                controller.setPaidAdTab(v ? 0 : 1),
+                            items: [
+                              AppPillTabItem(
+                                value: true,
+                                label:
+                                    'brand_campaign_details_agency_quotes_tab'
+                                        .tr,
+                              ),
+                              AppPillTabItem(
+                                value: false,
+                                label:
+                                    'brand_campaign_details_campaign_overview_tab'
+                                        .tr,
+                              ),
+                            ],
+                          ),
+                        ),
+                        12.h.verticalSpace,
+
+                        Obx(() {
+                          final tab = controller.paidAdTabIndex.value;
+
+                          if (tab == 0) return _AgencyBidsTab();
+
+                          return detailsColumn();
+                        }),
                       ],
                     );
-                  }
-
-                  if (!showAgencyTabs) {
-                    return detailsColumn();
-                  }
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // _PaidAdTabPills(),
-                      Obx(
-                        () => AppPillTabs<bool>(
-                          selected: controller.paidAdTabIndex.value == 0,
-                          onChanged: (v) => controller.setPaidAdTab(v ? 0 : 1),
-                          items: [
-                            AppPillTabItem(
-                              value: true,
-                              label:
-                                  'brand_campaign_details_agency_quotes_tab'.tr,
-                            ),
-                            AppPillTabItem(
-                              value: false,
-                              label:
-                                  'brand_campaign_details_campaign_overview_tab'
-                                      .tr,
-                            ),
-                          ],
-                        ),
-                      ),
-                      12.h.verticalSpace,
-
-                      Obx(() {
-                        final tab = controller.paidAdTabIndex.value;
-
-                        // 0 = Agency bids
-                        if (tab == 0) return _AgencyBidsTab();
-
-                        // 1 = Campaign details
-                        return detailsColumn();
-                      }),
-                    ],
-                  );
-                }),
-              ],
+                  }),
+                ],
+              ),
             ),
           ),
         ),
@@ -629,7 +642,7 @@ class _ProgressRow extends StatelessWidget {
                   alignment: Alignment.center,
                   child: Image.asset(
                     iconAssetPath,
-                    width: 18.w,
+                    width: 17.w,
                     fit: BoxFit.cover,
                     color: iconColor,
                   ),
@@ -638,7 +651,7 @@ class _ProgressRow extends StatelessWidget {
                   Expanded(
                     child: Container(
                       width: 2.w,
-                      margin: EdgeInsets.symmetric(vertical: 2.h),
+                      margin: EdgeInsets.symmetric(vertical: 0.h),
                       color: lineColor,
                     ),
                   ),
@@ -648,15 +661,15 @@ class _ProgressRow extends StatelessWidget {
           SizedBox(width: 10.w),
           Expanded(
             child: Padding(
-              padding: EdgeInsets.only(top: 2.h, bottom: 18.h),
+              padding: EdgeInsets.only(top: 2.h, bottom: 20.h),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     title,
                     style: TextStyle(
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.w500,
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w400,
                       color: titleColor,
                     ),
                   ),
@@ -1929,26 +1942,14 @@ class _BrandAssetTile extends StatelessWidget {
             ),
           ),
           10.w.horizontalSpace,
-          // InkWell(
-          //   onTap: onRemove,
-          //   child: Container(
-          //     width: 30.w,
-          //     height: 30.w,
-          //     decoration: BoxDecoration(
-          //       color: AppPalette.white,
-          //       borderRadius: BorderRadius.circular(10.r),
-          //       border: Border.all(
-          //         color: AppPalette.border1,
-          //         width: kBorderWidth0_5,
-          //       ),
-          //     ),
-          //     child: Icon(
-          //       Icons.close_rounded,
-          //       size: 18.sp,
-          //       color: AppPalette.greyText,
-          //     ),
-          //   ),
-          // ),
+          InkWell(
+            onTap: onRemove,
+            child: Icon(
+              Icons.close_rounded,
+              size: 20.sp,
+              color: AppPalette.secondary,
+            ),
+          ),
         ],
       ),
     );
@@ -2353,6 +2354,107 @@ class _AgencyOfferCard extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _DangerZoneCard extends GetView<BrandCampaignDetailsController> {
+  const _DangerZoneCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(horizontal: 17.w, vertical: 14.h),
+      decoration: BoxDecoration(
+        color: AppPalette.white,
+        borderRadius: BorderRadius.circular(kBorderRadius.r),
+        border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
+      ),
+      child: Obx(() {
+        final isExpanded = controller.dangerZoneExpanded.value;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            InkWell(
+              onTap: controller.toggleDangerZone,
+              borderRadius: BorderRadius.circular(kBorderRadius.r),
+              child: Row(
+                children: [
+                  Container(
+                    width: 26.w,
+                    height: 26.w,
+                    decoration: const BoxDecoration(
+                      color: AppPalette.error,
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: Icon(
+                      Icons.close_rounded,
+                      color: Colors.white,
+                      size: 22.sp,
+                    ),
+                  ),
+                  8.w.horizontalSpace,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'brand_campaign_details_danger_zone'.tr,
+                          style: TextStyle(
+                            color: AppPalette.error,
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        Text(
+                          'brand_campaign_details_cancel_campaign'.tr,
+                          style: TextStyle(
+                            color: AppPalette.greyText,
+                            fontSize: 10.sp,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    isExpanded
+                        ? Icons.expand_less_rounded
+                        : Icons.expand_more_rounded,
+                    color: AppPalette.greenText,
+                  ),
+                ],
+              ),
+            ),
+
+            if (isExpanded) ...[
+              16.h.verticalSpace,
+              CustomTextFormField(
+                controller: controller.cancelReasonCtrl,
+                maxLines: 6,
+                textInputAction: TextInputAction.newline,
+                hintText: 'brand_campaign_details_cancel_reason_hint'.tr,
+                borderColor: AppPalette.error,
+              ),
+              18.h.verticalSpace,
+              Obx(() {
+                return CustomButton(
+                  width: double.infinity,
+                  btnText: 'brand_campaign_details_cancel_request_button'.tr,
+                  btnColor: AppPalette.error,
+                  showBorder: false,
+                  textColor: AppPalette.white,
+                  isDisabled: controller.isSubmittingCancellation.value,
+                  onTap: controller.requestCancellation,
+                );
+              }),
+            ],
+          ],
+        );
+      }),
     );
   }
 }

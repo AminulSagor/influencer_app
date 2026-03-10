@@ -260,7 +260,8 @@ class HomeController extends GetxController {
           _doubleFrom(json['price']) ??
           0.0;
 
-      final sharePercent = _intFrom(json['sharePercent']) ?? 0;
+      final sharePercent =
+          _intFrom(json['sharePercent']) ?? _intFrom(json['serviceFee']) ?? 0;
       final progressPercent =
           _intFrom(json['progress']) ??
           _intFrom(json['progressPercent']) ??

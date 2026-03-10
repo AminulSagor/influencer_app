@@ -214,16 +214,17 @@ class CampaignService {
     return payload;
   }
 
-  Future<List<Map<String, dynamic>>> fetchClientAgencyBids({
+  Future<Map<String, dynamic>> fetchClientAgencyBids({
     required String campaignId,
+    int page = 1,
+    int limit = 10,
   }) async {
-    final res = await _api.dio.get('/campaign/client/bids/$campaignId');
-    final data = _expectMap(res.data, 'client agency bids');
-    final list = (data['data'] as List?) ?? const [];
-    return list
-        .whereType<Map>()
-        .map((e) => Map<String, dynamic>.from(e))
-        .toList(growable: false);
+    final res = await _api.dio.get(
+      '/campaign/client/bids/$campaignId',
+      queryParameters: {'page': page, 'limit': limit},
+    );
+
+    return _expectMap(res.data, 'client agency bids');
   }
 
   Future<void> sendNegotiationCounterOffer({
@@ -682,5 +683,31 @@ class CampaignService {
       data: {'campaignId': campaignId, 'amount': amount},
     );
     return _expectMap(res.data, 'request influencer withdrawal');
+  }
+
+  Future<Map<String, dynamic>> requestCampaignCancellation({
+    required String campaignId,
+    required bool isPaidAd,
+    required String reason,
+    String? assignmentId,
+    String? agencyOfferId,
+  }) async {
+    final trimmedReason = reason.trim();
+
+    final payload = <String, dynamic>{
+      'targetType': isPaidAd ? 'agency' : 'influencer',
+      'reason': trimmedReason,
+      if (isPaidAd)
+        'agencyOfferId': agencyOfferId ?? ''
+      else
+        'assignmentId': assignmentId ?? '',
+    };
+
+    final res = await _api.dio.post(
+      '/campaign/danger-zone/$campaignId/cancel-request',
+      data: payload,
+    );
+
+    return _expectMap(res.data, 'request campaign cancellation');
   }
 }

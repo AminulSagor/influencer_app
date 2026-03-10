@@ -109,7 +109,9 @@ class BrandCampaignDetailsController extends GetxController {
 
   // Agency quotations pagination
   final page = 1.obs;
-  final totalPages = 2.obs;
+  final totalPages = 1.obs;
+  final agencyBidsLimit = 10.obs;
+  final totalAgencyBids = 0.obs;
 
   // ✅ PaidAd: agency bids list (screenshot 2)
   final agencyOffers = <PaidAdAgencyOffer>[].obs;
@@ -226,6 +228,12 @@ class BrandCampaignDetailsController extends GetxController {
   final RxInt agencyDialogRating = 0.obs;
   final RxBool isSubmittingRatings = false.obs;
 
+  final dangerZoneExpanded = false.obs;
+  final cancelReasonCtrl = TextEditingController();
+  final isSubmittingCancellation = false.obs;
+
+  final RxnString selectedAgencyOfferId = RxnString();
+
   @override
   void onInit() {
     super.onInit();
@@ -255,6 +263,23 @@ class BrandCampaignDetailsController extends GetxController {
 
     // 3) Last resort: keep API-driven/empty state
     _loadFromApiIfPossible();
+  }
+
+  @override
+  void onClose() {
+    cancelReasonCtrl.dispose();
+    super.onClose();
+  }
+
+  Future<void> refreshCampaignDetails() async {
+    if (isLoading.value) return;
+
+    page.value = 1;
+    agencyOffers.clear();
+    _agencyBidsChecked = false;
+    loadError.value = null;
+
+    await _loadFromApiIfPossible();
   }
 
   Future<void> refreshAfterMilestoneUpdate() async {
@@ -287,21 +312,38 @@ class BrandCampaignDetailsController extends GetxController {
     /// TODO APPLY SORT
   }
 
-  //Agency quotations pagination
-  void prevPage() {
-    if (page.value > 0) {
-      page.value--;
-    }
-
-    ///TODO prev pagination
+  bool get showDangerZone {
+    return progressStep.value == CampaignProgressStep.paid ||
+        progressStep.value == CampaignProgressStep.promoting;
   }
 
-  void nextPage() {
-    if (page.value < totalPages.value) {
-      page.value++;
-    }
+  void toggleDangerZone() {
+    dangerZoneExpanded.value = !dangerZoneExpanded.value;
+  }
 
-    ///TODO next pagination
+  //Agency quotations pagination
+  Future<void> prevPage() async {
+    if (isLoading.value) return;
+    if (page.value <= 1) return;
+
+    page.value--;
+
+    final campaignId = _extractCampaignId(arguments);
+    if (campaignId == null || campaignId.trim().isEmpty) return;
+
+    await _loadAgencyBidsPage(campaignId);
+  }
+
+  Future<void> nextPage() async {
+    if (isLoading.value) return;
+    if (page.value >= totalPages.value) return;
+
+    page.value++;
+
+    final campaignId = _extractCampaignId(arguments);
+    if (campaignId == null || campaignId.trim().isEmpty) return;
+
+    await _loadAgencyBidsPage(campaignId);
   }
 
   void prepareInfluencerRatingsDialog() {
@@ -506,6 +548,8 @@ class BrandCampaignDetailsController extends GetxController {
       isLoading.value = true;
       loadError.value = null;
 
+      agencyOffers.clear();
+
       final res = await _campaignService.fetchClientCampaignDetails(
         campaignId: campaignId,
       );
@@ -517,20 +561,54 @@ class BrandCampaignDetailsController extends GetxController {
       _loadFromApiMap(payload);
 
       await _loadProgressByCampaignType(campaignId);
-
       await _loadNegotiationContext(campaignId);
 
-      final bids = await _campaignService.fetchClientAgencyBids(
-        campaignId: campaignId,
-      );
-      _agencyBidsChecked = true;
-      if (bids.isNotEmpty) {
-        _loadAgencyBids(bids);
-      }
+      await _loadAgencyBidsPage(campaignId);
     } catch (e) {
       loadError.value = e.toString();
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  Future<void> _loadAgencyBidsPage(String campaignId) async {
+    final response = await _campaignService.fetchClientAgencyBids(
+      campaignId: campaignId,
+      page: page.value,
+      limit: agencyBidsLimit.value,
+    );
+
+    _agencyBidsChecked = true;
+
+    final bids = (response['data'] as List?) ?? const [];
+    final pagination = response['pagination'] is Map
+        ? Map<String, dynamic>.from(response['pagination'] as Map)
+        : const <String, dynamic>{};
+
+    totalAgencyBids.value = _numToInt(pagination['total']);
+    totalPages.value = _numToInt(pagination['totalPages']) <= 0
+        ? 1
+        : _numToInt(pagination['totalPages']);
+
+    final currentPage = _numToInt(pagination['page']);
+    if (currentPage > 0) {
+      page.value = currentPage;
+    }
+
+    final currentLimit = _numToInt(pagination['limit']);
+    if (currentLimit > 0) {
+      agencyBidsLimit.value = currentLimit;
+    }
+
+    agencyOffers.clear();
+
+    final bidList = bids
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList(growable: false);
+
+    if (bidList.isNotEmpty) {
+      _loadAgencyBids(bidList);
     }
   }
 
@@ -814,6 +892,15 @@ class BrandCampaignDetailsController extends GetxController {
   }
 
   void _loadFromApiMap(Map<String, dynamic> data) {
+    influencers.clear();
+    platformKeys.clear();
+    contentAssets.clear();
+    brandAssets.clear();
+    contentRequirements.clear();
+    assignedInfluencers.clear();
+    milestones.clear();
+    masterMilestones.clear();
+
     // Type
     final ct = data['campaignType']?.toString() ?? '';
     if (ct.isNotEmpty) campaignType.value = ct;
@@ -823,6 +910,8 @@ class BrandCampaignDetailsController extends GetxController {
     if (title != null && title.isNotEmpty) campaignTitle.value = title;
 
     campaignStatus.value = data['status'];
+
+    selectedAgencyOfferId.value = data['agencyOfferId']?.toString().trim();
 
     final totalBudget = _numToDouble(data['totalBudget']);
     if (totalBudget > 0) budgetText.value = formatCurrencyByLocale(totalBudget);
@@ -1800,5 +1889,82 @@ class BrandCampaignDetailsController extends GetxController {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
     );
+  }
+
+  Future<void> requestCancellation() async {
+    final campaignId = _extractCampaignId(arguments);
+    if (campaignId == null || campaignId.trim().isEmpty) {
+      Get.snackbar(
+        trOr('common_error', 'Error'),
+        trOr('brand_campaign_missing_id', 'Missing campaign id.'),
+      );
+      return;
+    }
+
+    final reason = cancelReasonCtrl.text.trim();
+    if (reason.isEmpty) {
+      Get.snackbar(
+        trOr('common_error', 'Error'),
+        trOr(
+          'brand_campaign_details_cancel_reason_required',
+          'Please write your cancellation reason.',
+        ),
+      );
+      return;
+    }
+
+    final assignmentId = selectedAssignmentId.value?.trim() ?? '';
+    final agencyOfferId = selectedAgencyOfferId.value?.trim() ?? '';
+
+    if (!isPaidAd && assignmentId.isEmpty) {
+      Get.snackbar(
+        trOr('common_error', 'Error'),
+        trOr(
+          'brand_campaign_details_assignment_required',
+          'No influencer assignment selected.',
+        ),
+      );
+      return;
+    }
+
+    if (isPaidAd && agencyOfferId.isEmpty) {
+      Get.snackbar(
+        trOr('common_error', 'Error'),
+        trOr(
+          'brand_campaign_details_agency_offer_missing',
+          'No agency offer found for this campaign.',
+        ),
+      );
+      return;
+    }
+
+    try {
+      isSubmittingCancellation.value = true;
+
+      await _campaignService.requestCampaignCancellation(
+        campaignId: campaignId,
+        isPaidAd: isPaidAd,
+        reason: reason,
+        assignmentId: isPaidAd ? null : assignmentId,
+        agencyOfferId: isPaidAd ? agencyOfferId : null,
+      );
+
+      cancelReasonCtrl.clear();
+      dangerZoneExpanded.value = false;
+
+      Get.snackbar(
+        trOr('brand_campaign_details_cancel_request_success_title', 'Success'),
+        trOr(
+          'brand_campaign_details_cancel_request_success_msg',
+          'Cancellation request submitted successfully.',
+        ),
+      );
+
+      await _loadFromApiIfPossible();
+    } catch (e) {
+      Get.snackbar(trOr('common_error', 'Error'), _errorMessage(e));
+    } finally {
+      isSubmittingCancellation.value = false;
+    }
   }
 }

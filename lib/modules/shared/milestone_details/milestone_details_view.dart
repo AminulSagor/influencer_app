@@ -66,324 +66,338 @@ class MilestoneDetailsView extends GetView<MilestoneDetailsController> {
               })
             : null,
 
-        body: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          // padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 24.h),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              20.h.verticalSpace,
-              // HEADER CARD
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.w),
-                child: Obx(
-                  () => MilestoneHeaderCard(
-                    job: job,
-                    milestone: controller.currentMilestone,
-                    isExpanded: controller.headerExpanded.value,
-                    onToggle: controller.toggleHeader,
-                    onBack: controller.closePage,
-                  ),
-                ),
+        body: Obx(
+          () => RefreshIndicator(
+            onRefresh: controller.refreshMilestoneDetails,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
               ),
-              SizedBox(height: 14.h),
-
-              if (accountTypeService.isBrand) ...[
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16.w),
-                  child: Obx(() {
-                    final selected = controller.selectedBrandSubmission;
-                    final hasSubmission = (selected?.serverId ?? '')
-                        .trim()
-                        .isNotEmpty;
-
-                    // ✅ If no submission exists on this milestone, hide report admin UI entirely
-                    if (!hasSubmission) {
-                      return const SizedBox.shrink();
-                    }
-
-                    final reported = controller.hasReportedToAdmin.value;
-                    final hasFetchedSubmissionReports =
-                        controller.selectedSubmissionReports.isNotEmpty;
-                    final againAt = controller.reportAgainAt.value;
-                    final againText = againAt == null
-                        ? ''
-                        : '${'report_again_on'.tr} ${controller.formatReportDateTime(againAt)}';
-
-                    return Column(
-                      children: [
-                        if (!reported)
-                          CustomButton(
-                            onTap: () => _showWriteReportDialog(
-                              context: context,
-                              onSubmit: (reason) =>
-                                  controller.submitAdminReport(reason),
-                            ),
-                            btnText: 'report_admin_btn'.tr,
-                            width: double.infinity,
-                            gradient: LinearGradient(
-                              colors: [
-                                AppPalette.secondary,
-                                AppPalette.primary,
-                              ],
-                            ),
-                            textStyle: AppTheme.textStyle.copyWith(
-                              fontSize: 16.sp,
-                              fontWeight: FontWeight.w500,
-                              color: AppPalette.white,
-                            ),
-                            height: 50.h,
-                          )
-                        else ...[
-                          Container(
-                            width: double.infinity,
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 18.w,
-                              vertical: 16.h,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppPalette.secondary,
-                              borderRadius: BorderRadius.circular(12.r),
-                            ),
-                            child: Column(
-                              children: [
-                                Text(
-                                  'reported_to_admin_title'.tr,
-                                  style: TextStyle(
-                                    fontSize: 16.sp,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                if (againText.isNotEmpty) ...[
-                                  SizedBox(height: 6.h),
-                                  Text(
-                                    againText,
-                                    style: TextStyle(
-                                      fontSize: 11.sp,
-                                      fontWeight: FontWeight.w500,
-                                      color: Colors.white.withOpacity(0.9),
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ],
-
-                        // ✅ show only if API has reports for selected submission
-                        if (hasFetchedSubmissionReports) ...[
-                          SizedBox(height: 12.h),
-                          CustomButton(
-                            onTap: () =>
-                                _showSubmittedReportsDialog(context: context),
-                            btnText: 'view_submitted_report'.tr,
-                            width: double.infinity,
-                            height: 50.h,
-                            btnColor: AppPalette.white,
-                            textStyle: AppTheme.textStyle.copyWith(
-                              fontWeight: FontWeight.w500,
-                              fontSize: 16.sp,
-                              color: AppPalette.primary,
-                            ),
-                          ),
-                        ],
-                      ],
-                    );
-                  }),
-                ),
-                SizedBox(height: 14.h),
-              ],
-              SizedBox(height: 14.h),
-
-              // STATUS
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.w),
-                child: Obx(
-                  () => StatusSummaryCard(
-                    statusText: controller.statusChipText,
-                    statusColor: controller.statusChipColor,
-                    statusBgColor: controller.statusBgColor,
-                    statusChipTextColor: controller.statusChipTextColor,
-                    statusTextColor: controller.statusTextColor,
-                    dateLabel: controller.job.dateLabel,
-                  ),
-                ),
-              ),
-              SizedBox(height: 16.h),
-
-              // PARTIAL PAYMENT PROGRESS
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.w),
-                child: Obx(
-                  () =>
-                      controller.showPaymentProgress &&
-                          accountTypeService.isAdAgency
-                      ? _PaymentProgressSection(
-                          leftLabel: controller.progressLeftLabel,
-                          rightLabel: controller.progressRightLabel,
-                          progress: controller.paymentProgressValue,
-                        )
-                      : const SizedBox.shrink(),
-                ),
-              ),
-              SizedBox(height: 12.h),
-
-              if (accountTypeService.isBrand) ...[
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16.w),
-                  child: Obx(() {
-                    final isPaidAd = job.campaignType == CampaignType.paidAd;
-                    final brandSubmissions = controller.brandSubmissions;
-                    if (controller.isBrandSubmissionsLoading.value) {
-                      return Column(
-                        children: const [
-                          _BrandSubmissionSkeleton(),
-                          SizedBox(height: 12),
-                          _BrandSubmissionSkeleton(),
-                        ],
-                      );
-                    }
-                    if (brandSubmissions.isEmpty) {
-                      return Container(
-                        width: double.infinity,
-                        padding: EdgeInsets.symmetric(vertical: 24.h),
-                        decoration: BoxDecoration(
-                          color: AppPalette.defaultFill,
-                          borderRadius: BorderRadius.circular(12.r),
-                          border: Border.all(
-                            color: AppPalette.border1,
-                            width: kBorderWidth0_5,
-                          ),
-                        ),
-                        child: Text(
-                          controller.trOr(
-                            'brand_campaign_details_no_submissions',
-                            'No submissions yet',
-                          ),
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 12.sp,
-                            fontWeight: FontWeight.w600,
-                            color: AppPalette.greyText,
-                          ),
-                        ),
-                      );
-                    }
-                    return Column(
-                      children: [
-                        for (final s in brandSubmissions) ...[
-                          BrandSubmissionCard(
-                            submission: s,
-                            isPaidAd: isPaidAd,
-                            isSelected: controller.isBrandSubmissionSelected(
-                              s.index,
-                            ),
-                            onSelect: () =>
-                                controller.selectBrandSubmission(s.index),
-                            onToggle: isPaidAd
-                                ? () => controller
-                                      .toggleBrandSubmissionExpanded(s.index)
-                                : null,
-                          ),
-                          SizedBox(height: 12.h),
-                        ],
-                        Obx(() {
-                          if (!controller.canShowBonusSection) {
-                            return const SizedBox.shrink();
-                          }
-
-                          return _BonusSectionCard(
-                            onTap: controller.openBonusDialog,
-                          );
-                        }),
-                        SizedBox(height: 12.h),
-                      ],
-                    );
-                  }),
-                ),
-                SizedBox(height: 10.h),
-              ],
-
-              // SUBMISSIONS
-              if (!accountTypeService.isBrand)
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16.w),
-                  child: Obx(
-                    () => Column(
-                      children: [
-                        for (int i = 0; i < controller.submissions.length; i++)
-                          Padding(
-                            padding: EdgeInsets.only(bottom: 16.h),
-                            child: SubmissionCard(
-                              index: i,
-                              submission: controller.submissions[i],
-                              onPickFiles: () => controller.pickProofFor(i),
-                              onRemoveProof: (pi) =>
-                                  controller.removeProof(i, pi),
-                              onEditDeclined: () =>
-                                  controller.enableEditForDeclined(
-                                    controller.submissions[i],
-                                  ),
-                              onAddLiveLink: () =>
-                                  controller.addLiveLinkField(i),
-                              onRemoveLiveLink: (linkIndex) =>
-                                  controller.removeLiveLinkField(i, linkIndex),
-                              accountTypeService: accountTypeService,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-
-              if (!accountTypeService.isBrand) ...[
-                if (!accountTypeService.isInfluencer &&
-                    controller.shouldShowSubmitSection) ...[
-                  SizedBox(height: 8.h),
+              // padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 24.h),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  20.h.verticalSpace,
+                  // HEADER CARD
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16.w),
-                    child: _AddAnotherSubmissionButton(
-                      onTap: controller.addSubmission,
+                    child: Obx(
+                      () => MilestoneHeaderCard(
+                        job: job,
+                        milestone: controller.currentMilestone,
+                        isExpanded: controller.headerExpanded.value,
+                        onToggle: controller.toggleHeader,
+                        onBack: controller.closePage,
+                      ),
                     ),
                   ),
-                  SizedBox(height: 24.h),
+                  SizedBox(height: 14.h),
+
+                  if (accountTypeService.isBrand) ...[
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16.w),
+                      child: Obx(() {
+                        final selected = controller.selectedBrandSubmission;
+                        final hasSubmission = (selected?.serverId ?? '')
+                            .trim()
+                            .isNotEmpty;
+
+                        // ✅ If no submission exists on this milestone, hide report admin UI entirely
+                        if (!hasSubmission) {
+                          return const SizedBox.shrink();
+                        }
+
+                        final reported = controller.hasReportedToAdmin.value;
+                        final hasFetchedSubmissionReports =
+                            controller.selectedSubmissionReports.isNotEmpty;
+                        final againAt = controller.reportAgainAt.value;
+                        final againText = againAt == null
+                            ? ''
+                            : '${'report_again_on'.tr} ${controller.formatReportDateTime(againAt)}';
+
+                        return Column(
+                          children: [
+                            if (!reported)
+                              CustomButton(
+                                onTap: () => _showWriteReportDialog(
+                                  context: context,
+                                  onSubmit: (reason) =>
+                                      controller.submitAdminReport(reason),
+                                ),
+                                btnText: 'report_admin_btn'.tr,
+                                width: double.infinity,
+                                gradient: LinearGradient(
+                                  colors: [
+                                    AppPalette.secondary,
+                                    AppPalette.primary,
+                                  ],
+                                ),
+                                textStyle: AppTheme.textStyle.copyWith(
+                                  fontSize: 16.sp,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppPalette.white,
+                                ),
+                                height: 50.h,
+                              )
+                            else ...[
+                              Container(
+                                width: double.infinity,
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 18.w,
+                                  vertical: 16.h,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppPalette.secondary,
+                                  borderRadius: BorderRadius.circular(12.r),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      'reported_to_admin_title'.tr,
+                                      style: TextStyle(
+                                        fontSize: 16.sp,
+                                        fontWeight: FontWeight.w800,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    if (againText.isNotEmpty) ...[
+                                      SizedBox(height: 6.h),
+                                      Text(
+                                        againText,
+                                        style: TextStyle(
+                                          fontSize: 11.sp,
+                                          fontWeight: FontWeight.w500,
+                                          color: Colors.white.withOpacity(0.9),
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ],
+
+                            // ✅ show only if API has reports for selected submission
+                            if (hasFetchedSubmissionReports) ...[
+                              SizedBox(height: 12.h),
+                              CustomButton(
+                                onTap: () => _showSubmittedReportsDialog(
+                                  context: context,
+                                ),
+                                btnText: 'view_submitted_report'.tr,
+                                width: double.infinity,
+                                height: 50.h,
+                                btnColor: AppPalette.white,
+                                textStyle: AppTheme.textStyle.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 16.sp,
+                                  color: AppPalette.primary,
+                                ),
+                              ),
+                            ],
+                          ],
+                        );
+                      }),
+                    ),
+                    SizedBox(height: 14.h),
+                  ],
+                  SizedBox(height: 14.h),
+
+                  // STATUS
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16.w),
+                    child: Obx(
+                      () => StatusSummaryCard(
+                        statusText: controller.statusChipText,
+                        statusColor: controller.statusChipColor,
+                        statusBgColor: controller.statusBgColor,
+                        statusChipTextColor: controller.statusChipTextColor,
+                        statusTextColor: controller.statusTextColor,
+                        dateLabel: controller.job.dateLabel,
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 16.h),
+
+                  // PARTIAL PAYMENT PROGRESS
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16.w),
+                    child: Obx(
+                      () =>
+                          controller.showPaymentProgress &&
+                              accountTypeService.isAdAgency
+                          ? _PaymentProgressSection(
+                              leftLabel: controller.progressLeftLabel,
+                              rightLabel: controller.progressRightLabel,
+                              progress: controller.paymentProgressValue,
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                  ),
+                  SizedBox(height: 12.h),
+
+                  if (accountTypeService.isBrand) ...[
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16.w),
+                      child: Obx(() {
+                        final isPaidAd =
+                            job.campaignType == CampaignType.paidAd;
+                        final brandSubmissions = controller.brandSubmissions;
+                        if (controller.isBrandSubmissionsLoading.value) {
+                          return Column(
+                            children: const [
+                              _BrandSubmissionSkeleton(),
+                              SizedBox(height: 12),
+                              _BrandSubmissionSkeleton(),
+                            ],
+                          );
+                        }
+                        if (brandSubmissions.isEmpty) {
+                          return Container(
+                            width: double.infinity,
+                            padding: EdgeInsets.symmetric(vertical: 24.h),
+                            decoration: BoxDecoration(
+                              color: AppPalette.defaultFill,
+                              borderRadius: BorderRadius.circular(12.r),
+                              border: Border.all(
+                                color: AppPalette.border1,
+                                width: kBorderWidth0_5,
+                              ),
+                            ),
+                            child: Text(
+                              controller.trOr(
+                                'brand_campaign_details_no_submissions',
+                                'No submissions yet',
+                              ),
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 12.sp,
+                                fontWeight: FontWeight.w600,
+                                color: AppPalette.greyText,
+                              ),
+                            ),
+                          );
+                        }
+                        return Column(
+                          children: [
+                            for (final s in brandSubmissions) ...[
+                              BrandSubmissionCard(
+                                submission: s,
+                                isPaidAd: isPaidAd,
+                                isSelected: controller
+                                    .isBrandSubmissionSelected(s.index),
+                                onSelect: () =>
+                                    controller.selectBrandSubmission(s.index),
+                                onToggle: isPaidAd
+                                    ? () => controller
+                                          .toggleBrandSubmissionExpanded(
+                                            s.index,
+                                          )
+                                    : null,
+                              ),
+                              SizedBox(height: 12.h),
+                            ],
+                            Obx(() {
+                              if (!controller.canShowBonusSection) {
+                                return const SizedBox.shrink();
+                              }
+
+                              return _BonusSectionCard(
+                                onTap: controller.openBonusDialog,
+                              );
+                            }),
+                            SizedBox(height: 12.h),
+                          ],
+                        );
+                      }),
+                    ),
+                    SizedBox(height: 10.h),
+                  ],
+
+                  // SUBMISSIONS
+                  if (!accountTypeService.isBrand)
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16.w),
+                      child: Obx(
+                        () => Column(
+                          children: [
+                            for (
+                              int i = 0;
+                              i < controller.submissions.length;
+                              i++
+                            )
+                              Padding(
+                                padding: EdgeInsets.only(bottom: 16.h),
+                                child: SubmissionCard(
+                                  index: i,
+                                  submission: controller.submissions[i],
+                                  onPickFiles: () => controller.pickProofFor(i),
+                                  onRemoveProof: (pi) =>
+                                      controller.removeProof(i, pi),
+                                  onEditDeclined: () =>
+                                      controller.enableEditForDeclined(
+                                        controller.submissions[i],
+                                      ),
+                                  onAddLiveLink: () =>
+                                      controller.addLiveLinkField(i),
+                                  onRemoveLiveLink: (linkIndex) => controller
+                                      .removeLiveLinkField(i, linkIndex),
+                                  accountTypeService: accountTypeService,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                  if (!accountTypeService.isBrand) ...[
+                    if (!accountTypeService.isInfluencer &&
+                        controller.shouldShowSubmitSection) ...[
+                      SizedBox(height: 8.h),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16.w),
+                        child: _AddAnotherSubmissionButton(
+                          onTap: controller.addSubmission,
+                        ),
+                      ),
+                      SizedBox(height: 24.h),
+                    ],
+
+                    Obx(() {
+                      if (!controller.shouldShowSubmitSection) {
+                        return const SizedBox.shrink();
+                      }
+
+                      return _MilestoneBottomSection(
+                        confirmOwnership: controller.confirmOwnership.value,
+                        acceptLicense: controller.acceptLicense.value,
+                        onToggleOwnership: controller.toggleOwnership,
+                        onToggleLicense: controller.toggleLicense,
+                        onSubmit: controller.submitForReview,
+                        submitText: controller.submitButtonText,
+                      );
+                    }),
+                  ],
+
+                  // if (accountTypeService.isBrand) ...[
+                  //   Obx(() {
+                  //     controller.selectedBrandSubmission?.status.value;
+                  //     final isPaidAd = job.campaignType == CampaignType.paidAd;
+                  //     return _AcceptDeclineSection(
+                  //       isPaidAd: isPaidAd,
+                  //       onAccept: controller.approveSelectedBrandSubmission,
+                  //       onDecline: () => _showDeclineSheet(
+                  //         context: context,
+                  //         onSubmit: (reason) {
+                  //           controller.declineSelectedBrandSubmission(reason);
+                  //         },
+                  //       ),
+                  //     );
+                  //   }),
+                  // ],
                 ],
-
-                Obx(() {
-                  if (!controller.shouldShowSubmitSection) {
-                    return const SizedBox.shrink();
-                  }
-
-                  return _MilestoneBottomSection(
-                    confirmOwnership: controller.confirmOwnership.value,
-                    acceptLicense: controller.acceptLicense.value,
-                    onToggleOwnership: controller.toggleOwnership,
-                    onToggleLicense: controller.toggleLicense,
-                    onSubmit: controller.submitForReview,
-                    submitText: controller.submitButtonText,
-                  );
-                }),
-              ],
-
-              // if (accountTypeService.isBrand) ...[
-              //   Obx(() {
-              //     controller.selectedBrandSubmission?.status.value;
-              //     final isPaidAd = job.campaignType == CampaignType.paidAd;
-              //     return _AcceptDeclineSection(
-              //       isPaidAd: isPaidAd,
-              //       onAccept: controller.approveSelectedBrandSubmission,
-              //       onDecline: () => _showDeclineSheet(
-              //         context: context,
-              //         onSubmit: (reason) {
-              //           controller.declineSelectedBrandSubmission(reason);
-              //         },
-              //       ),
-              //     );
-              //   }),
-              // ],
-            ],
+              ),
+            ),
           ),
         ),
       ),

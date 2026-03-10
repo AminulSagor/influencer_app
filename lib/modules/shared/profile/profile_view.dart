@@ -63,10 +63,10 @@ class ProfileView extends GetView<ProfileController> {
                         controller: controller,
                         onStatusTap: controller.showVerificationPage,
                       ),
-                      SizedBox(height: 12.h),
+                      SizedBox(height: 10.h),
                       if (!isBrand)
                         _ProfileCompletionCard(controller: controller),
-                      SizedBox(height: 16.h),
+                      SizedBox(height: 10.h),
                       if (isBrand) ...[
                         Obx(
                           () => BrandContactInfoCard(

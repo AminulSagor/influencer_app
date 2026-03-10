@@ -1111,6 +1111,21 @@ class AppTranslations extends Translations {
       "bonus_to_label": "To",
       "payment_method": "Payment Method",
       "pay_now": "Pay Now",
+
+      'brand_campaign_details_danger_zone': 'Danger Zone',
+      'brand_campaign_details_cancel_campaign': 'Cancel Campaign',
+      'brand_campaign_details_cancel_reason_hint': 'Write your reasons...',
+      'brand_campaign_details_cancel_request_button':
+          'Request Cancellation & Submit Reason',
+      'brand_campaign_details_cancel_reason_required':
+          'Please write your cancellation reason.',
+      'brand_campaign_details_assignment_required':
+          'No influencer assignment selected.',
+      'brand_campaign_details_cancel_request_success_title': 'Success',
+      'brand_campaign_details_cancel_request_success_msg':
+          'Cancellation request submitted successfully.',
+      'brand_campaign_details_agency_offer_missing':
+          'No agency offer found for this campaign.',
     },
 
     // Bangla
@@ -2232,6 +2247,20 @@ class AppTranslations extends Translations {
       "bonus_to_label": "To",
       "payment_method": "পেমেন্টের মাধ্যম",
       "pay_now": "পে করুন",
+      'brand_campaign_details_danger_zone': 'ডেঞ্জার জোন',
+      'brand_campaign_details_cancel_campaign': 'ক্যাম্পেইন বাতিল করুন',
+      'brand_campaign_details_cancel_reason_hint': 'বাতিল করার কারণ লিখুন...',
+      'brand_campaign_details_cancel_request_button':
+          'বাতিলের অনুরোধ ও কারণ জমা দিন',
+      'brand_campaign_details_cancel_reason_required':
+          'দয়া করে বাতিলের কারণ লিখুন।',
+      'brand_campaign_details_assignment_required':
+          'কোনো ইনফ্লুয়েন্সার অ্যাসাইনমেন্ট নির্বাচন করা হয়নি।',
+      'brand_campaign_details_cancel_request_success_title': 'সফল',
+      'brand_campaign_details_cancel_request_success_msg':
+          'বাতিলের অনুরোধ সফলভাবে জমা হয়েছে।',
+      'brand_campaign_details_agency_offer_missing':
+          'এই ক্যাম্পেইনের জন্য কোনো এজেন্সি অফার পাওয়া যায়নি।',
     },
   };
 }

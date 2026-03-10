@@ -12,6 +12,8 @@ class BrandSubmissionMetric {
   final String rightValue;
   final double progress; // 0..1
   final String targetKey; // translation key
+  final int achievedValue;
+  final int expectedValue;
 
   BrandSubmissionMetric({
     required this.labelKey,
@@ -19,6 +21,8 @@ class BrandSubmissionMetric {
     required this.rightValue,
     required this.progress,
     required this.targetKey,
+    required this.achievedValue,
+    required this.expectedValue,
   });
 }
 
