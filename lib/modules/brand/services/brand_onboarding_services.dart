@@ -111,6 +111,18 @@ class BrandOnboardingService {
     return (res.data as Map).cast<String, dynamic>();
   }
 
+  Future<Map<String, dynamic>> removeProfileImage() async {
+    final res = await _api.dio.delete('/client/profile/image');
+
+    if (res.data is! Map) {
+      throw DioException(
+        requestOptions: res.requestOptions,
+        message: 'client/profile/image delete response is not a valid Map',
+      );
+    }
+    return (res.data as Map).cast<String, dynamic>();
+  }
+
   Future<Map<String, dynamic>> updateSocialLinks({
     String? website,
     required List<Map<String, dynamic>> socialLinks,

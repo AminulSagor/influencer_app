@@ -46,6 +46,25 @@ class AgencyProfileService {
     return _mapFromResponseData(res.data);
   }
 
+  Future<Map<String, dynamic>?> updateSkills(List<String> skills) async {
+    final res = await _api.dio.patch(
+      '/agency/profile/skills',
+      data: {'skills': skills},
+    );
+    return _mapFromResponseData(res.data);
+  }
+
+  Future<void> removeLogo() async {
+    await _api.dio.delete('/agency/profile/image');
+  }
+
+  Future<void> removeNiche({required String identifier}) async {
+    await _api.dio.delete(
+      '/agency/profile/niches',
+      data: {'identifier': identifier},
+    );
+  }
+
   Future<Map<String, dynamic>?> updateAddress({
     required String addressName,
     required String thana,

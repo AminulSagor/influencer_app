@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:influencer_app/core/theme/app_theme.dart';
+import 'package:influencer_app/core/widgets/custom_button.dart';
 import 'package:influencer_app/core/widgets/custom_text_form_field.dart';
 
 import '../../../../core/theme/app_palette.dart';
@@ -19,13 +20,42 @@ class VerificationSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isBrand = controller.accountTypeService.isBrand;
-    final isAgency = controller.accountTypeService.isAdAgency;
 
     return Padding(
       padding: EdgeInsets.only(bottom: 10.h),
       child: Column(
         crossAxisAlignment: .start,
         children: [
+          Obx(() {
+            final isVerified = controller.isClientVerificationComplete;
+            final bgColor = isVerified
+                ? const Color(0xFFEAF7EC)
+                : const Color(0xFFFFECEC);
+            final textColor = isVerified
+                ? const Color(0xFF2E7D32)
+                : const Color(0xFFD9363E);
+            final message = isVerified
+                ? 'Verified all provided documents'
+                : 'Verification Required. Please Provide Documents.';
+
+            return Container(
+              width: double.infinity,
+              margin: EdgeInsets.only(bottom: 12.h),
+              padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+              decoration: BoxDecoration(
+                color: bgColor,
+                borderRadius: BorderRadius.circular(8.r),
+              ),
+              child: Text(
+                message,
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 11.sp,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            );
+          }),
           CustomTextFormField(
             title: 'Your NID Number',
             controller: controller.nidNumberController,
@@ -57,60 +87,72 @@ class VerificationSection extends StatelessWidget {
               imageUrl: controller.nidBackUploadedUrl.value,
             );
           }),
-          if (isBrand || isAgency) ...[
-            40.h.verticalSpace,
-            CustomTextFormField(
-              title: 'Your Trade license Number',
-              controller: controller.tradeNumberController,
-              titleTextStyle: AppTheme.textStyle.copyWith(
-                color: AppPalette.complemetary,
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w500,
-              ),
+          40.h.verticalSpace,
+          CustomTextFormField(
+            title: 'Your Trade license Number',
+            controller: controller.tradeNumberController,
+            titleTextStyle: AppTheme.textStyle.copyWith(
+              color: AppPalette.complemetary,
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w500,
             ),
-            12.h.verticalSpace,
-            Obx(() {
-              return _ImagePickerContainer(
-                title: 'Upload Trade License',
-                onTap: () async {
-                  controller.tradeLicensePic.value = await controller
-                      .pickImage();
-                },
-                image: controller.tradeLicensePic.value,
-                imageUrl: controller.tradeLicenseUploadedUrl.value,
-              );
-            }),
+          ),
+          12.h.verticalSpace,
+          Obx(() {
+            return _ImagePickerContainer(
+              title: 'Upload Trade License',
+              onTap: () async {
+                controller.tradeLicensePic.value = await controller.pickImage();
+              },
+              image: controller.tradeLicensePic.value,
+              imageUrl: controller.tradeLicenseUploadedUrl.value,
+            );
+          }),
 
-            40.h.verticalSpace,
-            CustomTextFormField(
-              title: 'Your TIN Number',
-              controller: controller.tinNumberController,
-              titleTextStyle: AppTheme.textStyle.copyWith(
-                color: AppPalette.complemetary,
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w500,
-              ),
+          40.h.verticalSpace,
+          CustomTextFormField(
+            title: 'Your TIN Number',
+            controller: controller.tinNumberController,
+            titleTextStyle: AppTheme.textStyle.copyWith(
+              color: AppPalette.complemetary,
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w500,
             ),
-            12.h.verticalSpace,
-            Obx(() {
-              return _ImagePickerContainer(
-                title: 'Upload TIN Certificate',
-                onTap: () async {
-                  controller.tinCertificatePic.value = await controller
-                      .pickImage();
-                },
-                image: controller.tinCertificatePic.value,
-                imageUrl: controller.tinUploadedUrl.value,
-              );
-            }),
-            40.h.verticalSpace,
-            CustomTextFormField(
-              title: 'Your BIN Number',
-              controller: controller.binNumberController,
-              titleTextStyle: AppTheme.textStyle.copyWith(
-                color: AppPalette.complemetary,
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w500,
+          ),
+          12.h.verticalSpace,
+          Obx(() {
+            return _ImagePickerContainer(
+              title: 'Upload TIN Certificate',
+              onTap: () async {
+                controller.tinCertificatePic.value = await controller
+                    .pickImage();
+              },
+              image: controller.tinCertificatePic.value,
+              imageUrl: controller.tinUploadedUrl.value,
+            );
+          }),
+          40.h.verticalSpace,
+          CustomTextFormField(
+            title: 'Your BIN Number',
+            controller: controller.binNumberController,
+            titleTextStyle: AppTheme.textStyle.copyWith(
+              color: AppPalette.complemetary,
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          if (isBrand) ...[
+            18.h.verticalSpace,
+            Obx(
+              () => CustomButton(
+                width: double.infinity,
+                onTap: controller.isSavingVerificationSection.value
+                    ? null
+                    : controller.saveClientVerificationMethods,
+                btnText: 'Save Update',
+                btnColor: AppPalette.secondary,
+                textColor: AppPalette.white,
+                isLoading: controller.isSavingVerificationSection.value,
               ),
             ),
           ],

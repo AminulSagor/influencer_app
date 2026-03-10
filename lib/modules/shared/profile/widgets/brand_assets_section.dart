@@ -148,12 +148,17 @@ class BrandAssetsSection extends GetView<ProfileController> {
           16.h.verticalSpace,
 
           // Save button (functional)
-          CustomButton(
-            width: double.infinity,
-            onTap: controller.saveBrandAssets,
-            btnText: 'brand_assets_save'.tr,
-            btnColor: AppPalette.secondary,
-            textColor: AppPalette.white,
+          Obx(
+            () => CustomButton(
+              width: double.infinity,
+              onTap: controller.isSavingBrandAssetsSection.value
+                  ? null
+                  : controller.saveBrandAssets,
+              btnText: 'brand_assets_save'.tr,
+              btnColor: AppPalette.secondary,
+              textColor: AppPalette.white,
+              isLoading: controller.isSavingBrandAssetsSection.value,
+            ),
           ),
         ],
       ),

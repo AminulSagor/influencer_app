@@ -23,6 +23,8 @@ class InfluencerProfile {
   final InfluencerPayouts? payouts;
   final double averageRating;
   final int totalReviews;
+  final bool? isPhoneVerified;
+  final bool? isEmailVerified;
   final String userId;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -47,6 +49,8 @@ class InfluencerProfile {
     this.payouts,
     this.averageRating = 0.0,
     this.totalReviews = 0,
+    this.isPhoneVerified,
+    this.isEmailVerified,
     required this.userId,
     required this.createdAt,
     required this.updatedAt,
@@ -113,6 +117,8 @@ class InfluencerProfile {
           : null,
       averageRating: _parseDouble(json['averageRating']),
       totalReviews: _parseInt(json['totalReviews']),
+      isPhoneVerified: _parseBoolOrNull(json['isPhoneVerified']),
+      isEmailVerified: _parseBoolOrNull(json['isEmailVerified']),
       userId: json['userId'] as String,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
@@ -140,6 +146,8 @@ class InfluencerProfile {
       'payouts': payouts?.toJson(),
       'averageRating': averageRating,
       'totalReviews': totalReviews,
+      'isPhoneVerified': isPhoneVerified,
+      'isEmailVerified': isEmailVerified,
       'userId': userId,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
@@ -160,6 +168,18 @@ class InfluencerProfile {
     if (value is num) return value.toInt();
     if (value is String) return int.tryParse(value) ?? 0;
     return 0;
+  }
+
+  static bool? _parseBoolOrNull(dynamic value) {
+    if (value == null) return null;
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      if (normalized == 'true' || normalized == '1') return true;
+      if (normalized == 'false' || normalized == '0') return false;
+    }
+    return null;
   }
 }
 
@@ -283,9 +303,11 @@ class InfluencerNiche {
       return InfluencerNiche(name: json);
     }
     if (json is Map<String, dynamic>) {
+      final rawStatus = (json['status'] ?? json['verificationStatus'])
+          ?.toString();
       return InfluencerNiche(
         name: json['name'] as String? ?? json['niche'] as String? ?? '',
-        status: json['status'] as String?,
+        status: _normalizeVerificationStatus(rawStatus),
       );
     }
     return InfluencerNiche(name: json.toString());
@@ -293,6 +315,18 @@ class InfluencerNiche {
 
   Map<String, dynamic> toJson() {
     return {'name': name, if (status != null) 'status': status};
+  }
+
+  static String? _normalizeVerificationStatus(dynamic rawStatus) {
+    final value = rawStatus?.toString().trim().toLowerCase();
+    if (value == null || value.isEmpty) return null;
+    if (value == 'active') return 'approved';
+    if (value == 'in_review' ||
+        value == 'under_review' ||
+        value == 'reviewing') {
+      return 'pending';
+    }
+    return value;
   }
 }
 
@@ -312,9 +346,11 @@ class InfluencerSkill {
       return InfluencerSkill(name: json);
     }
     if (json is Map<String, dynamic>) {
+      final rawStatus = (json['status'] ?? json['verificationStatus'])
+          ?.toString();
       return InfluencerSkill(
         name: json['name'] as String? ?? json['skill'] as String? ?? '',
-        status: json['status'] as String?,
+        status: _normalizeVerificationStatus(rawStatus),
       );
     }
     return InfluencerSkill(name: json.toString());
@@ -322,6 +358,18 @@ class InfluencerSkill {
 
   Map<String, dynamic> toJson() {
     return {'name': name, if (status != null) 'status': status};
+  }
+
+  static String? _normalizeVerificationStatus(dynamic rawStatus) {
+    final value = rawStatus?.toString().trim().toLowerCase();
+    if (value == null || value.isEmpty) return null;
+    if (value == 'active') return 'approved';
+    if (value == 'in_review' ||
+        value == 'under_review' ||
+        value == 'reviewing') {
+      return 'pending';
+    }
+    return value;
   }
 }
 

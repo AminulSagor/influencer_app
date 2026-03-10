@@ -11,6 +11,7 @@ import 'package:influencer_app/core/controllers/app_user_session_controller.dart
 import 'package:influencer_app/core/services/account_type_service.dart';
 import 'package:influencer_app/core/services/auth_services.dart';
 import 'package:influencer_app/core/services/api_error_handler.dart';
+import 'package:influencer_app/core/services/campaign_service.dart';
 import 'package:influencer_app/core/services/token_service.dart';
 import 'package:influencer_app/core/theme/app_palette.dart';
 import 'package:influencer_app/modules/ad_agency/services/agency_profile_service.dart';
@@ -21,127 +22,49 @@ import 'package:influencer_app/modules/brand/services/brand_onboarding_services.
 import 'package:influencer_app/routes/app_routes.dart';
 
 import 'models/brand_asset.dart';
+import 'models/payout_method.dart';
+import 'models/profile_field.dart';
+import 'models/profile_user_model.dart';
+import 'models/social_account.dart';
 import 'models/user_location.dart';
-
-enum ProfileStatus { unverified, verified }
-
-enum VerificationState { unverified, underReview, verified }
-
-class SocialAccount {
-  final String platform; // e.g. "Instagram"
-  final String iconPath;
-  final String handle; // e.g. "@growbig"
-  final bool isVerified;
-
-  const SocialAccount({
-    required this.platform,
-    required this.handle,
-    this.isVerified = false,
-    required this.iconPath,
-  });
-}
-
-class ProfileField {
-  final String label;
-  final String hintText;
-  final String value;
-  final bool isRequired;
-  final bool isReadOnly;
-
-  const ProfileField({
-    required this.label,
-    required this.value,
-    this.isRequired = false,
-    this.isReadOnly = false,
-    required this.hintText,
-  });
-}
-
-class VerificationInprogressItem {
-  final String title;
-  final VerificationState state;
-
-  const VerificationInprogressItem({required this.title, required this.state});
-}
-
-class PayoutMethod {
-  final String? payoutId;
-  final String payoutType;
-  final String? bankName;
-  final String? accountName;
-  final String? accountNo;
-  final String? branchName;
-  final String? routingNumber;
-
-  final String? bKashNo;
-  final String? bKashName;
-  final String? bKashAccountType;
-  final bool isApproved;
-
-  final bool isBank;
-
-  const PayoutMethod.bank({
-    this.payoutId,
-    this.payoutType = 'bank',
-    required this.bankName,
-    required this.accountName,
-    required this.accountNo,
-    required this.branchName,
-    required this.routingNumber,
-    this.isApproved = false,
-  }) : bKashNo = '',
-       bKashName = '',
-       bKashAccountType = '',
-       isBank = true;
-
-  const PayoutMethod.bKash({
-    this.payoutId,
-    this.payoutType = 'mobileBanking',
-    required this.bKashNo,
-    required this.bKashName,
-    required this.bKashAccountType,
-    this.isApproved = false,
-  }) : bankName = '',
-       accountName = '',
-       accountNo = '',
-       branchName = '',
-       routingNumber = '',
-       isBank = false;
-}
+import 'models/verification_inprogress_item.dart';
+import 'enums/profile_status.dart';
+import 'enums/verification_state.dart';
+import 'widgets/tag_selection_dialog.dart';
 
 class ProfileController extends GetxController {
   final accountTypeService = Get.find<AccountTypeService>();
   final appUserSession = Get.find<AppUserSessionController>();
   final TokenService _tokenService = Get.find<TokenService>();
+  final CampaignService _campaignService = Get.find<CampaignService>();
+  final _apiData = ProfileUserModel();
   // ---------------------------------------------------------------------------
   // BASIC PROFILE STATE
   // ---------------------------------------------------------------------------
 
-  final profileStatus = ProfileStatus.verified.obs;
+  Rx<ProfileStatus> get profileStatus => _apiData.profileStatus;
+  RxString get profileName => _apiData.profileName;
+  RxString get profileLocation => _apiData.profileLocation;
+  RxString get brandName => _apiData.brandName;
+  RxDouble get profileRating => _apiData.profileRating;
+  RxInt get profileRatingCount => _apiData.profileRatingCount;
+  RxDouble get profileCompletion => _apiData.profileCompletion;
+  RxString get bioText => _apiData.bioText;
+  RxString get serviceFeeText => _apiData.serviceFeeText;
+  RxString get dollarRateText => _apiData.dollarRateText;
+  RxString get profileImageUrl => _apiData.profileImageUrl;
+  RxString get userEmail => _apiData.userEmail;
+  RxString get userPhone => _apiData.userPhone;
+  RxString get brandWebsite => _apiData.brandWebsite;
   final RxnBool _jwtAdminVerified = RxnBool();
 
-  final profileName = ''.obs;
-  final profileLocation = 'Dhaka, Bangladesh'.obs;
-  final brandName = ''.obs;
-  final profileRating = 4.5.obs;
-  final profileRatingCount = 32.obs;
-
-  // Between 0.0 – 1.0
-  final profileCompletion = 0.35.obs;
-
   // Text values
-  final bioText = ''.obs;
-  final serviceFeeText = ''.obs; // "15%" when filled
   final bioController = TextEditingController();
 
   // Profile image
   final Rx<File?> profileImageFile = Rx<File?>(null);
-  final profileImageUrl = ''.obs;
-
-  // From token / profile
-  final userEmail = ''.obs;
-  final userPhone = ''.obs;
-  final brandWebsite = ''.obs;
+  Rxn<ProfileIdentityModel> get profileUser => _apiData.profileUser;
+  ProfileIdentityModel? get currentProfileUser => _apiData.profileUser.value;
 
   // ---------------------------------------------------------------------------
   // EXPANSION STATE
@@ -149,6 +72,7 @@ class ProfileController extends GetxController {
 
   final bioExpanded = true.obs;
   final serviceFeeExpanded = true.obs;
+  final dollarRateExpanded = true.obs;
   final socialExpanded = true.obs;
   final nicheExpanded = true.obs;
   final settingsExpanded = true.obs;
@@ -174,17 +98,25 @@ class ProfileController extends GetxController {
   // SECTION DATA
   // ---------------------------------------------------------------------------
 
-  final socialAccounts = <SocialAccount>[].obs;
-  final niches = <String>[].obs;
-  final RxMap<String, String> nicheStatuses = <String, String>{}.obs;
-  final profileFields = <ProfileField>[].obs;
-  final verificationInprogressItems = <VerificationInprogressItem>[].obs;
-  final payoutMethods = <PayoutMethod>[].obs;
+  RxList<SocialAccount> get socialAccounts => _apiData.socialAccounts;
+  RxList<String> get niches => _apiData.niches;
+  RxMap<String, String> get nicheStatuses => _apiData.nicheStatuses;
+  RxMap<String, String> get skillStatuses => _apiData.skillStatuses;
+  RxList<ProfileField> get profileFields => _apiData.profileFields;
+  RxList<VerificationInprogressItem> get verificationInprogressItems =>
+      _apiData.verificationInprogressItems;
+  RxList<PayoutMethod> get payoutMethods => _apiData.payoutMethods;
+  RxList<String> get skills => _apiData.skills;
+  RxList<UserLocation> get locations => _apiData.locations;
 
   final RxnString newSocialPlatform = RxnString();
   final TextEditingController newSocialHandleController =
       TextEditingController();
-  final TextEditingController newNicheController = TextEditingController();
+
+  final allowedNiches = <String>[].obs;
+  final allowedSkills = <String>[].obs;
+  final isLoadingAllowedNiches = false.obs;
+  final isLoadingAllowedSkills = false.obs;
 
   final List<String> socialPlatformOptions = const [
     'Instagram',
@@ -199,12 +131,33 @@ class ProfileController extends GetxController {
   final RxMap<String, String> socialHandleEdits = <String, String>{}.obs;
 
   final isSavingProfile = false.obs;
+  final isSavingServiceFee = false.obs;
+  final isSavingDollarRate = false.obs;
+  final isSavingProfileSettings = false.obs;
+  final isSavingBrandAssetsSection = false.obs;
+  final isSavingVerificationSection = false.obs;
 
   /// Loading state for profile fetch
   final isLoadingProfile = false.obs;
 
+  bool get isClientVerificationComplete {
+    if (!accountTypeService.isBrand) return true;
+    final requiredTitles = <String>{'NID', 'Trade License', 'TIN', 'BIN'};
+    final requiredItems = verificationInprogressItems
+        .where((item) => requiredTitles.contains(item.title))
+        .toList(growable: false);
+
+    if (requiredItems.length < requiredTitles.length) {
+      return false;
+    }
+
+    return requiredItems.every(
+      (item) => item.state == VerificationState.verified,
+    );
+  }
+
   /// Current influencer profile (null for brand/agency)
-  final Rxn<InfluencerProfile> influencerProfile = Rxn<InfluencerProfile>();
+  Rxn<InfluencerProfile> get influencerProfile => _apiData.influencerProfile;
 
   @override
   void onInit() {
@@ -285,7 +238,12 @@ class ProfileController extends GetxController {
   /// Fetches influencer profile from API and populates UI fields
   Future<void> _fetchInfluencerProfile() async {
     final service = Get.find<InfluencerProfileService>();
-    final result = await service.getProfile();
+    final wrappedResult = await ApiErrorHandler.call(
+      () => service.getProfile(),
+    );
+    final result =
+        wrappedResult.data ??
+        ApiResult.failure(wrappedResult.error ?? 'unknown_error'.tr);
 
     if (result.isSuccess && result.data != null) {
       final profile = result.data!;
@@ -304,36 +262,19 @@ class ProfileController extends GetxController {
 
   /// Populates controller fields from InfluencerProfile data
   void _populateFromInfluencerProfile(InfluencerProfile profile) {
-    // Basic info
-    profileName.value = profile.fullName.isNotEmpty
-        ? profile.fullName
-        : 'Influencer';
-    _setProfileStatusFromVerification(
-      profileIsVerified: profile.isOnboardingComplete,
+    final userModel = ProfileIdentityModel.fromInfluencer(
+      profile,
+      fallbackEmail: userEmail.value,
+      fallbackPhone: userPhone.value,
     );
+    _applyProfileUser(userModel);
+
     _setBioText(profile.bio ?? '');
-    profileImageUrl.value = profile.displayImage ?? '';
     profileImageFile.value = null;
     profileRating.value = profile.averageRating;
     profileRatingCount.value = profile.totalReviews;
 
-    if (profile.addresses.isNotEmpty) {
-      final primary = profile.primaryAddress ?? profile.addresses.first;
-      final locationParts = <String>[
-        primary.thana?.trim() ?? '',
-        primary.zilla?.trim() ?? '',
-        primary.country?.trim() ?? '',
-      ].where((part) => part.isNotEmpty).toList(growable: false);
-      profileLocation.value = locationParts.isEmpty
-          ? 'Dhaka, Bangladesh'
-          : locationParts.join(', ');
-    } else {
-      profileLocation.value = 'Dhaka, Bangladesh';
-    }
-
     appUserSession.influencerProfile.value = profile;
-    appUserSession.displayName.value = profileName.value;
-    appUserSession.profileImageUrl.value = profileImageUrl.value;
 
     _hydrateVerificationInputsFromJson(profile.toJson());
 
@@ -390,9 +331,21 @@ class ProfileController extends GetxController {
 
     // Skills
     if (profile.skills != null && profile.skills!.isNotEmpty) {
-      skills.assignAll(profile.skills!.map((s) => s.name).toList());
+      final names = <String>[];
+      final statuses = <String, String>{};
+      for (final skill in profile.skills!) {
+        final name = skill.name.trim();
+        if (name.isEmpty) continue;
+        names.add(name);
+        statuses[name.toLowerCase()] = (skill.status ?? 'pending')
+            .toLowerCase()
+            .trim();
+      }
+      skills.assignAll(names);
+      skillStatuses.assignAll(statuses);
     } else {
       skills.clear();
+      skillStatuses.clear();
     }
 
     // Locations/Addresses
@@ -462,8 +415,18 @@ class ProfileController extends GetxController {
             : VerificationState.unverified,
       ),
       VerificationInprogressItem(
+        title: 'Phone No. Verification',
+        state: profile.isPhoneVerified == null
+            ? (userPhone.value.trim().isNotEmpty
+                  ? VerificationState.verified
+                  : VerificationState.unverified)
+            : (profile.isPhoneVerified == true
+                  ? VerificationState.verified
+                  : VerificationState.unverified),
+      ),
+      VerificationInprogressItem(
         title: 'Payment Setup',
-        state: profile.payouts != null
+        state: payoutMethods.isNotEmpty
             ? VerificationState.verified
             : VerificationState.unverified,
       ),
@@ -472,17 +435,24 @@ class ProfileController extends GetxController {
         state: _getNidVerificationState(profile),
       ),
       VerificationInprogressItem(
+        title: 'Skills',
+        state: _statusGroupVerificationState(skills, skillStatuses),
+      ),
+      VerificationInprogressItem(
+        title: 'Niches',
+        state: _statusGroupVerificationState(niches, nicheStatuses),
+      ),
+      VerificationInprogressItem(
         title: 'Email',
-        state: VerificationState.verified, // Email is verified during signup
+        state: profile.isEmailVerified == null
+            ? VerificationState.verified
+            : (profile.isEmailVerified == true
+                  ? VerificationState.verified
+                  : VerificationState.unverified),
       ),
     ]);
 
     // Profile fields
-    final nidStatusValue = profile.nidVerification?.status?.trim();
-    final nidStatusLabel = (nidStatusValue != null && nidStatusValue.isNotEmpty)
-        ? _capitalizeFirst(nidStatusValue)
-        : (profile.hasNidSubmitted ? 'Pending' : 'Not Submitted');
-
     profileFields.assignAll([
       ProfileField(
         label: 'First Name',
@@ -504,63 +474,10 @@ class ProfileController extends GetxController {
         isReadOnly: true,
       ),
       ProfileField(
-        label: 'Website',
-        hintText: 'Enter Website URL',
-        value: profile.website ?? '',
-        isRequired: false,
-      ),
-      ProfileField(
-        label: 'NID Number',
-        hintText: 'NID Number',
-        value: profile.nidNumber ?? '',
-        isReadOnly: true,
-      ),
-      ProfileField(
-        label: 'NID Status',
-        hintText: 'NID Status',
-        value: nidStatusLabel,
-        isReadOnly: true,
-      ),
-      ProfileField(
-        label: 'Onboarding Complete',
-        hintText: 'Onboarding Complete',
-        value: profile.isOnboardingComplete ? 'Yes' : 'No',
-        isReadOnly: true,
-      ),
-      ProfileField(
-        label: 'Profile Rating',
-        hintText: 'Profile Rating',
-        value: profile.averageRating.toStringAsFixed(1),
-        isReadOnly: true,
-      ),
-      ProfileField(
-        label: 'Total Reviews',
-        hintText: 'Total Reviews',
-        value: profile.totalReviews.toString(),
-        isReadOnly: true,
-      ),
-      ProfileField(
-        label: 'Profile ID',
-        hintText: 'Profile ID',
-        value: profile.id,
-        isReadOnly: true,
-      ),
-      ProfileField(
-        label: 'User ID',
-        hintText: 'User ID',
-        value: profile.userId,
-        isReadOnly: true,
-      ),
-      ProfileField(
-        label: 'Created At',
-        hintText: 'Created At',
-        value: _formatDateTime(profile.createdAt),
-        isReadOnly: true,
-      ),
-      ProfileField(
-        label: 'Updated At',
-        hintText: 'Updated At',
-        value: _formatDateTime(profile.updatedAt),
+        label: 'Phone Number',
+        hintText: 'Enter Phone Number',
+        value: userPhone.value,
+        isRequired: true,
         isReadOnly: true,
       ),
     ]);
@@ -590,6 +507,49 @@ class ProfileController extends GetxController {
   bool isNicheVerified(String nicheName) {
     final status = nicheStatusValue(nicheName).toLowerCase();
     return status == 'approved' || status == 'verified';
+  }
+
+  String skillStatusValue(String skillName) {
+    return skillStatuses[skillName.toLowerCase()] ?? 'pending';
+  }
+
+  bool isSkillVerified(String skillName) {
+    final status = skillStatusValue(skillName).toLowerCase();
+    return status == 'approved' || status == 'verified';
+  }
+
+  VerificationState _statusGroupVerificationState(
+    List<String> values,
+    Map<String, String> statuses,
+  ) {
+    if (values.isEmpty) return VerificationState.unverified;
+
+    var hasVerified = false;
+    var hasUnderReview = false;
+    var hasUnverified = false;
+
+    for (final value in values) {
+      final parsed =
+          _parseVerificationState(statuses[value.toLowerCase()]) ??
+          VerificationState.underReview;
+      switch (parsed) {
+        case VerificationState.verified:
+          hasVerified = true;
+          break;
+        case VerificationState.underReview:
+          hasUnderReview = true;
+          break;
+        case VerificationState.unverified:
+          hasUnverified = true;
+          break;
+      }
+    }
+
+    if (hasVerified && !hasUnderReview && !hasUnverified) {
+      return VerificationState.verified;
+    }
+    if (hasUnderReview || hasVerified) return VerificationState.underReview;
+    return VerificationState.unverified;
   }
 
   /// Adds an empty social account entry so the UI can render an input field.
@@ -738,30 +698,36 @@ class ProfileController extends GetxController {
     setSocialHandle(normalizedPlatform, normalizedHandle);
   }
 
-  void showAddNicheDialog() {
-    newNicheController.clear();
+  Future<void> showAddNicheDialog() async {
+    await _ensureAllowedNichesLoaded();
+    if (allowedNiches.isEmpty) {
+      Get.snackbar(
+        'Niches unavailable',
+        'Could not load available niches right now.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
 
-    Get.dialog(
-      AlertDialog(
-        title: const Text('Add Niche'),
-        content: TextField(
-          controller: newNicheController,
-          decoration: const InputDecoration(hintText: 'Enter niche'),
-        ),
-        actions: [
-          TextButton(onPressed: () => Get.back(), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () {
-              final niche = newNicheController.text.trim();
-              if (niche.isEmpty) return;
-              addNiche(niche);
-              Get.back();
-            },
-            child: const Text('Add'),
-          ),
-        ],
+    final selected = await Get.dialog<List<String>>(
+      TagSelectionDialog(
+        title: 'Niche',
+        searchHint: 'Search Niche',
+        options: allowedNiches.toList(growable: false),
+        initialSelected: niches.toList(growable: false),
       ),
+      barrierDismissible: true,
     );
+
+    if (selected == null) return;
+    final nextStatuses = <String, String>{};
+    for (final value in selected) {
+      final key = value.toLowerCase();
+      nextStatuses[key] = nicheStatuses[key] ?? 'pending';
+    }
+
+    niches.assignAll(selected);
+    nicheStatuses.assignAll(nextStatuses);
   }
 
   void addNiche(String niche) {
@@ -775,6 +741,25 @@ class ProfileController extends GetxController {
 
     niches.add(value);
     nicheStatuses[value.toLowerCase()] = 'pending';
+  }
+
+  Future<void> _ensureAllowedNichesLoaded() async {
+    if (allowedNiches.isNotEmpty || isLoadingAllowedNiches.value) return;
+    isLoadingAllowedNiches.value = true;
+
+    final result = await ApiErrorHandler.call(
+      () => _campaignService.fetchNiches(),
+      showError: false,
+    );
+
+    if (result.isSuccess && result.data != null) {
+      final items = result.data!
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList(growable: false);
+      allowedNiches.assignAll(items);
+    }
+    isLoadingAllowedNiches.value = false;
   }
 
   /// Get NID verification state from profile
@@ -829,7 +814,11 @@ class ProfileController extends GetxController {
   }
 
   Future<void> _loadUserFromToken() async {
-    final token = await _tokenService.getAccessToken();
+    final tokenResult = await ApiErrorHandler.call(
+      () => _tokenService.getAccessToken(),
+      showError: false,
+    );
+    final token = tokenResult.data;
     if (token == null || token.trim().isEmpty) return;
 
     final payload = _decodeJwtPayload(token);
@@ -885,19 +874,24 @@ class ProfileController extends GetxController {
     }
   }
 
-  void _applyContactFromJson(Map<String, dynamic> json) {
-    final email =
-        _stringOrNull(json['email']) ??
-        _stringOrNull((json['user'] as Map?)?['email']);
-    final phone =
-        _stringOrNull(json['phone']) ??
-        _stringOrNull((json['user'] as Map?)?['phone']);
+  void _applyProfileUser(ProfileIdentityModel model) {
+    _apiData.profileUser.value = model;
 
-    if (email != null) userEmail.value = email;
-    if (phone != null) userPhone.value = phone;
+    profileName.value = model.displayName;
+    userEmail.value = model.email;
+    userPhone.value = model.phone;
+    profileImageUrl.value = model.avatarUrl;
+    profileLocation.value = model.location;
+    _setProfileStatusFromVerification(profileIsVerified: model.isVerified);
 
-    if (email != null) appUserSession.userEmail.value = email;
-    if (phone != null) appUserSession.userPhone.value = phone;
+    appUserSession.displayName.value = model.displayName;
+    appUserSession.profileImageUrl.value = model.avatarUrl;
+    if (model.email.trim().isNotEmpty) {
+      appUserSession.userEmail.value = model.email.trim();
+    }
+    if (model.phone.trim().isNotEmpty) {
+      appUserSession.userPhone.value = model.phone.trim();
+    }
   }
 
   String? _stringOrNull(dynamic value) {
@@ -1030,28 +1024,22 @@ class ProfileController extends GetxController {
 
   /// Populates controller fields from Agency profile JSON
   void _populateFromAgencyJson(Map<String, dynamic> json) {
-    _applyContactFromJson(json);
+    final userModel = ProfileIdentityModel.fromAgencyJson(
+      json,
+      fallbackEmail: userEmail.value,
+      fallbackPhone: userPhone.value,
+    );
+    _applyProfileUser(userModel);
 
-    // Basic info
     final agencyName = json['agencyName'] as String? ?? '';
     final firstName = json['firstName'] as String? ?? '';
     final lastName = json['lastName'] as String? ?? '';
-    profileName.value = agencyName.isNotEmpty
-        ? agencyName
-        : '$firstName $lastName'.trim();
-    _setProfileStatusFromVerification(profileIsVerified: json['isVerified']);
     _setBioText(json['agencyBio'] as String? ?? '');
     serviceFeeText.value = json['serviceFee']?.toString() ?? '';
-    profileImageUrl.value =
-        _stringOrNull(json['profileImg']) ??
-        _stringOrNull(json['profileImage']) ??
-        _stringOrNull(json['logo']) ??
-        '';
+    dollarRateText.value = json['dollarRate']?.toString() ?? '';
     profileImageFile.value = null;
 
     appUserSession.agencyProfileJson.value = Map<String, dynamic>.from(json);
-    appUserSession.displayName.value = profileName.value;
-    appUserSession.profileImageUrl.value = profileImageUrl.value;
 
     // Rating
     final rating = json['averageRating'];
@@ -1064,11 +1052,12 @@ class ProfileController extends GetxController {
 
     // Calculate profile completion
     int completed = 0;
-    int total = 8;
+    int total = 9;
     if (agencyName.isNotEmpty) completed++;
     if ((json['agencyBio'] as String?)?.isNotEmpty == true) completed++;
     if (json['address'] != null) completed++;
     if (json['socialLinks'] != null) completed++;
+    if (json['skills'] != null) completed++;
     if (json['nidNumber'] != null) completed++;
     if (json['tradeLicenseNumber'] != null) completed++;
     if (json['tinNumber'] != null) completed++;
@@ -1126,6 +1115,44 @@ class ProfileController extends GetxController {
     } else {
       niches.clear();
       nicheStatuses.clear();
+    }
+
+    // Skills
+    final skills_ = json['skills'] as List?;
+    if (skills_ != null && skills_.isNotEmpty) {
+      final names = <String>[];
+      final statuses = <String, String>{};
+
+      for (final item in skills_) {
+        if (item is String) {
+          final name = item.trim();
+          if (name.isNotEmpty) {
+            names.add(name);
+            statuses[name.toLowerCase()] = 'pending';
+          }
+          continue;
+        }
+
+        if (item is Map) {
+          final map = Map<String, dynamic>.from(item);
+          final name = (map['name'] ?? map['skill'] ?? '').toString().trim();
+          if (name.isNotEmpty) {
+            final status =
+                (map['status'] ?? map['verificationStatus'] ?? 'pending')
+                    .toString()
+                    .trim()
+                    .toLowerCase();
+            names.add(name);
+            statuses[name.toLowerCase()] = status;
+          }
+        }
+      }
+
+      skills.assignAll(names);
+      skillStatuses.assignAll(statuses);
+    } else {
+      skills.clear();
+      skillStatuses.clear();
     }
 
     // Locations/Addresses
@@ -1206,17 +1233,15 @@ class ProfileController extends GetxController {
     verificationInprogressItems.assignAll([
       VerificationInprogressItem(
         title: 'Social Profile Verification',
-        state:
-            (socialLinks != null &&
-                socialLinks.any((s) => (s as Map)['status'] == 'verified'))
-            ? VerificationState.verified
-            : (socialLinks != null && socialLinks.isNotEmpty)
-            ? VerificationState.underReview
-            : VerificationState.unverified,
+        state: _getSocialVerificationState(socialLinks),
+      ),
+      VerificationInprogressItem(
+        title: 'Phone No. Verification',
+        state: _getPhoneVerificationState(json),
       ),
       VerificationInprogressItem(
         title: 'Payment Setup',
-        state: json['payouts'] != null
+        state: payoutMethods.isNotEmpty
             ? VerificationState.verified
             : VerificationState.unverified,
       ),
@@ -1248,7 +1273,21 @@ class ProfileController extends GetxController {
           json['binNumber'],
         ),
       ),
+      VerificationInprogressItem(
+        title: 'Email',
+        state: _getEmailVerificationState(json),
+      ),
     ]);
+
+    final primaryLocation = locations.isNotEmpty ? locations.first : null;
+    final secondaryPhone =
+        _stringOrNull(json['secondaryPhone']) ??
+        _stringOrNull(json['secondaryPhoneNumber']) ??
+        '';
+    final phoneValue =
+        _stringOrNull(json['phone']) ??
+        _stringOrNull((json['user'] as Map?)?['phone']) ??
+        userPhone.value;
 
     // Profile fields
     profileFields.assignAll([
@@ -1270,18 +1309,43 @@ class ProfileController extends GetxController {
         value: lastName,
         isRequired: true,
       ),
-      if (userEmail.value.isNotEmpty)
-        ProfileField(
-          label: 'Email Address',
-          hintText: 'Enter Email Address',
-          value: userEmail.value,
-          isRequired: true,
-        ),
       ProfileField(
-        label: 'Website',
-        hintText: 'Enter Website URL',
-        value: json['website'] as String? ?? '',
-        isRequired: false,
+        label: 'Thana',
+        hintText: 'Enter Thana',
+        value: primaryLocation?.thana ?? '',
+        isRequired: true,
+      ),
+      ProfileField(
+        label: 'Zilla',
+        hintText: 'Enter Zilla',
+        value: primaryLocation?.zilla ?? '',
+        isRequired: true,
+      ),
+      ProfileField(
+        label: 'Full Address',
+        hintText: 'Enter Full Address',
+        value: primaryLocation?.fullAddress ?? '',
+        isRequired: true,
+      ),
+      ProfileField(
+        label: 'Email Address',
+        hintText: 'Enter Email Address',
+        value: userEmail.value,
+        isRequired: true,
+        isReadOnly: true,
+      ),
+      ProfileField(
+        label: 'Phone Number',
+        hintText: 'Enter Phone Number',
+        value: phoneValue,
+        isRequired: true,
+        isReadOnly: true,
+      ),
+      ProfileField(
+        label: 'Secondary Phone Number (Optional)',
+        hintText: 'Enter Secondary Phone Number',
+        value: secondaryPhone,
+        isReadOnly: true,
       ),
     ]);
     _hydrateVerificationInputsFromJson(json);
@@ -1290,32 +1354,26 @@ class ProfileController extends GetxController {
 
   /// Populates controller fields from Brand profile JSON
   void _populateFromBrandJson(Map<String, dynamic> json) {
-    _applyContactFromJson(json);
-    // Brand uses similar structure - reuse agency logic with slight modifications
+    final userModel = ProfileIdentityModel.fromBrandJson(
+      json,
+      fallbackEmail: userEmail.value,
+      fallbackPhone: userPhone.value,
+    );
+    _applyProfileUser(userModel);
 
+    // Brand uses similar structure - reuse agency logic with slight modifications
     final companyName =
         _stringOrNull(json['brandName']) ??
         _stringOrNull(json['companyName']) ??
         '';
     final firstName = json['firstName'] as String? ?? '';
     final lastName = json['lastName'] as String? ?? '';
-    profileName.value = companyName.isNotEmpty
-        ? companyName
-        : '$firstName $lastName'.trim();
     brandName.value = companyName;
-    _setProfileStatusFromVerification(profileIsVerified: json['isVerified']);
     _setBioText(json['bio'] as String? ?? '');
     _setBrandWebsite(_stringOrNull(json['website']));
-    profileImageUrl.value =
-        _stringOrNull(json['profileImg']) ??
-        _stringOrNull(json['profileImage']) ??
-        _stringOrNull(json['logo']) ??
-        '';
     profileImageFile.value = null;
 
     appUserSession.brandProfileJson.value = Map<String, dynamic>.from(json);
-    appUserSession.displayName.value = profileName.value;
-    appUserSession.profileImageUrl.value = profileImageUrl.value;
 
     // Rating
     final rating = json['averageRating'];
@@ -1400,8 +1458,31 @@ class ProfileController extends GetxController {
         }).toList(),
       );
     } else {
-      locations.clear();
+      final thana = _stringOrNull(json['thana']) ?? '';
+      final zilla = _stringOrNull(json['zilla']) ?? '';
+      final fullAddress = _stringOrNull(json['fullAddress']) ?? '';
+
+      if (thana.isNotEmpty || zilla.isNotEmpty || fullAddress.isNotEmpty) {
+        locations.assignAll([
+          UserLocation(
+            name: 'Office',
+            thana: thana,
+            zilla: zilla,
+            fullAddress: fullAddress,
+          ),
+        ]);
+      } else {
+        locations.clear();
+      }
     }
+
+    final primaryLocation = locations.isNotEmpty ? locations.first : null;
+    final secondaryPhone =
+        _stringOrNull(json['secondaryPhone']) ??
+        _stringOrNull(json['secondaryPhoneNumber']) ??
+        '';
+    final emailValue = _stringOrNull(json['email']) ?? userEmail.value;
+    final phoneValue = _stringOrNull(json['phone']) ?? userPhone.value;
 
     // Payout methods (same as agency)
     final payouts = json['payouts'] as Map<String, dynamic>?;
@@ -1448,23 +1529,217 @@ class ProfileController extends GetxController {
       payoutMethods.clear();
     }
 
-    // Verification status items
-    verificationInprogressItems.assignAll([
+    // Brand/client verification list shown on the progress page.
+    verificationInprogressItems.assignAll(
+      _buildBrandVerificationItems(json, socialLinks: socialLinks),
+    );
+
+    // Profile fields
+    profileFields.assignAll([
+      ProfileField(
+        label: 'Company Name',
+        hintText: 'Enter Company Name',
+        value: companyName,
+        isRequired: true,
+      ),
+      ProfileField(
+        label: 'First Name',
+        hintText: 'Enter First Name',
+        value: firstName,
+        isRequired: true,
+      ),
+      ProfileField(
+        label: 'Last Name',
+        hintText: 'Enter Last Name',
+        value: lastName,
+        isRequired: true,
+      ),
+      ProfileField(
+        label: 'Thana',
+        hintText: 'Enter Thana',
+        value: primaryLocation?.thana ?? (_stringOrNull(json['thana']) ?? ''),
+        isRequired: true,
+      ),
+      ProfileField(
+        label: 'Zilla',
+        hintText: 'Enter Zilla',
+        value: primaryLocation?.zilla ?? (_stringOrNull(json['zilla']) ?? ''),
+        isRequired: true,
+      ),
+      ProfileField(
+        label: 'Full Address',
+        hintText: 'Enter Full Address',
+        value:
+            primaryLocation?.fullAddress ??
+            (_stringOrNull(json['fullAddress']) ?? ''),
+        isRequired: true,
+      ),
+      ProfileField(
+        label: 'Email Address',
+        hintText: 'Enter Email Address',
+        value: emailValue,
+        isRequired: true,
+        isReadOnly: true,
+      ),
+      ProfileField(
+        label: 'Phone Number',
+        hintText: 'Enter Phone Number',
+        value: phoneValue,
+        isRequired: true,
+        isReadOnly: true,
+      ),
+      ProfileField(
+        label: 'Secondary Phone Number (Optional)',
+        hintText: 'Enter Secondary Phone Number',
+        value: secondaryPhone,
+        isReadOnly: true,
+      ),
+    ]);
+    _hydrateVerificationInputsFromJson(json);
+    _syncProfileFieldDefaults();
+  }
+
+  /// Helper to get verification state from JSON verification object
+  VerificationState _getVerificationStateFromJson(
+    dynamic verification,
+    dynamic documentNumber,
+  ) {
+    if (verification != null && verification is Map) {
+      final status =
+          _stringOrNull(verification['status']) ??
+          _stringOrNull(verification['nidStatus']) ??
+          _stringOrNull(verification['tradeLicenseStatus']) ??
+          _stringOrNull(verification['tinStatus']) ??
+          _stringOrNull(verification['binStatus']);
+
+      final parsed = _parseVerificationState(status);
+      if (parsed != null) return parsed;
+    }
+    // If no verification object but document exists, assume under review
+    if (documentNumber != null && documentNumber.toString().isNotEmpty) {
+      return VerificationState.underReview;
+    }
+    return VerificationState.unverified;
+  }
+
+  VerificationState? _parseVerificationState(dynamic value) {
+    final normalizedStatus = value?.toString().trim().toLowerCase();
+    if (normalizedStatus == null || normalizedStatus.isEmpty) return null;
+
+    if (normalizedStatus == 'approved' || normalizedStatus == 'verified') {
+      return VerificationState.verified;
+    }
+    if (normalizedStatus == 'pending' ||
+        normalizedStatus == 'under_review' ||
+        normalizedStatus == 'under review' ||
+        normalizedStatus == 'in_review' ||
+        normalizedStatus == 'in review' ||
+        normalizedStatus == 'reviewing') {
+      return VerificationState.underReview;
+    }
+    if (normalizedStatus == 'rejected' || normalizedStatus == 'unverified') {
+      return VerificationState.unverified;
+    }
+
+    return null;
+  }
+
+  VerificationState _getSocialVerificationState(dynamic socialLinks) {
+    if (socialLinks is! List || socialLinks.isEmpty) {
+      return VerificationState.unverified;
+    }
+
+    final hasVerified = socialLinks.any((link) {
+      if (link is! Map) return false;
+      final parsed = _parseVerificationState(link['status']);
+      return parsed == VerificationState.verified;
+    });
+
+    return hasVerified
+        ? VerificationState.verified
+        : VerificationState.underReview;
+  }
+
+  VerificationState _getPhoneVerificationState(Map<String, dynamic> json) {
+    final user = json['user'] as Map?;
+    final directVerified =
+        _toBool(json['isPhoneVerified']) ??
+        _toBool(json['phoneVerified']) ??
+        _toBool(user?['isPhoneVerified']) ??
+        _toBool(user?['phoneVerified']);
+
+    if (directVerified != null) {
+      return directVerified
+          ? VerificationState.verified
+          : VerificationState.unverified;
+    }
+
+    final fromStatus =
+        _parseVerificationState(json['phoneStatus']) ??
+        _parseVerificationState(user?['phoneStatus']);
+    if (fromStatus != null) return fromStatus;
+
+    final fromObject = _getVerificationStateFromJson(
+      json['phoneVerification'],
+      null,
+    );
+    if (fromObject != VerificationState.unverified) return fromObject;
+
+    final phone = _stringOrNull(json['phone']) ?? _stringOrNull(user?['phone']);
+    return phone != null
+        ? VerificationState.verified
+        : VerificationState.unverified;
+  }
+
+  VerificationState _getEmailVerificationState(Map<String, dynamic> json) {
+    final user = json['user'] as Map?;
+    final directVerified =
+        _toBool(json['isEmailVerified']) ??
+        _toBool(json['emailVerified']) ??
+        _toBool(user?['isEmailVerified']) ??
+        _toBool(user?['emailVerified']);
+
+    if (directVerified != null) {
+      return directVerified
+          ? VerificationState.verified
+          : VerificationState.unverified;
+    }
+
+    final fromStatus =
+        _parseVerificationState(json['emailStatus']) ??
+        _parseVerificationState(user?['emailStatus']);
+    if (fromStatus != null) return fromStatus;
+
+    final fromObject = _getVerificationStateFromJson(
+      json['emailVerification'],
+      null,
+    );
+    if (fromObject != VerificationState.unverified) return fromObject;
+
+    return VerificationState.unverified;
+  }
+
+  List<VerificationInprogressItem> _buildBrandVerificationItems(
+    Map<String, dynamic> json, {
+    dynamic socialLinks,
+  }) {
+    final resolvedSocialLinks = socialLinks ?? json['socialLinks'];
+
+    return [
       VerificationInprogressItem(
         title: 'Social Profile Verification',
-        state:
-            (socialLinks != null &&
-                socialLinks.any((s) => (s as Map)['status'] == 'verified'))
-            ? VerificationState.verified
-            : (socialLinks != null && socialLinks.isNotEmpty)
-            ? VerificationState.underReview
-            : VerificationState.unverified,
+        state: _getSocialVerificationState(resolvedSocialLinks),
       ),
       VerificationInprogressItem(
-        title: 'Payment Setup',
-        state: json['payouts'] != null
-            ? VerificationState.verified
-            : VerificationState.unverified,
+        title: 'Phone No. Verification',
+        state: _getPhoneVerificationState(json),
+      ),
+      VerificationInprogressItem(
+        title: 'NID',
+        state: _getVerificationStateFromJson(
+          json['nidVerification'],
+          json['nidNumber'],
+        ),
       ),
       VerificationInprogressItem(
         title: 'Trade License',
@@ -1487,63 +1762,11 @@ class ProfileController extends GetxController {
           json['binNumber'],
         ),
       ),
-    ]);
-
-    // Profile fields
-    profileFields.assignAll([
-      ProfileField(
-        label: 'Company Name',
-        hintText: 'Enter Company Name',
-        value: companyName,
-        isRequired: true,
+      VerificationInprogressItem(
+        title: 'Email',
+        state: _getEmailVerificationState(json),
       ),
-      ProfileField(
-        label: 'First Name',
-        hintText: 'Enter First Name',
-        value: firstName,
-        isRequired: true,
-      ),
-      ProfileField(
-        label: 'Last Name',
-        hintText: 'Enter Last Name',
-        value: lastName,
-        isRequired: true,
-      ),
-      if (userEmail.value.isNotEmpty)
-        ProfileField(
-          label: 'Email Address',
-          hintText: 'Enter Email Address',
-          value: userEmail.value,
-          isRequired: true,
-        ),
-      ProfileField(
-        label: 'Website',
-        hintText: 'Enter Website URL',
-        value: json['website'] as String? ?? '',
-        isRequired: false,
-      ),
-    ]);
-    _hydrateVerificationInputsFromJson(json);
-    _syncProfileFieldDefaults();
-  }
-
-  /// Helper to get verification state from JSON verification object
-  VerificationState _getVerificationStateFromJson(
-    dynamic verification,
-    dynamic documentNumber,
-  ) {
-    if (verification != null && verification is Map) {
-      final status = verification['status'] as String?;
-      if (status == 'approved' || status == 'verified')
-        return VerificationState.verified;
-      if (status == 'pending') return VerificationState.underReview;
-      if (status == 'rejected') return VerificationState.unverified;
-    }
-    // If no verification object but document exists, assume under review
-    if (documentNumber != null && documentNumber.toString().isNotEmpty) {
-      return VerificationState.underReview;
-    }
-    return VerificationState.unverified;
+    ];
   }
 
   @override
@@ -1575,9 +1798,7 @@ class ProfileController extends GetxController {
     for (final item in brandAssets) {
       item.controller.dispose();
     }
-    newSkillController.dispose();
     newSocialHandleController.dispose();
-    newNicheController.dispose();
 
     locationNameController.dispose();
     locationFullAddressController.dispose();
@@ -1773,17 +1994,29 @@ class ProfileController extends GetxController {
         : extension.toLowerCase();
     final contentType = _getContentType(normalizedExtension);
 
-    final signedUrl = await uploadService.createSignedUrl(
-      fileName: fileName,
-      fileType: contentType,
-      module: module,
+    final signedUrlResult = await ApiErrorHandler.call(
+      () => uploadService.createSignedUrl(
+        fileName: fileName,
+        fileType: contentType,
+        module: module,
+      ),
     );
+    if (!signedUrlResult.isSuccess || signedUrlResult.data == null) {
+      return '';
+    }
 
-    await uploadService.uploadFileToSignedUrl(
-      uploadUrl: signedUrl.uploadUrl,
-      file: file,
-      contentType: contentType,
+    final signedUrl = signedUrlResult.data!;
+
+    final uploadResult = await ApiErrorHandler.call(
+      () => uploadService.uploadFileToSignedUrl(
+        uploadUrl: signedUrl.uploadUrl,
+        file: file,
+        contentType: contentType,
+      ),
     );
+    if (!uploadResult.isSuccess) {
+      return '';
+    }
 
     return signedUrl.fileUrl;
   }
@@ -1805,10 +2038,12 @@ class ProfileController extends GetxController {
 
       if (accountTypeService.isInfluencer) {
         final service = Get.find<InfluencerProfileService>();
-        final result = await service.updateBasicInfo(
-          profileImage: url,
-          bio: bioText.value,
+        final wrappedResult = await ApiErrorHandler.call(
+          () => service.updateBasicInfo(profileImage: url, bio: bioText.value),
         );
+        final result =
+            wrappedResult.data ??
+            ApiResult.failure(wrappedResult.error ?? 'unknown_error'.tr);
         if (result.isSuccess && result.data != null) {
           await _fetchProfileData();
           return;
@@ -1842,7 +2077,33 @@ class ProfileController extends GetxController {
     try {
       if (accountTypeService.isInfluencer) {
         final service = Get.find<InfluencerProfileService>();
-        await service.removeProfileImage();
+        final wrappedResult = await ApiErrorHandler.call(
+          () => service.removeProfileImage(),
+        );
+        final result =
+            wrappedResult.data ??
+            ApiResult.failure(wrappedResult.error ?? 'unknown_error'.tr);
+        if (!result.isSuccess) return;
+        await _fetchProfileData();
+        return;
+      }
+
+      if (accountTypeService.isAdAgency) {
+        final service = Get.find<AgencyProfileService>();
+        final result = await ApiErrorHandler.call(() => service.removeLogo());
+        if (!result.isSuccess) return;
+        await _fetchProfileData();
+        return;
+      }
+
+      if (accountTypeService.isBrand) {
+        final service = Get.find<BrandOnboardingService>();
+        final result = await ApiErrorHandler.call(
+          () => service.removeProfileImage(),
+        );
+        if (!result.isSuccess) return;
+        await _fetchProfileData();
+        return;
       }
     } catch (e) {
       debugPrint('Failed to remove profile photo: $e');
@@ -1931,13 +2192,18 @@ class ProfileController extends GetxController {
             return;
           }
 
-          final result = await service.addBankPayout(
-            bankName: bankName,
-            accountHolderName: holder,
-            accountNo: accountNo,
-            branchName: branchName,
-            routingNo: routing,
+          final wrappedResult = await ApiErrorHandler.call(
+            () => service.addBankPayout(
+              bankName: bankName,
+              accountHolderName: holder,
+              accountNo: accountNo,
+              branchName: branchName,
+              routingNo: routing,
+            ),
           );
+          final result =
+              wrappedResult.data ??
+              ApiResult.failure(wrappedResult.error ?? 'unknown_error'.tr);
 
           if (!result.isSuccess) {
             Get.snackbar('Error', result.error ?? 'Failed to add payout');
@@ -1953,11 +2219,16 @@ class ProfileController extends GetxController {
             return;
           }
 
-          final result = await service.addMobilePayout(
-            accountType: accountType.isEmpty ? 'Bkash' : accountType,
-            accountHolderName: holder,
-            accountNo: accountNo,
+          final wrappedResult = await ApiErrorHandler.call(
+            () => service.addMobilePayout(
+              accountType: accountType.isEmpty ? 'Bkash' : accountType,
+              accountHolderName: holder,
+              accountNo: accountNo,
+            ),
           );
+          final result =
+              wrappedResult.data ??
+              ApiResult.failure(wrappedResult.error ?? 'unknown_error'.tr);
 
           if (!result.isSuccess) {
             Get.snackbar('Error', result.error ?? 'Failed to add payout');
@@ -2058,10 +2329,15 @@ class ProfileController extends GetxController {
     isSavingProfile.value = true;
     try {
       final service = Get.find<InfluencerProfileService>();
-      final result = await service.removePayout(
-        type: payout.payoutType,
-        accountNo: payoutAccountNo,
+      final wrappedResult = await ApiErrorHandler.call(
+        () => service.removePayout(
+          type: payout.payoutType,
+          accountNo: payoutAccountNo,
+        ),
       );
+      final result =
+          wrappedResult.data ??
+          ApiResult.failure(wrappedResult.error ?? 'unknown_error'.tr);
 
       if (result.isSuccess) {
         payoutMethods.removeWhere(
@@ -2089,9 +2365,11 @@ class ProfileController extends GetxController {
     final isInfluencer = accountTypeService.isInfluencer;
 
     profileStatus.value = ProfileStatus.unverified;
+    _apiData.profileUser.value = null;
     profileCompletion.value = 0.35;
     _setBioText('');
     serviceFeeText.value = '';
+    dollarRateText.value = '';
     profileImageUrl.value = '';
     profileImageFile.value = null;
 
@@ -2139,56 +2417,88 @@ class ProfileController extends GetxController {
         hintText: 'Enter Email Address',
         value: userEmail.value,
         isRequired: true,
+        isReadOnly: true,
       ),
       ProfileField(
         label: 'Phone Number',
         hintText: 'Enter Phone Number',
         value: userPhone.value,
         isRequired: true,
+        isReadOnly: true,
       ),
       ProfileField(
         label: 'Secondary Phone Number (Optional)',
         hintText: 'Enter Secondary Phone Number',
         value: '',
         isRequired: false,
+        isReadOnly: true,
       ),
     ]);
     _syncProfileFieldDefaults();
 
-    verificationInprogressItems.assignAll(const [
-      VerificationInprogressItem(
-        title: 'Social Profile Verification',
-        state: VerificationState.unverified,
-      ),
-      VerificationInprogressItem(
-        title: 'Phone No. Verification',
-        state: VerificationState.unverified,
-      ),
-      VerificationInprogressItem(
-        title: 'Payment Setup',
-        state: VerificationState.unverified,
-      ),
-      VerificationInprogressItem(
-        title: 'NID',
-        state: VerificationState.unverified,
-      ),
-      VerificationInprogressItem(
-        title: 'Trade License',
-        state: VerificationState.unverified,
-      ),
-      VerificationInprogressItem(
-        title: 'TIN',
-        state: VerificationState.unverified,
-      ),
-      VerificationInprogressItem(
-        title: 'BIN',
-        state: VerificationState.unverified,
-      ),
-      VerificationInprogressItem(
-        title: 'Email',
-        state: VerificationState.unverified,
-      ),
-    ]);
+    if (isBrand) {
+      verificationInprogressItems.assignAll(const [
+        VerificationInprogressItem(
+          title: 'Social Profile Verification',
+          state: VerificationState.unverified,
+        ),
+        VerificationInprogressItem(
+          title: 'Phone No. Verification',
+          state: VerificationState.unverified,
+        ),
+        VerificationInprogressItem(
+          title: 'NID',
+          state: VerificationState.unverified,
+        ),
+        VerificationInprogressItem(
+          title: 'Trade License',
+          state: VerificationState.unverified,
+        ),
+        VerificationInprogressItem(
+          title: 'TIN',
+          state: VerificationState.unverified,
+        ),
+        VerificationInprogressItem(
+          title: 'BIN',
+          state: VerificationState.unverified,
+        ),
+        VerificationInprogressItem(
+          title: 'Email',
+          state: VerificationState.unverified,
+        ),
+      ]);
+    } else {
+      verificationInprogressItems.assignAll(const [
+        VerificationInprogressItem(
+          title: 'Social Profile Verification',
+          state: VerificationState.unverified,
+        ),
+        VerificationInprogressItem(
+          title: 'Phone No. Verification',
+          state: VerificationState.unverified,
+        ),
+        VerificationInprogressItem(
+          title: 'Payment Setup',
+          state: VerificationState.unverified,
+        ),
+        VerificationInprogressItem(
+          title: 'NID',
+          state: VerificationState.unverified,
+        ),
+        VerificationInprogressItem(
+          title: 'Skills',
+          state: VerificationState.unverified,
+        ),
+        VerificationInprogressItem(
+          title: 'Niches',
+          state: VerificationState.unverified,
+        ),
+        VerificationInprogressItem(
+          title: 'Email',
+          state: VerificationState.unverified,
+        ),
+      ]);
+    }
 
     payoutMethods.clear();
 
@@ -2210,8 +2520,10 @@ class ProfileController extends GetxController {
 
     if (isInfluencer) {
       skills.clear();
+      skillStatuses.clear();
     } else {
       skills.clear();
+      skillStatuses.clear();
     }
 
     if (isInfluencer) {
@@ -2276,6 +2588,7 @@ class ProfileController extends GetxController {
   }
 
   Future<void> saveBrandAssets() async {
+    if (isSavingBrandAssetsSection.value) return;
     final website = brandWebsiteController.text.trim();
     final handles = brandAssets
         .map(
@@ -2285,74 +2598,254 @@ class ProfileController extends GetxController {
 
     if (!accountTypeService.isBrand) return;
 
-    final service = Get.find<BrandOnboardingService>();
-    final result = await ApiErrorHandler.call(
-      () => service.updateSocialLinks(website: website, socialLinks: handles),
-    );
+    isSavingBrandAssetsSection.value = true;
+    try {
+      final service = Get.find<BrandOnboardingService>();
+      final result = await ApiErrorHandler.call(
+        () => service.updateSocialLinks(website: website, socialLinks: handles),
+      );
 
-    if (!result.isSuccess) {
+      if (!result.isSuccess) return;
+
+      await _fetchProfileData();
+
+      Get.snackbar(
+        'success_title'.tr,
+        'brand_assets_saved'.tr,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } finally {
+      isSavingBrandAssetsSection.value = false;
+    }
+  }
+
+  Future<void> saveClientProfileSettings() async {
+    if (!accountTypeService.isBrand || isSavingProfileSettings.value) return;
+
+    final companyName = (profileFieldValues['Company Name'] ?? '').trim();
+    final firstName = (profileFieldValues['First Name'] ?? '').trim();
+    final lastName = (profileFieldValues['Last Name'] ?? '').trim();
+    final thana = (profileFieldValues['Thana'] ?? '').trim();
+    final zilla = (profileFieldValues['Zilla'] ?? '').trim();
+    final fullAddress = (profileFieldValues['Full Address'] ?? '').trim();
+
+    if (companyName.isEmpty || firstName.isEmpty || lastName.isEmpty) {
+      Get.snackbar('Error', 'Company, first name and last name are required.');
       return;
     }
 
-    await _fetchProfileData();
+    if (thana.isEmpty || zilla.isEmpty || fullAddress.isEmpty) {
+      Get.snackbar('Error', 'Thana, zilla and full address are required.');
+      return;
+    }
 
-    Get.snackbar(
-      'success_title'.tr,
-      'brand_assets_saved'.tr,
-      snackPosition: SnackPosition.BOTTOM,
-    );
+    isSavingProfileSettings.value = true;
+    try {
+      final brandService = Get.find<BrandOnboardingService>();
+
+      final profileResult = await ApiErrorHandler.call(
+        () => brandService.updateBasicInfo(
+          brandName: companyName,
+          firstName: firstName,
+          lastName: lastName,
+        ),
+      );
+      if (!profileResult.isSuccess) return;
+
+      final addressResult = await ApiErrorHandler.call(
+        () => brandService.updateAddress(
+          addressName: 'Office',
+          thana: thana,
+          zilla: zilla,
+          fullAddress: fullAddress,
+        ),
+      );
+      if (!addressResult.isSuccess) return;
+
+      await _fetchProfileData();
+      Get.snackbar(
+        'success_title'.tr,
+        'profile_update_saved'.tr,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } finally {
+      isSavingProfileSettings.value = false;
+    }
+  }
+
+  Future<void> saveClientVerificationMethods() async {
+    if (!accountTypeService.isBrand || isSavingVerificationSection.value) {
+      return;
+    }
+
+    if (isUploadingVerificationMedia) {
+      Get.snackbar(
+        'Error',
+        'Please wait for media upload to complete.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
+    isSavingVerificationSection.value = true;
+
+    try {
+      final brandService = Get.find<BrandOnboardingService>();
+      var hasSubmittedAny = false;
+
+      final nidNumber = nidNumberController.text.trim();
+      final nidFrontUrl = nidFrontUploadedUrl.value?.trim() ?? '';
+      final nidBackUrl = nidBackUploadedUrl.value?.trim() ?? '';
+      if (nidNumber.isNotEmpty ||
+          nidFrontUrl.isNotEmpty ||
+          nidBackUrl.isNotEmpty) {
+        if (nidNumber.isEmpty || nidFrontUrl.isEmpty || nidBackUrl.isEmpty) {
+          Get.snackbar(
+            'Error',
+            'NID number, front image and back image are required together.',
+            snackPosition: SnackPosition.BOTTOM,
+          );
+          return;
+        }
+
+        final nidResult = await ApiErrorHandler.call(
+          () => brandService.updateNid(
+            nidNumber: nidNumber,
+            nidFrontImg: nidFrontUrl,
+            nidBackImg: nidBackUrl,
+          ),
+        );
+        if (!nidResult.isSuccess) return;
+        hasSubmittedAny = true;
+      }
+
+      final tradeNumber = tradeNumberController.text.trim();
+      final tradeUrl = tradeLicenseUploadedUrl.value?.trim() ?? '';
+      if (tradeNumber.isNotEmpty || tradeUrl.isNotEmpty) {
+        if (tradeNumber.isEmpty || tradeUrl.isEmpty) {
+          Get.snackbar(
+            'Error',
+            'Trade license number and image are required together.',
+            snackPosition: SnackPosition.BOTTOM,
+          );
+          return;
+        }
+
+        final tradeResult = await ApiErrorHandler.call(
+          () => brandService.updateTradeLicense(
+            tradeLicenseNumber: tradeNumber,
+            tradeLicenseImg: tradeUrl,
+          ),
+        );
+        if (!tradeResult.isSuccess) return;
+        hasSubmittedAny = true;
+      }
+
+      final tinNumber = tinNumberController.text.trim();
+      final tinUrl = tinUploadedUrl.value?.trim() ?? '';
+      if (tinNumber.isNotEmpty || tinUrl.isNotEmpty) {
+        if (tinNumber.isEmpty || tinUrl.isEmpty) {
+          Get.snackbar(
+            'Error',
+            'TIN number and certificate image are required together.',
+            snackPosition: SnackPosition.BOTTOM,
+          );
+          return;
+        }
+
+        final tinResult = await ApiErrorHandler.call(
+          () => brandService.updateTin(tinNumber: tinNumber, tinImage: tinUrl),
+        );
+        if (!tinResult.isSuccess) return;
+        hasSubmittedAny = true;
+      }
+
+      final binNumber = binNumberController.text.trim();
+      if (binNumber.isNotEmpty) {
+        final binResult = await ApiErrorHandler.call(
+          () => brandService.updateBin(binNumber: binNumber),
+        );
+        if (!binResult.isSuccess) return;
+        hasSubmittedAny = true;
+      }
+
+      if (!hasSubmittedAny) {
+        Get.snackbar(
+          'Info',
+          'No verification changes to submit.',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        return;
+      }
+
+      await _fetchProfileData();
+      Get.snackbar(
+        'success_title'.tr,
+        'profile_update_saved'.tr,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } finally {
+      isSavingVerificationSection.value = false;
+    }
   }
 
   // -------------------- SKILLS (Influencer only) --------------------
   final skillsExpanded = true.obs;
-  final skills = <String>[].obs;
-
-  final TextEditingController newSkillController = TextEditingController();
 
   void toggleSkills() => skillsExpanded.toggle();
 
-  void showAddSkillDialog() {
-    newSkillController.clear();
+  Future<void> showAddSkillDialog() async {
+    await _ensureAllowedSkillsLoaded();
+    if (allowedSkills.isEmpty) {
+      Get.snackbar(
+        'Skills unavailable',
+        'Could not load available skills right now.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
 
-    Get.dialog(
-      AlertDialog(
-        title: Text('skills_add_dialog_title'.tr),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // uses your CustomTextFormField style if you want:
-            // CustomTextFormField(hintText: 'skills_add_hint'.tr, controller: newSkillController),
-            TextField(
-              controller: newSkillController,
-              decoration: InputDecoration(hintText: 'skills_add_hint'.tr),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: Text('skills_cancel'.tr),
-          ),
-          TextButton(
-            onPressed: () {
-              final v = newSkillController.text.trim();
-              if (v.isEmpty) return;
-
-              if (!skills.contains(v)) {
-                skills.add(v);
-              }
-              Get.back();
-            },
-            child: Text('skills_add_btn'.tr),
-          ),
-        ],
+    final selected = await Get.dialog<List<String>>(
+      TagSelectionDialog(
+        title: 'Skills',
+        searchHint: 'Search Skills',
+        options: allowedSkills.toList(growable: false),
+        initialSelected: skills.toList(growable: false),
       ),
+      barrierDismissible: true,
     );
+
+    if (selected == null) return;
+    final nextStatuses = <String, String>{};
+    for (final skill in selected) {
+      final key = skill.toLowerCase();
+      nextStatuses[key] = skillStatuses[key] ?? 'pending';
+    }
+    skills.assignAll(selected);
+    skillStatuses.assignAll(nextStatuses);
+  }
+
+  Future<void> _ensureAllowedSkillsLoaded() async {
+    if (allowedSkills.isNotEmpty || isLoadingAllowedSkills.value) return;
+    isLoadingAllowedSkills.value = true;
+
+    final result = await ApiErrorHandler.call(
+      () => _campaignService.fetchSkills(),
+      showError: false,
+    );
+
+    if (result.isSuccess && result.data != null) {
+      final items = result.data!
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList(growable: false);
+      allowedSkills.assignAll(items);
+    }
+    isLoadingAllowedSkills.value = false;
   }
 
   // -------------------- LOCATIONS (Influencer only) --------------------
   final locationsExpanded = true.obs;
-  final locations = <UserLocation>[].obs;
 
   final RxBool showNewLocationForm = false.obs;
   final RxnInt editingLocationIndex = RxnInt();
@@ -2424,12 +2917,17 @@ class ProfileController extends GetxController {
     if (accountTypeService.isInfluencer) {
       final service = Get.find<InfluencerProfileService>();
 
-      final result = await service.addAddress(
-        addressName: name,
-        thana: thana,
-        zilla: zilla,
-        fullAddress: full,
+      final wrappedResult = await ApiErrorHandler.call(
+        () => service.addAddress(
+          addressName: name,
+          thana: thana,
+          zilla: zilla,
+          fullAddress: full,
+        ),
       );
+      final result =
+          wrappedResult.data ??
+          ApiResult.failure(wrappedResult.error ?? 'unknown_error'.tr);
 
       if (result.isSuccess && result.data != null) {
         influencerProfile.value = result.data;
@@ -2542,7 +3040,11 @@ class ProfileController extends GetxController {
     if (confirmed != true) return;
 
     try {
-      await _authService.logout();
+      final logoutResult = await ApiErrorHandler.call(
+        () => _authService.logout(),
+      );
+      if (!logoutResult.isSuccess) return;
+
       accountTypeService.setRole(null);
 
       appUserSession.userEmail.value = '';
@@ -2672,6 +3174,7 @@ class ProfileController extends GetxController {
   // Expansion togglers
   void toggleBio() => bioExpanded.toggle();
   void toggleServiceFee() => serviceFeeExpanded.toggle();
+  void toggleDollarRate() => dollarRateExpanded.toggle();
   void toggleSocial() => socialExpanded.toggle();
   void toggleNiche() => nicheExpanded.toggle();
   void toggleSettings() => settingsExpanded.toggle();
@@ -2679,6 +3182,80 @@ class ProfileController extends GetxController {
   void togglePayout() => payoutExpanded.toggle();
 
   // Placeholder: save verification methods changes
+  Future<void> saveAgencyServiceFee() async {
+    if (!accountTypeService.isAdAgency || isSavingServiceFee.value) return;
+
+    final value = serviceFeeText.value.trim();
+    if (value.isEmpty) {
+      Get.snackbar(
+        'Error',
+        'Service fee is required.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
+    isSavingServiceFee.value = true;
+    try {
+      final agencyService = Get.find<AgencyProfileService>();
+      final result = await ApiErrorHandler.call(
+        () => agencyService.updateServiceFee(value),
+      );
+      if (!result.isSuccess) return;
+
+      await _fetchProfileData();
+      Get.snackbar(
+        'success_title'.tr,
+        'Service fee saved.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } finally {
+      isSavingServiceFee.value = false;
+    }
+  }
+
+  Future<void> saveAgencyDollarRate() async {
+    if (!accountTypeService.isAdAgency || isSavingDollarRate.value) return;
+
+    final raw = dollarRateText.value.trim();
+    if (raw.isEmpty) {
+      Get.snackbar(
+        'Error',
+        'Dollar rate is required.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
+    final parsed = num.tryParse(raw);
+    if (parsed == null || parsed <= 0) {
+      Get.snackbar(
+        'Error',
+        'Enter a valid dollar rate.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
+    isSavingDollarRate.value = true;
+    try {
+      final agencyService = Get.find<AgencyProfileService>();
+      final result = await ApiErrorHandler.call(
+        () => agencyService.updateDollarRate(parsed),
+      );
+      if (!result.isSuccess) return;
+
+      await _fetchProfileData();
+      Get.snackbar(
+        'success_title'.tr,
+        'Dollar rate saved.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } finally {
+      isSavingDollarRate.value = false;
+    }
+  }
+
   Future<void> onSaveVerificationMethods() async {
     if (isSavingProfile.value) return;
     if (isUploadingVerificationMedia) {
@@ -2719,17 +3296,35 @@ class ProfileController extends GetxController {
             ? (profileFieldValues['Website'] ?? '').trim()
             : null;
 
-        await service.updateBasicInfo(
-          firstName: firstNameValue,
-          lastName: lastNameValue,
-          bio: bioText.value,
-          website: websiteValue,
+        final basicInfoWrapped = await ApiErrorHandler.call(
+          () => service.updateBasicInfo(
+            firstName: firstNameValue,
+            lastName: lastNameValue,
+            bio: bioText.value,
+            website: websiteValue,
+          ),
         );
+        final basicInfoResult =
+            basicInfoWrapped.data ??
+            ApiResult.failure(basicInfoWrapped.error ?? 'unknown_error'.tr);
+        if (!basicInfoResult.isSuccess) return;
 
-        await service.updateNiches(niches.toList(growable: false));
+        final nichesWrapped = await ApiErrorHandler.call(
+          () => service.updateNiches(niches.toList(growable: false)),
+        );
+        final nichesResult =
+            nichesWrapped.data ??
+            ApiResult.failure(nichesWrapped.error ?? 'unknown_error'.tr);
+        if (!nichesResult.isSuccess) return;
 
         if (skills.isNotEmpty) {
-          await service.updateSkills(skills.toList());
+          final skillsWrapped = await ApiErrorHandler.call(
+            () => service.updateSkills(skills.toList()),
+          );
+          final skillsResult =
+              skillsWrapped.data ??
+              ApiResult.failure(skillsWrapped.error ?? 'unknown_error'.tr);
+          if (!skillsResult.isSuccess) return;
         }
 
         if (socialAccounts.isNotEmpty) {
@@ -2756,7 +3351,13 @@ class ProfileController extends GetxController {
               .toList(growable: false);
 
           if (updatedLinks.isNotEmpty) {
-            await service.updateSocialLinks(updatedLinks);
+            final socialWrapped = await ApiErrorHandler.call(
+              () => service.updateSocialLinks(updatedLinks),
+            );
+            final socialResult =
+                socialWrapped.data ??
+                ApiResult.failure(socialWrapped.error ?? 'unknown_error'.tr);
+            if (!socialResult.isSuccess) return;
           }
         }
 
@@ -2784,11 +3385,17 @@ class ProfileController extends GetxController {
             frontUrl.isNotEmpty &&
             backUrl != null &&
             backUrl.isNotEmpty) {
-          await service.submitNidVerification(
-            nidNumber: nidNumber,
-            nidFrontImg: frontUrl,
-            nidBackImg: backUrl,
+          final nidWrapped = await ApiErrorHandler.call(
+            () => service.submitNidVerification(
+              nidNumber: nidNumber,
+              nidFrontImg: frontUrl ?? '',
+              nidBackImg: backUrl ?? '',
+            ),
           );
+          final nidResult =
+              nidWrapped.data ??
+              ApiResult.failure(nidWrapped.error ?? 'unknown_error'.tr);
+          if (!nidResult.isSuccess) return;
         }
       } else if (accountTypeService.isBrand) {
         final brandService = Get.find<BrandOnboardingService>();
@@ -2901,10 +3508,10 @@ class ProfileController extends GetxController {
             profileFieldValues['Agency Name'] ?? profileName.value;
         final firstNameValue = profileFieldValues['First Name'] ?? '';
         final lastNameValue = profileFieldValues['Last Name'] ?? '';
-        final websiteValue =
-            (profileFieldValues['Website'] ?? '').trim().isNotEmpty
-            ? (profileFieldValues['Website'] ?? '').trim()
-            : null;
+        final thanaValue = (profileFieldValues['Thana'] ?? '').trim();
+        final zillaValue = (profileFieldValues['Zilla'] ?? '').trim();
+        final fullAddressValue = (profileFieldValues['Full Address'] ?? '')
+            .trim();
 
         if (agencyNameValue.isNotEmpty ||
             firstNameValue.isNotEmpty ||
@@ -2919,28 +3526,30 @@ class ProfileController extends GetxController {
           );
         }
 
-        if (locations.isNotEmpty) {
-          final location = locations.first;
-          if (location.thana.trim().isNotEmpty &&
-              location.zilla.trim().isNotEmpty &&
-              location.fullAddress.trim().isNotEmpty) {
-            final addressResult = await ApiErrorHandler.call(
-              () => agencyService.updateAddress(
-                addressName: location.name.trim().isEmpty
-                    ? 'Office'
-                    : location.name.trim(),
-                thana: location.thana.trim(),
-                zilla: location.zilla.trim(),
-                fullAddress: location.fullAddress.trim(),
-              ),
-            );
-            if (!addressResult.isSuccess) return;
-          }
+        if (thanaValue.isNotEmpty &&
+            zillaValue.isNotEmpty &&
+            fullAddressValue.isNotEmpty) {
+          final addressResult = await ApiErrorHandler.call(
+            () => agencyService.updateAddress(
+              addressName: 'Office',
+              thana: thanaValue,
+              zilla: zillaValue,
+              fullAddress: fullAddressValue,
+            ),
+          );
+          if (!addressResult.isSuccess) return;
         }
 
         await ApiErrorHandler.call(
           () => agencyService.updateNiches(niches.toList(growable: false)),
         );
+
+        if (skills.isNotEmpty) {
+          final skillsResult = await ApiErrorHandler.call(
+            () => agencyService.updateSkills(skills.toList(growable: false)),
+          );
+          if (!skillsResult.isSuccess) return;
+        }
 
         final socialPayload = socialAccounts
             .map(
@@ -2954,23 +3563,14 @@ class ProfileController extends GetxController {
             )
             .where((item) => (item['url'] as String).isNotEmpty)
             .toList(growable: false);
-        if (socialPayload.isNotEmpty ||
-            (websiteValue != null && websiteValue.isNotEmpty)) {
+        if (socialPayload.isNotEmpty) {
           final socialResult = await ApiErrorHandler.call(
             () => agencyService.updateSocials(
-              website: websiteValue,
+              website: null,
               socialLinks: socialPayload,
             ),
           );
           if (!socialResult.isSuccess) return;
-        }
-
-        final serviceFeeValue = serviceFeeText.value.trim();
-        if (serviceFeeValue.isNotEmpty) {
-          final serviceFeeResult = await ApiErrorHandler.call(
-            () => agencyService.updateServiceFee(serviceFeeValue),
-          );
-          if (!serviceFeeResult.isSuccess) return;
         }
 
         final nidNumber = nidNumberController.text.trim();

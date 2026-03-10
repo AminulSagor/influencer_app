@@ -12,6 +12,8 @@ import 'package:influencer_app/core/widgets/custom_button.dart';
 import 'package:influencer_app/core/widgets/custom_drop_down_menu.dart';
 
 import '../../../core/widgets/custom_text_form_field.dart';
+import 'enums/profile_status.dart';
+import 'enums/verification_state.dart';
 import 'profile_controller.dart';
 import 'widgets/brand_assets_section.dart';
 import 'widgets/brand_contact_info_card.dart';
@@ -130,6 +132,18 @@ class ProfileView extends GetView<ProfileController> {
                                 ),
                               ),
                               SizedBox(height: 12.h),
+                              Obx(
+                                () => ExpandableSectionCard(
+                                  title: 'Dollar Rate',
+                                  isExpanded:
+                                      controller.dollarRateExpanded.value,
+                                  onToggle: controller.toggleDollarRate,
+                                  child: _DollarRateSection(
+                                    controller: controller,
+                                  ),
+                                ),
+                              ),
+                              SizedBox(height: 12.h),
                             ],
 
                             // SOCIAL LINKS
@@ -218,13 +232,19 @@ class ProfileView extends GetView<ProfileController> {
                         ),
                       ),
                       SizedBox(height: 16.h),
-                      CustomButton(
-                        onTap: controller.onSaveVerificationMethods,
-                        btnText: 'Save Update',
-                        height: 56.h,
-                        width: double.infinity,
-                        textColor: AppPalette.white,
-                      ),
+                      if (isInfluencer || isAdAgency)
+                        Obx(
+                          () => CustomButton(
+                            onTap: controller.isSavingProfile.value
+                                ? null
+                                : controller.onSaveVerificationMethods,
+                            btnText: 'Save Update',
+                            height: 56.h,
+                            width: double.infinity,
+                            textColor: AppPalette.white,
+                            isLoading: controller.isSavingProfile.value,
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -345,11 +365,16 @@ class _ServiceFeeSection extends StatelessWidget {
         SizedBox(height: 10.h),
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 62.w),
-          child: CustomButton(
-            onTap: controller.onSaveVerificationMethods,
-            btnText: 'Save',
-            textColor: AppPalette.white,
-            width: double.infinity,
+          child: Obx(
+            () => CustomButton(
+              onTap: controller.isSavingServiceFee.value
+                  ? null
+                  : controller.saveAgencyServiceFee,
+              btnText: 'Save',
+              textColor: AppPalette.white,
+              width: double.infinity,
+              isLoading: controller.isSavingServiceFee.value,
+            ),
           ),
         ),
       ],
@@ -391,6 +416,65 @@ class _VerifiedServiceFeeSection extends StatelessWidget {
           ),
         ),
         SizedBox(height: 10.h),
+      ],
+    );
+  }
+}
+
+class _DollarRateSection extends StatelessWidget {
+  final ProfileController controller;
+
+  const _DollarRateSection({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          'Enter dollar rate per campaign spend',
+          style: TextStyle(
+            fontSize: 12.sp,
+            fontWeight: FontWeight.w500,
+            color: AppPalette.secondary,
+          ),
+        ),
+        5.h.verticalSpace,
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 8.w),
+          child: Obx(
+            () => CustomTextFormField(
+              initialValue: controller.dollarRateText.value,
+              hintText: 'eg: 124.57',
+              onChanged: (value) => controller.dollarRateText.value = value,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*$')),
+              ],
+              textAlign: TextAlign.center,
+              textStyle: TextStyle(
+                fontSize: 18.sp,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ),
+        SizedBox(height: 10.h),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 62.w),
+          child: Obx(
+            () => CustomButton(
+              onTap: controller.isSavingDollarRate.value
+                  ? null
+                  : controller.saveAgencyDollarRate,
+              btnText: 'Save',
+              textColor: AppPalette.white,
+              width: double.infinity,
+              isLoading: controller.isSavingDollarRate.value,
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -535,34 +619,70 @@ class _NicheSection extends StatelessWidget {
   }
 }
 
-class _VerificationFlowPage extends StatelessWidget {
+class _VerificationFlowPage extends StatefulWidget {
   final ProfileController controller;
 
   const _VerificationFlowPage({required this.controller});
 
+  @override
+  State<_VerificationFlowPage> createState() => _VerificationFlowPageState();
+}
+
+class _VerificationFlowPageState extends State<_VerificationFlowPage> {
+  final ScrollController _scrollController = ScrollController();
+  int _lastFlowIndex = 0;
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _resetScrollToTopIfNeeded(int flowIndex) {
+    if (_lastFlowIndex == flowIndex) return;
+    _lastFlowIndex = flowIndex;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      _scrollController.jumpTo(0);
+    });
+  }
+
   double _overallProgress() {
-    if (controller.verificationInprogressItems.isEmpty) return 0.0;
-    final verifiedCount = controller.verificationInprogressItems
-        .where((e) => e.state == VerificationState.verified)
-        .length;
-    return verifiedCount / controller.verificationInprogressItems.length;
+    if (widget.controller.verificationInprogressItems.isEmpty) return 0.0;
+    final weightedCompleted = widget.controller.verificationInprogressItems
+        .fold(0.0, (sum, item) {
+          switch (item.state) {
+            case VerificationState.verified:
+              return sum + 1.0;
+            case VerificationState.underReview:
+              return sum + 0.5;
+            case VerificationState.unverified:
+              return sum;
+          }
+        });
+    return weightedCompleted /
+        widget.controller.verificationInprogressItems.length;
   }
 
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      final flowIndex = controller.verificationFlowIndex.value;
+      final flowIndex = widget.controller.verificationFlowIndex.value;
+      _resetScrollToTopIfNeeded(flowIndex);
 
       return PopScope(
         canPop: flowIndex == 0,
         onPopInvokedWithResult: (didPop, result) {
           if (!didPop && flowIndex > 0) {
-            controller.showVerificationList();
+            widget.controller.showVerificationList();
           }
         },
         child: flowIndex == 2
-            ? _EmailVerifiedSuccess(controller: controller) // STATIC
+            ? _EmailVerifiedSuccess(controller: widget.controller) // STATIC
             : SingleChildScrollView(
+                key: ValueKey('verification-flow-$flowIndex'),
+                controller: _scrollController,
                 physics: const BouncingScrollPhysics(),
                 padding: EdgeInsets.fromLTRB(20.w, 12.h, 20.w, 24.h),
                 child: Column(
@@ -571,8 +691,8 @@ class _VerificationFlowPage extends StatelessWidget {
                     if (flowIndex == 0) ...[
                       SizedBox(height: 10.h),
                       ProfileHeaderCard(
-                        controller: controller,
-                        onStatusTap: controller.showProfilePage,
+                        controller: widget.controller,
+                        onStatusTap: widget.controller.showProfilePage,
                       ),
                       SizedBox(height: 16.h),
                     ] else
@@ -582,10 +702,10 @@ class _VerificationFlowPage extends StatelessWidget {
                       index: flowIndex,
                       children: [
                         _VerificationProgressList(
-                          controller: controller,
+                          controller: widget.controller,
                           overallProgress: _overallProgress(),
                         ),
-                        _EmailVerificationStep(controller: controller),
+                        _EmailVerificationStep(controller: widget.controller),
                         const SizedBox(), // placeholder for index 2
                       ],
                     ),
@@ -610,8 +730,6 @@ class _VerificationProgressList extends StatelessWidget {
   Widget build(BuildContext context) {
     final accountTypeService = Get.find<AccountTypeService>();
     final isBrand = accountTypeService.isBrand;
-    final isInfluencer = accountTypeService.isInfluencer;
-    final isAdAgency = accountTypeService.isAdAgency;
 
     return Obx(
       () => Column(
@@ -873,7 +991,7 @@ class _EmailVerificationStepState extends State<_EmailVerificationStep> {
       child: TextField(
         controller: _controllers[index],
         focusNode: _focusNodes[index],
-        autofocus: index == 0,
+        autofocus: false,
         keyboardType: TextInputType.number,
         textAlign: TextAlign.center,
         style: TextStyle(

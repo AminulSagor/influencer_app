@@ -1,0 +1,1 @@
+enum ProfileStatus { unverified, verified }
