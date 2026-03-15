@@ -1,4 +1,5 @@
 // lib/modules/auth/login/login_controller.dart
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -7,6 +8,8 @@ import 'package:influencer_app/core/services/account_type_service.dart';
 import 'package:influencer_app/core/services/auth_services.dart';
 import 'package:influencer_app/core/services/api_error_handler.dart';
 import 'package:influencer_app/core/services/onboarding_check_service.dart';
+import '../../../core/controllers/app_user_session_controller.dart';
+import '../../../core/utils/bd_phone_input_formatter.dart';
 import '../../../routes/app_routes.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:influencer_app/core/services/token_service.dart';
@@ -18,6 +21,7 @@ class LoginController extends GetxController {
   final RxBool isPasswordObscured = true.obs;
   final RxBool isLoading = false.obs;
 
+  final _appUserSessionController = Get.find<AppUserSessionController>();
   final _accountTypeService = Get.find<AccountTypeService>();
   final _authService = Get.find<AuthService>();
   final _tokenService = Get.find<TokenService>();
@@ -35,17 +39,8 @@ class LoginController extends GetxController {
     isPasswordObscured.toggle();
   }
 
-  String _toApiPhone(String uiText) {
-    return uiText; //TODO TEMPORARY DISABLED
-    // uiText looks like: "+88 01xxxxxxxxx"
-    final trimmed = uiText.trim(); // "+88 01..."
-    final noSpace = trimmed.replaceAll(' ', ''); // "+8801..."
-    return noSpace;
-  }
-
   Future<void> submitLogin() async {
-    final phoneUi = phoneController.text;
-    final phone = _toApiPhone(phoneUi);
+    final phone = BdPhoneInputFormatter().toApiPhone(phoneController.text);
     final password = passwordController.text.trim();
 
     if (phone.isEmpty || password.isEmpty) {
@@ -56,12 +51,6 @@ class LoginController extends GetxController {
       );
       return;
     }
-
-    /// TODO TEMPORARY DISABLED!!!
-    // if (!RegExp(r'^\+8801\d{9}$').hasMatch(phone)) {
-    //   Get.snackbar('error'.tr, 'Enter valid phone like 01XXXXXXXXX');
-    //   return;
-    // }
 
     isLoading.value = true;
 
@@ -77,9 +66,29 @@ class LoginController extends GetxController {
     final token = result.data!.accessToken;
     await _tokenService.saveAccessToken(token);
 
+    final currentFcmToken = await FirebaseMessaging.instance.getToken();
+    final savedFcmToken = await _tokenService.getFcmToken();
+
+    if (currentFcmToken != null && currentFcmToken.trim().isNotEmpty) {
+      if (savedFcmToken != currentFcmToken.trim()) {
+        if (savedFcmToken != null && savedFcmToken.trim().isNotEmpty) {
+          await ApiErrorHandler.call(
+            () => _authService.deleteDeviceFcmToken(token: savedFcmToken),
+            showError: false,
+          );
+        }
+
+        await ApiErrorHandler.call(
+          () => _authService.registerDeviceFcmToken(
+            token: currentFcmToken.trim(),
+          ),
+          showError: false,
+        );
+      }
+    }
+
     final payload = JwtDecoder.decode(token);
 
-    // Debug: Print decoded token payload
     debugPrint('═══════════════════════════════════════════════════════════');
     debugPrint('🔐 DECODED JWT TOKEN:');
     debugPrint('═══════════════════════════════════════════════════════════');
@@ -99,7 +108,6 @@ class LoginController extends GetxController {
       return;
     }
 
-    // Set account type based on role
     if (role == 'influencer') {
       _accountTypeService.setRole(AccountType.influencer);
     } else if (role == 'brand' || role == 'client') {
@@ -108,9 +116,6 @@ class LoginController extends GetxController {
       _accountTypeService.setRole(AccountType.adAgency);
     }
 
-    // Get admin verification status from JWT token
-    // Dashboard is locked only if user is NOT verified by admin
-    // Incomplete onboarding doesn't lock the dashboard
     final isVerifiedByAdmin = payload['isVerified'] as bool? ?? false;
 
     debugPrint('🔓 Dashboard Lock Status:');
@@ -118,6 +123,8 @@ class LoginController extends GetxController {
     debugPrint(
       '  → Dashboard will be: ${isVerifiedByAdmin ? "UNLOCKED ✅" : "LOCKED 🔒"}',
     );
+
+    await _appUserSessionController.preloadUserData(forceRefresh: true);
 
     isLoading.value = false;
 

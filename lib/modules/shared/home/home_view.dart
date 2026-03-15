@@ -10,6 +10,7 @@ import '../../../core/utils/constants.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/number_formatter.dart';
 import '../../../core/widgets/earnings_overview_card.dart';
+import '../../../core/widgets/job_offer_card.dart';
 import '../jobs/jobs_controller.dart';
 import 'home_controller.dart';
 
@@ -19,31 +20,38 @@ class HomeView extends GetView<HomeController> {
   @override
   Widget build(BuildContext context) {
     final accountTypeService = Get.find<AccountTypeService>();
+
     return Scaffold(
       backgroundColor: AppPalette.background,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (!accountTypeService.isBrand) ...[
-                Obx(() {
-                  final dashboard = controller.dashboard.value;
-                  return EarningsOverviewCard(
-                    lifetimeEarnings: dashboard.lifetimeEarnings,
-                    pendingEarnings: dashboard.pendingEarnings,
-                  );
-                }),
+        child: RefreshIndicator(
+          onRefresh: controller.refreshDashboard,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
+            ),
+            padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (!accountTypeService.isBrand) ...[
+                  Obx(() {
+                    final dashboard = controller.dashboard.value;
+                    return EarningsOverviewCard(
+                      lifetimeEarnings: dashboard.lifetimeEarnings,
+                      pendingEarnings: dashboard.pendingEarnings,
+                    );
+                  }),
+                  SizedBox(height: 12.h),
+                ],
+                _buildSummaryRow(),
                 SizedBox(height: 12.h),
+                _buildWorkInProgressSection(),
+                SizedBox(height: 12.h),
+                _buildLifetimeSummarySection(),
+                SizedBox(height: 24.h),
               ],
-              _buildSummaryRow(),
-              SizedBox(height: 12.h),
-              _buildWorkInProgressSection(),
-              SizedBox(height: 12.h),
-              _buildLifetimeSummarySection(),
-              SizedBox(height: 24.h),
-            ],
+            ),
           ),
         ),
       ),
@@ -62,7 +70,7 @@ class HomeView extends GetView<HomeController> {
           child: _summaryCard(
             iconPath: 'assets/icons/suitcase.png',
             title: 'home_active_jobs'.tr,
-            onTap: () => _openJobsTab(isActiveJobs: true),
+            onTap: () => controller.openJobsTab(isActiveJobs: true),
             value: Obx(() {
               final dashboard = controller.dashboard.value;
               return Text(
@@ -82,8 +90,10 @@ class HomeView extends GetView<HomeController> {
         Expanded(
           child: _summaryCard(
             iconPath: 'assets/icons/sand_watch2.png',
-            title: 'home_new_offers_for_you'.tr,
-            onTap: () => _openJobsTab(isActiveJobs: false),
+            title: isBrand
+                ? 'generic_pending'.tr
+                : 'home_new_offers_for_you'.tr,
+            onTap: () => controller.openJobsTab(isActiveJobs: false),
             value: Obx(() {
               final dashboard = controller.dashboard.value;
               return Text(
@@ -187,18 +197,6 @@ class HomeView extends GetView<HomeController> {
     );
   }
 
-  void _openJobsTab({required bool isActiveJobs}) {
-    final accountTypeService = Get.find<AccountTypeService>();
-    final jobsController = Get.find<JobsController>();
-
-    final targetTab = isActiveJobs
-        ? (accountTypeService.isBrand ? 0 : 1)
-        : (accountTypeService.isBrand ? 1 : 0);
-
-    jobsController.changeTab(targetTab);
-    Get.find<BottomNavController>().onTabChanged(1);
-  }
-
   // ---------------- WORK IN PROGRESS ----------------
 
   Widget _buildWorkInProgressSection() {
@@ -255,12 +253,21 @@ class HomeView extends GetView<HomeController> {
           SizedBox(height: 14.h),
           Obx(() {
             final jobs = controller.dashboard.value.jobsInProgress;
+            final accountTypeService = Get.find<AccountTypeService>();
+            final isInfluencer = accountTypeService.isInfluencer;
+
             return Column(
               children: jobs
                   .map(
                     (job) => Padding(
                       padding: EdgeInsets.only(bottom: 12.h),
-                      child: _jobCard(job),
+                      child: isInfluencer
+                          ? JobOfferCard(
+                              job: job,
+                              type: 'active',
+                              onView: () => controller.openJobDetails(job),
+                            )
+                          : _jobCard(job),
                     ),
                   )
                   .toList(),
@@ -281,10 +288,10 @@ class HomeView extends GetView<HomeController> {
                 padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 5.h),
               ),
               onPressed: () {
-                final jobsController = Get.find<JobsController>();
                 final accountTypeService = Get.find<AccountTypeService>();
-                jobsController.changeTab(accountTypeService.isBrand ? 0 : 1);
-                Get.find<BottomNavController>().onTabChanged(1);
+                controller.openJobsTabByIndex(
+                  accountTypeService.isBrand ? 0 : 1,
+                );
               },
               child: Text(
                 'home_view_all_jobs'.tr,
@@ -352,7 +359,7 @@ class HomeView extends GetView<HomeController> {
                       ),
                       if (isBrand)
                         Text(
-                          job.subTitle ?? '',
+                          (job.subTitle ?? '').tr,
                           style: TextStyle(
                             fontSize: 10.sp,
                             fontWeight: FontWeight.w400,
@@ -541,27 +548,41 @@ class HomeView extends GetView<HomeController> {
                   );
                 }),
                 SizedBox(height: 8.h),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      isBrand ? 'top_influencer'.tr : 'home_top_client'.tr,
-                      style: TextStyle(
-                        fontSize: 12.sp,
-                        color: AppPalette.black,
-                        fontWeight: FontWeight.w300,
+                Obx(() {
+                  final dashboard = controller.dashboard.value;
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          isBrand ? 'top_influencer'.tr : 'home_top_client'.tr,
+                          style: TextStyle(
+                            fontSize: 12.sp,
+                            color: AppPalette.black,
+                            fontWeight: FontWeight.w300,
+                          ),
+                        ),
                       ),
-                    ),
-                    Text(
-                      'home_last_job'.tr,
-                      style: TextStyle(
-                        fontSize: 10.sp,
-                        color: AppPalette.black,
-                        fontWeight: FontWeight.w300,
+                      Text(
+                        'home_last_job'.tr,
+                        style: TextStyle(
+                          fontSize: 10.sp,
+                          color: AppPalette.black,
+                          fontWeight: FontWeight.w300,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                      SizedBox(width: 2.w),
+                      Text(
+                        dashboard.lastCompletedJobDateLabel,
+                        style: TextStyle(
+                          fontSize: 10.sp,
+                          color: AppPalette.black,
+                          fontWeight: FontWeight.w300,
+                        ),
+                      ),
+                    ],
+                  );
+                }),
               ],
             ),
           ),
@@ -574,6 +595,7 @@ class HomeView extends GetView<HomeController> {
                   return _smallStatCard(
                     titleKey: 'home_total_jobs_completed',
                     value: dashboard.totalJobsCompleted.toString(),
+                    onTap: controller.openCompletedJobs,
                   );
                 }),
               ),
@@ -588,6 +610,7 @@ class HomeView extends GetView<HomeController> {
                         'k00',
                         'k',
                       ),
+                      onTap: controller.openEarningsPage,
                     );
                   }),
                 ),
@@ -599,6 +622,7 @@ class HomeView extends GetView<HomeController> {
                       titleKey: 'home_total_jobs_declined',
                       value: dashboard.totalJobsDeclined.toString(),
                       isDeclined: true,
+                      onTap: controller.openDeclinedJobs,
                     );
                   }),
                 ),
@@ -615,6 +639,7 @@ class HomeView extends GetView<HomeController> {
                       titleKey: 'home_total_jobs_declined',
                       value: dashboard.totalJobsDeclined.toString(),
                       isDeclined: true,
+                      onTap: controller.openDeclinedJobs,
                     );
                   }),
                 ),
@@ -640,44 +665,49 @@ class HomeView extends GetView<HomeController> {
     required String titleKey,
     required String value,
     bool isDeclined = false,
+    VoidCallback? onTap,
   }) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 12.h),
-      decoration: BoxDecoration(
-        color: AppPalette.white,
-        borderRadius: BorderRadius.circular(kBorderRadius.r),
-        border: Border.all(color: AppPalette.border1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 22.sp,
-                  fontWeight: FontWeight.w500,
-                  color: isDeclined
-                      ? AppPalette.complemetary
-                      : AppPalette.secondary,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 12.h),
+        decoration: BoxDecoration(
+          color: AppPalette.white,
+          borderRadius: BorderRadius.circular(kBorderRadius.r),
+          border: Border.all(color: AppPalette.border1),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 22.sp,
+                    fontWeight: FontWeight.w500,
+                    color: isDeclined
+                        ? AppPalette.complemetary
+                        : AppPalette.secondary,
+                  ),
                 ),
-              ),
-              const Icon(Icons.chevron_right, size: 12),
-            ],
-          ),
-          SizedBox(height: 3.h),
-          Text(
-            titleKey.tr,
-            style: TextStyle(
-              fontSize: 11.sp,
-              color: AppPalette.black,
-              fontWeight: FontWeight.w300,
+                const Icon(Icons.chevron_right, size: 12),
+              ],
             ),
-          ),
-        ],
+            SizedBox(height: 3.h),
+            Text(
+              titleKey.tr,
+              style: TextStyle(
+                fontSize: 11.sp,
+                color: AppPalette.black,
+                fontWeight: FontWeight.w300,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

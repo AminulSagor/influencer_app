@@ -7,6 +7,8 @@ import 'package:influencer_app/modules/brand/brand_milestone_details/brand_miles
 import 'package:influencer_app/modules/brand/create_campaign/create_campaign_controller.dart';
 import 'package:influencer_app/modules/brand/create_campaign/create_campaign_step2_view.dart';
 import 'package:influencer_app/modules/brand/create_campaign/create_campaign_view.dart';
+import 'package:influencer_app/modules/influencer/campaign_shipping/campaign_shipping_controller.dart';
+import 'package:influencer_app/modules/influencer/campaign_shipping/campaign_shipping_view.dart';
 import 'package:influencer_app/modules/shared/language/language_view.dart';
 
 import '../../../../core/services/account_type_service.dart';
@@ -190,6 +192,16 @@ class BottomNavRouteGenerator {
           binding: BindingsBuilder(() {
             Get.lazyPut<MilestoneDetailsController>(
               () => MilestoneDetailsController(settings.arguments),
+            );
+          }),
+        );
+      case AppRoutes.campaignShipping:
+        return GetPageRoute(
+          settings: settings,
+          page: () => const CampaignShippingView(),
+          binding: BindingsBuilder(() {
+            Get.lazyPut<CampaignShippingController>(
+              () => CampaignShippingController(settings.arguments),
             );
           }),
         );

@@ -12,6 +12,7 @@ import 'package:influencer_app/core/theme/app_theme.dart';
 import 'package:influencer_app/core/utils/currency_formatter.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../core/models/job_item.dart';
+import '../../../core/widgets/reason_bottom_sheet.dart';
 import '../../../routes/app_routes.dart';
 import '../../../core/utils/label_localizers.dart';
 import 'widgets/agency_requote_dialog.dart';
@@ -186,8 +187,17 @@ class CampaignDetailsController extends GetxController {
       return;
     }
 
-    if (isInfluencer && job.id != null && job.id!.isNotEmpty) {
-      await _acceptInfluencerOffer(job.id!);
+    if (isInfluencer) {
+      final jobId = job.id?.trim();
+      if (jobId == null || jobId.isEmpty) return;
+
+      if (job.needToSendSample == true) {
+        await Get.toNamed(AppRoutes.campaignShipping, id: 1, arguments: job);
+
+        return;
+      }
+
+      await _acceptInfluencerOffer(jobId);
       return;
     }
 
@@ -205,7 +215,15 @@ class CampaignDetailsController extends GetxController {
     final isAdAgency = accountTypeService.isAdAgency;
 
     if (isInfluencer && job.id != null && job.id!.isNotEmpty) {
-      await _declineInfluencerOffer(job.id!);
+      final reason = await showReasonBottomSheet(
+        title: 'jobs_decline_reason_title'.tr,
+        hintText: 'jobs_decline_reason_hint'.tr,
+        submitText: 'jobs_decline_submit'.tr,
+      );
+
+      if (reason == null || reason.trim().isEmpty) return;
+
+      await _declineInfluencerOffer(job.id!, reason);
       return;
     }
 
@@ -234,12 +252,15 @@ class CampaignDetailsController extends GetxController {
     isAcceptDeclineLoading.value = false;
   }
 
-  Future<void> _declineInfluencerOffer(String jobId) async {
+  Future<void> _declineInfluencerOffer(String jobId, String reason) async {
     if (isAcceptDeclineLoading.value) return;
     isAcceptDeclineLoading.value = true;
 
     final result = await ApiErrorHandler.call(
-      () => _campaignService.declineInfluencerJobOffer(jobId: jobId),
+      () => _campaignService.declineInfluencerJobOffer(
+        jobId: jobId,
+        reason: reason,
+      ),
     );
 
     if (result.isSuccess) {

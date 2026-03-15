@@ -184,6 +184,7 @@ class InfluencerProfileController extends GetxController {
       thana: thana,
       zilla: zilla,
       fullAddress: fullAddress,
+      isDefault: false,
     );
 
     if (result.isSuccess && result.data != null) {

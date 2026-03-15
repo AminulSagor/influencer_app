@@ -280,15 +280,6 @@ class AppPages {
       }),
     ),
     GetPage(
-      name: AppRoutes.campaignShipping,
-      page: () => const CampaignShippingView(),
-      binding: BindingsBuilder(() {
-        Get.lazyPut<CampaignShippingController>(
-          () => CampaignShippingController(),
-        );
-      }),
-    ),
-    GetPage(
       name: AppRoutes.language,
       page: () => const LanguageView(),
       binding: BindingsBuilder(() {

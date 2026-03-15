@@ -11,6 +11,10 @@ import 'package:influencer_app/modules/brand/services/brand_onboarding_services.
 import 'package:influencer_app/modules/influencer/models/influencer_profile_model.dart';
 import 'package:influencer_app/modules/influencer/services/influencer_profile_service.dart';
 
+import '../../modules/shared/bottom_navbar/bottom_nav_controller.dart';
+import '../../routes/app_routes.dart';
+import '../services/auth_services.dart';
+
 class AppUserSessionController extends GetxService {
   final isLoading = false.obs;
   final isLoaded = false.obs;
@@ -49,11 +53,17 @@ class AppUserSessionController extends GetxService {
       ? '/influencer/notifications'
       : '/notifications';
 
-  Future<void> preloadUserData() async {
+  Future<void> preloadUserData({bool forceRefresh = false}) async {
     if (isLoading.value) return;
+
+    if (!forceRefresh && isLoaded.value) return;
 
     isLoading.value = true;
     try {
+      if (forceRefresh) {
+        reset();
+      }
+
       await _loadUserFromToken();
       await Future.wait([_loadProfile(), _loadNotifications()]);
       isLoaded.value = true;
@@ -201,6 +211,45 @@ class AppUserSessionController extends GetxService {
     } catch (e) {
       debugPrint('[AppUserSession] notifications load failed: $e');
       updateNotifications(newItems: const [], earlierItems: const []);
+    }
+  }
+
+  void reset() {
+    isLoading.value = false;
+    isLoaded.value = false;
+    notificationsLoaded.value = false;
+
+    userEmail.value = '';
+    userPhone.value = '';
+    displayName.value = '';
+    profileImageUrl.value = '';
+
+    influencerProfile.value = null;
+    agencyProfileJson.value = null;
+    brandProfileJson.value = null;
+
+    newNotifications.clear();
+    earlierNotifications.clear();
+  }
+
+  Future<void> logout() async {
+    try {
+      final auth = Get.find<AuthService>();
+
+      await auth.logout();
+
+      _accountTypeService.setRole(null);
+      reset();
+
+      Get.offAllNamed(AppRoutes.login);
+
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (Get.isRegistered<BottomNavController>()) {
+          Get.delete<BottomNavController>(force: true);
+        }
+      });
+    } catch (e) {
+      Get.snackbar('Error', 'Logout failed');
     }
   }
 

@@ -177,6 +177,7 @@ class JobsView extends GetView<JobsController> {
 
     return Container(
       padding: EdgeInsets.only(left: 12.w, right: 12.w, top: 12.h),
+      width: double.infinity,
       decoration: BoxDecoration(
         color: AppPalette.white,
         borderRadius: BorderRadius.circular(kBorderRadius.r),
@@ -198,7 +199,7 @@ class JobsView extends GetView<JobsController> {
               final count = controller.getCountForTab(index);
 
               // In the screenshots, Brand shows counts even when inactive.
-              final showCount = isBrand ? count > 0 : (count > 0 && isActive);
+              final showCount = count > 0 && isActive;
 
               final activeColor = isDangerTab
                   ? AppPalette.complemetary
@@ -353,9 +354,9 @@ class JobsView extends GetView<JobsController> {
   // ---------------- INFLUENCER / AGENCY TABS (unchanged UI) ----------------
 
   Widget _buildNewOffersTab() {
-    return SingleChildScrollView(
-      controller: controller.scrollControllerForTab(0),
-      physics: const BouncingScrollPhysics(),
+    return _refreshableTab(
+      tabIndex: 0,
+      onRefresh: controller.refreshCurrentTab,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -401,13 +402,13 @@ class JobsView extends GetView<JobsController> {
   }
 
   Widget _buildQuotedTab() {
-    return SingleChildScrollView(
-      controller: controller.scrollControllerForTab(1),
-      physics: const BouncingScrollPhysics(),
+    return _refreshableTab(
+      tabIndex: 1,
+      onRefresh: controller.refreshCurrentTab,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _tabHeader('Quoted'), // use .tr key if needed
+          _tabHeader('Quoted'),
           SizedBox(height: 12.h),
           Obx(() {
             final items = controller.filteredQuotedJobs;
@@ -422,7 +423,7 @@ class JobsView extends GetView<JobsController> {
                     padding: EdgeInsets.only(bottom: 12.h),
                     child: JobOfferCard(
                       job: job,
-                      type: 'quoted', // ✅ NEW type
+                      type: 'quoted',
                       onView: () => controller.openJobDetails(job),
                     ),
                   ),
@@ -437,9 +438,11 @@ class JobsView extends GetView<JobsController> {
   }
 
   Widget _buildActiveJobsTab() {
-    return SingleChildScrollView(
-      controller: controller.scrollControllerForTab(2),
-      physics: const BouncingScrollPhysics(),
+    final tabIndex = controller.isAdAgency ? 2 : 1;
+
+    return _refreshableTab(
+      tabIndex: tabIndex,
+      onRefresh: controller.refreshCurrentTab,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -473,9 +476,11 @@ class JobsView extends GetView<JobsController> {
   }
 
   Widget _buildCompletedJobsTab() {
-    return SingleChildScrollView(
-      controller: controller.scrollControllerForTab(2),
-      physics: const BouncingScrollPhysics(),
+    final tabIndex = controller.isAdAgency ? 3 : 2;
+
+    return _refreshableTab(
+      tabIndex: tabIndex,
+      onRefresh: controller.refreshCurrentTab,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -509,9 +514,11 @@ class JobsView extends GetView<JobsController> {
   }
 
   Widget _buildPendingTab() {
-    return SingleChildScrollView(
-      controller: controller.scrollControllerForTab(3),
-      physics: const BouncingScrollPhysics(),
+    final tabIndex = controller.isAdAgency ? 4 : 3;
+
+    return _refreshableTab(
+      tabIndex: tabIndex,
+      onRefresh: controller.refreshCurrentTab,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -545,9 +552,11 @@ class JobsView extends GetView<JobsController> {
   }
 
   Widget _buildDeclinedTab() {
-    return SingleChildScrollView(
-      controller: controller.scrollControllerForTab(4),
-      physics: const BouncingScrollPhysics(),
+    final tabIndex = controller.isAdAgency ? 5 : 4;
+
+    return _refreshableTab(
+      tabIndex: tabIndex,
+      onRefresh: controller.refreshCurrentTab,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -583,9 +592,9 @@ class JobsView extends GetView<JobsController> {
   // ---------------- BRAND TABS (matches screenshots) ----------------
 
   Widget _buildBrandActiveTab() {
-    return SingleChildScrollView(
-      controller: controller.scrollControllerForTab(0),
-      physics: const BouncingScrollPhysics(),
+    return _refreshableTab(
+      tabIndex: 0,
+      onRefresh: controller.refreshCurrentTab,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -615,9 +624,9 @@ class JobsView extends GetView<JobsController> {
   }
 
   Widget _buildBrandBudgetingTab() {
-    return SingleChildScrollView(
-      controller: controller.scrollControllerForTab(1),
-      physics: const BouncingScrollPhysics(),
+    return _refreshableTab(
+      tabIndex: 1,
+      onRefresh: controller.refreshCurrentTab,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -722,9 +731,9 @@ class JobsView extends GetView<JobsController> {
   }
 
   Widget _buildBrandCompletedTab() {
-    return SingleChildScrollView(
-      controller: controller.scrollControllerForTab(2),
-      physics: const BouncingScrollPhysics(),
+    return _refreshableTab(
+      tabIndex: 2,
+      onRefresh: controller.refreshCurrentTab,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -754,9 +763,9 @@ class JobsView extends GetView<JobsController> {
   }
 
   Widget _buildBrandDraftsTab() {
-    return SingleChildScrollView(
-      controller: controller.scrollControllerForTab(3),
-      physics: const BouncingScrollPhysics(),
+    return _refreshableTab(
+      tabIndex: 3,
+      onRefresh: controller.refreshCurrentTab,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -786,9 +795,9 @@ class JobsView extends GetView<JobsController> {
   }
 
   Widget _buildBrandCanceledTab() {
-    return SingleChildScrollView(
-      controller: controller.scrollControllerForTab(4),
-      physics: const BouncingScrollPhysics(),
+    return _refreshableTab(
+      tabIndex: 4,
+      onRefresh: controller.refreshCurrentTab,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -848,7 +857,7 @@ class JobsView extends GetView<JobsController> {
                     if ((job.subTitle ?? '').isNotEmpty) ...[
                       SizedBox(height: 2.h),
                       Text(
-                        job.subTitle!,
+                        (job.subTitle ?? '').tr,
                         style: TextStyle(
                           fontSize: 12.sp,
                           color: AppPalette.greyText,
@@ -994,7 +1003,7 @@ class JobsView extends GetView<JobsController> {
                     if ((job.subTitle ?? '').isNotEmpty) ...[
                       SizedBox(height: 2.h),
                       Text(
-                        job.subTitle!,
+                        (job.subTitle ?? '').tr,
                         style: TextStyle(
                           fontSize: 12.sp,
                           color: AppPalette.greyText,
@@ -1142,7 +1151,7 @@ class JobsView extends GetView<JobsController> {
                     if ((job.subTitle ?? '').isNotEmpty) ...[
                       SizedBox(height: 2.h),
                       Text(
-                        job.subTitle!,
+                        (job.subTitle ?? '').tr,
                         style: TextStyle(
                           fontSize: 12.sp,
                           color: AppPalette.greyText,
@@ -1255,7 +1264,7 @@ class JobsView extends GetView<JobsController> {
                     if ((job.subTitle ?? '').isNotEmpty) ...[
                       SizedBox(height: 2.h),
                       Text(
-                        job.subTitle!,
+                        (job.subTitle ?? '').tr,
                         style: TextStyle(
                           fontSize: 12.sp,
                           color: cSub,
@@ -1321,6 +1330,23 @@ class JobsView extends GetView<JobsController> {
           color: filled ? AppPalette.starDark : AppPalette.backgroundDark,
         );
       }),
+    );
+  }
+
+  Widget _refreshableTab({
+    required int tabIndex,
+    required Future<void> Function() onRefresh,
+    required Widget child,
+  }) {
+    return RefreshIndicator(
+      onRefresh: onRefresh,
+      child: SingleChildScrollView(
+        controller: controller.scrollControllerForTab(tabIndex),
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        child: child,
+      ),
     );
   }
 }

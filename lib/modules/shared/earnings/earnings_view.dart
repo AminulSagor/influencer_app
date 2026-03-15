@@ -23,27 +23,29 @@ class EarningsView extends GetView<EarningsController> {
     return Scaffold(
       backgroundColor: AppPalette.background,
       body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: EdgeInsets.symmetric(horizontal: 20.w),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              15.h.verticalSpace,
-
-              /// Overview Card (keep as-is)
-              Obx(
-                () => EarningsOverviewCard(
-                  lifetimeEarnings: controller.lifetimeEarnings.value,
-                  pendingEarnings: controller.pendingEarnings.value,
+        child: RefreshIndicator(
+          onRefresh: controller.refreshAll,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
+            ),
+            padding: EdgeInsets.symmetric(horizontal: 20.w),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                15.h.verticalSpace,
+                Obx(
+                  () => EarningsOverviewCard(
+                    lifetimeEarnings: controller.lifetimeEarnings.value,
+                    pendingEarnings: controller.pendingEarnings.value,
+                  ),
                 ),
-              ),
-
-              SizedBox(height: 16.h),
-
-              _TransactionsBody(controller: controller),
-            ],
+                SizedBox(height: 16.h),
+                _TransactionsBody(controller: controller),
+                SizedBox(height: 24.h),
+              ],
+            ),
           ),
         ),
       ),
@@ -270,7 +272,7 @@ class _EarningsBody extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        _ChartCard(controller: controller),
+        // _ChartCard(controller: controller),
         SizedBox(height: 16.h),
         Container(
           padding: EdgeInsets.all(12.w),
@@ -313,268 +315,268 @@ class _EarningsBody extends StatelessWidget {
   }
 }
 
-class _ChartCard extends StatelessWidget {
-  final EarningsController controller;
+// class _ChartCard extends StatelessWidget {
+//   final EarningsController controller;
 
-  const _ChartCard({required this.controller});
+//   const _ChartCard({required this.controller});
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(kBorderRadius.r),
-        border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Spacer(),
-              Obx(
-                () => Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 14.w,
-                    vertical: 4.h,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppPalette.fill2,
-                    borderRadius: BorderRadius.circular(20.r),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        controller.selectedRangeLabel.value,
-                        style: TextStyle(
-                          fontSize: 10.sp,
-                          fontWeight: FontWeight.w300,
-                          color: AppPalette.black,
-                        ),
-                      ),
-                      SizedBox(width: 4.w),
-                      Icon(
-                        Icons.keyboard_arrow_right,
-                        size: 10.sp,
-                        color: AppPalette.black,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 10.h),
+//   @override
+//   Widget build(BuildContext context) {
+//     return Container(
+//       padding: EdgeInsets.all(16.w),
+//       decoration: BoxDecoration(
+//         color: Colors.white,
+//         borderRadius: BorderRadius.circular(kBorderRadius.r),
+//         border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
+//       ),
+//       child: Column(
+//         crossAxisAlignment: CrossAxisAlignment.start,
+//         children: [
+//           Row(
+//             children: [
+//               const Spacer(),
+//               Obx(
+//                 () => Container(
+//                   padding: EdgeInsets.symmetric(
+//                     horizontal: 14.w,
+//                     vertical: 4.h,
+//                   ),
+//                   decoration: BoxDecoration(
+//                     color: AppPalette.fill2,
+//                     borderRadius: BorderRadius.circular(20.r),
+//                   ),
+//                   child: Row(
+//                     mainAxisSize: MainAxisSize.min,
+//                     children: [
+//                       Text(
+//                         controller.selectedRangeLabel.value,
+//                         style: TextStyle(
+//                           fontSize: 10.sp,
+//                           fontWeight: FontWeight.w300,
+//                           color: AppPalette.black,
+//                         ),
+//                       ),
+//                       SizedBox(width: 4.w),
+//                       Icon(
+//                         Icons.keyboard_arrow_right,
+//                         size: 10.sp,
+//                         color: AppPalette.black,
+//                       ),
+//                     ],
+//                   ),
+//                 ),
+//               ),
+//             ],
+//           ),
+//           SizedBox(height: 10.h),
 
-          Obx(() {
-            final points = controller.chartPoints;
+//           Obx(() {
+//             final points = controller.chartPoints;
 
-            if (controller.chartIsLoading.value) {
-              return SizedBox(
-                height: 210.h,
-                child: const Center(child: CircularProgressIndicator()),
-              );
-            }
+//             if (controller.chartIsLoading.value) {
+//               return SizedBox(
+//                 height: 210.h,
+//                 child: const Center(child: CircularProgressIndicator()),
+//               );
+//             }
 
-            if (points.isEmpty) {
-              return SizedBox(
-                height: 210.h,
-                child: Center(
-                  child: Text(
-                    'common_no_data'.tr,
-                    style: TextStyle(fontSize: 12.sp, color: Colors.grey[600]),
-                  ),
-                ),
-              );
-            }
+//             if (points.isEmpty) {
+//               return SizedBox(
+//                 height: 210.h,
+//                 child: Center(
+//                   child: Text(
+//                     'common_no_data'.tr,
+//                     style: TextStyle(fontSize: 12.sp, color: Colors.grey[600]),
+//                   ),
+//                 ),
+//               );
+//             }
 
-            final maxValue = points.fold<int>(
-              0,
-              (prev, e) => e.value > prev ? e.value : prev,
-            );
-            final maxYk = (((maxValue / 1000).ceil() / 10).ceil() * 10)
-                .toDouble()
-                .clamp(10, double.infinity);
+//             final maxValue = points.fold<int>(
+//               0,
+//               (prev, e) => e.value > prev ? e.value : prev,
+//             );
+//             final maxYk = (((maxValue / 1000).ceil() / 10).ceil() * 10)
+//                 .toDouble()
+//                 .clamp(10, double.infinity);
 
-            final barGroups = points.asMap().entries.map((entry) {
-              final index = entry.key;
-              final p = entry.value;
-              final y = p.value / 1000.0;
+//             final barGroups = points.asMap().entries.map((entry) {
+//               final index = entry.key;
+//               final p = entry.value;
+//               final y = p.value / 1000.0;
 
-              return BarChartGroupData(
-                x: index,
-                barRods: [
-                  BarChartRodData(
-                    toY: y,
-                    width: 24.w,
-                    borderRadius: BorderRadius.circular(999.r),
-                    color: AppPalette.secondary,
-                  ),
-                ],
-              );
-            }).toList();
+//               return BarChartGroupData(
+//                 x: index,
+//                 barRods: [
+//                   BarChartRodData(
+//                     toY: y,
+//                     width: 24.w,
+//                     borderRadius: BorderRadius.circular(999.r),
+//                     color: AppPalette.secondary,
+//                   ),
+//                 ],
+//               );
+//             }).toList();
 
-            final leftReserved = 34.w;
+//             final leftReserved = 34.w;
 
-            return SizedBox(
-              height: 205.h,
-              child: Stack(
-                children: [
-                  BarChart(
-                    BarChartData(
-                      minY: 0,
-                      maxY: maxYk.toDouble(),
-                      barGroups: barGroups,
-                      alignment: BarChartAlignment.spaceAround,
-                      barTouchData: BarTouchData(enabled: false),
-                      gridData: FlGridData(
-                        show: true,
-                        drawVerticalLine: true,
-                        horizontalInterval: 10,
-                        getDrawingVerticalLine: (value) => FlLine(
-                          color: AppPalette.border1.withAlpha(80),
-                          strokeWidth: 1,
-                        ),
-                        getDrawingHorizontalLine: (value) => FlLine(
-                          color: AppPalette.border1.withAlpha(80),
-                          strokeWidth: 1,
-                        ),
-                      ),
-                      titlesData: FlTitlesData(
-                        topTitles: AxisTitles(
-                          sideTitles: SideTitles(showTitles: false),
-                        ),
-                        rightTitles: AxisTitles(
-                          sideTitles: SideTitles(showTitles: false),
-                        ),
-                        leftTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            reservedSize: leftReserved,
-                            interval: 10,
-                            getTitlesWidget: (value, meta) {
-                              if (value % 10 != 0)
-                                return const SizedBox.shrink();
-                              return Padding(
-                                padding: EdgeInsets.only(right: 4.w),
-                                child: Text(
-                                  '${value.toInt()}k',
-                                  style: TextStyle(
-                                    fontSize: 10.sp,
-                                    color: Colors.grey[500],
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                        bottomTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            getTitlesWidget: (value, meta) {
-                              final index = value.toInt();
-                              if (index < 0 || index >= points.length) {
-                                return const SizedBox.shrink();
-                              }
-                              return Padding(
-                                padding: EdgeInsets.only(top: 4.h),
-                                child: Text(
-                                  points[index].label,
-                                  style: TextStyle(
-                                    fontSize: 10.sp,
-                                    color: Colors.grey[600],
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                      borderData: FlBorderData(
-                        show: true,
-                        border: Border(
-                          left: BorderSide(
-                            color: AppPalette.border1.withAlpha(80),
-                            width: 1,
-                          ),
-                          bottom: BorderSide(
-                            color: AppPalette.border1.withAlpha(80),
-                            width: 1,
-                          ),
-                          right: BorderSide.none,
-                          top: BorderSide.none,
-                        ),
-                      ),
-                    ),
-                  ),
+//             return SizedBox(
+//               height: 205.h,
+//               child: Stack(
+//                 children: [
+//                   BarChart(
+//                     BarChartData(
+//                       minY: 0,
+//                       maxY: maxYk.toDouble(),
+//                       barGroups: barGroups,
+//                       alignment: BarChartAlignment.spaceAround,
+//                       barTouchData: BarTouchData(enabled: false),
+//                       gridData: FlGridData(
+//                         show: true,
+//                         drawVerticalLine: true,
+//                         horizontalInterval: 10,
+//                         getDrawingVerticalLine: (value) => FlLine(
+//                           color: AppPalette.border1.withAlpha(80),
+//                           strokeWidth: 1,
+//                         ),
+//                         getDrawingHorizontalLine: (value) => FlLine(
+//                           color: AppPalette.border1.withAlpha(80),
+//                           strokeWidth: 1,
+//                         ),
+//                       ),
+//                       titlesData: FlTitlesData(
+//                         topTitles: AxisTitles(
+//                           sideTitles: SideTitles(showTitles: false),
+//                         ),
+//                         rightTitles: AxisTitles(
+//                           sideTitles: SideTitles(showTitles: false),
+//                         ),
+//                         leftTitles: AxisTitles(
+//                           sideTitles: SideTitles(
+//                             showTitles: true,
+//                             reservedSize: leftReserved,
+//                             interval: 10,
+//                             getTitlesWidget: (value, meta) {
+//                               if (value % 10 != 0)
+//                                 return const SizedBox.shrink();
+//                               return Padding(
+//                                 padding: EdgeInsets.only(right: 4.w),
+//                                 child: Text(
+//                                   '${value.toInt()}k',
+//                                   style: TextStyle(
+//                                     fontSize: 10.sp,
+//                                     color: Colors.grey[500],
+//                                   ),
+//                                 ),
+//                               );
+//                             },
+//                           ),
+//                         ),
+//                         bottomTitles: AxisTitles(
+//                           sideTitles: SideTitles(
+//                             showTitles: true,
+//                             getTitlesWidget: (value, meta) {
+//                               final index = value.toInt();
+//                               if (index < 0 || index >= points.length) {
+//                                 return const SizedBox.shrink();
+//                               }
+//                               return Padding(
+//                                 padding: EdgeInsets.only(top: 4.h),
+//                                 child: Text(
+//                                   points[index].label,
+//                                   style: TextStyle(
+//                                     fontSize: 10.sp,
+//                                     color: Colors.grey[600],
+//                                   ),
+//                                 ),
+//                               );
+//                             },
+//                           ),
+//                         ),
+//                       ),
+//                       borderData: FlBorderData(
+//                         show: true,
+//                         border: Border(
+//                           left: BorderSide(
+//                             color: AppPalette.border1.withAlpha(80),
+//                             width: 1,
+//                           ),
+//                           bottom: BorderSide(
+//                             color: AppPalette.border1.withAlpha(80),
+//                             width: 1,
+//                           ),
+//                           right: BorderSide.none,
+//                           top: BorderSide.none,
+//                         ),
+//                       ),
+//                     ),
+//                   ),
 
-                  /// Vertical labels in bars (like your screenshot)
-                  Padding(
-                    padding: EdgeInsets.only(
-                      left: leftReserved + 6.w,
-                      right: 8.w,
-                      bottom: 24.h,
-                      top: 6.h,
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: points.map((p) {
-                        final valueK = (p.value / 1000).round();
-                        final fraction = (valueK / maxYk).clamp(0.0, 1.0);
+//                   /// Vertical labels in bars (like your screenshot)
+//                   Padding(
+//                     padding: EdgeInsets.only(
+//                       left: leftReserved + 6.w,
+//                       right: 8.w,
+//                       bottom: 24.h,
+//                       top: 6.h,
+//                     ),
+//                     child: Row(
+//                       crossAxisAlignment: CrossAxisAlignment.end,
+//                       children: points.map((p) {
+//                         final valueK = (p.value / 1000).round();
+//                         final fraction = (valueK / maxYk).clamp(0.0, 1.0);
 
-                        return Expanded(
-                          child: Align(
-                            alignment: Alignment.bottomCenter,
-                            child: FractionallySizedBox(
-                              heightFactor: fraction == 0 ? 0.05 : fraction,
-                              alignment: Alignment.bottomCenter,
-                              child: Padding(
-                                padding: EdgeInsets.only(bottom: 12.h),
-                                child: Transform.rotate(
-                                  angle: -math.pi / 2,
-                                  child: Text(
-                                    '${valueK}k',
-                                    style: TextStyle(
-                                      fontSize: 10.sp,
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
+//                         return Expanded(
+//                           child: Align(
+//                             alignment: Alignment.bottomCenter,
+//                             child: FractionallySizedBox(
+//                               heightFactor: fraction == 0 ? 0.05 : fraction,
+//                               alignment: Alignment.bottomCenter,
+//                               child: Padding(
+//                                 padding: EdgeInsets.only(bottom: 12.h),
+//                                 child: Transform.rotate(
+//                                   angle: -math.pi / 2,
+//                                   child: Text(
+//                                     '${valueK}k',
+//                                     style: TextStyle(
+//                                       fontSize: 10.sp,
+//                                       color: Colors.white,
+//                                       fontWeight: FontWeight.w500,
+//                                     ),
+//                                   ),
+//                                 ),
+//                               ),
+//                             ),
+//                           ),
+//                         );
+//                       }).toList(),
+//                     ),
+//                   ),
+//                 ],
+//               ),
+//             );
+//           }),
 
-          SizedBox(height: 8.h),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(height: 4.h, width: 4.h, color: AppPalette.secondary),
-              4.w.horizontalSpace,
-              Text(
-                'earnings_legend_thousands'.tr,
-                style: TextStyle(
-                  fontSize: 8.sp,
-                  color: AppPalette.black.withAlpha(200),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
+//           SizedBox(height: 8.h),
+//           Row(
+//             mainAxisAlignment: MainAxisAlignment.center,
+//             children: [
+//               Container(height: 4.h, width: 4.h, color: AppPalette.secondary),
+//               4.w.horizontalSpace,
+//               Text(
+//                 'earnings_legend_thousands'.tr,
+//                 style: TextStyle(
+//                   fontSize: 8.sp,
+//                   color: AppPalette.black.withAlpha(200),
+//                 ),
+//               ),
+//             ],
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+// }
 
 class _ClientPlatformSection extends StatelessWidget {
   final EarningsController controller;

@@ -1,11 +1,16 @@
+import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:influencer_app/core/models/job_item.dart';
 import 'package:influencer_app/core/services/account_type_service.dart';
 import 'package:influencer_app/core/services/api_error_handler.dart';
+import 'package:influencer_app/core/utils/date_formatter.dart';
 import 'package:influencer_app/modules/ad_agency/services/agency_dashboard_service.dart';
 import 'package:influencer_app/modules/brand/services/brand_dashboard_service.dart';
 import 'package:influencer_app/modules/influencer/services/influencer_dashboard_service.dart';
 import 'package:influencer_app/routes/app_routes.dart';
+import '../../../core/services/api_client.dart';
+import '../bottom_navbar/bottom_nav_controller.dart';
+import '../jobs/jobs_controller.dart';
 import 'models/home_dashboard_model.dart';
 
 class HomeController extends GetxController {
@@ -13,20 +18,31 @@ class HomeController extends GetxController {
   final _brandDashboardService = Get.find<BrandDashboardService>();
   final _agencyDashboardService = Get.find<AgencyDashboardService>();
   final _influencerDashboardService = Get.find<InfluencerDashboardService>();
+  final _apiClient = Get.find<ApiClient>();
 
   final dashboard = HomeDashboardModel.empty().obs;
 
   @override
-  void onInit() {
+  void onInit() async {
     super.onInit();
     final userType = _resolveUserType();
     dashboard.value = HomeDashboardModel.empty(userType: userType);
+    await refreshDashboard();
+  }
+
+  Future<void> refreshDashboard() async {
     if (_accountTypeService.isBrand) {
-      _loadBrandDashboard();
-    } else if (_accountTypeService.isAdAgency) {
-      _loadAgencyDashboard();
-    } else if (_accountTypeService.isInfluencer) {
-      _loadInfluencerDashboard();
+      await _loadBrandDashboard();
+      return;
+    }
+
+    if (_accountTypeService.isAdAgency) {
+      await _loadAgencyDashboard();
+      return;
+    }
+
+    if (_accountTypeService.isInfluencer) {
+      await _loadInfluencerDashboard();
     }
   }
 
@@ -39,18 +55,14 @@ class HomeController extends GetxController {
 
   Future<void> _loadBrandDashboard() async {
     var current = dashboard.value;
+
     final activeJobsResult = await ApiErrorHandler.call(
-      () => _brandDashboardService.fetchActiveJobs(page: 1, limit: 5),
+      () => _brandDashboardService.fetchActiveJobs(page: 1, limit: 3),
       showError: false,
     );
 
-    final upcomingResult = await ApiErrorHandler.call(
-      () => _brandDashboardService.fetchUpcomingDeadlines(limit: 5),
-      showError: false,
-    );
-
-    final actionRequiredResult = await ApiErrorHandler.call(
-      () => _brandDashboardService.fetchActionRequired(),
+    final quotingCountResult = await ApiErrorHandler.call(
+      () => _fetchBrandQuotingCount(),
       showError: false,
     );
 
@@ -71,19 +83,8 @@ class HomeController extends GetxController {
       );
     }
 
-    if (upcomingResult.isSuccess && upcomingResult.data != null) {
-      if (upcomingResult.data!.isNotEmpty) {
-        current = current.copyWith(
-          jobsInProgress: _mapJobs(upcomingResult.data!),
-        );
-      }
-    }
-
-    if (actionRequiredResult.isSuccess && actionRequiredResult.data != null) {
-      final count = _extractCount(actionRequiredResult.data!);
-      if (count != null) {
-        current = current.copyWith(newOffers: count);
-      }
+    if (quotingCountResult.isSuccess && quotingCountResult.data != null) {
+      current = current.copyWith(newOffers: quotingCountResult.data!);
     }
 
     if (lifetimeResult.isSuccess && lifetimeResult.data != null) {
@@ -95,20 +96,9 @@ class HomeController extends GetxController {
 
   Future<void> _loadAgencyDashboard() async {
     var current = dashboard.value;
-    var summaryIncludesOffers = false;
 
     final summaryResult = await ApiErrorHandler.call(
       () => _agencyDashboardService.fetchSummary(),
-      showError: false,
-    );
-
-    final actionRequiredResult = await ApiErrorHandler.call(
-      () => _agencyDashboardService.fetchActionRequired(page: 1, limit: 5),
-      showError: false,
-    );
-
-    final deadlinesResult = await ApiErrorHandler.call(
-      () => _agencyDashboardService.fetchUpcomingDeadlines(page: 1, limit: 5),
       showError: false,
     );
 
@@ -123,17 +113,7 @@ class HomeController extends GetxController {
     );
 
     if (summaryResult.isSuccess && summaryResult.data != null) {
-      summaryIncludesOffers = _hasNewOffersField(summaryResult.data!);
       current = _applyAgencySummary(current, summaryResult.data!);
-    }
-
-    if (actionRequiredResult.isSuccess && actionRequiredResult.data != null) {
-      final count = actionRequiredResult.data!.total > 0
-          ? actionRequiredResult.data!.total
-          : actionRequiredResult.data!.items.length;
-      if (!summaryIncludesOffers && count > 0 && current.newOffers == 0) {
-        current = current.copyWith(newOffers: count);
-      }
     }
 
     if (workInProgressResult.isSuccess && workInProgressResult.data != null) {
@@ -148,35 +128,14 @@ class HomeController extends GetxController {
       current = _applyLifetimeSummary(current, lifetimeResult.data!);
     }
 
-    if (current.jobsInProgress.isEmpty &&
-        deadlinesResult.isSuccess &&
-        deadlinesResult.data != null &&
-        deadlinesResult.data!.items.isNotEmpty) {
-      current = current.copyWith(
-        jobsInProgress: _mapJobs(deadlinesResult.data!.items),
-      );
-    }
-
     dashboard.value = current;
   }
 
   Future<void> _loadInfluencerDashboard() async {
     var current = dashboard.value;
-    var summaryIncludesOffers = false;
 
     final summaryResult = await ApiErrorHandler.call(
       () => _influencerDashboardService.fetchSummary(),
-      showError: false,
-    );
-
-    final actionRequiredResult = await ApiErrorHandler.call(
-      () => _influencerDashboardService.fetchActionRequired(page: 1, limit: 5),
-      showError: false,
-    );
-
-    final deadlinesResult = await ApiErrorHandler.call(
-      () =>
-          _influencerDashboardService.fetchUpcomingDeadlines(page: 1, limit: 5),
       showError: false,
     );
 
@@ -191,17 +150,7 @@ class HomeController extends GetxController {
     );
 
     if (summaryResult.isSuccess && summaryResult.data != null) {
-      summaryIncludesOffers = _hasNewOffersField(summaryResult.data!);
       current = _applyInfluencerSummary(current, summaryResult.data!);
-    }
-
-    if (actionRequiredResult.isSuccess && actionRequiredResult.data != null) {
-      final count = actionRequiredResult.data!.total > 0
-          ? actionRequiredResult.data!.total
-          : actionRequiredResult.data!.items.length;
-      if (!summaryIncludesOffers && count > 0 && current.newOffers == 0) {
-        current = current.copyWith(newOffers: count);
-      }
     }
 
     if (workInProgressResult.isSuccess && workInProgressResult.data != null) {
@@ -216,24 +165,15 @@ class HomeController extends GetxController {
       current = _applyLifetimeSummary(current, lifetimeResult.data!);
     }
 
-    if (current.jobsInProgress.isEmpty &&
-        deadlinesResult.isSuccess &&
-        deadlinesResult.data != null &&
-        deadlinesResult.data!.items.isNotEmpty) {
-      current = current.copyWith(
-        jobsInProgress: _mapJobs(deadlinesResult.data!.items),
-      );
-    }
-
     dashboard.value = current;
   }
 
   List<JobItem> _mapJobs(List<Map<String, dynamic>> items) {
     return items.map((json) {
       final id = _stringFrom(json, [
+        'jobId',
         'campaignId',
         'id',
-        'jobId',
         'assignmentId',
       ]);
       final title = _stringFrom(json, [
@@ -243,20 +183,19 @@ class HomeController extends GetxController {
         'jobName',
       ]);
       final subTitle = _stringFrom(json, ['campaignType', 'type', 'subTitle']);
-      final assignedToName = _assignedToLabel(json['assignedTo']);
-      final clientName =
-          assignedToName ??
-          _stringFrom(json, [
-            'clientName',
-            'brandName',
-            'influencerName',
-            'name',
-          ]);
+      final subTitleTrKey = (subTitle ?? '').contains('influencer')
+          ? 'create_campaign_type_influencer_title'
+          : 'create_campaign_type_paid_title';
+      final assignedToName = json['assignedTo'] == null
+          ? json['brandName'] ?? '—'
+          : _formatAssignedTo(json['assignedTo']);
+      final clientName = assignedToName ?? '—';
 
       final budget =
           _doubleFrom(json['budget']) ??
           _doubleFrom(json['amount']) ??
           _doubleFrom(json['totalBudget']) ??
+          _doubleFrom(json['totalAmount']) ??
           _doubleFrom(json['price']) ??
           0.0;
 
@@ -268,7 +207,6 @@ class HomeController extends GetxController {
           _intFrom(json['completion']) ??
           0;
 
-      final dueDate = _parseDate(json['deadline'] ?? json['dueDate']);
       final displayDate = _parseDate(
         json['startedAt'] ??
             json['startingDate'] ??
@@ -278,8 +216,9 @@ class HomeController extends GetxController {
             json['deadline'] ??
             json['dueDate'],
       );
-
-      final dueInDays = _intFrom(json['dueInDays']) ?? _daysUntil(dueDate);
+      final duration = _intFrom(json['duration']);
+      final dueDate = displayDate?.add(Duration(days: duration ?? 0));
+      final dueInDays = _daysUntil(dueDate);
 
       final dateLabel =
           _stringFrom(json, ['dateLabel', 'deadlineLabel']) ??
@@ -288,7 +227,7 @@ class HomeController extends GetxController {
       return JobItem(
         id: id,
         title: title ?? '—',
-        subTitle: subTitle,
+        subTitle: subTitleTrKey,
         clientName: clientName ?? '—',
         campaignType: CampaignType.paidAd,
         dateLabel: dateLabel ?? '—',
@@ -296,8 +235,29 @@ class HomeController extends GetxController {
         sharePercent: sharePercent,
         progressPercent: progressPercent,
         dueInDays: dueInDays,
+        dueLabel: dueInDays.toString(),
       );
     }).toList();
+  }
+
+  Future<int> _fetchBrandQuotingCount() async {
+    final res = await _apiClient.dio.get(
+      '/campaign/my-campaigns',
+      queryParameters: {'status': 'quoting', 'page': 1, 'limit': 1},
+    );
+
+    final data = res.data;
+    if (data is! Map<String, dynamic>) return 0;
+
+    final meta = data['meta'];
+    if (meta is Map<String, dynamic>) {
+      final total = meta['total'];
+      if (total is int) return total;
+      if (total is num) return total.toInt();
+      if (total is String) return int.tryParse(total) ?? 0;
+    }
+
+    return 0;
   }
 
   void openJobDetails(JobItem job) {
@@ -308,6 +268,44 @@ class HomeController extends GetxController {
     Get.toNamed(AppRoutes.campaignDetails, id: 1, arguments: job);
   }
 
+  void openJobsTabByIndex(int targetTab) {
+    Get.find<BottomNavController>().onTabChanged(1);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (Get.isRegistered<JobsController>()) {
+        Get.find<JobsController>().setTabFromExternal(targetTab);
+      }
+    });
+  }
+
+  void openJobsTab({required bool isActiveJobs}) {
+    final accountTypeService = Get.find<AccountTypeService>();
+
+    final targetTab = isActiveJobs
+        ? (accountTypeService.isBrand ? 0 : 1)
+        : (accountTypeService.isBrand ? 1 : 0);
+
+    openJobsTabByIndex(targetTab);
+  }
+
+  void openCompletedJobs() {
+    final accountTypeService = Get.find<AccountTypeService>();
+    final targetTab = accountTypeService.isBrand ? 2 : 2;
+    openJobsTabByIndex(targetTab);
+  }
+
+  void openDeclinedJobs() {
+    final accountTypeService = Get.find<AccountTypeService>();
+    final targetTab = accountTypeService.isBrand ? 4 : 4;
+    openJobsTabByIndex(targetTab);
+  }
+
+  void openEarningsPage() {
+    // Replace this index if your earnings tab is in a different bottom-nav position.
+    const earningsTabIndex = 2;
+    Get.find<BottomNavController>().onTabChanged(earningsTabIndex);
+  }
+
   HomeDashboardModel _applyLifetimeSummary(
     HomeDashboardModel current,
     Map<String, dynamic> json,
@@ -316,26 +314,27 @@ class HomeController extends GetxController {
         ? json['data'] as Map<String, dynamic>
         : json;
 
-    final topName = _stringFrom(data, [
-      'topInfluencer',
-      'topInfluencerName',
-      'topClientName',
-      'topClient',
-    ]);
+    final topEntity = _extractTopLifetimeEntity(data);
+
+    final topName = _stringFrom(topEntity ?? const {}, ['name']);
     final topJobs = _intFrom(
-      data['topInfluencerJobsCompleted'] ??
+      topEntity?['jobsCompleted'] ??
+          topEntity?['totalJobsCompleted'] ??
+          data['topInfluencerJobsCompleted'] ??
           data['topClientJobsCompleted'] ??
           data['topJobsCompleted'],
     );
 
     final completedJobs = _intFrom(
-      data['totalCompletedJobs'] ??
+      data['totalCompleted'] ??
+          data['totalCompletedJobs'] ??
           data['completedJobs'] ??
           data['totalJobsCompleted'],
     );
 
     final declinedJobs = _intFrom(
-      data['totalDeclinedJobs'] ??
+      data['totalDeclined'] ??
+          data['totalDeclinedJobs'] ??
           data['declinedJobs'] ??
           data['totalJobsDeclined'],
     );
@@ -345,6 +344,14 @@ class HomeController extends GetxController {
     );
 
     final platform = _stringFrom(data, ['mostUsedPlatform', 'topPlatform']);
+
+    final rawLastCompletedDate =
+        topEntity?['lastCompletedJob']?['completedAt'] ??
+        topEntity?['lastCompletedJobDate'];
+
+    final formattedLastCompletedDate = _formatLifetimeSummaryDate(
+      _parseDate(rawLastCompletedDate),
+    );
 
     return current.copyWith(
       topClientName: topName != null && topName.isNotEmpty
@@ -359,6 +366,33 @@ class HomeController extends GetxController {
       mostUsedPlatform: platform != null && platform.isNotEmpty
           ? platform
           : current.mostUsedPlatform,
+      lastCompletedJobDateLabel: formattedLastCompletedDate,
+    );
+  }
+
+  Map<String, dynamic>? _extractTopLifetimeEntity(Map<String, dynamic> data) {
+    final topClient = data['topClient'];
+    if (topClient is Map<String, dynamic>) return topClient;
+
+    if (topClient is Map) {
+      return Map<String, dynamic>.from(topClient);
+    }
+
+    final topInfluencer = data['topInfluencer'];
+    if (topInfluencer is Map<String, dynamic>) return topInfluencer;
+
+    if (topInfluencer is Map) {
+      return Map<String, dynamic>.from(topInfluencer);
+    }
+
+    return null;
+  }
+
+  String _formatLifetimeSummaryDate(DateTime? date) {
+    return DateFormatter.format(
+      date: date,
+      pattern: 'dd MMM yyyy',
+      fallback: '-',
     );
   }
 
@@ -451,29 +485,15 @@ class HomeController extends GetxController {
     return null;
   }
 
-  String? _assignedToLabel(dynamic value) {
-    if (value is! List || value.isEmpty) return null;
-
-    final names = <String>[];
-    for (final item in value) {
-      if (item is Map) {
-        final name = item['name']?.toString().trim();
-        if (name != null && name.isNotEmpty) {
-          names.add(name);
-        }
-        continue;
-      }
-
-      if (item is String) {
-        final trimmed = item.trim();
-        if (trimmed.isNotEmpty) {
-          names.add(trimmed);
-        }
-      }
-    }
-
-    if (names.isEmpty) return null;
-    return names.join(', ');
+  String _formatAssignedTo(List<dynamic> assigned) {
+    if (assigned.isEmpty) return '—';
+    final names = assigned
+        .map((e) => (e as Map?)?['name']?.toString() ?? '')
+        .where((e) => e.trim().isNotEmpty)
+        .toList();
+    if (names.isEmpty) return '—';
+    if (names.length == 1) return names.first;
+    return '${names.first}, +${names.length - 1}';
   }
 
   DateTime? _parseDate(dynamic value) {
@@ -490,22 +510,12 @@ class HomeController extends GetxController {
 
   String? _formatDate(DateTime? date) {
     if (date == null) return null;
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    final m = months[date.month - 1];
-    return '$m ${date.day}, ${date.year}';
+
+    return DateFormatter.format(
+      date: date,
+      pattern: 'MMM dd, yyyy',
+      fallback: '-',
+    );
   }
 
   int _toThousands(double amount) {

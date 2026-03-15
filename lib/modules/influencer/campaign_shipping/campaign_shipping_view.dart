@@ -7,6 +7,7 @@ import 'package:influencer_app/core/utils/constants.dart';
 import 'package:influencer_app/core/widgets/custom_button.dart';
 import 'package:influencer_app/core/widgets/custom_drop_down_menu.dart';
 import 'package:influencer_app/core/widgets/custom_text_form_field.dart';
+import 'package:influencer_app/modules/influencer/models/influencer_profile_model.dart';
 
 import 'campaign_shipping_controller.dart';
 
@@ -19,13 +20,27 @@ class CampaignShippingView extends GetView<CampaignShippingController> {
       backgroundColor: AppPalette.background,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 22.h),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.arrow_back, size: 25.sp, color: AppPalette.primary),
-              SizedBox(height: 20.h),
-              _ShippingSection(),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    GestureDetector(
+                      onTap: () => Get.back(id: 1),
+                      child: Icon(
+                        Icons.arrow_back,
+                        size: 25.sp,
+                        color: AppPalette.primary,
+                      ),
+                    ),
+                    SizedBox(height: 20.h),
+                    _ShippingSection(),
+                  ],
+                ),
+              ),
               SizedBox(height: 32.h),
               _TermsSection(),
             ],
@@ -35,8 +50,6 @@ class CampaignShippingView extends GetView<CampaignShippingController> {
     );
   }
 }
-
-// ---------------- SHIPPING SECTION ----------------
 
 class _ShippingSection extends GetView<CampaignShippingController> {
   @override
@@ -51,7 +64,6 @@ class _ShippingSection extends GetView<CampaignShippingController> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // title row ...
           Row(
             children: [
               Icon(
@@ -84,39 +96,58 @@ class _ShippingSection extends GetView<CampaignShippingController> {
             ],
           ),
           SizedBox(height: 16.h),
-          Obx(
-            () => Column(
+          Obx(() {
+            if (controller.addresses.isEmpty) {
+              return Padding(
+                padding: EdgeInsets.symmetric(vertical: 12.h),
+                child: Text(
+                  'shipping_no_address_found'.tr,
+                  style: AppTheme.textStyle.copyWith(
+                    fontSize: 12.sp,
+                    color: AppPalette.subtext,
+                  ),
+                ),
+              );
+            }
+
+            return Column(
               children: List.generate(controller.addresses.length, (index) {
                 final address = controller.addresses[index];
-                final bool selected = controller.selectedIndex.value == index;
+                final selected = controller.selectedIndex.value == index;
+
                 return Padding(
                   padding: EdgeInsets.only(bottom: 12.h),
                   child: _AddressCard(
-                    labelKey: address.labelKey,
-                    address: address.address,
-                    isDefault: address.isDefault,
+                    address: address,
                     selected: selected,
                     onTap: () => controller.onAddressSelected(index),
                     onEditTap: () => controller.onEditPressed(index),
+                    isEditDisabled: controller.isAddressSaving.value,
                   ),
                 );
               }),
-            ),
-          ),
+            );
+          }),
           SizedBox(height: 8.h),
-          CustomButton.dotted(
-            height: 41.h,
-            width: double.infinity,
-            onTap: controller.onAddAnotherPressed,
-            btnText: 'shipping_add_another'.tr,
-            btnColor: AppPalette.white,
-            textStyle: AppTheme.textStyle.copyWith(
-              fontSize: 14.sp,
-              fontWeight: .w500,
-              color: AppPalette.secondary,
-            ),
-            borderColor: AppPalette.secondary,
-          ),
+          Obx(() {
+            return CustomButton.dotted(
+              height: 41.h,
+              width: double.infinity,
+              onTap: controller.isAddressSaving.value
+                  ? null
+                  : controller.onAddAnotherPressed,
+              btnText: controller.isAddressSaving.value
+                  ? 'common_loading'.tr
+                  : 'shipping_add_another'.tr,
+              btnColor: AppPalette.white,
+              textStyle: AppTheme.textStyle.copyWith(
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w500,
+                color: AppPalette.secondary,
+              ),
+              borderColor: AppPalette.secondary,
+            );
+          }),
         ],
       ),
     );
@@ -124,27 +155,23 @@ class _ShippingSection extends GetView<CampaignShippingController> {
 }
 
 class _AddressCard extends StatelessWidget {
-  final String labelKey;
-  final String address;
-  final bool isDefault;
+  final InfluencerAddress address;
   final bool selected;
   final VoidCallback onTap;
   final VoidCallback onEditTap;
+  final bool isEditDisabled;
 
   const _AddressCard({
-    required this.labelKey,
     required this.address,
-    required this.isDefault,
     required this.selected,
     required this.onTap,
     required this.onEditTap,
+    this.isEditDisabled = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final Color borderColor = selected
-        ? AppPalette.secondary
-        : AppPalette.border1;
+    final borderColor = selected ? AppPalette.secondary : AppPalette.border1;
 
     return GestureDetector(
       onTap: onTap,
@@ -157,10 +184,7 @@ class _AddressCard extends StatelessWidget {
           border: Border.all(color: borderColor, width: kBorderWidth0_5),
         ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          mainAxisAlignment: .center,
           children: [
-            // radio
             Container(
               width: 22.w,
               height: 22.w,
@@ -182,18 +206,18 @@ class _AddressCard extends StatelessWidget {
               ),
             ),
             SizedBox(width: 12.w),
-
-            // texts
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: .center,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   FittedBox(
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      labelKey.tr,
+                      (address.addressName?.trim().isNotEmpty ?? false)
+                          ? address.addressName!.trim()
+                          : 'shipping_address_custom'.tr,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: AppTheme.textStyle.copyWith(
@@ -204,7 +228,7 @@ class _AddressCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    address,
+                    address.formattedAddress,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: AppTheme.textStyle.copyWith(
@@ -212,7 +236,7 @@ class _AddressCard extends StatelessWidget {
                       color: AppPalette.subtext,
                     ),
                   ),
-                  if (isDefault) ...[
+                  if (address.isDefault) ...[
                     SizedBox(height: 10.h),
                     Container(
                       padding: EdgeInsets.symmetric(
@@ -236,15 +260,16 @@ class _AddressCard extends StatelessWidget {
                 ],
               ),
             ),
-
             SizedBox(width: 8.w),
             GestureDetector(
-              onTap: onEditTap,
+              onTap: isEditDisabled ? null : onEditTap,
               behavior: HitTestBehavior.opaque,
               child: Icon(
                 Icons.edit_rounded,
                 size: 18.sp,
-                color: AppPalette.secondary,
+                color: isEditDisabled
+                    ? AppPalette.subtext
+                    : AppPalette.secondary,
               ),
             ),
           ],
@@ -253,7 +278,6 @@ class _AddressCard extends StatelessWidget {
     );
   }
 }
-// ---------------- TERMS & ACTIONS SECTION ----------------
 
 class _TermsSection extends GetView<CampaignShippingController> {
   @override
@@ -267,10 +291,9 @@ class _TermsSection extends GetView<CampaignShippingController> {
       ),
       child: Column(
         children: [
-          // First checkbox
           Obx(
             () => Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Checkbox(
                   value: controller.hasReadTerms.value,
@@ -286,7 +309,7 @@ class _TermsSection extends GetView<CampaignShippingController> {
                     'shipping_confirm_read_terms'.tr,
                     style: AppTheme.textStyle.copyWith(
                       fontSize: 12.sp,
-                      fontWeight: .w500,
+                      fontWeight: FontWeight.w500,
                       color: AppPalette.subtext,
                     ),
                   ),
@@ -295,8 +318,6 @@ class _TermsSection extends GetView<CampaignShippingController> {
             ),
           ),
           SizedBox(height: 8.h),
-
-          // Second checkbox
           Obx(
             () => Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -315,7 +336,7 @@ class _TermsSection extends GetView<CampaignShippingController> {
                     'shipping_accept_license_terms'.tr,
                     style: AppTheme.textStyle.copyWith(
                       fontSize: 12.sp,
-                      fontWeight: .w500,
+                      fontWeight: FontWeight.w500,
                       color: AppPalette.subtext,
                     ),
                   ),
@@ -324,26 +345,31 @@ class _TermsSection extends GetView<CampaignShippingController> {
             ),
           ),
           SizedBox(height: 16.h),
+          Obx(() {
+            final loading = controller.isAcceptLoading.value;
 
-          Row(
-            children: [
-              Expanded(
-                child: CustomButton(
-                  onTap: controller.onDeclinePressed,
-                  btnText: 'shipping_decline'.tr,
-                  btnColor: AppPalette.defaultFill,
+            return Row(
+              children: [
+                Expanded(
+                  child: CustomButton(
+                    onTap: loading ? null : controller.onDeclinePressed,
+                    btnText: 'shipping_decline'.tr,
+                    btnColor: AppPalette.defaultFill,
+                  ),
                 ),
-              ),
-              SizedBox(width: 12.w),
-              Expanded(
-                child: CustomButton(
-                  onTap: controller.onAcceptPressed,
-                  btnText: 'shipping_accept'.tr,
-                  textColor: AppPalette.white,
+                SizedBox(width: 12.w),
+                Expanded(
+                  child: CustomButton(
+                    onTap: loading ? null : controller.onAcceptPressed,
+                    btnText: loading
+                        ? 'common_loading'.tr
+                        : 'shipping_accept'.tr,
+                    textColor: AppPalette.white,
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            );
+          }),
         ],
       ),
     );
@@ -351,7 +377,7 @@ class _TermsSection extends GetView<CampaignShippingController> {
 }
 
 class AddressFormDialog extends StatelessWidget {
-  final ShippingAddress? initial;
+  final InfluencerAddress? initial;
 
   const AddressFormDialog({super.key, this.initial});
 
@@ -373,7 +399,6 @@ class AddressFormDialog extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                // --------- Top row: icon + title + set default + close ----------
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
@@ -400,8 +425,6 @@ class AddressFormDialog extends StatelessWidget {
                       ),
                     ),
                     SizedBox(width: 8.w),
-
-                    SizedBox(width: 8.w),
                     GestureDetector(
                       onTap: () => Get.back(),
                       child: Icon(
@@ -427,10 +450,7 @@ class AddressFormDialog extends StatelessWidget {
                     ),
                   ),
                 ),
-
                 SizedBox(height: 8.h),
-
-                // --------- Give a name ----------
                 CustomTextFormField(
                   title: 'shipping_address_form_give_name_label'.tr,
                   hintText: 'shipping_address_form_give_name_hint'.tr,
@@ -441,8 +461,6 @@ class AddressFormDialog extends StatelessWidget {
                   ),
                 ),
                 SizedBox(height: 18.h),
-
-                // --------- Thana ----------
                 Obx(() {
                   return CustomDropDownMenu(
                     title: 'shipping_address_form_thana_label'.tr,
@@ -452,10 +470,7 @@ class AddressFormDialog extends StatelessWidget {
                     onChanged: formCtrl.setThana,
                   );
                 }),
-
                 SizedBox(height: 18.h),
-
-                // --------- Zilla ----------
                 Obx(() {
                   return CustomDropDownMenu(
                     title: 'shipping_address_form_zilla_label'.tr,
@@ -466,8 +481,6 @@ class AddressFormDialog extends StatelessWidget {
                   );
                 }),
                 SizedBox(height: 18.h),
-
-                // --------- Full address ----------
                 CustomTextFormField(
                   title: 'shipping_address_form_full_label'.tr,
                   hintText: 'shipping_address_form_full_hint'.tr,
@@ -479,8 +492,6 @@ class AddressFormDialog extends StatelessWidget {
                   maxLines: 4,
                 ),
                 SizedBox(height: 24.h),
-
-                // --------- Save button ----------
                 Center(
                   child: CustomButton(
                     onTap: formCtrl.save,

@@ -314,7 +314,7 @@ class AppTranslations extends Translations {
       'home_locked_bin_title': 'BIN',
       'home_locked_payment_title': 'Payment Setup',
       'home_locked_verify_email_title': 'Verify Email',
-      'home_locked_generic_pending': 'Pending',
+      'generic_pending': 'Pending',
 
       'home_locked_profile_picture_title': 'Add Profile Picture',
       'home_locked_profile_picture_sub': 'That’s how we are going to reach you',
@@ -1126,6 +1126,19 @@ class AppTranslations extends Translations {
           'Cancellation request submitted successfully.',
       'brand_campaign_details_agency_offer_missing':
           'No agency offer found for this campaign.',
+
+      "shipping_no_address_found": "No address found",
+      "shipping_select_address_error": "Please select an address",
+      "shipping_error_title": "Error",
+      "shipping_success_title": "Success",
+      "shipping_address_added_success": "Address added successfully",
+      "shipping_address_updated_success": "Address updated successfully",
+      "shipping_address_edit_name_missing": "Address name is missing",
+
+      "jobs_decline_reason_title": "Decline reason",
+      "jobs_decline_reason_hint": "Write the reason for declining",
+      "jobs_decline_submit": "Submit decline",
+      "jobs_decline_reason_required": "Please enter a decline reason",
     },
 
     // Bangla
@@ -1445,7 +1458,7 @@ class AppTranslations extends Translations {
       'home_locked_bin_title': 'বিআইএন (BIN)',
       'home_locked_payment_title': 'পেমেন্ট সেটআপ',
       'home_locked_verify_email_title': 'ইমেইল ভেরিফাই করুন',
-      'home_locked_generic_pending': 'অপেক্ষমাণ',
+      'generic_pending': 'অপেক্ষমাণ',
 
       'home_locked_profile_picture_title': 'প্রোফাইল ছবি যোগ করুন',
       'home_locked_profile_picture_sub': 'ক্লায়েন্টরা আপনাকে সহজে চিনতে পারবে',
@@ -2261,6 +2274,18 @@ class AppTranslations extends Translations {
           'বাতিলের অনুরোধ সফলভাবে জমা হয়েছে।',
       'brand_campaign_details_agency_offer_missing':
           'এই ক্যাম্পেইনের জন্য কোনো এজেন্সি অফার পাওয়া যায়নি।',
+      "shipping_no_address_found": "কোনো ঠিকানা পাওয়া যায়নি",
+      "shipping_select_address_error": "দয়া করে একটি ঠিকানা নির্বাচন করুন",
+      "shipping_error_title": "ত্রুটি",
+      "shipping_success_title": "সফল",
+      "shipping_address_added_success": "ঠিকানা সফলভাবে যোগ করা হয়েছে",
+      "shipping_address_updated_success": "ঠিকানা সফলভাবে আপডেট করা হয়েছে",
+      "shipping_address_edit_name_missing": "ঠিকানার নাম পাওয়া যায়নি",
+
+      "jobs_decline_reason_title": "প্রত্যাখ্যানের কারণ",
+      "jobs_decline_reason_hint": "প্রত্যাখ্যানের কারণ লিখুন",
+      "jobs_decline_submit": "প্রত্যাখ্যান জমা দিন",
+      "jobs_decline_reason_required": "দয়া করে প্রত্যাখ্যানের কারণ লিখুন",
     },
   };
 }

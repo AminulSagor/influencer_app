@@ -18,18 +18,6 @@ class InfluencerDashboardService {
     return const {};
   }
 
-  Future<Map<String, dynamic>> fetchEarningsOverview({
-    String range = '7d',
-  }) async {
-    final res = await _api.dio.get(
-      '/campaign/influencer/dashboard/earnings-overview',
-      queryParameters: {'range': range},
-    );
-    final data = res.data;
-    if (data is Map<String, dynamic>) return data;
-    return const {};
-  }
-
   Future<Map<String, dynamic>> fetchLifetimeSummary() async {
     final res = await _api.dio.get('/influencer/dashboard/lifetime-summary');
     final data = res.data;

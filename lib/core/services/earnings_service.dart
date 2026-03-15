@@ -18,20 +18,15 @@ class EarningsService {
   final ApiClient _api;
   EarningsService(this._api);
 
-  Future<Map<String, dynamic>> fetchInfluencerSummary() async {
-    final res = await _api.dio.get('/campaign/influencer/dashboard/summary');
+  Future<Map<String, dynamic>> fetchInfluencerEarningsSummary() async {
+    final res = await _api.dio.get('/influencer/earnings/summary');
     final data = res.data;
     if (data is Map<String, dynamic>) return data;
     return const {};
   }
 
-  Future<Map<String, dynamic>> fetchInfluencerEarningsOverview({
-    String range = '7d',
-  }) async {
-    final res = await _api.dio.get(
-      '/campaign/influencer/dashboard/earnings-overview',
-      queryParameters: {'range': range},
-    );
+  Future<Map<String, dynamic>> fetchAgencyEarningsSummary() async {
+    final res = await _api.dio.get('/agency/dashboard/earnings-summary');
     final data = res.data;
     if (data is Map<String, dynamic>) return data;
     return const {};
@@ -84,6 +79,7 @@ class EarningsService {
       final total = meta is Map<String, dynamic>
           ? (meta['total'] is int ? meta['total'] as int : 0)
           : 0;
+
       if (list is List) {
         return PagedResult(
           items: list
@@ -96,6 +92,7 @@ class EarningsService {
         );
       }
     }
+
     return PagedResult(items: const [], total: 0, page: page, limit: limit);
   }
 }

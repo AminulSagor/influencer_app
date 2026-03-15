@@ -10,6 +10,7 @@ import 'package:intl/intl.dart';
 import '../../../core/models/job_item.dart';
 import '../../../core/services/api_client.dart';
 import '../../../core/services/api_error_handler.dart';
+import '../../../core/widgets/reason_bottom_sheet.dart';
 import '../../../routes/app_routes.dart';
 
 class JobsController extends GetxController {
@@ -116,6 +117,10 @@ class JobsController extends GetxController {
 
   Worker? _searchWorker;
 
+  final RxMap<int, int> brandTabCounts = <int, int>{}.obs;
+  final RxMap<int, int> agencyTabCounts = <int, int>{}.obs;
+  final RxMap<int, int> influencerTabCounts = <int, int>{}.obs;
+
   @override
   void onInit() {
     super.onInit();
@@ -151,6 +156,17 @@ class JobsController extends GetxController {
     super.onClose();
   }
 
+  void setTabFromExternal(int index) {
+    currentTabIndex.value = index;
+
+    final c = _tabScrollControllers[index];
+    if (c != null && c.hasClients) {
+      c.jumpTo(0);
+    }
+
+    refreshCurrentTab();
+  }
+
   ScrollController scrollControllerForTab(int index) {
     return _tabScrollControllers.putIfAbsent(index, () {
       final controller = ScrollController();
@@ -170,6 +186,87 @@ class JobsController extends GetxController {
       });
       return controller;
     });
+  }
+
+  Future<void> refreshCurrentTab() async {
+    if (isInfluencer) {
+      await fetchInfluencerCounts();
+    }
+
+    if (isBrand) {
+      await _refreshBrandTab();
+      return;
+    }
+
+    if (isAdAgency) {
+      await _refreshAgencyTab();
+      return;
+    }
+
+    await _refreshInfluencerTab();
+  }
+
+  Future<void> _refreshAgencyTab() async {
+    switch (currentTabIndex.value) {
+      case 0:
+        await fetchNewOffers(reset: true);
+        break;
+      case 1:
+        await fetchQuotedJobs(reset: true);
+        break;
+      case 2:
+        await fetchActiveJobs(reset: true);
+        break;
+      case 3:
+        await fetchCompletedJobs(reset: true);
+        break;
+      case 4:
+        await fetchPendingPayments(reset: true);
+        break;
+      case 5:
+        await fetchDeclinedJobs(reset: true);
+        break;
+    }
+  }
+
+  Future<void> _refreshInfluencerTab() async {
+    switch (currentTabIndex.value) {
+      case 0:
+        await fetchNewOffers(reset: true);
+        break;
+      case 1:
+        await fetchActiveJobs(reset: true);
+        break;
+      case 2:
+        await fetchCompletedJobs(reset: true);
+        break;
+      case 3:
+        await fetchPendingPayments(reset: true);
+        break;
+      case 4:
+        await fetchDeclinedJobs(reset: true);
+        break;
+    }
+  }
+
+  Future<void> _refreshBrandTab() async {
+    switch (currentTabIndex.value) {
+      case 0:
+        await fetchBrandActive(reset: true);
+        break;
+      case 1:
+        await fetchBrandBudgeting(reset: true);
+        break;
+      case 2:
+        await fetchBrandCompleted(reset: true);
+        break;
+      case 3:
+        await fetchBrandDrafts(reset: true);
+        break;
+      case 4:
+        await fetchBrandCanceled(reset: true);
+        break;
+    }
   }
 
   bool _canLoadMoreForTab(int index) {
@@ -342,7 +439,6 @@ class JobsController extends GetxController {
   void changeTab(int index) {
     currentTabIndex.value = index;
 
-    // reset scroll position for that tab (prevents immediate loadMore)
     final c = _tabScrollControllers[index];
     if (c != null && c.hasClients) {
       c.jumpTo(0);
@@ -480,6 +576,55 @@ class JobsController extends GetxController {
 
   int getCountForTab(int index) {
     if (isBrand) {
+      return brandTabCounts[index] ?? _fallbackCountForTab(index);
+    }
+
+    if (isAdAgency) {
+      return agencyTabCounts[index] ?? _fallbackCountForTab(index);
+    }
+
+    final apiCount = influencerTabCounts[index];
+    if (apiCount != null) return apiCount;
+
+    final hasCounts = influencerCounts.isNotEmpty;
+
+    int byKey(String key, int fallback) {
+      if (!hasCounts) return fallback;
+      return influencerCounts[key] ?? fallback;
+    }
+
+    switch (index) {
+      case 0:
+        return byKey('new_offer', _fallbackCountForTab(index));
+      case 1:
+        return byKey('active', _fallbackCountForTab(index));
+      case 2:
+        return byKey('completed', _fallbackCountForTab(index));
+      case 3:
+        return byKey('pending', _fallbackCountForTab(index));
+      case 4:
+        return byKey('declined', _fallbackCountForTab(index));
+      default:
+        return 0;
+    }
+  }
+
+  void _setTabCount({required int tabIndex, required int total}) {
+    if (isBrand) {
+      brandTabCounts[tabIndex] = total;
+      return;
+    }
+
+    if (isAdAgency) {
+      agencyTabCounts[tabIndex] = total;
+      return;
+    }
+
+    influencerTabCounts[tabIndex] = total;
+  }
+
+  int _fallbackCountForTab(int index) {
+    if (isBrand) {
       switch (index) {
         case 0:
           return brandActive.length;
@@ -515,23 +660,17 @@ class JobsController extends GetxController {
       }
     }
 
-    final hasCounts = influencerCounts.isNotEmpty;
-    int byKey(String key, int fallback) {
-      if (!hasCounts) return fallback;
-      return influencerCounts[key] ?? fallback;
-    }
-
     switch (index) {
       case 0:
-        return byKey('new_offer', newOffers.length);
+        return newOffers.length;
       case 1:
-        return byKey('active', activeJobs.length);
+        return activeJobs.length;
       case 2:
-        return byKey('completed', completedJobs.length);
+        return completedJobs.length;
       case 3:
-        return byKey('pending', pendingPayments.length);
+        return pendingPayments.length;
       case 4:
-        return byKey('declined', declinedJobs.length);
+        return declinedJobs.length;
       default:
         return 0;
     }
@@ -669,6 +808,7 @@ class JobsController extends GetxController {
   Future<void> fetchNewOffers({bool reset = false}) async {
     await _fetchPagedJobs(
       reset: reset,
+      tabIndex: 0,
       isLoading: isLoadingNewOffers,
       hasMore: hasMoreNewOffers,
       target: newOffers,
@@ -698,6 +838,7 @@ class JobsController extends GetxController {
   Future<void> fetchQuotedJobs({bool reset = false}) async {
     await _fetchPagedJobs(
       reset: reset,
+      tabIndex: 1,
       isLoading: isLoadingQuotedJobs,
       hasMore: hasMoreQuotedJobs,
       target: quotedJobs,
@@ -718,6 +859,7 @@ class JobsController extends GetxController {
   Future<void> fetchActiveJobs({bool reset = false}) async {
     await _fetchPagedJobs(
       reset: reset,
+      tabIndex: isAdAgency ? 2 : 1,
       isLoading: isLoadingActiveJobs,
       hasMore: hasMoreActiveJobs,
       target: activeJobs,
@@ -747,6 +889,7 @@ class JobsController extends GetxController {
   Future<void> fetchCompletedJobs({bool reset = false}) async {
     await _fetchPagedJobs(
       reset: reset,
+      tabIndex: isAdAgency ? 3 : 2,
       isLoading: isLoadingCompletedJobs,
       hasMore: hasMoreCompletedJobs,
       target: completedJobs,
@@ -776,6 +919,7 @@ class JobsController extends GetxController {
   Future<void> fetchPendingPayments({bool reset = false}) async {
     await _fetchPagedJobs(
       reset: reset,
+      tabIndex: isAdAgency ? 4 : 3,
       isLoading: isLoadingPendingPayments,
       hasMore: hasMorePendingPayments,
       target: pendingPayments,
@@ -805,6 +949,7 @@ class JobsController extends GetxController {
   Future<void> fetchDeclinedJobs({bool reset = false}) async {
     await _fetchPagedJobs(
       reset: reset,
+      tabIndex: isAdAgency ? 5 : 4,
       isLoading: isLoadingDeclinedJobs,
       hasMore: hasMoreDeclinedJobs,
       target: declinedJobs,
@@ -868,6 +1013,7 @@ class JobsController extends GetxController {
 
   Future<void> _fetchPagedJobs({
     required bool reset,
+    required int tabIndex,
     required RxBool isLoading,
     required RxBool hasMore,
     required RxList<JobItem> target,
@@ -899,6 +1045,8 @@ class JobsController extends GetxController {
       final page = result.data!;
       final items = page.items;
 
+      _setTabCount(tabIndex: tabIndex, total: page.totalItems);
+
       if (items.isEmpty) {
         hasMore.value = false;
         return;
@@ -906,9 +1054,6 @@ class JobsController extends GetxController {
 
       target.addAll(items);
 
-      // ✅ Key fix: decide end by BOTH rules:
-      // 1) API totalPages (if provided)
-      // 2) items length < pageSize (most reliable)
       final nextPage = currentPage + 1;
       setPage(nextPage);
 
@@ -924,6 +1069,7 @@ class JobsController extends GetxController {
   Future<void> fetchBrandActive({bool reset = false}) async {
     await _fetchPagedJobs(
       reset: reset,
+      tabIndex: 0,
       isLoading: isLoadingBrandActive,
       hasMore: hasMoreBrandActive,
       target: brandActive,
@@ -942,6 +1088,7 @@ class JobsController extends GetxController {
   Future<void> fetchBrandBudgeting({bool reset = false}) async {
     await _fetchPagedJobs(
       reset: reset,
+      tabIndex: 1,
       isLoading: isLoadingBrandBudgeting,
       hasMore: hasMoreBrandBudgeting,
       target: brandBudgeting,
@@ -960,6 +1107,7 @@ class JobsController extends GetxController {
   Future<void> fetchBrandCompleted({bool reset = false}) async {
     await _fetchPagedJobs(
       reset: reset,
+      tabIndex: 2,
       isLoading: isLoadingBrandCompleted,
       hasMore: hasMoreBrandCompleted,
       target: brandCompleted,
@@ -978,6 +1126,7 @@ class JobsController extends GetxController {
   Future<void> fetchBrandDrafts({bool reset = false}) async {
     await _fetchPagedJobs(
       reset: reset,
+      tabIndex: 3,
       isLoading: isLoadingBrandDrafts,
       hasMore: hasMoreBrandDrafts,
       target: brandDrafts,
@@ -996,6 +1145,7 @@ class JobsController extends GetxController {
   Future<void> fetchBrandCanceled({bool reset = false}) async {
     await _fetchPagedJobs(
       reset: reset,
+      tabIndex: 4,
       isLoading: isLoadingBrandCanceled,
       hasMore: hasMoreBrandCanceled,
       target: brandCanceled,
@@ -1044,9 +1194,15 @@ class JobsController extends GetxController {
         .toList();
 
     final meta = data['meta'] as Map<String, dynamic>?;
-    final totalPages = (meta?['total'] as num?)?.toInt() ?? 1;
+    final totalItems = (meta?['total'] as num?)?.toInt() ?? list.length;
+    final limit = (meta?['limit'] as num?)?.toInt() ?? pageSize;
+    final totalPages = totalItems <= 0 ? 1 : (totalItems / limit).ceil();
 
-    return _CampaignPage(items: items, totalPages: totalPages);
+    return _CampaignPage(
+      items: items,
+      totalPages: totalPages,
+      totalItems: totalItems,
+    );
   }
 
   // -------- AGENCY API --------
@@ -1135,9 +1291,15 @@ class JobsController extends GetxController {
         .toList();
 
     final meta = (data['pagination'] ?? data['meta']) as Map<String, dynamic>?;
-    final totalPages = (meta?['total'] as num?)?.toInt() ?? 1;
+    final totalItems = (meta?['total'] as num?)?.toInt() ?? list.length;
+    final limit = (meta?['limit'] as num?)?.toInt() ?? pageSize;
+    final totalPages = totalItems <= 0 ? 1 : (totalItems / limit).ceil();
 
-    return _CampaignPage(items: items, totalPages: totalPages);
+    return _CampaignPage(
+      items: items,
+      totalPages: totalPages,
+      totalItems: totalItems,
+    );
   }
 
   Future<_CampaignPage> _fetchAgencyCampaigns({
@@ -1170,9 +1332,15 @@ class JobsController extends GetxController {
         .toList();
 
     final meta = data['meta'] as Map<String, dynamic>?;
-    final totalPages = (meta?['total'] as num?)?.toInt() ?? 1;
+    final totalItems = (meta?['total'] as num?)?.toInt() ?? list.length;
+    final limit = (meta?['limit'] as num?)?.toInt() ?? pageSize;
+    final totalPages = totalItems <= 0 ? 1 : (totalItems / limit).ceil();
 
-    return _CampaignPage(items: items, totalPages: totalPages);
+    return _CampaignPage(
+      items: items,
+      totalPages: totalPages,
+      totalItems: totalItems,
+    );
   }
 
   JobItem _mapAgencyCampaignToJob(Map<String, dynamic> json) {
@@ -1202,7 +1370,7 @@ class JobsController extends GetxController {
     final budget = totalBudget > 0 ? totalBudget : availableBudget;
 
     final timeLeftToRequoteMinutes = _intFrom(json['timeLeftToRequoteMinutes']);
-    final progress = _intFrom(json['progress']);
+    final progress = _intFrom(json['progressPercent']);
 
     return JobItem(
       id: campaignId,
@@ -1336,6 +1504,7 @@ class JobsController extends GetxController {
     final createdAt = json['createdAt']?.toString();
     final progress = json['progress'];
     final duration = _intFrom(json['duration']);
+    final needSampleProduct = json['needSampleProduct'] == true;
 
     DateTime? deadline;
     final startDt = startingDate != null
@@ -1362,14 +1531,20 @@ class JobsController extends GetxController {
           ? null
           : _buildDueLabel(deadline.toIso8601String()),
       progressPercent: _intFrom(progress),
+      needToSendSample: needSampleProduct,
     );
   }
 
   // -------- INFLUENCER ACTIONS --------
 
   Future<void> acceptInfluencerOffer(JobItem job) async {
-    final jobId = job.id;
+    final jobId = job.id?.trim();
     if (jobId == null || jobId.isEmpty) return;
+
+    if (job.needToSendSample == true) {
+      await Get.toNamed(AppRoutes.campaignShipping, id: 1, arguments: job);
+      return;
+    }
 
     final result = await ApiErrorHandler.call(
       () => _campaignService.acceptInfluencerJobOffer(jobId: jobId),
@@ -1384,11 +1559,22 @@ class JobsController extends GetxController {
   }
 
   Future<void> declineInfluencerOffer(JobItem job) async {
-    final jobId = job.id;
+    final jobId = job.id?.trim();
     if (jobId == null || jobId.isEmpty) return;
 
+    final reason = await showReasonBottomSheet(
+      title: 'jobs_decline_reason_title'.tr,
+      hintText: 'jobs_decline_reason_hint'.tr,
+      submitText: 'jobs_decline_submit'.tr,
+    );
+
+    if (reason == null || reason.trim().isEmpty) return;
+
     final result = await ApiErrorHandler.call(
-      () => _apiClient.dio.post('/campaign/influencer/job/$jobId/decline'),
+      () => _campaignService.declineInfluencerJobOffer(
+        jobId: jobId,
+        reason: reason,
+      ),
     );
 
     if (result.isSuccess) {
@@ -1474,7 +1660,9 @@ class JobsController extends GetxController {
 
   String _campaignTypeLabel(String? raw) {
     final v = (raw ?? '').toLowerCase();
-    return v == 'paid_ad' || v == 'paidad' ? 'Paid Ad' : 'Influencer Promotion';
+    return v == 'paid_ad' || v == 'paidad'
+        ? 'create_campaign_type_paid_title'
+        : 'create_campaign_type_influencer_title';
   }
 
   String _budgetStatusLabel({
@@ -1538,6 +1726,11 @@ class JobsController extends GetxController {
 class _CampaignPage {
   final List<JobItem> items;
   final int totalPages;
+  final int totalItems;
 
-  const _CampaignPage({required this.items, required this.totalPages});
+  const _CampaignPage({
+    required this.items,
+    required this.totalPages,
+    required this.totalItems,
+  });
 }

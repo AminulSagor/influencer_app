@@ -15,6 +15,7 @@ class HomeDashboardModel {
   final int totalJobsDeclined;
   final int totalEarningsK;
   final String mostUsedPlatform;
+  final String lastCompletedJobDateLabel;
 
   const HomeDashboardModel({
     required this.userType,
@@ -29,6 +30,7 @@ class HomeDashboardModel {
     required this.totalJobsDeclined,
     required this.totalEarningsK,
     required this.mostUsedPlatform,
+    required this.lastCompletedJobDateLabel,
   });
 
   factory HomeDashboardModel.empty({
@@ -47,6 +49,7 @@ class HomeDashboardModel {
       totalJobsDeclined: 0,
       totalEarningsK: 0,
       mostUsedPlatform: '—',
+      lastCompletedJobDateLabel: '-',
     );
   }
 
@@ -63,6 +66,7 @@ class HomeDashboardModel {
     int? totalJobsDeclined,
     int? totalEarningsK,
     String? mostUsedPlatform,
+    String? lastCompletedJobDateLabel,
   }) {
     return HomeDashboardModel(
       userType: userType ?? this.userType,
@@ -78,6 +82,8 @@ class HomeDashboardModel {
       totalJobsDeclined: totalJobsDeclined ?? this.totalJobsDeclined,
       totalEarningsK: totalEarningsK ?? this.totalEarningsK,
       mostUsedPlatform: mostUsedPlatform ?? this.mostUsedPlatform,
+      lastCompletedJobDateLabel:
+          lastCompletedJobDateLabel ?? this.lastCompletedJobDateLabel,
     );
   }
 }

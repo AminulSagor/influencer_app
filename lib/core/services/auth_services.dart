@@ -1,8 +1,10 @@
+import 'dart:developer' as dev;
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'api_client.dart';
 import 'token_service.dart';
 
-/// Small typed results (keeps controller clean)
 class SignupResult {
   final String message;
   final String phone;
@@ -40,7 +42,6 @@ class AuthService {
   final ApiClient _api;
   final TokenService _tokenService;
 
-  // ---- Endpoints (from Postman collection) ----
   static const String _signup = '/influencer/auth/signup';
   static const String _login = '/influencer/auth/login';
   static const String _verifyOtp = '/influencer/auth/verify-otp';
@@ -57,12 +58,49 @@ class AuthService {
 
   static const String _emailVerifyBase = '/influencer/auth/email';
 
+  static const String _saveDeviceFcmToken = '/notifications/device/fcm-token';
+  static const String _deleteDeviceFcmTokenBase = '/notifications/device/fcm';
+
   static String _emailRequestOtp(String role) =>
       '$_emailVerifyBase/$role/request-otp';
   static String _emailVerifyOtp(String role) =>
       '$_emailVerifyBase/$role/verify';
 
-  // Signup (ALL roles: influencer / brand / agency)
+  String _deviceType() {
+    if (Platform.isAndroid) return 'android';
+    if (Platform.isIOS) return 'ios';
+    return Platform.operatingSystem.toLowerCase();
+  }
+
+  Future<void> registerDeviceFcmToken({required String token}) async {
+    final normalizedToken = token.trim();
+    if (normalizedToken.isEmpty) return;
+
+    dev.log('FCM: $token');
+
+    await _api.dio.post(
+      _saveDeviceFcmToken,
+      data: {'token': normalizedToken, 'deviceType': _deviceType()},
+    );
+
+    await _tokenService.saveFcmToken(normalizedToken);
+  }
+
+  Future<void> deleteDeviceFcmToken({required String token}) async {
+    final normalizedToken = token.trim();
+    if (normalizedToken.isEmpty) {
+      await _tokenService.deleteFcmToken();
+      return;
+    }
+
+    dev.log('FCM: DELETE $token');
+
+    await _api.dio.delete(
+      '$_deleteDeviceFcmTokenBase/${Uri.encodeComponent(normalizedToken)}',
+    );
+
+    await _tokenService.deleteFcmToken();
+  }
 
   Future<SignupResult> signup({
     required String firstName,
@@ -70,7 +108,7 @@ class AuthService {
     required String email,
     required String phone,
     required String password,
-    required String role, // influencer | brand | agency | admin (if allowed)
+    required String role,
   }) async {
     final res = await _api.dio.post(
       _signup,
@@ -104,13 +142,9 @@ class AuthService {
       );
     }
 
-    // Signup does NOT return a token; OTP verify will return it.
     return SignupResult(message: message, phone: phoneRes, role: roleRes);
   }
 
-  // ------------------------------------------------------------
-  // Login (returns accessToken)
-  // ------------------------------------------------------------
   Future<TokenResult> login({
     required String phone,
     required String password,
@@ -143,9 +177,6 @@ class AuthService {
     return TokenResult(accessToken: token, message: message);
   }
 
-  // ------------------------------------------------------------
-  // Signup Verify OTP (returns accessToken)
-  // ------------------------------------------------------------
   Future<TokenResult> verifyOtp({
     required String phone,
     required String otp,
@@ -177,9 +208,6 @@ class AuthService {
     return TokenResult(accessToken: token, message: message);
   }
 
-  // ------------------------------------------------------------
-  // Resend OTP
-  // ------------------------------------------------------------
   Future<OTPresponse> resendOtp({required String phone}) async {
     final res = await _api.dio.post(_resendOtp, data: {'phone': phone});
     if (res.data is! Map) {
@@ -195,9 +223,6 @@ class AuthService {
     return OTPresponse(message: message);
   }
 
-  // ------------------------------------------------------------
-  // Forgot Password (send OTP using identifier: phone or email)
-  // ------------------------------------------------------------
   Future<OTPresponse> forgotPassword({required String identifier}) async {
     final res = await _api.dio.post(
       _forgotPassword,
@@ -217,7 +242,6 @@ class AuthService {
     return OTPresponse(message: message);
   }
 
-  // Forgot Password Verify OTP
   Future<void> forgotPasswordVerifyOtp({
     required String identifier,
     required String otp,
@@ -228,7 +252,6 @@ class AuthService {
     );
   }
 
-  // Reset Password
   Future<void> resetPassword({
     required String identifier,
     required String otp,
@@ -240,9 +263,6 @@ class AuthService {
     );
   }
 
-  // ------------------------------------------------------------
-  // Admin creation (utility)
-  // ------------------------------------------------------------
   Future<void> createAdmin({
     required String phone,
     required String password,
@@ -253,7 +273,6 @@ class AuthService {
     );
   }
 
-  // Fallback OTP verify (utility)
   Future<TokenResult> verifyOtpFallback({
     required String phone,
     required String otp,
@@ -285,9 +304,6 @@ class AuthService {
     return TokenResult(accessToken: token, message: message);
   }
 
-  // ------------------------------------------------------------
-  // Email Verification (request + verify)
-  // ------------------------------------------------------------
   Future<OTPresponse> requestEmailOtp({required String role}) async {
     final res = await _api.dio.post(_emailRequestOtp(role));
 
@@ -328,10 +344,17 @@ class AuthService {
     return OTPresponse(message: message);
   }
 
-  // ------------------------------------------------------------
-  // Session
-  // ------------------------------------------------------------
   Future<void> logout() async {
+    final savedFcmToken = await _tokenService.getFcmToken();
+
+    try {
+      if (savedFcmToken != null && savedFcmToken.trim().isNotEmpty) {
+        await deleteDeviceFcmToken(token: savedFcmToken);
+      }
+    } catch (_) {
+      await _tokenService.deleteFcmToken();
+    }
+
     await _tokenService.clearTokens();
   }
 }

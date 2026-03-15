@@ -56,22 +56,72 @@ class InfluencerProfile {
     required this.updatedAt,
   });
 
-  /// Full name helper
   String get fullName => '$firstName $lastName'.trim();
 
-  /// Get profile image URL (prefer profileImage, fallback to profileImg)
   String? get displayImage => profileImage ?? profileImg;
 
-  /// Check if profile has verified NID
   bool get hasNidSubmitted =>
       nidNumber != null || nidFrontImg != null || nidBackImg != null;
 
-  /// Get default/primary address
   InfluencerAddress? get primaryAddress {
     if (addresses.isEmpty) return null;
     return addresses.firstWhere(
       (a) => a.isDefault,
       orElse: () => addresses.first,
+    );
+  }
+
+  InfluencerProfile copyWith({
+    String? id,
+    String? firstName,
+    String? lastName,
+    String? bio,
+    String? profileImage,
+    List<InfluencerAddress>? addresses,
+    List<InfluencerNiche>? niches,
+    List<InfluencerSkill>? skills,
+    String? website,
+    List<InfluencerSocialLink>? socialLinks,
+    String? nidNumber,
+    String? nidFrontImg,
+    String? nidBackImg,
+    NidVerificationStatus? nidVerification,
+    String? profileImg,
+    bool? isOnboardingComplete,
+    InfluencerPayouts? payouts,
+    double? averageRating,
+    int? totalReviews,
+    bool? isPhoneVerified,
+    bool? isEmailVerified,
+    String? userId,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return InfluencerProfile(
+      id: id ?? this.id,
+      firstName: firstName ?? this.firstName,
+      lastName: lastName ?? this.lastName,
+      bio: bio ?? this.bio,
+      profileImage: profileImage ?? this.profileImage,
+      addresses: addresses ?? this.addresses,
+      niches: niches ?? this.niches,
+      skills: skills ?? this.skills,
+      website: website ?? this.website,
+      socialLinks: socialLinks ?? this.socialLinks,
+      nidNumber: nidNumber ?? this.nidNumber,
+      nidFrontImg: nidFrontImg ?? this.nidFrontImg,
+      nidBackImg: nidBackImg ?? this.nidBackImg,
+      nidVerification: nidVerification ?? this.nidVerification,
+      profileImg: profileImg ?? this.profileImg,
+      isOnboardingComplete: isOnboardingComplete ?? this.isOnboardingComplete,
+      payouts: payouts ?? this.payouts,
+      averageRating: averageRating ?? this.averageRating,
+      totalReviews: totalReviews ?? this.totalReviews,
+      isPhoneVerified: isPhoneVerified ?? this.isPhoneVerified,
+      isEmailVerified: isEmailVerified ?? this.isEmailVerified,
+      userId: userId ?? this.userId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 

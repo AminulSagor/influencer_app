@@ -21,6 +21,7 @@ import 'package:influencer_app/modules/influencer/services/influencer_profile_se
 import 'package:influencer_app/modules/brand/services/brand_onboarding_services.dart';
 import 'package:influencer_app/routes/app_routes.dart';
 
+import '../../../core/widgets/logout_dialog.dart';
 import 'models/brand_asset.dart';
 import 'models/payout_method.dart';
 import 'models/profile_field.dart';
@@ -2923,6 +2924,7 @@ class ProfileController extends GetxController {
           thana: thana,
           zilla: zilla,
           fullAddress: full,
+          isDefault: false,
         ),
       );
       final result =
@@ -3019,50 +3021,10 @@ class ProfileController extends GetxController {
   void resetVerificationFlow() => verificationFlowIndex.value = 0;
 
   Future<void> logout() async {
-    final confirmed = await Get.dialog<bool>(
-      AlertDialog(
-        title: const Text('Confirm Logout'),
-        content: const Text('Are you sure you want to log out?'),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(result: false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Get.back(result: true),
-            child: const Text('Logout'),
-          ),
-        ],
-      ),
-      barrierDismissible: true,
-    );
+    final confirmed = await LogoutDialog.show();
+    if (!confirmed) return;
 
-    if (confirmed != true) return;
-
-    try {
-      final logoutResult = await ApiErrorHandler.call(
-        () => _authService.logout(),
-      );
-      if (!logoutResult.isSuccess) return;
-
-      accountTypeService.setRole(null);
-
-      appUserSession.userEmail.value = '';
-      appUserSession.userPhone.value = '';
-      appUserSession.displayName.value = '';
-      appUserSession.profileImageUrl.value = '';
-      appUserSession.influencerProfile.value = null;
-      appUserSession.agencyProfileJson.value = null;
-      appUserSession.brandProfileJson.value = null;
-      appUserSession.newNotifications.clear();
-      appUserSession.earlierNotifications.clear();
-      appUserSession.isLoaded.value = false;
-      appUserSession.notificationsLoaded.value = false;
-
-      Get.offAllNamed(AppRoutes.login);
-    } catch (_) {
-      Get.snackbar('Error', 'Logout failed');
-    }
+    await appUserSession.logout();
   }
 
   String get _emailRoleSegment {

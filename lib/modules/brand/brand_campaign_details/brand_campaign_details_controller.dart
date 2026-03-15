@@ -2,14 +2,12 @@ import 'dart:developer' as dev;
 
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:influencer_app/modules/brand/brand_campaign_details/widgets/influencer_milestone_picker_sheet.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/models/job_item.dart';
 import '../../../core/services/campaign_service.dart';
-import '../../../core/theme/app_palette.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../create_campaign/create_campaign_controller.dart';
 import '../../../core/services/api_error_handler.dart';
@@ -115,7 +113,6 @@ class BrandCampaignDetailsController extends GetxController {
 
   // ✅ PaidAd: agency bids list (screenshot 2)
   final agencyOffers = <PaidAdAgencyOffer>[].obs;
-  bool _agencyBidsChecked = false;
 
   /// Expect either:
   /// - Get.toNamed(..., arguments: jobItem)
@@ -128,7 +125,6 @@ class BrandCampaignDetailsController extends GetxController {
 
   // Type (PaidAd support)
   final campaignType = ''.obs; // e.g. "paidAd"
-  bool _didProbeInfluencersProgress = false;
   bool get isPaidAd {
     // ✅ prefer JobItem enum
     final j = job;
@@ -238,8 +234,6 @@ class BrandCampaignDetailsController extends GetxController {
   void onInit() {
     super.onInit();
 
-    _showDebugSnackbar(arguments);
-
     // 0) read campaignType/targeting from args if provided
     _readMetaArgs(arguments);
 
@@ -276,7 +270,6 @@ class BrandCampaignDetailsController extends GetxController {
 
     page.value = 1;
     agencyOffers.clear();
-    _agencyBidsChecked = false;
     loadError.value = null;
 
     await _loadFromApiIfPossible();
@@ -284,26 +277,6 @@ class BrandCampaignDetailsController extends GetxController {
 
   Future<void> refreshAfterMilestoneUpdate() async {
     await _loadFromApiIfPossible();
-  }
-
-  void _showDebugSnackbar(dynamic args) {
-    // Disable debug snackbar to avoid LateInitializationError with GetX overlay
-    // Uncomment for debugging purposes only after the widget tree is fully built
-    /*
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (args is Map) {
-        final totalQuotations =
-            (args['totalQuotationsReceived'] as num?)?.toInt() ??
-            (args['totalQuotation'] as num?)?.toInt() ??
-            0;
-        final hasCampaign = _isNonEmpty(args['campaign'] ?? args['campaignData']);
-        final hasClient = _isNonEmpty(args['client'] ?? args['clientData']);
-        final hasBids = _isNonEmpty(args['bids'] ?? args['bid'] ?? args['quotations']);
-
-        debugPrint('Brand campaign details debug: campaign=$hasCampaign, client=$hasClient, bids=$hasBids, totalQuotations=$totalQuotations');
-      }
-    });
-    */
   }
 
   void toggleSort() {
@@ -391,14 +364,6 @@ class BrandCampaignDetailsController extends GetxController {
     platformKeys.assignAll(keys);
   }
 
-  bool _isNonEmpty(dynamic value) {
-    if (value == null) return false;
-    if (value is String) return value.trim().isNotEmpty;
-    if (value is Iterable) return value.isNotEmpty;
-    if (value is Map) return value.isNotEmpty;
-    return true;
-  }
-
   // -------------------------
   // Args helpers
   // -------------------------
@@ -474,68 +439,6 @@ class BrandCampaignDetailsController extends GetxController {
     return null;
   }
 
-  String _safeGetCampaignType(JobItem j) {
-    final dj = j as dynamic;
-    try {
-      final v = dj.campaignType;
-      if (v is String) return v;
-    } catch (_) {}
-    try {
-      final v = dj.type;
-      if (v is String) return v;
-    } catch (_) {}
-    return '';
-  }
-
-  String _safeGetTargeting(JobItem j) {
-    final dj = j as dynamic;
-    try {
-      final v = dj.targeting;
-      if (v is String) return v;
-    } catch (_) {}
-    try {
-      final v = dj.targetAudience;
-      if (v is String) return v;
-    } catch (_) {}
-    return '';
-  }
-
-  List<BrandAssetLink> _safeGetBrandAssets(JobItem j) {
-    // Optional: if your JobItem already has a structure, map it here.
-    // Keeping dynamic + safe parsing so this file compiles even if fields don't exist.
-    final dj = j as dynamic;
-    try {
-      final v = dj.brandAssets;
-      if (v is List) {
-        final out = <BrandAssetLink>[];
-        for (final item in v) {
-          if (item is Map) {
-            final title = (item['title'] ?? '').toString();
-            final subtitle = (item['subtitle'] ?? '').toString();
-            final url = item['url']?.toString();
-            final kind = (item['kind'] ?? 'facebook').toString().toLowerCase();
-            final icon = (kind == 'facebook')
-                ? Icons.facebook
-                : Icons.link_rounded;
-
-            if (title.trim().isNotEmpty) {
-              out.add(
-                BrandAssetLink(
-                  title: title,
-                  subtitle: subtitle.isEmpty ? 'Page Link' : subtitle,
-                  icon: icon,
-                  url: url,
-                ),
-              );
-            }
-          }
-        }
-        return out;
-      }
-    } catch (_) {}
-    return const [];
-  }
-
   // -------------------------
   // API loading
   // -------------------------
@@ -577,8 +480,6 @@ class BrandCampaignDetailsController extends GetxController {
       page: page.value,
       limit: agencyBidsLimit.value,
     );
-
-    _agencyBidsChecked = true;
 
     final bids = (response['data'] as List?) ?? const [];
     final pagination = response['pagination'] is Map

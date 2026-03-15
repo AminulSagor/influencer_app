@@ -68,7 +68,8 @@ class LoginView extends GetView<LoginController> {
                 hintText: 'login_phone_hint'.tr,
                 controller: controller.phoneController,
                 keyboardType: TextInputType.phone,
-                // inputFormatters: const [BdPhoneInputFormatter()],
+                inputFormatters: const [BdPhoneInputFormatter()],
+                textInputAction: TextInputAction.next,
                 contentPadding: EdgeInsets.symmetric(
                   horizontal: 22.w,
                   vertical: 16.h,
@@ -81,7 +82,7 @@ class LoginView extends GetView<LoginController> {
                 textStyle: TextStyle(
                   fontSize: 16.sp,
                   fontWeight: FontWeight.w400,
-                  color: AppPalette.greyText,
+                  color: AppPalette.black,
                 ),
               ),
               SizedBox(height: 12.h),
@@ -99,7 +100,7 @@ class LoginView extends GetView<LoginController> {
                   textStyle: TextStyle(
                     fontSize: 16.sp,
                     fontWeight: FontWeight.w400,
-                    color: AppPalette.greyText,
+                    color: AppPalette.black,
                   ),
                   obscureText: controller.isPasswordObscured.value,
                   contentPadding: EdgeInsets.symmetric(

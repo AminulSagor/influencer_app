@@ -5,17 +5,19 @@ import 'package:influencer_app/core/controllers/app_user_session_controller.dart
 import 'package:influencer_app/core/services/account_type_service.dart';
 import 'package:influencer_app/core/utils/constants.dart';
 import 'package:influencer_app/core/widgets/custom_button.dart';
+import '../../../core/widgets/logout_dialog.dart';
 import 'bottom_nav_controller.dart';
 import 'package:influencer_app/routes/app_routes.dart';
 import 'package:influencer_app/core/theme/app_palette.dart';
 import 'package:influencer_app/core/services/auth_services.dart';
 import 'utils/bottom_nav_route_generator.dart';
 
-class BottomNavView extends GetView<BottomNavController> {
+class BottomNavView extends StatelessWidget {
   const BottomNavView({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final controller = Get.find<BottomNavController>();
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
@@ -57,6 +59,7 @@ class BottomNavView extends GetView<BottomNavController> {
   // ---------------- TOP BAR (shared) ----------------
   Widget _buildTopBar() {
     final session = Get.find<AppUserSessionController>();
+    final controller = Get.find<BottomNavController>();
 
     // Builder gives us a context that is *below* the Scaffold,
     // so Scaffold.of(context).openEndDrawer() works.
@@ -169,6 +172,7 @@ class BottomNavView extends GetView<BottomNavController> {
 
   // ---------------- BOTTOM NAV ----------------
   Widget _buildCustomBottomNav() {
+    final controller = Get.find<BottomNavController>();
     const Color navBg = AppPalette.primary;
     const Color activeBg = AppPalette.secondary;
     const Color iconColor = AppPalette.white;
@@ -287,51 +291,16 @@ class _ProfileDrawer extends StatelessWidget {
     final width = MediaQuery.of(context).size.width * 0.7;
     final _accountTypeService = Get.find<AccountTypeService>();
     Future<void> logout() async {
-      final auth = Get.find<AuthService>();
-      final accountType = Get.find<AccountTypeService>();
+      final session = Get.find<AppUserSessionController>();
 
-      // close drawer
-      if (Get.isOverlaysOpen) Get.back();
-
-      final confirmed = await Get.dialog<bool>(
-        AlertDialog(
-          title: const Text('Confirm Logout'),
-          content: const Text('Are you sure you want to log out?'),
-          backgroundColor: AppPalette.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(kBorderRadius.r),
-          ),
-          actions: [
-            CustomButton(
-              onTap: () => Get.back(result: false),
-              btnText: 'Cancel',
-              btnColor: AppPalette.defaultFill,
-              textColor: AppPalette.black,
-            ),
-            CustomButton(
-              onTap: () => Get.back(result: true),
-              btnText: 'Logout',
-              btnColor: AppPalette.reportFlaggedActive,
-              textColor: AppPalette.white,
-            ),
-          ],
-        ),
-        barrierDismissible: true,
-      );
-
-      if (confirmed != true) return;
-
-      try {
-        await auth.logout(); // clears tokens (SharedPreferences)
-        accountType.setRole(null); // reset selected role
-        // go back to start
-        Get.offAllNamed(AppRoutes.login);
-        if (Get.isRegistered<BottomNavController>()) {
-          Get.delete<BottomNavController>(force: true);
-        }
-      } catch (e) {
-        Get.snackbar('Error', 'Logout failed');
+      if (Scaffold.of(context).isEndDrawerOpen) {
+        Navigator.of(context).pop();
       }
+
+      final confirmed = await LogoutDialog.show();
+      if (!confirmed) return;
+
+      await session.logout();
     }
 
     return SafeArea(

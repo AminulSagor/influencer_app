@@ -6,7 +6,6 @@ class InfluencerProfileService {
   final ApiClient _api;
   InfluencerProfileService(this._api);
 
-  /// Fetches the current influencer's profile
   Future<ApiResult<InfluencerProfile>> getProfile() async {
     return ApiErrorHandler.call(() async {
       final res = await _api.dio.get('/influencer/profile');
@@ -14,7 +13,6 @@ class InfluencerProfileService {
     });
   }
 
-  /// Updates basic profile info (firstName, lastName, bio, profileImage)
   Future<ApiResult<InfluencerProfile>> updateBasicInfo({
     String? firstName,
     String? lastName,
@@ -40,14 +38,12 @@ class InfluencerProfileService {
     });
   }
 
-  /// Removes the profile image
   Future<ApiResult<void>> removeProfileImage() async {
     return ApiErrorHandler.call(() async {
       await _api.dio.delete('/influencer/profile/profile-image');
     });
   }
 
-  /// Updates influencer niches
   Future<ApiResult<InfluencerProfile>> updateNiches(List<String> niches) async {
     return ApiErrorHandler.call(() async {
       final res = await _api.dio.patch(
@@ -58,14 +54,12 @@ class InfluencerProfileService {
     });
   }
 
-  /// Removes a specific niche
   Future<ApiResult<void>> removeNiche(String nicheName) async {
     return ApiErrorHandler.call(() async {
       await _api.dio.delete('/influencer/profile/niche/$nicheName');
     });
   }
 
-  /// Updates influencer skills
   Future<ApiResult<InfluencerProfile>> updateSkills(List<String> skills) async {
     return ApiErrorHandler.call(() async {
       final res = await _api.dio.patch(
@@ -76,12 +70,12 @@ class InfluencerProfileService {
     });
   }
 
-  /// Adds a new address
   Future<ApiResult<InfluencerProfile>> addAddress({
     required String addressName,
     required String thana,
     required String zilla,
     required String fullAddress,
+    required bool isDefault,
   }) async {
     return ApiErrorHandler.call(() async {
       final res = await _api.dio.post(
@@ -93,6 +87,8 @@ class InfluencerProfileService {
               'thana': thana,
               'zilla': zilla,
               'fullAddress': fullAddress,
+              'country': 'Bangladesh',
+              'isDefault': isDefault,
             },
           ],
         },
@@ -101,7 +97,33 @@ class InfluencerProfileService {
     });
   }
 
-  /// Adds a bank payout method
+  Future<ApiResult<InfluencerProfile>> updateAddress({
+    required String currentAddressName,
+    required String addressName,
+    required String thana,
+    required String zilla,
+    required String fullAddress,
+    required bool isDefault,
+  }) async {
+    return ApiErrorHandler.call(() async {
+      final encodedName = Uri.encodeComponent(currentAddressName);
+
+      final res = await _api.dio.patch(
+        '/influencer/profile/address/$encodedName',
+        data: {
+          'addressName': addressName,
+          'thana': thana,
+          'zilla': zilla,
+          'fullAddress': fullAddress,
+          'country': 'Bangladesh',
+          'isDefault': isDefault,
+        },
+      );
+
+      return InfluencerProfile.fromJson(res.data);
+    });
+  }
+
   Future<ApiResult<InfluencerProfile>> addBankPayout({
     required String bankName,
     required String accountHolderName,
@@ -126,9 +148,8 @@ class InfluencerProfileService {
     });
   }
 
-  /// Adds a mobile banking payout method
   Future<ApiResult<InfluencerProfile>> addMobilePayout({
-    required String accountType, // e.g., "Bkash", "Nagad", "Rocket"
+    required String accountType,
     required String accountHolderName,
     required String accountNo,
   }) async {
@@ -147,8 +168,6 @@ class InfluencerProfileService {
     });
   }
 
-  /// Removes a payout method
-  /// [type] can be "bank", "mobile", or "mobileBanking"
   Future<ApiResult<void>> removePayout({
     required String type,
     required String accountNo,
@@ -165,7 +184,6 @@ class InfluencerProfileService {
     });
   }
 
-  /// Updates social links
   Future<ApiResult<InfluencerProfile>> updateSocialLinks(
     List<InfluencerSocialLink> socialLinks,
   ) async {
@@ -183,7 +201,6 @@ class InfluencerProfileService {
     });
   }
 
-  /// Updates website URL
   Future<ApiResult<InfluencerProfile>> updateWebsite(String? website) async {
     return ApiErrorHandler.call(() async {
       final res = await _api.dio.patch(
@@ -194,7 +211,6 @@ class InfluencerProfileService {
     });
   }
 
-  /// Submits NID verification documents
   Future<ApiResult<InfluencerProfile>> submitNidVerification({
     required String nidNumber,
     required String nidFrontImg,
@@ -214,7 +230,6 @@ class InfluencerProfileService {
     });
   }
 
-  /// Updates payout methods (bank/mobile) in bulk
   Future<ApiResult<InfluencerProfile>> updatePayouts({
     List<Map<String, dynamic>>? bank,
     List<Map<String, dynamic>>? mobileBanking,
@@ -229,6 +244,16 @@ class InfluencerProfileService {
         data: data,
       );
       return InfluencerProfile.fromJson(res.data);
+    });
+  }
+
+  Future<ApiResult<List<InfluencerAddress>>> getInfluencerAddresses() async {
+    return ApiErrorHandler.call(() async {
+      final res = await _api.dio.get('/campaign/influencer/addresses');
+
+      final List data = res.data['data'] ?? [];
+
+      return data.map((e) => InfluencerAddress.fromJson(e)).toList();
     });
   }
 }

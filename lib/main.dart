@@ -2,24 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:influencer_app/core/services/firebase_messaging_service.dart';
 import 'package:influencer_app/core/theme/app_theme.dart';
 import 'package:influencer_app/routes/app_routes.dart';
 import 'core/bindings/initial_binding.dart';
-import 'core/services/account_type_service.dart';
-import 'core/controllers/language_controller.dart';
 import 'core/localization/app_translations.dart';
 import 'routes/app_pages.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  runApp(
-    // DevicePreview(
-    //   enabled: !kReleaseMode,
-    //   builder: (context) => MyApp(initialRoute: AppRoutes.bottomNav),
-    // ),
-    InfluencerApp(initialRoute: AppRoutes.bootstrap),
-  );
+  await FirebaseMessagingService.init();
+
+  runApp(InfluencerApp(initialRoute: AppRoutes.bootstrap));
 }
 
 class InfluencerApp extends StatelessWidget {
@@ -34,11 +29,6 @@ class InfluencerApp extends StatelessWidget {
       splitScreenMode: true,
       builder: (_, __) => GetMaterialApp(
         initialBinding: InitialBinding(),
-
-        // FOR DEVICE PREVIEW
-        // useInheritedMediaQuery: true,
-        // locale: DevicePreview.locale(context),
-        // builder: DevicePreview.appBuilder,
         translations: AppTranslations(),
         locale: const Locale('en', 'US'),
         fallbackLocale: const Locale('en', 'US'),

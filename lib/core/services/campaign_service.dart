@@ -383,12 +383,24 @@ class CampaignService {
     return _expectMap(res.data, 'pay client submission bonus');
   }
 
-  Future<void> acceptInfluencerJobOffer({required String jobId}) async {
-    await _api.dio.post('/campaign/influencer/job/$jobId/accept');
+  Future<void> acceptInfluencerJobOffer({
+    required String jobId,
+    Map<String, dynamic>? payload,
+  }) async {
+    await _api.dio.post(
+      '/campaign/influencer/job/$jobId/accept',
+      data: payload,
+    );
   }
 
-  Future<void> declineInfluencerJobOffer({required String jobId}) async {
-    await _api.dio.post('/campaign/influencer/job/$jobId/decline');
+  Future<void> declineInfluencerJobOffer({
+    required String jobId,
+    required String reason,
+  }) async {
+    await _api.dio.post(
+      '/campaign/influencer/job/$jobId/decline',
+      data: {'reason': reason.trim()},
+    );
   }
 
   Future<void> acceptAgencyOffer({required String campaignId}) async {

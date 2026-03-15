@@ -1,3 +1,5 @@
+import 'dart:developer' as dev;
+
 import 'package:get/get.dart';
 import 'package:influencer_app/core/services/account_type_service.dart';
 import 'package:influencer_app/routes/app_routes.dart';
@@ -49,7 +51,10 @@ class BottomNavController extends GetxController {
   // }
 
   void onTabChanged(int index) {
-    if (currentIndex.value == index) return;
+    if (currentIndex.value == index) {
+      Get.until((route) => route.isFirst, id: 1);
+      return;
+    }
     currentIndex.value = index;
 
     // Profile page (last tab) should always be accessible for onboarding
@@ -110,7 +115,9 @@ class BottomNavBinding extends Bindings {
   @override
   void dependencies() {
     // Delete existing controller if any to ensure fresh state on each login
-    Get.delete<BottomNavController>(force: true);
+    if (Get.isRegistered<BottomNavController>()) {
+      Get.delete<BottomNavController>(force: true);
+    }
     Get.put(BottomNavController(), permanent: true);
 
     Get.lazyPut<AgencyHomeLockedController>(

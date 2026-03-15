@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "72364811038",
+    "project_id": "brandguru-4016e",
+    "storage_bucket": "brandguru-4016e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:72364811038:android:9cf3656caab23d4c9b5f0f",
+        "android_client_info": {
+          "package_name": "com.example.influencer_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCGWrjVqwIXqPqdyAkc4Z0ALF8jVm323Kk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

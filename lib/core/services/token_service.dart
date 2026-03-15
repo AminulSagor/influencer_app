@@ -5,12 +5,9 @@ class TokenService {
   static final TokenService _instance = TokenService._internal();
   factory TokenService() => _instance;
 
-  // Keys
   static const String _accessTokenKey = 'access_token';
   static const String _firstTimeKey = 'is_first_time_user';
-  // static const String _refreshTokenKey = 'refresh_token'; // future-proof(unnecessary now)
-
-  // -------- Access Token --------
+  static const String _fcmTokenKey = 'fcm_token';
 
   Future<void> saveAccessToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
@@ -27,20 +24,31 @@ class TokenService {
     await prefs.remove(_accessTokenKey);
   }
 
-  // -------- Session --------
+  Future<void> saveFcmToken(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_fcmTokenKey, token);
+  }
+
+  Future<String?> getFcmToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_fcmTokenKey);
+  }
+
+  Future<void> deleteFcmToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_fcmTokenKey);
+  }
 
   Future<void> clearTokens() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_accessTokenKey);
-    //await prefs.remove(_refreshTokenKey);
+    await prefs.remove(_fcmTokenKey);
   }
 
   Future<bool> hasToken() async {
     final token = await getAccessToken();
     return token != null && token.isNotEmpty;
   }
-
-  // -------- First Time User --------
 
   Future<bool> isFirstTimeUser() async {
     final prefs = await SharedPreferences.getInstance();
