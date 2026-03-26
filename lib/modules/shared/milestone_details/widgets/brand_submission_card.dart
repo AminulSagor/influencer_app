@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:influencer_app/core/theme/app_palette.dart';
 import 'package:influencer_app/core/utils/constants.dart';
 
+import '../milestone_details_controller.dart';
 import 'proof_tile.dart';
 
 class BrandSubmissionMetric {
@@ -148,14 +149,20 @@ class BrandSubmissionCard extends StatelessWidget {
                       title: submission.platformTitleKey.tr,
                     ),
                     SizedBox(height: 15.h),
-                    Text(
-                      submission.platformLink,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12.sp,
-                        color: AppPalette.primary,
-                        decoration: TextDecoration.underline,
+                    GestureDetector(
+                      onTap: () => Get.find<MilestoneDetailsController>()
+                          .openLink(submission.platformLink),
+                      onLongPress: () => Get.find<MilestoneDetailsController>()
+                          .copyLinkText(submission.platformLink),
+                      child: Text(
+                        submission.platformLink,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12.sp,
+                          color: AppPalette.primary,
+                          decoration: TextDecoration.underline,
+                        ),
                       ),
                     ),
 
@@ -281,6 +288,10 @@ class _HeaderRow extends StatelessWidget {
         break;
     }
 
+    final controller = Get.find<MilestoneDetailsController>();
+    final canSelect = controller.shouldShowSelectionForBrandSubmission(
+      submission,
+    );
     return InkWell(
       onTap: onToggle,
       borderRadius: BorderRadius.circular(kBorderRadius.r),
@@ -288,7 +299,7 @@ class _HeaderRow extends StatelessWidget {
         padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
         child: Row(
           children: [
-            if (isPaidAd) ...[
+            if (isPaidAd && canSelect) ...[
               GestureDetector(
                 onTap: onSelect,
                 child: Container(

@@ -80,7 +80,7 @@ class AuthService {
 
     await _api.dio.post(
       _saveDeviceFcmToken,
-      data: {'token': normalizedToken, 'deviceType': _deviceType()},
+      data: {'fcmToken': normalizedToken, 'deviceType': _deviceType()},
     );
 
     await _tokenService.saveFcmToken(normalizedToken);

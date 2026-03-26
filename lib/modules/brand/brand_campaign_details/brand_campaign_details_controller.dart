@@ -1,14 +1,20 @@
+import 'dart:async';
 import 'dart:developer' as dev;
+import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:get/get.dart';
 import 'package:influencer_app/modules/brand/brand_campaign_details/widgets/influencer_milestone_picker_sheet.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/models/job_item.dart';
 import '../../../core/services/campaign_service.dart';
+import '../../../core/services/firebase_messaging_service.dart';
 import '../../../core/utils/currency_formatter.dart';
+import '../../ad_agency/services/upload_service.dart';
 import '../create_campaign/create_campaign_controller.dart';
 import '../../../core/services/api_error_handler.dart';
 import 'widgets/confirm_budget_dialog.dart';
@@ -17,8 +23,7 @@ import 'widgets/paid_ad_requote_dialog.dart';
 import 'widgets/requote_dialog.dart';
 import 'widgets/upload_another_asset_dialog.dart';
 import 'widgets/upload_another_brand_asset_dialog.dart';
-
-enum CampaignProgressStep { submitted, quoted, paid, promoting, completed }
+import 'package:path/path.dart' as path;
 
 class BrandAssetLink {
   final String? assetId;
@@ -96,43 +101,48 @@ class RateInfluencerItem {
        isExpanded = expanded.obs;
 }
 
+enum CampaignProgressStep { submitted, quoted, paid, promoting, completed }
+
 class BrandCampaignDetailsController extends GetxController {
   final CampaignService _campaignService = Get.find<CampaignService>();
 
-  // ✅ PaidAd tabs (0 = Agency Bids, 1 = Campaign Details)
+  StreamSubscription<Map<String, dynamic>>? _notificationSubscription;
+
   final paidAdTabIndex = 1.obs;
   void setPaidAdTab(int i) => paidAdTabIndex.value = i.clamp(0, 1);
 
   final isSortLowToHigh = true.obs;
 
-  // Agency quotations pagination
   final page = 1.obs;
   final totalPages = 1.obs;
   final agencyBidsLimit = 10.obs;
   final totalAgencyBids = 0.obs;
 
-  // ✅ PaidAd: agency bids list (screenshot 2)
   final agencyOffers = <PaidAdAgencyOffer>[].obs;
 
-  /// Expect either:
-  /// - Get.toNamed(..., arguments: jobItem)
-  /// - Get.toNamed(..., arguments: {'job': jobItem, 'campaignType': 'paidAd', ...})
-  /// Also supports no args -> uses CreateCampaignController (if registered).
   final dynamic arguments;
   BrandCampaignDetailsController(this.arguments);
 
   JobItem? job;
 
-  // Type (PaidAd support)
-  final campaignType = ''.obs; // e.g. "paidAd"
-  bool get isPaidAd {
-    // ✅ prefer JobItem enum
-    final j = job;
-    if (j != null) return j.campaignType == CampaignType.paidAd;
+  final UploadService _uploadService = Get.find<UploadService>();
 
-    // fallback if job is not available (keeps your old routing args support)
-    final v = campaignType.value.trim().toLowerCase();
-    return v == 'paidad' || v == 'paid_ad' || v == 'paid-ad';
+  final campaignType = ''.obs;
+
+  bool get isPaidAd {
+    final apiType = campaignType.value.trim().toLowerCase();
+    if (apiType.isNotEmpty) {
+      return apiType == 'paidad' ||
+          apiType == 'paid_ad' ||
+          apiType == 'paid-ad';
+    }
+
+    final j = job;
+    if (j != null) {
+      return j.campaignType == CampaignType.paidAd;
+    }
+
+    return false;
   }
 
   bool get isPendingAgency {
@@ -143,14 +153,10 @@ class BrandCampaignDetailsController extends GetxController {
     return isPaidAd && campaignStatus.value.contains('agency_accepted');
   }
 
-  // Top Card
   final campaignTitle = ''.obs;
   final budgetText = ''.obs;
-
-  // Optional: for other types
   final influencers = <String>[].obs;
   final platformKeys = <String>[].obs;
-
   final daysRemaining = 0.obs;
   final deadlineDateText = ''.obs;
   final campaignStatus = ''.obs;
@@ -159,108 +165,116 @@ class BrandCampaignDetailsController extends GetxController {
   final dueAmount = 0.obs;
   final paidAmount = 0.obs;
   final RxnString selectedInfluencerId = RxnString();
-
-  // Progress (no field in JobItem yet, keep default)
   final progressStep = CampaignProgressStep.submitted.obs;
-
-  // Quote
   final baseBudget = 0.obs;
   final vatAmount = 0.obs;
   int get totalCost => baseBudget.value + vatAmount.value;
-
   final isYourTurn = false.obs;
   final showDueButton = false.obs;
-
-  // Milestones
   final milestones = <Milestone>[].obs;
   final milestoneStatusLabel =
       'brand_campaign_details_campaign_not_started'.tr.obs;
-
-  // ✅ overall progress text from fetchCampaignProgress.data.operationalProgress
   final operationalProgressText = '0%'.obs;
-
-  // ✅ master milestones from campaign (top-level milestones)
   final masterMilestones = <Milestone>[].obs;
-
-  // ✅ influencer promotion assignment list
   final assignedInfluencers = <AssignedInfluencerUi>[].obs;
-
-  // Selected influencer (for dropdown/bottomsheet)
   final RxnString selectedAssignmentId = RxnString();
-
-  // Rating
   final isRated = false.obs;
   final rating = 0.obs;
-
-  // Brief
   final campaignGoals = ''.obs;
   final productServiceDetails = ''.obs;
-
   final contentRequirements = <String>[].obs;
   final dosText = ''.obs;
   final dontsText = ''.obs;
-
-  // Assets + Terms
   final contentAssets = <JobAsset>[].obs;
   final reportingRequirements = ''.obs;
   final usageRights = ''.obs;
-
-  // ✅ Brand Assets (PaidAd screenshot)
   final brandAssets = <BrandAssetLink>[].obs;
-
-  // Loading state
   final isLoading = false.obs;
   final loadError = RxnString();
-
-  // Expandables
   final briefExpanded = true.obs;
   final assetsExpanded = true.obs;
   final termsExpanded = true.obs;
   final milestonesExpanded = true.obs;
-
   final RxList<RateInfluencerItem> rateInfluencerItems =
       <RateInfluencerItem>[].obs;
-
   final RxInt agencyDialogRating = 0.obs;
   final RxBool isSubmittingRatings = false.obs;
-
   final dangerZoneExpanded = false.obs;
   final cancelReasonCtrl = TextEditingController();
   final isSubmittingCancellation = false.obs;
-
   final RxnString selectedAgencyOfferId = RxnString();
 
   @override
   void onInit() {
     super.onInit();
 
-    // 0) read campaignType/targeting from args if provided
     _readMetaArgs(arguments);
 
-    // 1) Try to load from navigation args (JobItem or {job: JobItem})
     final argJob = _extractJob(arguments);
     if (argJob != null) {
-      dev.log('JOB FIND: $argJob');
       job = argJob;
       _loadFromJob(argJob);
       _loadFromApiIfPossible();
-      return;
-    }
-
-    // 2) If coming from CreateCampaign flow, use it (old behavior)
-    if (Get.isRegistered<CreateCampaignController>()) {
+    } else if (Get.isRegistered<CreateCampaignController>()) {
       final c = Get.find<CreateCampaignController>();
       _loadFromCreateCampaign(c);
       _loadFromApiIfPossible();
-      return;
+    } else {
+      _loadFromApiIfPossible();
     }
 
-    // 3) Last resort: keep API-driven/empty state
-    _loadFromApiIfPossible();
+    _listenCampaignNotifications();
+  }
+
+  void _listenCampaignNotifications() {
+    _notificationSubscription?.cancel();
+
+    _notificationSubscription = FirebaseMessagingService.notificationStream
+        .listen((data) async {
+          final notificationCampaignId =
+              data['campaignId']?.toString().trim() ?? '';
+          final notificationType = data['type']?.toString().trim() ?? '';
+          final currentCampaignId = _extractCampaignId(arguments)?.trim() ?? '';
+
+          if (notificationCampaignId.isEmpty || currentCampaignId.isEmpty) {
+            return;
+          }
+
+          if (notificationCampaignId != currentCampaignId) {
+            return;
+          }
+
+          // optional filter if you only want quote-related refresh
+          const refreshableTypes = {
+            'NEW_QUOTE',
+            'QUOTE_UPDATED',
+            'CAMPAIGN_UPDATED',
+            'PAYMENT_UPDATED',
+            'MILESTONE_UPDATED',
+          };
+
+          if (notificationType.isNotEmpty &&
+              !refreshableTypes.contains(notificationType)) {
+            return;
+          }
+
+          dev.log(
+            'Matched campaign notification. Refreshing details page.',
+            name: 'BrandCampaignDetailsController',
+            error: {
+              'currentCampaignId': currentCampaignId,
+              'notificationCampaignId': notificationCampaignId,
+              'type': notificationType,
+            },
+          );
+
+          await refreshCampaignDetails();
+        });
   }
 
   @override
   void onClose() {
+    _notificationSubscription?.cancel();
     cancelReasonCtrl.dispose();
     super.onClose();
   }
@@ -296,6 +310,7 @@ class BrandCampaignDetailsController extends GetxController {
 
   //Agency quotations pagination
   Future<void> prevPage() async {
+    if (!isPaidAd) return;
     if (isLoading.value) return;
     if (page.value <= 1) return;
 
@@ -308,6 +323,7 @@ class BrandCampaignDetailsController extends GetxController {
   }
 
   Future<void> nextPage() async {
+    if (!isPaidAd) return;
     if (isLoading.value) return;
     if (page.value >= totalPages.value) return;
 
@@ -466,7 +482,14 @@ class BrandCampaignDetailsController extends GetxController {
       await _loadProgressByCampaignType(campaignId);
       await _loadNegotiationContext(campaignId);
 
-      await _loadAgencyBidsPage(campaignId);
+      if (isPaidAd) {
+        await _loadAgencyBidsPage(campaignId);
+      } else {
+        page.value = 1;
+        totalPages.value = 1;
+        totalAgencyBids.value = 0;
+        agencyOffers.clear();
+      }
     } catch (e) {
       loadError.value = e.toString();
     } finally {
@@ -475,6 +498,14 @@ class BrandCampaignDetailsController extends GetxController {
   }
 
   Future<void> _loadAgencyBidsPage(String campaignId) async {
+    if (!isPaidAd) {
+      page.value = 1;
+      totalPages.value = 1;
+      totalAgencyBids.value = 0;
+      agencyOffers.clear();
+      return;
+    }
+
     final response = await _campaignService.fetchClientAgencyBids(
       campaignId: campaignId,
       page: page.value,
@@ -535,7 +566,6 @@ class BrandCampaignDetailsController extends GetxController {
         if (firstInfluencerId.isEmpty) {
           // no influencer yet, reset safe defaults
           operationalProgressText.value = '0%';
-          progressStep.value = CampaignProgressStep.submitted;
           return;
         }
 
@@ -864,6 +894,8 @@ class BrandCampaignDetailsController extends GetxController {
 
     _mapAssignedInfluencers(data);
 
+    _checkAndSetProgressStep();
+
     // Content requirements fallback from milestones
     if (contentRequirements.isEmpty && milestones.isNotEmpty) {
       contentRequirements.assignAll(
@@ -878,25 +910,9 @@ class BrandCampaignDetailsController extends GetxController {
     }
   }
 
-  void _loadCampaignProgress(Map<String, dynamic> response) {
-    final data = response['data'] is Map
-        ? Map<String, dynamic>.from(response['data'] as Map)
-        : Map<String, dynamic>.from(response);
-
-    // ✅ New progress APIs (agency / influencer)
-    final progressPercentage = _numToInt(data['progressPercentage']);
-    if (progressPercentage >= 0) {
-      operationalProgressText.value = '$progressPercentage%';
-    }
-
-    // ✅ Backward compatibility (if old API fields still appear somewhere)
-    final op = (data['operationalProgress'] ?? '').toString().trim();
-    if (op.isNotEmpty) {
-      operationalProgressText.value = op;
-    }
-
+  void _checkAndSetProgressStep() {
     if (campaignStatus.value.isNotEmpty) {
-      campaignStatus.value = campaignStatus.value;
+      dev.log('THE CAMP STATUS: ${campaignStatus.value}');
 
       if (isPendingAgency) {
         budgetStatusText.value =
@@ -916,17 +932,35 @@ class BrandCampaignDetailsController extends GetxController {
         progressStep.value = CampaignProgressStep.promoting;
         return;
       }
-      if (campaignStatus.value.contains('pending')) {
+      if (paymentStatus.value.contains('partial') ||
+          paymentStatus.value.contains('full')) {
         progressStep.value = CampaignProgressStep.paid;
         return;
       }
-      if (campaignStatus.value.contains('quote') ||
-          campaignStatus.value.contains('negotiat')) {
+      if (campaignStatus.value.contains('negotiat')) {
         progressStep.value = CampaignProgressStep.quoted;
         return;
       }
 
       progressStep.value = CampaignProgressStep.submitted;
+    }
+  }
+
+  void _loadCampaignProgress(Map<String, dynamic> response) {
+    final data = response['data'] is Map
+        ? Map<String, dynamic>.from(response['data'] as Map)
+        : Map<String, dynamic>.from(response);
+
+    // ✅ New progress APIs (agency / influencer)
+    final progressPercentage = _numToInt(data['progressPercentage']);
+    if (progressPercentage >= 0) {
+      operationalProgressText.value = '$progressPercentage%';
+    }
+
+    // ✅ Backward compatibility (if old API fields still appear somewhere)
+    final op = (data['operationalProgress'] ?? '').toString().trim();
+    if (op.isNotEmpty) {
+      operationalProgressText.value = op;
     }
   }
 
@@ -1607,12 +1641,32 @@ class BrandCampaignDetailsController extends GetxController {
       formatBytes: _formatBytes,
       extUpper: _extUpper,
       filenameNoExt: _filenameNoExt,
+      onSubmit:
+          ({
+            required String title,
+            required String fileName,
+            required int fileBytes,
+            required String filePath,
+            required JobAssetKind kind,
+          }) {
+            return uploadAnotherContentAsset(
+              title: title,
+              fileName: fileName,
+              fileBytes: fileBytes,
+              filePath: filePath,
+              kind: kind,
+            );
+          },
     );
   }
 
-  // ✅ very simple "add brand asset" dialog (link-based)
   void openUploadAnotherBrandAssetDialog() {
-    UploadAnotherBrandAssetDialog.show(brandAssets: brandAssets);
+    UploadAnotherBrandAssetDialog.show(
+      brandAssets: brandAssets,
+      onSubmit: ({required String title, required String url}) {
+        return uploadAnotherBrandAsset(title: title, url: url);
+      },
+    );
   }
 
   String trOr(String key, String fallback) {
@@ -1866,6 +1920,220 @@ class BrandCampaignDetailsController extends GetxController {
       Get.snackbar(trOr('common_error', 'Error'), _errorMessage(e));
     } finally {
       isSubmittingCancellation.value = false;
+    }
+  }
+
+  Future<void> openAssetLink(String? rawUrl) async {
+    String raw = rawUrl?.trim() ?? '';
+    if (raw.isEmpty) {
+      Get.snackbar('Error', 'No asset url found.');
+      return;
+    }
+
+    if (!raw.startsWith('http://') && !raw.startsWith('https://')) {
+      raw = 'https://$raw';
+    }
+
+    final uri = Uri.tryParse(raw);
+    if (uri == null) {
+      Get.snackbar('Error', 'Invalid asset url.');
+      return;
+    }
+
+    final opened = await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+
+    if (!opened) {
+      final fallback = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+
+      if (!fallback) {
+        Get.snackbar('Error', 'Could not open asset.');
+      }
+    }
+  }
+
+  String _getContentType(String filePathOrName) {
+    final ext = path
+        .extension(filePathOrName)
+        .replaceFirst('.', '')
+        .toLowerCase();
+
+    switch (ext) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'webp':
+        return 'image/webp';
+      case 'gif':
+        return 'image/gif';
+      case 'pdf':
+        return 'application/pdf';
+      case 'mp4':
+        return 'video/mp4';
+      case 'mov':
+        return 'video/quicktime';
+      case 'doc':
+        return 'application/msword';
+      case 'docx':
+        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      case 'ppt':
+        return 'application/vnd.ms-powerpoint';
+      case 'pptx':
+        return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+      case 'xls':
+        return 'application/vnd.ms-excel';
+      case 'xlsx':
+        return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      case 'txt':
+        return 'text/plain';
+      default:
+        return 'application/octet-stream';
+    }
+  }
+
+  Map<String, dynamic> _removeNulls(Map<String, dynamic> data) {
+    data.removeWhere((key, value) => value == null);
+    return data;
+  }
+
+  String _safeAssetTitleFromFile(String fileName) {
+    final name = path.basenameWithoutExtension(fileName).trim();
+    return name.isEmpty ? 'Asset' : name;
+  }
+
+  Future<void> uploadAnotherContentAsset({
+    required String title,
+    required String fileName,
+    required int fileBytes,
+    required String filePath,
+    required JobAssetKind kind,
+  }) async {
+    final campaignId = _extractCampaignId(arguments);
+    if (campaignId == null || campaignId.trim().isEmpty) {
+      Get.snackbar('Error', 'Missing campaign id.');
+      return;
+    }
+
+    final file = File(filePath);
+    if (!await file.exists()) {
+      Get.snackbar('Error', 'Selected file not found.');
+      return;
+    }
+
+    try {
+      isLoading.value = true;
+
+      final mimeType = _getContentType(filePath);
+
+      final signed = await _uploadService.createSignedUrl(
+        fileName: fileName,
+        fileType: mimeType,
+        module: 'campaign-assets',
+      );
+
+      await _uploadService.uploadFileToSignedUrl(
+        uploadUrl: signed.uploadUrl,
+        file: file,
+        contentType: mimeType,
+      );
+
+      final payload = _removeNulls({
+        'fileName': fileName,
+        'fileUrl': signed.fileUrl,
+        'assetType': mimeType,
+        'category': 'content',
+        'fileSize': fileBytes,
+        'mimeType': mimeType,
+        'description': title,
+      });
+
+      await _campaignService.addCampaignAssets(
+        campaignId: campaignId,
+        assets: [payload],
+      );
+
+      contentAssets.add(
+        JobAsset(
+          title: title,
+          meta: '${_extUpper(fileName)} • ${_formatBytes(fileBytes)}',
+          kind: kind,
+          pathOrUrl: signed.fileUrl,
+        ),
+      );
+
+      Get.snackbar('Success', 'Asset uploaded successfully.');
+    } catch (e) {
+      Get.snackbar('Error', _errorMessage(e));
+      rethrow;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<void> uploadAnotherBrandAsset({
+    required String title,
+    required String url,
+  }) async {
+    final campaignId = _extractCampaignId(arguments);
+    if (campaignId == null || campaignId.trim().isEmpty) {
+      Get.snackbar('Error', 'Missing campaign id.');
+      return;
+    }
+
+    try {
+      isLoading.value = true;
+
+      String normalizedUrl = url.trim();
+      if (!normalizedUrl.startsWith('http://') &&
+          !normalizedUrl.startsWith('https://')) {
+        normalizedUrl = 'https://$normalizedUrl';
+      }
+
+      final payload = _removeNulls({
+        'fileName': title,
+        'fileUrl': normalizedUrl,
+        'assetType': 'brand_asset',
+        'category': 'brand',
+        'mimeType': 'text/plain',
+        'description': title,
+      });
+
+      final res = await _campaignService.addCampaignAssets(
+        campaignId: campaignId,
+        assets: [payload],
+      );
+
+      String? assetId;
+      final data = res['data'];
+      if (data is Map &&
+          data['assets'] is List &&
+          (data['assets'] as List).isNotEmpty) {
+        final first = (data['assets'] as List).first;
+        if (first is Map) {
+          assetId = first['id']?.toString();
+        }
+      }
+
+      brandAssets.add(
+        BrandAssetLink(
+          assetId: assetId,
+          title: title,
+          subtitle: 'Page Link',
+          icon: _iconForBrandAsset(title, normalizedUrl),
+          url: normalizedUrl,
+        ),
+      );
+
+      Get.snackbar('Success', 'Brand asset uploaded successfully.');
+    } catch (e) {
+      Get.snackbar('Error', _errorMessage(e));
+      rethrow;
+    } finally {
+      isLoading.value = false;
     }
   }
 }

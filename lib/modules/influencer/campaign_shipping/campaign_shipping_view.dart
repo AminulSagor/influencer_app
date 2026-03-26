@@ -436,20 +436,26 @@ class AddressFormDialog extends StatelessWidget {
                   ],
                 ),
                 18.h.verticalSpace,
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: CustomButton(
-                    onTap: formCtrl.toggleDefault,
-                    btnText: 'shipping_address_form_set_default'.tr,
-                    borderRadius: 99.r,
-                    btnColor: AppPalette.greyFill,
-                    showBorder: false,
-                    textStyle: AppTheme.textStyle.copyWith(
-                      fontSize: 10.sp,
-                      color: AppPalette.black,
+                Obx(() {
+                  return Align(
+                    alignment: Alignment.centerRight,
+                    child: CustomButton(
+                      onTap: formCtrl.toggleDefault,
+                      btnText: 'shipping_address_form_set_default'.tr,
+                      borderRadius: 99.r,
+                      btnColor: formCtrl.isDefault.value
+                          ? AppPalette.secondary
+                          : AppPalette.greyFill,
+                      showBorder: false,
+                      textStyle: AppTheme.textStyle.copyWith(
+                        fontSize: 10.sp,
+                        color: formCtrl.isDefault.value
+                            ? AppPalette.white
+                            : AppPalette.black,
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                }),
                 SizedBox(height: 8.h),
                 CustomTextFormField(
                   title: 'shipping_address_form_give_name_label'.tr,
@@ -463,21 +469,35 @@ class AddressFormDialog extends StatelessWidget {
                 SizedBox(height: 18.h),
                 Obx(() {
                   return CustomDropDownMenu(
-                    title: 'shipping_address_form_thana_label'.tr,
-                    hintText: 'shipping_address_form_thana_hint'.tr,
-                    options: formCtrl.thanaKeys,
-                    value: formCtrl.selectedThanaKey.value,
-                    onChanged: formCtrl.setThana,
+                    title: 'shipping_address_form_zilla_label'.tr,
+                    hintText: formCtrl.isLoadingZillas.value
+                        ? 'Loading zilla...'
+                        : 'shipping_address_form_zilla_hint'.tr,
+                    options: formCtrl.zillaOptions,
+                    value: formCtrl.selectedZillaKey.value,
+                    onChanged: formCtrl.setZilla,
                   );
                 }),
                 SizedBox(height: 18.h),
                 Obx(() {
-                  return CustomDropDownMenu(
-                    title: 'shipping_address_form_zilla_label'.tr,
-                    hintText: 'shipping_address_form_zilla_hint'.tr,
-                    options: formCtrl.zillaKeys,
-                    value: formCtrl.selectedZillaKey.value,
-                    onChanged: formCtrl.setZilla,
+                  final enabled = formCtrl.selectedZillaId.value != null;
+
+                  return Opacity(
+                    opacity: enabled ? 1 : 0.6,
+                    child: AbsorbPointer(
+                      absorbing: !enabled,
+                      child: CustomDropDownMenu(
+                        title: 'shipping_address_form_thana_label'.tr,
+                        hintText: !enabled
+                            ? 'Select zilla first'
+                            : formCtrl.isLoadingThanas.value
+                            ? 'Loading thana...'
+                            : 'shipping_address_form_thana_hint'.tr,
+                        options: formCtrl.thanaOptions,
+                        value: formCtrl.selectedThanaKey.value,
+                        onChanged: formCtrl.setThana,
+                      ),
+                    ),
                   );
                 }),
                 SizedBox(height: 18.h),

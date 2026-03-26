@@ -18,6 +18,7 @@ import 'package:path/path.dart' as path;
 import '../../../core/models/job_item.dart';
 import '../../../core/services/api_error_handler.dart';
 import '../../../core/services/campaign_service.dart';
+import '../../../core/utils/metric_number_util.dart';
 import '../../ad_agency/services/upload_service.dart';
 
 part 'widgets/create_campaign_sheets.dart';
@@ -909,10 +910,18 @@ class CreateCampaignController extends GetxController {
     selectedMilestonePlatform.value = m.platform;
     selectedMilestoneDay.value = m.dayIndex;
 
-    reachCtrl.text = m.targets?.reach?.toString() ?? '';
-    viewsCtrl.text = m.targets?.views?.toString() ?? '';
-    likesCtrl.text = m.targets?.likes?.toString() ?? '';
-    commentsCtrl.text = m.targets?.comments?.toString() ?? '';
+    reachCtrl.text = m.targets?.reach != null
+        ? MetricNumberUtil.format(m.targets!.reach!)
+        : '';
+    viewsCtrl.text = m.targets?.views != null
+        ? MetricNumberUtil.format(m.targets!.views!)
+        : '';
+    likesCtrl.text = m.targets?.likes != null
+        ? MetricNumberUtil.format(m.targets!.likes!)
+        : '';
+    commentsCtrl.text = m.targets?.comments != null
+        ? MetricNumberUtil.format(m.targets!.comments!)
+        : '';
     promoGoalCtrl.text = m.promotionGoal?.toString() ?? '';
 
     if (selectedType.value == CampaignType.paidAd) {
@@ -935,7 +944,9 @@ class CreateCampaignController extends GetxController {
       }
 
       milestoneMetricTitleCtrl.text = label;
-      milestoneMetricAmountCtrl.text = value?.toString() ?? '';
+      milestoneMetricAmountCtrl.text = value != null
+          ? MetricNumberUtil.format(value)
+          : '';
     } else {
       milestoneMetricTitleCtrl.clear();
       milestoneMetricAmountCtrl.clear();
@@ -952,35 +963,11 @@ class CreateCampaignController extends GetxController {
     return 'reach';
   }
 
-  /// Supports:
-  /// 300k -> 300000
-  /// 2.5M -> 2500000
-  /// 120000 -> 120000
   int? _parseCompactMetricAmount(String raw) {
-    final input = raw.trim().toLowerCase().replaceAll(',', '');
-    if (input.isEmpty) return null;
-
-    final match = RegExp(r'^(\d+(\.\d+)?)\s*([km]?)$').firstMatch(input);
-    if (match == null) {
-      final digits = input.replaceAll(RegExp(r'[^0-9]'), '');
-      if (digits.isEmpty) return null;
-      return int.tryParse(digits);
-    }
-
-    final numberPart = double.tryParse(match.group(1) ?? '');
-    final suffix = match.group(3) ?? '';
-
-    if (numberPart == null) return null;
-
-    double value = numberPart;
-    if (suffix == 'k') value *= 1000;
-    if (suffix == 'm') value *= 1000000;
-
-    return value.round();
+    return MetricNumberUtil.parseToInt(raw.trim());
   }
 
   PromotionTarget _buildStep4PromotionTarget() {
-    // ✅ Paid Ad / Ad Agency => only one metric allowed
     if (selectedType.value == CampaignType.paidAd) {
       final key = _normalizeMetricKey(milestoneMetricTitleCtrl.text);
       final amount = _parseCompactMetricAmount(milestoneMetricAmountCtrl.text);
@@ -993,11 +980,10 @@ class CreateCampaignController extends GetxController {
       );
     }
 
-    // ✅ Influencer flow => keep existing 4 metrics inputs
     int? toInt(TextEditingController c) {
       final v = c.text.trim();
       if (v.isEmpty) return null;
-      return int.tryParse(v.replaceAll(RegExp(r'[^0-9]'), ''));
+      return MetricNumberUtil.parseToInt(v);
     }
 
     return PromotionTarget(

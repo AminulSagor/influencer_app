@@ -14,10 +14,22 @@ class ProfileSettingsSection extends StatelessWidget {
 
   const ProfileSettingsSection({super.key, required this.controller});
 
+  bool _isAgencyZillaField(String label) {
+    final lower = label.trim().toLowerCase();
+    return lower == 'zilla';
+  }
+
+  bool _isAgencyThanaField(String label) {
+    final lower = label.trim().toLowerCase();
+    return lower == 'thana';
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Obx(
-      () => Column(
+    return Obx(() {
+      final isAgency = controller.accountTypeService.isAdAgency;
+
+      return Column(
         children: [
           Row(
             children: [
@@ -37,12 +49,15 @@ class ProfileSettingsSection extends StatelessWidget {
                     child: Obx(() {
                       final imageFile = controller.profileImageFile.value;
                       final imageUrl = controller.profileImageUrl.value;
+
                       if (imageFile != null) {
                         return Image.file(imageFile, fit: BoxFit.cover);
                       }
+
                       if (imageUrl.isNotEmpty) {
                         return Image.network(imageUrl, fit: BoxFit.cover);
                       }
+
                       return const SizedBox.shrink();
                     }),
                   ),
@@ -72,33 +87,86 @@ class ProfileSettingsSection extends StatelessWidget {
             ],
           ),
           33.h.verticalSpace,
-          ...controller.profileFields.map((field) {
-            return Padding(
-              padding: EdgeInsets.only(bottom: 10.h),
-              child: Column(
-                crossAxisAlignment: .start,
-                children: [
-                  CustomTextFormField(
-                    title: field.label + (field.isRequired ? ' *' : ''),
-                    hintText: field.hintText,
-                    initialValue: controller.profileFieldValue(
-                      field.label,
-                      field.value,
+
+          ...controller.profileFields.expand((field) {
+            if (isAgency && _isAgencyZillaField(field.label)) {
+              return [
+                Padding(
+                  padding: EdgeInsets.only(bottom: 10.h),
+                  child: Obx(
+                    () => CustomDropDownMenu(
+                      title: field.label + (field.isRequired ? ' *' : ''),
+                      hintText: controller.isLoadingAgencyZillas.value
+                          ? 'Loading zilla...'
+                          : 'Select zilla',
+                      options: controller.agencyZillaList,
+                      value: controller.selectedAgencyZilla.value,
+                      onChanged: controller.setAgencyZilla,
                     ),
-                    enabled: !field.isReadOnly,
-                    onChanged: (value) =>
-                        controller.setProfileFieldValue(field.label, value),
-                    textStyle: TextStyle(
-                      fontWeight: FontWeight.w300,
-                      fontSize: 12.sp,
-                      color: AppPalette.black,
-                    ),
-                    maxLines: field.label.contains('Full Address') ? 5 : 1,
                   ),
-                ],
+                ),
+              ];
+            }
+
+            if (isAgency && _isAgencyThanaField(field.label)) {
+              return [
+                Padding(
+                  padding: EdgeInsets.only(bottom: 10.h),
+                  child: Obx(() {
+                    final enabled =
+                        controller.selectedAgencyZillaId.value != null;
+
+                    return Opacity(
+                      opacity: enabled ? 1 : 0.6,
+                      child: AbsorbPointer(
+                        absorbing: !enabled,
+                        child: CustomDropDownMenu(
+                          title: field.label + (field.isRequired ? ' *' : ''),
+                          hintText: !enabled
+                              ? 'Select zilla first'
+                              : controller.isLoadingAgencyThanas.value
+                              ? 'Loading thana...'
+                              : 'Select thana',
+                          options: controller.agencyThanaList,
+                          value: controller.selectedAgencyThana.value,
+                          onChanged: controller.setAgencyThana,
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+              ];
+            }
+
+            return [
+              Padding(
+                padding: EdgeInsets.only(bottom: 10.h),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CustomTextFormField(
+                      title: field.label + (field.isRequired ? ' *' : ''),
+                      hintText: field.hintText,
+                      initialValue: controller.profileFieldValue(
+                        field.label,
+                        field.value,
+                      ),
+                      enabled: !field.isReadOnly,
+                      onChanged: (value) =>
+                          controller.setProfileFieldValue(field.label, value),
+                      textStyle: TextStyle(
+                        fontWeight: FontWeight.w300,
+                        fontSize: 12.sp,
+                        color: AppPalette.black,
+                      ),
+                      maxLines: field.label.contains('Full Address') ? 5 : 1,
+                    ),
+                  ],
+                ),
               ),
-            );
-          }).toList(),
+            ];
+          }),
+
           if (controller.accountTypeService.isBrand) ...[
             8.h.verticalSpace,
             CustomButton(
@@ -113,7 +181,7 @@ class ProfileSettingsSection extends StatelessWidget {
             ),
           ],
         ],
-      ),
-    );
+      );
+    });
   }
 }

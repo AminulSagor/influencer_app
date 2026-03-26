@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:influencer_app/core/controllers/app_user_session_controller.dart';
 import 'package:influencer_app/core/models/job_item.dart';
+import 'package:influencer_app/core/models/location_models.dart';
 import 'package:influencer_app/core/services/api_error_handler.dart';
 import 'package:influencer_app/core/services/campaign_service.dart';
+import 'package:influencer_app/core/services/location_service.dart';
 import 'package:influencer_app/modules/influencer/models/influencer_profile_model.dart';
 import 'package:influencer_app/modules/influencer/services/influencer_profile_service.dart';
 
@@ -302,23 +304,28 @@ class AddressFormController extends GetxController {
 
   AddressFormController({this.initial});
 
+  final LocationService _locationService = Get.find<LocationService>();
+
   late final TextEditingController nameCtrl;
   late final TextEditingController fullAddressCtrl;
 
   final RxBool isDefault = false.obs;
+  final RxBool isLoadingZillas = false.obs;
+  final RxBool isLoadingThanas = false.obs;
 
-  final List<String> thanaKeys = ['Banani', 'Uttara', 'Dhanmondi', 'Mirpur'];
+  final RxList<ZillaModel> zillas = <ZillaModel>[].obs;
+  final RxList<ThanaModel> thanas = <ThanaModel>[].obs;
 
-  final List<String> zillaKeys = [
-    'Dhaka',
-    'Chattogram',
-    'Chittagong',
-    'Sylhet',
-    'Rajshahi',
-  ];
-
-  final RxnString selectedThanaKey = RxnString();
   final RxnString selectedZillaKey = RxnString();
+  final RxnString selectedZillaId = RxnString();
+  final RxnString selectedThanaKey = RxnString();
+  final RxnString selectedThanaId = RxnString();
+
+  List<String> get zillaOptions =>
+      zillas.map((e) => e.displayName).toList(growable: false);
+
+  List<String> get thanaOptions =>
+      thanas.map((e) => e.displayName).toList(growable: false);
 
   @override
   void onInit() {
@@ -328,8 +335,109 @@ class AddressFormController extends GetxController {
     fullAddressCtrl = TextEditingController(text: initial?.fullAddress ?? '');
     isDefault.value = initial?.isDefault ?? false;
 
-    selectedThanaKey.value = initial?.thana;
     selectedZillaKey.value = initial?.zilla;
+    selectedThanaKey.value = initial?.thana;
+
+    loadZillas();
+  }
+
+  Future<void> loadZillas() async {
+    if (isLoadingZillas.value) return;
+    isLoadingZillas.value = true;
+
+    final result = await ApiErrorHandler.call(
+      () => _locationService.fetchAllZillas(),
+      showError: false,
+    );
+
+    if (result.isSuccess && result.data != null) {
+      zillas.assignAll(result.data!);
+
+      if (selectedZillaKey.value != null &&
+          selectedZillaKey.value!.trim().isNotEmpty) {
+        final matchedZilla = zillas.firstWhereOrNull(
+          (e) => e.displayName == selectedZillaKey.value,
+        );
+
+        if (matchedZilla != null) {
+          selectedZillaId.value = matchedZilla.id;
+          await loadThanasByZilla(
+            matchedZilla.id,
+            preselectedThanaName: selectedThanaKey.value,
+          );
+        } else {
+          selectedZillaKey.value = null;
+          selectedThanaKey.value = null;
+          selectedZillaId.value = null;
+          selectedThanaId.value = null;
+          thanas.clear();
+        }
+      }
+    }
+
+    isLoadingZillas.value = false;
+  }
+
+  Future<void> loadThanasByZilla(
+    String zillaId, {
+    String? preselectedThanaName,
+  }) async {
+    if (isLoadingThanas.value) return;
+    isLoadingThanas.value = true;
+
+    final result = await ApiErrorHandler.call(
+      () => _locationService.fetchAllThanasByZilla(zillaId: zillaId),
+      showError: false,
+    );
+
+    if (result.isSuccess && result.data != null) {
+      thanas.assignAll(result.data!);
+
+      if (preselectedThanaName != null &&
+          preselectedThanaName.trim().isNotEmpty) {
+        final matchedThana = thanas.firstWhereOrNull(
+          (e) => e.displayName == preselectedThanaName,
+        );
+        selectedThanaKey.value = matchedThana?.displayName;
+        selectedThanaId.value = matchedThana?.id;
+      }
+    }
+
+    isLoadingThanas.value = false;
+  }
+
+  void toggleDefault() => isDefault.toggle();
+
+  Future<void> setZilla(String? value) async {
+    selectedZillaKey.value = value;
+    selectedThanaKey.value = null;
+    selectedThanaId.value = null;
+    thanas.clear();
+
+    if (value == null || value.trim().isEmpty) {
+      selectedZillaId.value = null;
+      return;
+    }
+
+    final matchedZilla = zillas.firstWhereOrNull((e) => e.displayName == value);
+
+    selectedZillaId.value = matchedZilla?.id;
+
+    if (matchedZilla != null) {
+      await loadThanasByZilla(matchedZilla.id);
+    }
+  }
+
+  void setThana(String? value) {
+    selectedThanaKey.value = value;
+
+    if (value == null || value.trim().isEmpty) {
+      selectedThanaId.value = null;
+      return;
+    }
+
+    final matchedThana = thanas.firstWhereOrNull((e) => e.displayName == value);
+    selectedThanaId.value = matchedThana?.id;
   }
 
   @override
@@ -339,21 +447,21 @@ class AddressFormController extends GetxController {
     super.onClose();
   }
 
-  void toggleDefault() => isDefault.toggle();
-
-  void setThana(String? key) {
-    selectedThanaKey.value = key;
-  }
-
-  void setZilla(String? key) {
-    selectedZillaKey.value = key;
-  }
-
   void save() {
     final label = nameCtrl.text.trim();
     final fullAddress = fullAddressCtrl.text.trim();
 
-    if (selectedThanaKey.value == null || selectedZillaKey.value == null) {
+    if (selectedZillaKey.value == null ||
+        selectedZillaKey.value!.trim().isEmpty) {
+      Get.snackbar(
+        'shipping_address_form_error_title'.tr,
+        'shipping_address_form_error_thana_zilla_required'.tr,
+      );
+      return;
+    }
+
+    if (selectedThanaKey.value == null ||
+        selectedThanaKey.value!.trim().isEmpty) {
       Get.snackbar(
         'shipping_address_form_error_title'.tr,
         'shipping_address_form_error_thana_zilla_required'.tr,

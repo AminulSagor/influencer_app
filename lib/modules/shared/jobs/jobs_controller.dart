@@ -12,6 +12,7 @@ import '../../../core/services/api_client.dart';
 import '../../../core/services/api_error_handler.dart';
 import '../../../core/widgets/reason_bottom_sheet.dart';
 import '../../../routes/app_routes.dart';
+import 'widgets/delete_campaign_dialog.dart';
 
 class JobsController extends GetxController {
   final currentTabIndex = 0.obs;
@@ -45,7 +46,19 @@ class JobsController extends GetxController {
   /// Brand: Budgeting & Quoting chip filter
   /// 0 = All, 1 = Budget Pending, 2 = Quotation Received
   final brandBudgetChipIndex = 0.obs;
-  void setBrandBudgetChip(int index) => brandBudgetChipIndex.value = index;
+
+  Future<void> setBrandBudgetChip(int index) async {
+    if (brandBudgetChipIndex.value == index) return;
+
+    brandBudgetChipIndex.value = index;
+    _applySelectedBrandBudgetList();
+
+    if (!isBrand || currentTabIndex.value != 1) return;
+
+    if (!_selectedBrandBudgetLoaded) {
+      await fetchBrandBudgeting(reset: true);
+    }
+  }
 
   final AccountTypeService _accountTypeService = Get.find<AccountTypeService>();
   final ApiClient _apiClient = Get.find<ApiClient>();
@@ -92,6 +105,9 @@ class JobsController extends GetxController {
   final brandCompleted = <JobItem>[].obs; // tab 2
   final brandDrafts = <JobItem>[].obs; // tab 3
   final brandCanceled = <JobItem>[].obs; // tab 4
+  final brandBudgetAll = <JobItem>[].obs;
+  final brandBudgetPending = <JobItem>[].obs;
+  final brandBudgetQuotation = <JobItem>[].obs;
 
   final isLoadingBrandActive = false.obs;
   final isLoadingBrandBudgeting = false.obs;
@@ -120,10 +136,34 @@ class JobsController extends GetxController {
   final RxMap<int, int> brandTabCounts = <int, int>{}.obs;
   final RxMap<int, int> agencyTabCounts = <int, int>{}.obs;
   final RxMap<int, int> influencerTabCounts = <int, int>{}.obs;
+  final brandBudgetPendingTotal = 0.obs;
+  final brandQuotationReceivedTotal = 0.obs;
+
+  final Map<int, int> _brandBudgetPageByChip = {0: 1, 1: 1, 2: 1};
+
+  final Map<int, bool> _brandBudgetHasMoreByChip = {0: true, 1: true, 2: true};
+
+  final Map<int, bool> _brandBudgetLoadedByChip = {
+    0: false,
+    1: false,
+    2: false,
+  };
 
   @override
   void onInit() {
     super.onInit();
+
+    final args = Get.arguments;
+    if (args is Map) {
+      final rawIndex = args['initialTabIndex'];
+      final parsedIndex = rawIndex is int
+          ? rawIndex
+          : int.tryParse(rawIndex?.toString() ?? '');
+
+      if (parsedIndex != null) {
+        currentTabIndex.value = parsedIndex;
+      }
+    }
 
     _searchWorker = debounce<String>(searchQuery, (_) {
       if (isAdAgency && !isBrand) {
@@ -275,7 +315,7 @@ class JobsController extends GetxController {
         case 0:
           return hasMoreBrandActive.value && !isLoadingBrandActive.value;
         case 1:
-          return hasMoreBrandBudgeting.value && !isLoadingBrandBudgeting.value;
+          return _selectedBrandBudgetHasMore && !isLoadingBrandBudgeting.value;
         case 2:
           return hasMoreBrandCompleted.value && !isLoadingBrandCompleted.value;
         case 3:
@@ -325,13 +365,16 @@ class JobsController extends GetxController {
 
   Future<void> _initLoad() async {
     if (isBrand) {
-      await Future.wait([
-        fetchBrandActive(reset: true),
-        fetchBrandBudgeting(reset: true),
-        fetchBrandCompleted(reset: true),
-        fetchBrandDrafts(reset: true),
-        fetchBrandCanceled(reset: true),
-      ]);
+      if (isBrand) {
+        await Future.wait([
+          fetchBrandActive(reset: true),
+          fetchBrandCompleted(reset: true),
+          fetchBrandDrafts(reset: true),
+          fetchBrandCanceled(reset: true),
+        ]);
+
+        await fetchBrandBudgeting(reset: true);
+      }
     } else {
       if (isInfluencer) {
         await fetchInfluencerCounts();
@@ -357,6 +400,121 @@ class JobsController extends GetxController {
         fetchDeclinedJobs(reset: true),
       ]);
     }
+  }
+
+  RxList<JobItem> _brandBudgetListByChip(int chipIndex) {
+    switch (chipIndex) {
+      case 1:
+        return brandBudgetPending;
+      case 2:
+        return brandBudgetQuotation;
+      case 0:
+      default:
+        return brandBudgetAll;
+    }
+  }
+
+  String _brandBudgetStatusParamByChip(int chipIndex) {
+    switch (chipIndex) {
+      case 1:
+        return 'budget_pending';
+      case 2:
+        return 'quotation_received';
+      case 0:
+      default:
+        return 'quoting';
+    }
+  }
+
+  void _resetBrandBudgetChipState(int chipIndex) {
+    _brandBudgetPageByChip[chipIndex] = 1;
+    _brandBudgetHasMoreByChip[chipIndex] = true;
+    _brandBudgetLoadedByChip[chipIndex] = false;
+    _brandBudgetListByChip(chipIndex).clear();
+  }
+
+  void _resetAllBrandBudgetChipStates() {
+    _resetBrandBudgetChipState(0);
+    _resetBrandBudgetChipState(1);
+    _resetBrandBudgetChipState(2);
+  }
+
+  void _applySelectedBrandBudgetList() {
+    final selectedList = _brandBudgetListByChip(brandBudgetChipIndex.value);
+    brandBudgeting.assignAll(selectedList);
+  }
+
+  bool get _selectedBrandBudgetHasMore =>
+      _brandBudgetHasMoreByChip[brandBudgetChipIndex.value] ?? true;
+
+  set _selectedBrandBudgetHasMore(bool value) {
+    _brandBudgetHasMoreByChip[brandBudgetChipIndex.value] = value;
+  }
+
+  int get _selectedBrandBudgetPage =>
+      _brandBudgetPageByChip[brandBudgetChipIndex.value] ?? 1;
+
+  set _selectedBrandBudgetPage(int value) {
+    _brandBudgetPageByChip[brandBudgetChipIndex.value] = value;
+  }
+
+  bool get _selectedBrandBudgetLoaded =>
+      _brandBudgetLoadedByChip[brandBudgetChipIndex.value] ?? false;
+
+  set _selectedBrandBudgetLoaded(bool value) {
+    _brandBudgetLoadedByChip[brandBudgetChipIndex.value] = value;
+  }
+
+  String _brandBudgetStatusParam() {
+    switch (brandBudgetChipIndex.value) {
+      case 1:
+        return 'budget_pending';
+      case 2:
+        return 'quotation_received';
+      default:
+        return 'quoting';
+    }
+  }
+
+  Future<void> _refreshBrandBudgetCounts() async {
+    final search = searchQuery.value.trim();
+    final sort = _brandSortParam();
+
+    final pendingResult = await ApiErrorHandler.call(
+      () => _fetchBrandCampaigns(
+        status: 'budget_pending',
+        page: 1,
+        pageSize: 1,
+        search: search,
+        sort: sort,
+      ),
+      showError: false,
+    );
+
+    final quotationResult = await ApiErrorHandler.call(
+      () => _fetchBrandCampaigns(
+        status: 'quotation_received',
+        page: 1,
+        pageSize: 1,
+        search: search,
+        sort: sort,
+      ),
+      showError: false,
+    );
+
+    final pendingTotal = pendingResult.isSuccess && pendingResult.data != null
+        ? pendingResult.data!.totalItems
+        : 0;
+
+    final quotationTotal =
+        quotationResult.isSuccess && quotationResult.data != null
+        ? quotationResult.data!.totalItems
+        : 0;
+
+    brandBudgetPendingTotal.value = pendingTotal;
+    brandQuotationReceivedTotal.value = quotationTotal;
+
+    brandTabCounts[1] = pendingTotal + quotationTotal;
   }
 
   // -------- PUBLIC API --------
@@ -450,7 +608,10 @@ class JobsController extends GetxController {
           if (brandActive.isEmpty) fetchBrandActive(reset: true);
           break;
         case 1:
-          if (brandBudgeting.isEmpty) fetchBrandBudgeting(reset: true);
+          _applySelectedBrandBudgetList();
+          if (!_selectedBrandBudgetLoaded) {
+            fetchBrandBudgeting(reset: true);
+          }
           break;
         case 2:
           if (brandCompleted.isEmpty) fetchBrandCompleted(reset: true);
@@ -780,28 +941,11 @@ class JobsController extends GetxController {
   List<JobItem> get filteredBrandDrafts => List<JobItem>.from(brandDrafts);
   List<JobItem> get filteredBrandCanceled => List<JobItem>.from(brandCanceled);
 
-  int get brandBudgetPendingCount => brandBudgeting
-      .where((e) => (e.profitLabel ?? '') == 'Budget Pending')
-      .length;
+  int get brandBudgetPendingCount => brandBudgetPendingTotal.value;
+  int get brandQuotationReceivedCount => brandQuotationReceivedTotal.value;
 
-  int get brandQuotationReceivedCount => brandBudgeting
-      .where((e) => (e.profitLabel ?? '') == 'Quotation Received')
-      .length;
-
-  List<JobItem> get filteredBrandBudgeting {
-    switch (brandBudgetChipIndex.value) {
-      case 1:
-        return brandBudgeting
-            .where((e) => (e.profitLabel ?? '') == 'Budget Pending')
-            .toList();
-      case 2:
-        return brandBudgeting
-            .where((e) => (e.profitLabel ?? '') == 'Quotation Received')
-            .toList();
-      default:
-        return List<JobItem>.from(brandBudgeting);
-    }
-  }
+  List<JobItem> get filteredBrandBudgeting =>
+      List<JobItem>.from(brandBudgeting);
 
   // -------- INFLUENCER/AGENCY FETCH (same as before) --------
 
@@ -1009,6 +1153,14 @@ class JobsController extends GetxController {
     }
   }
 
+  Future<void> refreshInvitationJobs() async {
+    if (isInfluencer) {
+      await fetchInfluencerCounts();
+    }
+
+    await fetchNewOffers(reset: true);
+  }
+
   // -------- BRAND FETCH --------
 
   Future<void> _fetchPagedJobs({
@@ -1086,22 +1238,66 @@ class JobsController extends GetxController {
   }
 
   Future<void> fetchBrandBudgeting({bool reset = false}) async {
-    await _fetchPagedJobs(
-      reset: reset,
-      tabIndex: 1,
-      isLoading: isLoadingBrandBudgeting,
-      hasMore: hasMoreBrandBudgeting,
-      target: brandBudgeting,
-      getPage: () => _brandBudgetingPage,
-      setPage: (v) => _brandBudgetingPage = v,
-      requestPage: (page) => _fetchBrandCampaigns(
-        status: 'quoting',
-        page: page,
-        pageSize: _pageSize,
-        search: searchQuery.value.trim(),
-        sort: _brandSortParam(),
-      ),
-    );
+    if (isLoadingBrandBudgeting.value) return;
+    if (!_selectedBrandBudgetHasMore && !reset) return;
+
+    isLoadingBrandBudgeting.value = true;
+
+    try {
+      final chipIndex = brandBudgetChipIndex.value;
+      final targetList = _brandBudgetListByChip(chipIndex);
+
+      if (reset) {
+        _brandBudgetPageByChip[chipIndex] = 1;
+        _brandBudgetHasMoreByChip[chipIndex] = true;
+        _brandBudgetLoadedByChip[chipIndex] = false;
+        targetList.clear();
+        brandBudgeting.clear();
+      }
+
+      await _refreshBrandBudgetCounts();
+
+      final currentPage = _brandBudgetPageByChip[chipIndex] ?? 1;
+      final status = _brandBudgetStatusParamByChip(chipIndex);
+
+      final result = await ApiErrorHandler.call(
+        () => _fetchBrandCampaigns(
+          status: status,
+          page: currentPage,
+          pageSize: _pageSize,
+          search: searchQuery.value.trim(),
+          sort: _brandSortParam(),
+        ),
+        showError: false,
+      );
+
+      if (!result.isSuccess || result.data == null) return;
+
+      final page = result.data!;
+      final items = page.items;
+
+      if (items.isEmpty) {
+        _brandBudgetHasMoreByChip[chipIndex] = false;
+        _brandBudgetLoadedByChip[chipIndex] = true;
+        _applySelectedBrandBudgetList();
+        return;
+      }
+
+      targetList.addAll(items);
+
+      final nextPage = currentPage + 1;
+      _brandBudgetPageByChip[chipIndex] = nextPage;
+
+      final endBySize = items.length < _pageSize;
+      final endByTotalPages = nextPage > page.totalPages;
+
+      _brandBudgetHasMoreByChip[chipIndex] = !(endBySize || endByTotalPages);
+      _brandBudgetLoadedByChip[chipIndex] = true;
+
+      _applySelectedBrandBudgetList();
+    } finally {
+      isLoadingBrandBudgeting.value = false;
+    }
   }
 
   Future<void> fetchBrandCompleted({bool reset = false}) async {
@@ -1345,7 +1541,7 @@ class JobsController extends GetxController {
 
   JobItem _mapAgencyCampaignToJob(Map<String, dynamic> json) {
     final campaignId = json['id']?.toString();
-    final campaignName = (json['campaignName'] as String?)?.trim();
+    final campaignName = (json['campaignName'])?.trim();
     final status = json['status']?.toString();
 
     final client = json['client'] as Map<String, dynamic>?;
@@ -1490,9 +1686,9 @@ class JobsController extends GetxController {
   JobItem _mapInfluencerJobToJobItem(Map<String, dynamic> json) {
     final campaignId =
         json['id']?.toString() ?? json['assignmentId']?.toString();
-    final campaignName = (json['campaignName'] as String?)?.trim();
+    final campaignName = (json['campaignName'])?.trim();
     final campaignTypeRaw = json['campaignType']?.toString();
-    final brandName = (json['brandName'] as String?)?.trim();
+    final brandName = (json['brandName'])?.trim();
     final client = json['client'] as Map<String, dynamic>?;
     final clientName = client?['brandName']?.toString().trim();
 
@@ -1606,11 +1802,11 @@ class JobsController extends GetxController {
     required String statusHint,
   }) {
     final campaignId = json['id']?.toString();
-    final campaignName = (json['campaignName'] as String?)?.trim();
-    final campaignTypeRaw = (json['campaignType'] as String?)?.trim();
+    final campaignName = (json['campaignName'])?.trim();
+    final campaignTypeRaw = (json['campaignType'])?.trim();
     final budget = _numToDouble(json['totalBudget']);
-    final createdAt = json['createdAt'] as String?;
-    final deadline = json['deadline'] as String?;
+    final createdAt = json['createdAt'];
+    final deadline = json['deadline'];
     final progress = (json['progress'] as num?)?.toInt() ?? 0;
 
     final assignedTo = (json['assignedTo'] as List?) ?? const [];
@@ -1625,12 +1821,8 @@ class JobsController extends GetxController {
         (json['totalQuotationsReceived'] as num?)?.toInt() ?? 0;
     final budgetPending = _numToDouble(json['budgetPendingAmount']);
 
-    final budgetStatus = _budgetStatusLabel(
-      statusHint: statusHint,
-      totalQuotationsReceived: totalQuotations,
-    );
-
-    final isQuotation = budgetStatus == 'Quotation Received';
+    final budgetStatus = _budgetStatusLabel(statusHint: statusHint);
+    final isQuotation = statusHint.toLowerCase() == 'quotation_received';
 
     return JobItem(
       id: campaignId,
@@ -1649,7 +1841,34 @@ class JobsController extends GetxController {
       dueLabel: dueLabel,
       profitLabel: budgetStatus,
       totalEarningsLabel: 'Revised: $negotiationRevisedTimes Times',
+      negotiationRevisedTimes: negotiationRevisedTimes,
+      totalQuotationsReceived: totalQuotations,
     );
+  }
+
+  Future<void> deleteDraftCampaign(JobItem job) async {
+    if (!isBrand) return;
+
+    final campaignId = job.id?.trim() ?? '';
+    if (campaignId.isEmpty) return;
+
+    final confirmed = await DeleteCampaignDialog.show();
+    if (!confirmed) return;
+
+    final result = await ApiErrorHandler.call(
+      () => _campaignService.deleteCampaignById(campaignId: campaignId),
+    );
+
+    if (!result.isSuccess) return;
+
+    brandDrafts.removeWhere((e) => (e.id?.trim() ?? '') == campaignId);
+
+    final currentCount = brandTabCounts[3] ?? brandDrafts.length;
+    brandTabCounts[3] = currentCount > 0 ? currentCount - 1 : 0;
+
+    Get.snackbar('Success', 'Campaign deleted successfully.');
+
+    await fetchBrandDrafts(reset: true);
   }
 
   CampaignType _parseCampaignType(String? raw) {
@@ -1665,20 +1884,12 @@ class JobsController extends GetxController {
         : 'create_campaign_type_influencer_title';
   }
 
-  String _budgetStatusLabel({
-    required String statusHint,
-    required int totalQuotationsReceived,
-  }) {
+  String _budgetStatusLabel({required String statusHint}) {
     final hint = statusHint.toLowerCase();
+
     if (hint == 'quotation_received') return 'Quotation Received';
-    if (hint == 'budget_pending' || hint == 'quoting') {
-      return totalQuotationsReceived > 0
-          ? 'Quotation Received'
-          : 'Budget Pending';
-    }
-    return totalQuotationsReceived > 0
-        ? 'Quotation Received'
-        : 'Budget Pending';
+    if (hint == 'budget_pending') return 'Budget Pending';
+    return 'Budgeting & Quoting';
   }
 
   String _formatAssignedTo(List<dynamic> assigned) {

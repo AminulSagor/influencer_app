@@ -61,6 +61,8 @@ class JobItem {
   final double? campaignSpentUsd; // totalCampaignSpent / dollarRate
 
   final int? timeLeftToRequoteMinutes;
+  final int? totalQuotationsReceived;
+  final int? negotiationRevisedTimes;
 
   const JobItem({
     this.id,
@@ -100,6 +102,8 @@ class JobItem {
     this.dollarRate,
     this.campaignSpentUsd,
     this.timeLeftToRequoteMinutes,
+    this.totalQuotationsReceived,
+    this.negotiationRevisedTimes,
   });
 }
 

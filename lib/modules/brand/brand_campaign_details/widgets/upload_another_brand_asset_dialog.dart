@@ -4,14 +4,28 @@ import 'package:get/get.dart';
 
 import '../brand_campaign_details_controller.dart';
 
+typedef SubmitBrandAsset =
+    Future<void> Function({required String title, required String url});
+
 class UploadAnotherBrandAssetDialog extends StatefulWidget {
-  const UploadAnotherBrandAssetDialog({super.key, required this.brandAssets});
+  const UploadAnotherBrandAssetDialog({
+    super.key,
+    required this.brandAssets,
+    required this.onSubmit,
+  });
 
   final RxList<BrandAssetLink> brandAssets;
+  final SubmitBrandAsset onSubmit;
 
-  static Future<void> show({required RxList<BrandAssetLink> brandAssets}) {
+  static Future<void> show({
+    required RxList<BrandAssetLink> brandAssets,
+    required SubmitBrandAsset onSubmit,
+  }) {
     return Get.dialog(
-      UploadAnotherBrandAssetDialog(brandAssets: brandAssets),
+      UploadAnotherBrandAssetDialog(
+        brandAssets: brandAssets,
+        onSubmit: onSubmit,
+      ),
       barrierDismissible: false,
     );
   }
@@ -25,12 +39,38 @@ class _UploadAnotherBrandAssetDialogState
     extends State<UploadAnotherBrandAssetDialog> {
   final TextEditingController titleCtrl = TextEditingController();
   final TextEditingController urlCtrl = TextEditingController();
+  final isSubmitting = false.obs;
 
   @override
   void dispose() {
     titleCtrl.dispose();
     urlCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final t = titleCtrl.text.trim();
+    final u = urlCtrl.text.trim();
+
+    if (t.isEmpty) {
+      Get.snackbar('Error', 'Please enter asset title.');
+      return;
+    }
+
+    if (u.isEmpty) {
+      Get.snackbar('Error', 'Please enter asset url.');
+      return;
+    }
+
+    try {
+      isSubmitting.value = true;
+      await widget.onSubmit(title: t, url: u);
+      if (mounted) {
+        Get.back();
+      }
+    } finally {
+      isSubmitting.value = false;
+    }
   }
 
   static const primary = Color(0xFF2F4F1F);
@@ -146,32 +186,29 @@ class _UploadAnotherBrandAssetDialogState
                 ),
                 12.w.horizontalSpace,
                 Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      final t = titleCtrl.text.trim();
-                      final u = urlCtrl.text.trim();
-                      if (t.isEmpty) return;
-
-                      widget.brandAssets.add(
-                        BrandAssetLink(
-                          title: t,
-                          subtitle: 'Page Link',
-                          icon: Icons.link_rounded,
-                          url: u.isEmpty ? null : u,
+                  child: Obx(() {
+                    return ElevatedButton(
+                      onPressed: isSubmitting.value ? null : _submit,
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: Size(double.infinity, 46.h),
+                        backgroundColor: primary.withOpacity(.75),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12.r),
                         ),
-                      );
-                      Get.back();
-                    },
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: Size(double.infinity, 46.h),
-                      backgroundColor: primary.withOpacity(.75),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.r),
+                        elevation: 0,
                       ),
-                      elevation: 0,
-                    ),
-                    child: Text('common_done'.tr),
-                  ),
+                      child: isSubmitting.value
+                          ? SizedBox(
+                              width: 18.w,
+                              height: 18.w,
+                              child: const CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Text('common_done'.tr),
+                    );
+                  }),
                 ),
               ],
             ),

@@ -256,16 +256,24 @@ class SubmissionCard extends StatelessWidget {
                                 );
                               }
 
+                              final controller =
+                                  Get.find<MilestoneDetailsController>();
+
                               return Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   for (final link in links) ...[
-                                    Text(
-                                      link,
-                                      style: TextStyle(
-                                        fontSize: 12.sp,
-                                        color: AppPalette.primary,
-                                        decoration: TextDecoration.underline,
+                                    GestureDetector(
+                                      onTap: () => controller.openLink(link),
+                                      onLongPress: () =>
+                                          controller.copyLinkText(link),
+                                      child: Text(
+                                        link,
+                                        style: TextStyle(
+                                          fontSize: 12.sp,
+                                          color: AppPalette.primary,
+                                          decoration: TextDecoration.underline,
+                                        ),
                                       ),
                                     ),
                                     SizedBox(height: 8.h),
@@ -413,8 +421,7 @@ class SubmissionCard extends StatelessWidget {
                                 SizedBox(width: 14.w),
                                 Expanded(
                                   child: _MetricBox(
-                                    icon: Icons
-                                        .mode_comment_outlined, // comment bubble
+                                    icon: Icons.mode_comment_outlined,
                                     label: 'Comments',
                                     controller: submission.commentsController,
                                     enabled: isEditable,
@@ -688,11 +695,12 @@ class _MetricBox extends StatelessWidget {
             }
           },
           child: CustomTextFormField(
-            hintText: '0 / 2K / 2.4M',
+            hintText: '0/2K/2.4M',
             controller: controller,
             enabled: enabled,
-            textAlign: TextAlign.center,
+            textAlign: TextAlign.start,
             keyboardType: TextInputType.text,
+            textInputAction: TextInputAction.done,
             contentPadding: EdgeInsets.symmetric(
               horizontal: 12.w,
               vertical: 14.h,

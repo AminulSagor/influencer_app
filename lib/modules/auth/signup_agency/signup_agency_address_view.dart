@@ -58,37 +58,49 @@ class SignupAgencyAddressView extends GetView<SignupAgencyController> {
 
                 SizedBox(height: 28.h),
 
-                // Thana dropdown
-                Obx(() {
-                  return CustomDropDownMenu(
-                    title: 'influ_addr_thana_label'.tr,
-                    hintText: 'influ_addr_thana_hint'.tr,
-                    options: controller.thanaOptions,
-                    value: controller.selectedThana.value,
-                    validator: (value) =>
-                        (value == null || value.trim().isEmpty)
-                        ? 'influ_addr_select_error'.tr
-                        : null,
-                    onChanged: (value) =>
-                        controller.selectedThana.value = value,
-                  );
-                }),
-
-                SizedBox(height: 20.h),
-
                 // Zilla dropdown
                 Obx(() {
                   return CustomDropDownMenu(
                     title: 'influ_addr_zilla_label'.tr,
-                    hintText: 'influ_addr_zilla_hint'.tr,
+                    hintText: controller.isLoadingZillas.value
+                        ? 'Loading zilla...'
+                        : 'influ_addr_zilla_hint'.tr,
                     options: controller.zillaOptions,
                     value: controller.selectedZilla.value,
                     validator: (value) =>
                         (value == null || value.trim().isEmpty)
                         ? 'influ_addr_select_error'.tr
                         : null,
-                    onChanged: (value) =>
-                        controller.selectedZilla.value = value,
+                    onChanged: controller.onZillaChanged,
+                  );
+                }),
+
+                SizedBox(height: 20.h),
+
+                // Thana dropdown
+                Obx(() {
+                  final enabled = controller.selectedZillaId.value != null;
+
+                  return Opacity(
+                    opacity: enabled ? 1 : 0.6,
+                    child: AbsorbPointer(
+                      absorbing: !enabled,
+                      child: CustomDropDownMenu(
+                        title: 'influ_addr_thana_label'.tr,
+                        hintText: !enabled
+                            ? 'Select zilla first'
+                            : controller.isLoadingThanas.value
+                            ? 'Loading thana...'
+                            : 'influ_addr_thana_hint'.tr,
+                        options: controller.thanaOptions,
+                        value: controller.selectedThana.value,
+                        validator: (value) =>
+                            (value == null || value.trim().isEmpty)
+                            ? 'influ_addr_select_error'.tr
+                            : null,
+                        onChanged: controller.onThanaChanged,
+                      ),
+                    ),
                   );
                 }),
 

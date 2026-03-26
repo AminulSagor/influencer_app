@@ -52,200 +52,209 @@ class ProfileView extends GetView<ProfileController> {
             child: IndexedStack(
               index: pageIndex,
               children: [
-                SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  padding: EdgeInsets.fromLTRB(20.w, 12.h, 20.w, 24.h),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(height: 10.h),
-                      ProfileHeaderCard(
-                        controller: controller,
-                        onStatusTap: controller.showVerificationPage,
-                      ),
-                      SizedBox(height: 10.h),
-                      if (!isBrand)
-                        _ProfileCompletionCard(controller: controller),
-                      SizedBox(height: 10.h),
-                      if (isBrand) ...[
-                        Obx(
-                          () => BrandContactInfoCard(
-                            email: controller.userEmail.value,
-                            phone: controller.userPhone.value,
-                            website: controller.brandWebsite.value,
-                          ),
+                RefreshIndicator(
+                  onRefresh: controller.refreshProfilePage,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics(),
+                    ),
+                    padding: EdgeInsets.fromLTRB(20.w, 12.h, 20.w, 24.h),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(height: 10.h),
+                        ProfileHeaderCard(
+                          controller: controller,
+                          onStatusTap: controller.showVerificationPage,
                         ),
-                        SizedBox(height: 16.h),
-                      ],
+                        SizedBox(height: 10.h),
+                        if (!isBrand)
+                          _ProfileCompletionCard(controller: controller),
+                        SizedBox(height: 10.h),
+                        if (isBrand) ...[
+                          Obx(
+                            () => BrandContactInfoCard(
+                              email: controller.userEmail.value,
+                              phone: controller.userPhone.value,
+                              website: controller.brandWebsite.value,
+                            ),
+                          ),
+                          SizedBox(height: 16.h),
+                        ],
 
-                      Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 17.w,
-                          vertical: 20.h,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(kBorderRadius.r),
-                          border: Border.all(
-                            color: AppPalette.border1,
-                            width: kBorderWidth0_5,
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 17.w,
+                            vertical: 20.h,
                           ),
-                        ),
-                        child: Column(
-                          children: [
-                            // BIO
-                            if (!isBrand) ...[
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(
+                              kBorderRadius.r,
+                            ),
+                            border: Border.all(
+                              color: AppPalette.border1,
+                              width: kBorderWidth0_5,
+                            ),
+                          ),
+                          child: Column(
+                            children: [
+                              // BIO
+                              if (!isBrand) ...[
+                                Obx(
+                                  () => ExpandableSectionCard(
+                                    title: 'Bio',
+                                    isExpanded: controller.bioExpanded.value,
+                                    onToggle: controller.toggleBio,
+                                    child: _BioSection(controller: controller),
+                                  ),
+                                ),
+                                SizedBox(height: 12.h),
+                              ],
+
+                              // SKILLS (Influencer only) -> under Bio
+                              if (isInfluencer) ...[
+                                SkillsSectionCard(controller: controller),
+                                SizedBox(height: 12.h),
+                              ],
+
+                              // SERVICE FEE
+                              if (isAdAgency) ...[
+                                Obx(
+                                  () => ExpandableSectionCard(
+                                    title: 'Service Fee',
+                                    isExpanded:
+                                        controller.serviceFeeExpanded.value,
+                                    onToggle: controller.toggleServiceFee,
+                                    child:
+                                        controller.profileStatus.value ==
+                                            ProfileStatus.unverified
+                                        ? _ServiceFeeSection(
+                                            controller: controller,
+                                          )
+                                        : _VerifiedServiceFeeSection(
+                                            controller: controller,
+                                          ),
+                                  ),
+                                ),
+                                SizedBox(height: 12.h),
+                                Obx(
+                                  () => ExpandableSectionCard(
+                                    title: 'Dollar Rate',
+                                    isExpanded:
+                                        controller.dollarRateExpanded.value,
+                                    onToggle: controller.toggleDollarRate,
+                                    child: _DollarRateSection(
+                                      controller: controller,
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(height: 12.h),
+                              ],
+
+                              // SOCIAL LINKS
+                              if (!isBrand) ...[
+                                Obx(
+                                  () => ExpandableSectionCard(
+                                    title: 'Social Links',
+                                    isExpanded: controller.socialExpanded.value,
+                                    onToggle: controller.toggleSocial,
+                                    child: _SocialLinksSection(
+                                      controller: controller,
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(height: 12.h),
+                                // NICHE
+                                Obx(
+                                  () => ExpandableSectionCard(
+                                    title: 'Niche',
+                                    isExpanded: controller.nicheExpanded.value,
+                                    onToggle: controller.toggleNiche,
+                                    child: _NicheSection(
+                                      controller: controller,
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(height: 12.h),
+                              ],
+
+                              // PROFILE SETTINGS
                               Obx(
                                 () => ExpandableSectionCard(
-                                  title: 'Bio',
-                                  isExpanded: controller.bioExpanded.value,
-                                  onToggle: controller.toggleBio,
-                                  child: _BioSection(controller: controller),
+                                  title: 'Profile Settings',
+                                  isExpanded: controller.settingsExpanded.value,
+                                  onToggle: controller.toggleSettings,
+                                  child: ProfileSettingsSection(
+                                    controller: controller,
+                                  ),
                                 ),
                               ),
                               SizedBox(height: 12.h),
-                            ],
 
-                            // SKILLS (Influencer only) -> under Bio
-                            if (isInfluencer) ...[
-                              SkillsSectionCard(controller: controller),
-                              SizedBox(height: 12.h),
-                            ],
+                              if (isBrand) ...[
+                                const BrandAssetsSection(),
+                                SizedBox(height: 12.h),
+                              ],
 
-                            // SERVICE FEE
-                            if (isAdAgency) ...[
+                              // VERIFICATION METHODS
                               Obx(
                                 () => ExpandableSectionCard(
-                                  title: 'Service Fee',
+                                  title: 'Verification Methods',
+                                  titleColor: AppPalette.complemetary,
                                   isExpanded:
-                                      controller.serviceFeeExpanded.value,
-                                  onToggle: controller.toggleServiceFee,
+                                      controller.verificationExpanded.value,
+                                  onToggle: controller.toggleVerification,
                                   child:
                                       controller.profileStatus.value ==
                                           ProfileStatus.unverified
-                                      ? _ServiceFeeSection(
+                                      ? VerificationSection(
                                           controller: controller,
                                         )
-                                      : _VerifiedServiceFeeSection(
+                                      : VerificationInprogressSection(
                                           controller: controller,
                                         ),
                                 ),
                               ),
                               SizedBox(height: 12.h),
-                              Obx(
-                                () => ExpandableSectionCard(
-                                  title: 'Dollar Rate',
-                                  isExpanded:
-                                      controller.dollarRateExpanded.value,
-                                  onToggle: controller.toggleDollarRate,
-                                  child: _DollarRateSection(
-                                    controller: controller,
+
+                              // LOCATIONS
+                              if (isInfluencer) ...[
+                                LocationsSectionCard(controller: controller),
+                                SizedBox(height: 12.h),
+                              ],
+
+                              // PAYOUT SETTINGS
+                              if (!isBrand)
+                                Obx(
+                                  () => ExpandableSectionCard(
+                                    title: 'Payout Settings',
+                                    isExpanded: controller.payoutExpanded.value,
+                                    onToggle: controller.togglePayout,
+                                    child: PayoutSettingsSection(
+                                      controller: controller,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              SizedBox(height: 12.h),
                             ],
-
-                            // SOCIAL LINKS
-                            if (!isBrand) ...[
-                              Obx(
-                                () => ExpandableSectionCard(
-                                  title: 'Social Links',
-                                  isExpanded: controller.socialExpanded.value,
-                                  onToggle: controller.toggleSocial,
-                                  child: _SocialLinksSection(
-                                    controller: controller,
-                                  ),
-                                ),
-                              ),
-                              SizedBox(height: 12.h),
-                              // NICHE
-                              Obx(
-                                () => ExpandableSectionCard(
-                                  title: 'Niche',
-                                  isExpanded: controller.nicheExpanded.value,
-                                  onToggle: controller.toggleNiche,
-                                  child: _NicheSection(controller: controller),
-                                ),
-                              ),
-                              SizedBox(height: 12.h),
-                            ],
-
-                            // PROFILE SETTINGS
-                            Obx(
-                              () => ExpandableSectionCard(
-                                title: 'Profile Settings',
-                                isExpanded: controller.settingsExpanded.value,
-                                onToggle: controller.toggleSettings,
-                                child: ProfileSettingsSection(
-                                  controller: controller,
-                                ),
-                              ),
-                            ),
-                            SizedBox(height: 12.h),
-
-                            if (isBrand) ...[
-                              const BrandAssetsSection(),
-                              SizedBox(height: 12.h),
-                            ],
-
-                            // VERIFICATION METHODS
-                            Obx(
-                              () => ExpandableSectionCard(
-                                title: 'Verification Methods',
-                                titleColor: AppPalette.complemetary,
-                                isExpanded:
-                                    controller.verificationExpanded.value,
-                                onToggle: controller.toggleVerification,
-                                child:
-                                    controller.profileStatus.value ==
-                                        ProfileStatus.unverified
-                                    ? VerificationSection(
-                                        controller: controller,
-                                      )
-                                    : VerificationInprogressSection(
-                                        controller: controller,
-                                      ),
-                              ),
-                            ),
-                            SizedBox(height: 12.h),
-
-                            // LOCATIONS
-                            if (isInfluencer) ...[
-                              LocationsSectionCard(controller: controller),
-                              SizedBox(height: 12.h),
-                            ],
-
-                            // PAYOUT SETTINGS
-                            if (!isBrand)
-                              Obx(
-                                () => ExpandableSectionCard(
-                                  title: 'Payout Settings',
-                                  isExpanded: controller.payoutExpanded.value,
-                                  onToggle: controller.togglePayout,
-                                  child: PayoutSettingsSection(
-                                    controller: controller,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(height: 16.h),
-                      if (isInfluencer || isAdAgency)
-                        Obx(
-                          () => CustomButton(
-                            onTap: controller.isSavingProfile.value
-                                ? null
-                                : controller.onSaveVerificationMethods,
-                            btnText: 'Save Update',
-                            height: 56.h,
-                            width: double.infinity,
-                            textColor: AppPalette.white,
-                            isLoading: controller.isSavingProfile.value,
                           ),
                         ),
-                    ],
+                        SizedBox(height: 16.h),
+                        if (isInfluencer || isAdAgency)
+                          Obx(
+                            () => CustomButton(
+                              onTap: controller.isSavingProfile.value
+                                  ? null
+                                  : controller.onSaveVerificationMethods,
+                              btnText: 'Save Update',
+                              height: 56.h,
+                              width: double.infinity,
+                              textColor: AppPalette.white,
+                              isLoading: controller.isSavingProfile.value,
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
                 _VerificationFlowPage(controller: controller),
@@ -349,17 +358,12 @@ class _ServiceFeeSection extends StatelessWidget {
         5.h.verticalSpace,
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 8.w),
-          child: Obx(
-            () => CustomTextFormField(
-              initialValue: controller.serviceFeeText.value,
-              hintText: 'eg: 10%',
-              onChanged: (value) => controller.serviceFeeText.value = value,
-              textAlign: TextAlign.center,
-              textStyle: TextStyle(
-                fontSize: 18.sp,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
+          child: CustomTextFormField(
+            controller: controller.serviceFeeController,
+            hintText: 'eg: 10%',
+            onChanged: (value) => controller.serviceFeeText.value = value,
+            textAlign: TextAlign.center,
+            textStyle: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w500),
           ),
         ),
         SizedBox(height: 10.h),
@@ -431,7 +435,7 @@ class _DollarRateSection extends StatelessWidget {
     return Column(
       children: [
         Text(
-          'Enter dollar rate per campaign spend',
+          'Enter dollar rate',
           style: TextStyle(
             fontSize: 12.sp,
             fontWeight: FontWeight.w500,
@@ -441,23 +445,15 @@ class _DollarRateSection extends StatelessWidget {
         5.h.verticalSpace,
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 8.w),
-          child: Obx(
-            () => CustomTextFormField(
-              initialValue: controller.dollarRateText.value,
-              hintText: 'eg: 124.57',
-              onChanged: (value) => controller.dollarRateText.value = value,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*$')),
-              ],
-              textAlign: TextAlign.center,
-              textStyle: TextStyle(
-                fontSize: 18.sp,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
+          child: CustomTextFormField(
+            controller: controller.dollarRateController,
+            hintText: 'eg: 120',
+            onChanged: (value) => controller.dollarRateText.value = value,
+            textAlign: TextAlign.center,
+            textStyle: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w500),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+            ],
           ),
         ),
         SizedBox(height: 10.h),

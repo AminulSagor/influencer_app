@@ -9,6 +9,7 @@ import 'package:influencer_app/core/widgets/custom_drop_down_menu.dart';
 
 import '../../../core/theme/app_palette.dart';
 import '../../../core/utils/constants.dart';
+import '../../../core/utils/metric_number_util.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../../core/widgets/custom_text_form_field.dart';
 import 'create_campaign_controller.dart';
@@ -772,16 +773,25 @@ class _MetricSingleField extends StatelessWidget {
           textInputAction: TextInputAction.next,
         ),
         8.h.verticalSpace,
-        CustomTextFormField(
-          title: amountHint,
-          titleTextStyle: AppTheme.textStyle.copyWith(
-            fontSize: 10.sp,
-            fontWeight: FontWeight.w500,
-            color: AppPalette.primary,
+        Focus(
+          onFocusChange: (hasFocus) {
+            if (!hasFocus) {
+              amountController.text = MetricNumberUtil.normalizeInput(
+                amountController.text,
+              );
+            }
+          },
+          child: CustomTextFormField(
+            title: amountHint,
+            titleTextStyle: AppTheme.textStyle.copyWith(
+              fontSize: 10.sp,
+              fontWeight: FontWeight.w500,
+              color: AppPalette.primary,
+            ),
+            controller: amountController,
+            hintText: '0 / 2K / 2.4M',
+            keyboardType: TextInputType.text,
           ),
-          controller: amountController,
-          hintText: '2.5M',
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
         ),
       ],
     );
@@ -821,13 +831,22 @@ class _MiniMetricField extends StatelessWidget {
           ],
         ),
         8.h.verticalSpace,
-        CustomTextFormField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          hintText: '0',
-          contentPadding: EdgeInsets.symmetric(
-            horizontal: 18.w,
-            vertical: 12.h,
+        Focus(
+          onFocusChange: (hasFocus) {
+            if (!hasFocus) {
+              controller.text = MetricNumberUtil.normalizeInput(
+                controller.text,
+              );
+            }
+          },
+          child: CustomTextFormField(
+            controller: controller,
+            keyboardType: TextInputType.text,
+            hintText: '0 / 2K / 2.4M',
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: 18.w,
+              vertical: 12.h,
+            ),
           ),
         ),
       ],

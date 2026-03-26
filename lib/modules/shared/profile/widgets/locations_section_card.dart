@@ -6,6 +6,7 @@ import 'package:influencer_app/core/utils/constants.dart';
 import 'package:influencer_app/core/widgets/custom_button.dart';
 import 'package:influencer_app/core/widgets/custom_text_form_field.dart';
 
+import '../../../../core/widgets/custom_drop_down_menu.dart';
 import '../models/user_location.dart';
 import '../profile_controller.dart';
 
@@ -239,43 +240,41 @@ class _AddLocationForm extends StatelessWidget {
 
           12.h.verticalSpace,
 
-          Text(
-            'locations_thana'.tr, // "Thana *" / "থানা *"
-            style: TextStyle(
-              fontSize: 12.sp,
-              fontWeight: FontWeight.w600,
-              color: AppPalette.primary,
-            ),
-          ),
-          8.h.verticalSpace,
-          Obx(
-            () => _LocationDropDown(
-              hintText: 'locations_select_thana'.tr,
-              value: controller.selectedLocationThana.value,
-              options: controller.thanaList,
-              onChanged: controller.setLocationThana,
-            ),
-          ),
+          Obx(() {
+            return CustomDropDownMenu(
+              title: 'locations_zilla'.tr,
+              hintText: controller.isLoadingLocationZillas.value
+                  ? 'Loading zilla...'
+                  : 'locations_select_zilla'.tr,
+              options: controller.zillaList,
+              value: controller.selectedLocationZilla.value,
+              onChanged: controller.setLocationZilla,
+            );
+          }),
 
           12.h.verticalSpace,
 
-          Text(
-            'locations_zilla'.tr, // "Zilla *" / "জেলা *"
-            style: TextStyle(
-              fontSize: 12.sp,
-              fontWeight: FontWeight.w600,
-              color: AppPalette.primary,
-            ),
-          ),
-          8.h.verticalSpace,
-          Obx(
-            () => _LocationDropDown(
-              hintText: 'locations_select_zilla'.tr,
-              value: controller.selectedLocationZilla.value,
-              options: controller.zillaList,
-              onChanged: controller.setLocationZilla,
-            ),
-          ),
+          Obx(() {
+            final enabled = controller.selectedLocationZillaId.value != null;
+
+            return Opacity(
+              opacity: enabled ? 1 : 0.6,
+              child: AbsorbPointer(
+                absorbing: !enabled,
+                child: CustomDropDownMenu(
+                  title: 'locations_thana'.tr,
+                  hintText: !enabled
+                      ? 'Select zilla first'
+                      : controller.isLoadingLocationThanas.value
+                      ? 'Loading thana...'
+                      : 'locations_select_thana'.tr,
+                  options: controller.thanaList,
+                  value: controller.selectedLocationThana.value,
+                  onChanged: controller.setLocationThana,
+                ),
+              ),
+            );
+          }),
 
           12.h.verticalSpace,
 
@@ -310,65 +309,6 @@ class _AddLocationForm extends StatelessWidget {
             dashPattern: const [4, 3],
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _LocationDropDown extends StatelessWidget {
-  final String hintText;
-  final String? value;
-  final List<String> options;
-  final ValueChanged<String?>? onChanged;
-
-  const _LocationDropDown({
-    required this.hintText,
-    required this.value,
-    required this.options,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12.w),
-      decoration: BoxDecoration(
-        color: AppPalette.white,
-        borderRadius: BorderRadius.circular(10.r),
-        border: Border.all(color: AppPalette.border1, width: 0.8),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: value,
-          hint: Text(
-            hintText,
-            style: TextStyle(
-              fontWeight: FontWeight.w300,
-              fontSize: 12.sp,
-              color: AppPalette.subtext,
-            ),
-          ),
-          isExpanded: true,
-          icon: Icon(Icons.keyboard_arrow_down_rounded, size: 24.sp),
-          dropdownColor: AppPalette.white,
-          borderRadius: BorderRadius.circular(10.r),
-          items: options
-              .map(
-                (e) => DropdownMenuItem(
-                  value: e,
-                  child: Text(
-                    e,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w400,
-                      fontSize: 12.sp,
-                      color: AppPalette.black,
-                    ),
-                  ),
-                ),
-              )
-              .toList(),
-          onChanged: onChanged,
-        ),
       ),
     );
   }

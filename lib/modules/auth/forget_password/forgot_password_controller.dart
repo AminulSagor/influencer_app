@@ -212,7 +212,7 @@ class ForgotPasswordController extends GetxController {
 
     final args = Get.arguments;
     if (args is Map && args['contact'] is String) {
-      contactValue.value = args['contact'] as String;
+      contactValue.value = args['contact'];
     }
 
     Future.microtask(() {

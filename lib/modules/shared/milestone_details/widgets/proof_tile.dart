@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:influencer_app/core/theme/app_palette.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -70,11 +72,8 @@ class ProofTile extends StatelessWidget {
           );
 
     return InkWell(
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) =>
-              _FullScreenImage(networkUrl: networkUrl, localFile: localFile),
-        ),
+      onTap: () => Get.to(
+        () => _FullScreenImage(networkUrl: networkUrl, localFile: localFile),
       ),
       child: Stack(
         fit: StackFit.expand,
@@ -146,7 +145,10 @@ class _FullScreenImage extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(backgroundColor: Colors.black),
+      appBar: AppBar(
+        backgroundColor: AppPalette.black,
+        foregroundColor: AppPalette.white,
+      ),
       body: PhotoView(
         imageProvider: provider,
         minScale: PhotoViewComputedScale.contained,

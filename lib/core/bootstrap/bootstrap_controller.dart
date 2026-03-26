@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:influencer_app/core/controllers/app_user_session_controller.dart';
+import 'package:influencer_app/core/services/notification_navigation_service.dart';
 
 import '../../../core/enums/account_type.dart';
 import '../../../core/services/account_type_service.dart';
@@ -48,9 +49,11 @@ class BootstrapController extends GetxController {
         debugPrint('[Bootstrap] token present');
         final isExpired = JwtDecoder.isExpired(storedToken);
         debugPrint('[Bootstrap] token expired=$isExpired');
+
         if (!isExpired) {
           final payload = JwtDecoder.decode(storedToken);
           debugPrint('[Bootstrap] token decoded');
+
           final role =
               payload['role'] ??
               payload['accountType'] ??
@@ -79,6 +82,12 @@ class BootstrapController extends GetxController {
             AppRoutes.bottomNav,
             arguments: {'isAccountVerified': isVerifiedByAdmin},
           );
+
+          if (Get.isRegistered<NotificationNavigationService>()) {
+            await Get.find<NotificationNavigationService>()
+                .handlePendingTapAfterBootstrap();
+          }
+
           return;
         }
       }

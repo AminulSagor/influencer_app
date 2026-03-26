@@ -412,7 +412,10 @@ class CampaignDetailsController extends GetxController {
   }
 
   Future<void> _loadCampaignDetails() async {
+    // final id =
+    //     '480851f0-5e38-4b21-8600-2c240caa80a2'; //TODO HARDCODED FOR TESTING !!!
     final id = job.id?.trim();
+
     if (id == null || id.isEmpty) return;
     if (!(accountTypeService.isInfluencer || accountTypeService.isAdAgency)) {
       return;
@@ -422,8 +425,6 @@ class CampaignDetailsController extends GetxController {
 
     final result = await ApiErrorHandler.call(() async {
       if (accountTypeService.isInfluencer) {
-        isCampaignRated.value = false;
-        campaignRating.value = 0.0;
         await _loadInfluencerJobDetails(id);
         if (influencerJobCampaignId.value != null) {
           await _loadInfluencerWithdrawableBalance(
@@ -584,6 +585,12 @@ class CampaignDetailsController extends GetxController {
 
     influencerJobCampaignId.value = campaign['id'];
 
+    final rawRating = _toDouble(root['rating']);
+    final rawIsRated = root['isRated'] == true || rawRating > 0;
+
+    isCampaignRated.value = rawIsRated;
+    campaignRating.value = rawRating;
+
     // 2) Milestones:
     // Prefer campaign.milestones (it already exists in your response)
     final campaignMilestonesRaw = root['milestones'];
@@ -660,7 +667,7 @@ class CampaignDetailsController extends GetxController {
       progressPercent: job.progressPercent,
       dueInDays: job.dueInDays,
       dueLabel: dueLabel,
-      rating: _toDouble(root['rating']).round(), // "0.0" => 0
+      rating: _toDouble(root['rating']).round(),
       profitLabel: job.profitLabel,
       vatLabel: job.vatLabel,
       totalCostLabel: job.totalCostLabel,
@@ -801,7 +808,7 @@ class CampaignDetailsController extends GetxController {
 
     final updated = _copyJob(
       job,
-      title: (raw['campaignName'] as String?)?.trim(),
+      title: (raw['campaignName'])?.trim(),
       clientName: _clientNameFrom(raw),
       dueLabel: _buildDueLabel(raw['duration']?.toString()),
 
@@ -920,7 +927,7 @@ class CampaignDetailsController extends GetxController {
         campaignStatus.value = CampaignStatus.accepted;
         return;
       }
-      if ({'completed', 'complete', 'closed'}.contains(_serverStatus)) {
+      if ({'completed', 'complete', 'closed', 'paid'}.contains(_serverStatus)) {
         campaignStatus.value = CampaignStatus.complete;
         return;
       }

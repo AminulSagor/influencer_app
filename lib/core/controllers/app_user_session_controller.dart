@@ -184,7 +184,7 @@ class AppUserSessionController extends GetxService {
     try {
       final newRes = await _notificationService.fetchNotifications(
         basePath: _notificationBasePath,
-        filter: 'new',
+        // filter: 'new',
         page: 1,
         limit: 50,
       );

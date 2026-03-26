@@ -14,7 +14,7 @@ Future<void> main() async {
 
   await FirebaseMessagingService.init();
 
-  runApp(InfluencerApp(initialRoute: AppRoutes.bootstrap));
+  runApp(const InfluencerApp(initialRoute: AppRoutes.bootstrap));
 }
 
 class InfluencerApp extends StatelessWidget {
@@ -38,7 +38,7 @@ class InfluencerApp extends StatelessWidget {
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
-        title: "Influencer App",
+        title: 'Influencer App',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightThemeMode,
         initialRoute: initialRoute,

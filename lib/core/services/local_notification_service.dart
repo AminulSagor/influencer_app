@@ -1,5 +1,12 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
+typedef LocalNotificationTapCallback = void Function(String? payload);
+
+@pragma('vm:entry-point')
+void notificationTapBackground(NotificationResponse notificationResponse) {
+  // optional: background action handling if needed later
+}
+
 class LocalNotificationService {
   LocalNotificationService._();
 
@@ -13,23 +20,51 @@ class LocalNotificationService {
     importance: Importance.max,
   );
 
-  static Future<void> init() async {
+  static bool _isInitialized = false;
+
+  static Future<void> init({
+    LocalNotificationTapCallback? onNotificationTap,
+  }) async {
+    if (_isInitialized) return;
+
     const androidSettings = AndroidInitializationSettings(
       '@mipmap/ic_launcher',
     );
 
     const iosSettings = DarwinInitializationSettings();
 
-    const InitializationSettings initializationSettings =
-        InitializationSettings(android: androidSettings, iOS: iosSettings);
+    const initializationSettings = InitializationSettings(
+      android: androidSettings,
+      iOS: iosSettings,
+    );
 
-    await _plugin.initialize(settings: initializationSettings);
+    await _plugin.initialize(
+      settings: initializationSettings,
+      onDidReceiveNotificationResponse: (NotificationResponse response) {
+        onNotificationTap?.call(response.payload);
+      },
+      onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
+    );
 
     await _plugin
         .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin
         >()
         ?.createNotificationChannel(_channel);
+
+    await _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
+        ?.requestNotificationsPermission();
+
+    await _plugin
+        .resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin
+        >()
+        ?.requestPermissions(alert: true, badge: true, sound: true);
+
+    _isInitialized = true;
   }
 
   static Future<void> show({
@@ -52,7 +87,7 @@ class LocalNotificationService {
       presentSound: true,
     );
 
-    const NotificationDetails notificationDetails = NotificationDetails(
+    const notificationDetails = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
     );

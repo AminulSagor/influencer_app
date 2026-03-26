@@ -21,6 +21,8 @@ import 'package:influencer_app/modules/influencer/services/influencer_profile_se
 import 'package:influencer_app/modules/brand/services/brand_onboarding_services.dart';
 import 'package:influencer_app/routes/app_routes.dart';
 
+import '../../../core/models/location_models.dart';
+import '../../../core/services/location_service.dart';
 import '../../../core/widgets/logout_dialog.dart';
 import 'models/brand_asset.dart';
 import 'models/payout_method.dart';
@@ -160,13 +162,198 @@ class ProfileController extends GetxController {
   /// Current influencer profile (null for brand/agency)
   Rxn<InfluencerProfile> get influencerProfile => _apiData.influencerProfile;
 
+  final serviceFeeController = TextEditingController();
+  final dollarRateController = TextEditingController();
+
+  // Agency address dropdown state
+  final RxList<ZillaModel> agencyZillas = <ZillaModel>[].obs;
+  final RxList<ThanaModel> agencyThanas = <ThanaModel>[].obs;
+  final isLoadingAgencyZillas = false.obs;
+  final isLoadingAgencyThanas = false.obs;
+
+  final RxnString selectedAgencyZilla = RxnString();
+  final RxnString selectedAgencyZillaId = RxnString();
+  final RxnString selectedAgencyThana = RxnString();
+  final RxnString selectedAgencyThanaId = RxnString();
+
+  List<String> get agencyZillaList =>
+      agencyZillas.map((e) => e.displayName).toList(growable: false);
+
+  List<String> get agencyThanaList =>
+      agencyThanas.map((e) => e.displayName).toList(growable: false);
+
   @override
   void onInit() {
     super.onInit();
     bioController.addListener(_syncBioFromController);
     brandWebsiteController.addListener(_syncBrandWebsiteFromController);
+    serviceFeeController.addListener(_syncServiceFeeFromController);
+    dollarRateController.addListener(_syncDollarRateFromController);
     _setupVerificationMediaUploadWorkers();
+    loadLocationZillas();
+    loadAgencyZillas();
     _hydrateOrFetchProfileData();
+  }
+
+  void _setServiceFeeText(String value) {
+    serviceFeeText.value = value;
+    if (serviceFeeController.text != value) {
+      serviceFeeController.text = value;
+    }
+  }
+
+  void _setDollarRateText(String value) {
+    dollarRateText.value = value;
+    if (dollarRateController.text != value) {
+      dollarRateController.text = value;
+    }
+  }
+
+  void _syncServiceFeeFromController() {
+    final value = serviceFeeController.text;
+    if (serviceFeeText.value != value) {
+      serviceFeeText.value = value;
+    }
+  }
+
+  void _syncDollarRateFromController() {
+    final value = dollarRateController.text;
+    if (dollarRateText.value != value) {
+      dollarRateText.value = value;
+    }
+  }
+
+  Future<void> loadAgencyZillas() async {
+    if (!accountTypeService.isAdAgency || isLoadingAgencyZillas.value) return;
+
+    isLoadingAgencyZillas.value = true;
+    try {
+      final result = await ApiErrorHandler.call(
+        () => Get.find<LocationService>().fetchAllZillas(),
+        showError: false,
+      );
+
+      if (result.isSuccess && result.data != null) {
+        agencyZillas.assignAll(result.data!);
+      }
+    } finally {
+      isLoadingAgencyZillas.value = false;
+    }
+  }
+
+  Future<void> loadAgencyThanasByZilla(String zillaId) async {
+    if (!accountTypeService.isAdAgency || isLoadingAgencyThanas.value) return;
+
+    isLoadingAgencyThanas.value = true;
+    try {
+      final result = await ApiErrorHandler.call(
+        () =>
+            Get.find<LocationService>().fetchAllThanasByZilla(zillaId: zillaId),
+        showError: false,
+      );
+
+      if (result.isSuccess && result.data != null) {
+        agencyThanas.assignAll(result.data!);
+      } else {
+        agencyThanas.clear();
+      }
+    } finally {
+      isLoadingAgencyThanas.value = false;
+    }
+  }
+
+  Future<void> setAgencyZilla(String? value) async {
+    selectedAgencyZilla.value = value;
+    selectedAgencyThana.value = null;
+    selectedAgencyThanaId.value = null;
+    agencyThanas.clear();
+
+    if (value == null || value.trim().isEmpty) {
+      selectedAgencyZillaId.value = null;
+      return;
+    }
+
+    final zilla = agencyZillas.firstWhereOrNull((e) => e.displayName == value);
+    selectedAgencyZillaId.value = zilla?.id;
+
+    if (zilla != null) {
+      await loadAgencyThanasByZilla(zilla.id);
+    }
+  }
+
+  void setAgencyThana(String? value) {
+    selectedAgencyThana.value = value;
+
+    if (value == null || value.trim().isEmpty) {
+      selectedAgencyThanaId.value = null;
+      return;
+    }
+
+    final thana = agencyThanas.firstWhereOrNull((e) => e.displayName == value);
+    selectedAgencyThanaId.value = thana?.id;
+  }
+
+  Future<void> _hydrateAgencyAddressDropdowns(Map<String, dynamic> json) async {
+    final address = json['address'];
+    if (address is! Map) return;
+
+    final zillaName = (address['zilla'] ?? '').toString().trim();
+    final thanaName = (address['thana'] ?? '').toString().trim();
+
+    if (agencyZillas.isEmpty) {
+      await loadAgencyZillas();
+    }
+
+    final matchedZilla = agencyZillas.firstWhereOrNull(
+      (e) => e.displayName.toLowerCase() == zillaName.toLowerCase(),
+    );
+
+    if (matchedZilla == null) {
+      selectedAgencyZilla.value = zillaName.isEmpty ? null : zillaName;
+      selectedAgencyZillaId.value = null;
+      selectedAgencyThana.value = thanaName.isEmpty ? null : thanaName;
+      selectedAgencyThanaId.value = null;
+      agencyThanas.clear();
+      return;
+    }
+
+    selectedAgencyZilla.value = matchedZilla.displayName;
+    selectedAgencyZillaId.value = matchedZilla.id;
+
+    await loadAgencyThanasByZilla(matchedZilla.id);
+
+    final matchedThana = agencyThanas.firstWhereOrNull(
+      (e) => e.displayName.toLowerCase() == thanaName.toLowerCase(),
+    );
+
+    if (matchedThana != null) {
+      selectedAgencyThana.value = matchedThana.displayName;
+      selectedAgencyThanaId.value = matchedThana.id;
+    } else {
+      selectedAgencyThana.value = thanaName.isEmpty ? null : thanaName;
+      selectedAgencyThanaId.value = null;
+    }
+  }
+
+  Future<void> refreshProfilePage() async {
+    isLoadingProfile.value = true;
+    try {
+      await appUserSession.preloadUserData();
+      await _loadUserFromToken();
+
+      if (accountTypeService.isInfluencer) {
+        await _fetchInfluencerProfile();
+      } else if (accountTypeService.isAdAgency) {
+        await _fetchAgencyProfile();
+      } else if (accountTypeService.isBrand) {
+        await _fetchBrandProfile();
+      } else {
+        _applyEmptyProfileState();
+      }
+    } finally {
+      isLoadingProfile.value = false;
+      update();
+    }
   }
 
   Future<void> _hydrateOrFetchProfileData() async {
@@ -239,21 +426,12 @@ class ProfileController extends GetxController {
   /// Fetches influencer profile from API and populates UI fields
   Future<void> _fetchInfluencerProfile() async {
     final service = Get.find<InfluencerProfileService>();
-    final wrappedResult = await ApiErrorHandler.call(
-      () => service.getProfile(),
-    );
-    final result =
-        wrappedResult.data ??
-        ApiResult.failure(wrappedResult.error ?? 'unknown_error'.tr);
+    final result = await service.getProfile();
 
     if (result.isSuccess && result.data != null) {
       final profile = result.data!;
       influencerProfile.value = profile;
-
-      debugPrint('📋 INFLUENCER PROFILE LOADED:');
-      debugPrint('  Name: ${profile.fullName}');
-      debugPrint('  isVerified: ${profile.isOnboardingComplete}');
-
+      appUserSession.influencerProfile.value = profile;
       _populateFromInfluencerProfile(profile);
     } else {
       debugPrint('❌ Failed to load profile: ${result.error}');
@@ -1032,12 +1210,13 @@ class ProfileController extends GetxController {
     );
     _applyProfileUser(userModel);
 
-    final agencyName = json['agencyName'] as String? ?? '';
-    final firstName = json['firstName'] as String? ?? '';
-    final lastName = json['lastName'] as String? ?? '';
-    _setBioText(json['agencyBio'] as String? ?? '');
-    serviceFeeText.value = json['serviceFee']?.toString() ?? '';
-    dollarRateText.value = json['dollarRate']?.toString() ?? '';
+    final agencyName = json['agencyName'] ?? '';
+    final firstName = json['firstName'] ?? '';
+    final lastName = json['lastName'] ?? '';
+
+    _setBioText(json['agencyBio'] ?? '');
+    _setServiceFeeText(json['serviceFee']?.toString() ?? '');
+    _setDollarRateText(json['dollarRate']?.toString() ?? '');
     profileImageFile.value = null;
 
     appUserSession.agencyProfileJson.value = Map<String, dynamic>.from(json);
@@ -1048,14 +1227,25 @@ class ProfileController extends GetxController {
       profileRating.value = double.tryParse(rating) ?? 0.0;
     } else if (rating is num) {
       profileRating.value = rating.toDouble();
+    } else {
+      profileRating.value = 0.0;
     }
+
     profileRatingCount.value = json['totalReviews'] as int? ?? 0;
+
+    profileName.value = agencyName.toString().trim().isNotEmpty
+        ? agencyName.toString().trim()
+        : ('$firstName $lastName').trim();
+
+    profileImageUrl.value =
+        (json['profileImg'] ?? json['profileImage'] ?? json['logo'] ?? '')
+            .toString();
 
     // Calculate profile completion
     int completed = 0;
     int total = 9;
     if (agencyName.isNotEmpty) completed++;
-    if ((json['agencyBio'] as String?)?.isNotEmpty == true) completed++;
+    if ((json['agencyBio'])?.isNotEmpty == true) completed++;
     if (json['address'] != null) completed++;
     if (json['socialLinks'] != null) completed++;
     if (json['skills'] != null) completed++;
@@ -1072,11 +1262,9 @@ class ProfileController extends GetxController {
         socialLinks.map((link) {
           final linkMap = link as Map<String, dynamic>;
           return SocialAccount(
-            platform: _capitalizeFirst(linkMap['platform'] as String? ?? ''),
-            iconPath: _getIconPathForPlatform(
-              linkMap['platform'] as String? ?? '',
-            ),
-            handle: linkMap['url'] as String? ?? '',
+            platform: _capitalizeFirst(linkMap['platform'] ?? ''),
+            iconPath: _getIconPathForPlatform(linkMap['platform'] ?? ''),
+            handle: linkMap['url'] ?? '',
             isVerified: linkMap['status'] == 'verified',
           );
         }).toList(),
@@ -1158,28 +1346,24 @@ class ProfileController extends GetxController {
 
     // Locations/Addresses
     final address = json['address'];
+
     if (address != null) {
-      if (address is Map<String, dynamic>) {
-        locations.assignAll([
-          UserLocation(
-            name: address['addressName'] as String? ?? 'Office',
-            thana: address['thana'] as String? ?? '',
-            zilla: address['zilla'] as String? ?? '',
-            fullAddress: address['fullAddress'] as String? ?? '',
-          ),
-        ]);
-      } else if (address is List && address.isNotEmpty) {
-        locations.assignAll(
-          address.map((addr) {
-            final addrMap = addr as Map<String, dynamic>;
-            return UserLocation(
-              name: addrMap['addressName'] as String? ?? 'Office',
-              thana: addrMap['thana'] as String? ?? '',
-              zilla: addrMap['zilla'] as String? ?? '',
-              fullAddress: addrMap['fullAddress'] as String? ?? '',
-            );
-          }).toList(),
-        );
+      if (address is Map) {
+        final fullAddress = (address['fullAddress'] ?? '').toString().trim();
+        final thana = (address['thana'] ?? '').toString().trim();
+        final zilla = (address['zilla'] ?? '').toString().trim();
+
+        final locParts = <String>[
+          if (fullAddress.isNotEmpty) fullAddress,
+          if (thana.isNotEmpty) thana,
+          if (zilla.isNotEmpty) zilla,
+        ];
+
+        profileLocation.value = locParts.isEmpty
+            ? 'Dhaka, Bangladesh'
+            : locParts.join(', ');
+      } else {
+        profileLocation.value = 'Dhaka, Bangladesh';
       }
     } else {
       locations.clear();
@@ -1197,11 +1381,11 @@ class ProfileController extends GetxController {
           methods.add(
             PayoutMethod.bank(
               payoutId: bankMap['id']?.toString(),
-              bankName: bankMap['bankName'] as String? ?? '',
-              accountName: bankMap['bankAccHolderName'] as String? ?? '',
-              accountNo: bankMap['bankAccNo'] as String? ?? '',
-              branchName: bankMap['bankBranchName'] as String? ?? '',
-              routingNumber: bankMap['bankRoutingNo'] as String? ?? '',
+              bankName: bankMap['bankName'] ?? '',
+              accountName: bankMap['bankAccHolderName'] ?? '',
+              accountNo: bankMap['bankAccNo'] ?? '',
+              branchName: bankMap['bankBranchName'] ?? '',
+              routingNumber: bankMap['bankRoutingNo'] ?? '',
               isApproved: bankMap['status'] == 'approved',
             ),
           );
@@ -1215,10 +1399,9 @@ class ProfileController extends GetxController {
           methods.add(
             PayoutMethod.bKash(
               payoutId: mobileMap['id']?.toString(),
-              bKashNo: mobileMap['accountNo'] as String? ?? '',
-              bKashName: mobileMap['accountHolderName'] as String? ?? '',
-              bKashAccountType:
-                  mobileMap['accountType'] as String? ?? 'Personal',
+              bKashNo: mobileMap['accountNo'] ?? '',
+              bKashName: mobileMap['accountHolderName'] ?? '',
+              bKashAccountType: mobileMap['accountType'] ?? 'Personal',
               isApproved: mobileMap['status'] == 'approved',
             ),
           );
@@ -1311,15 +1494,15 @@ class ProfileController extends GetxController {
         isRequired: true,
       ),
       ProfileField(
-        label: 'Thana',
-        hintText: 'Enter Thana',
-        value: primaryLocation?.thana ?? '',
-        isRequired: true,
-      ),
-      ProfileField(
         label: 'Zilla',
         hintText: 'Enter Zilla',
         value: primaryLocation?.zilla ?? '',
+        isRequired: true,
+      ),
+      ProfileField(
+        label: 'Thana',
+        hintText: 'Enter Thana',
+        value: primaryLocation?.thana ?? '',
         isRequired: true,
       ),
       ProfileField(
@@ -1349,6 +1532,7 @@ class ProfileController extends GetxController {
         isReadOnly: true,
       ),
     ]);
+    _hydrateAgencyAddressDropdowns(json);
     _hydrateVerificationInputsFromJson(json);
     _syncProfileFieldDefaults();
   }
@@ -1367,10 +1551,10 @@ class ProfileController extends GetxController {
         _stringOrNull(json['brandName']) ??
         _stringOrNull(json['companyName']) ??
         '';
-    final firstName = json['firstName'] as String? ?? '';
-    final lastName = json['lastName'] as String? ?? '';
+    final firstName = json['firstName'] ?? '';
+    final lastName = json['lastName'] ?? '';
     brandName.value = companyName;
-    _setBioText(json['bio'] as String? ?? '');
+    _setBioText(json['bio'] ?? '');
     _setBrandWebsite(_stringOrNull(json['website']));
     profileImageFile.value = null;
 
@@ -1389,7 +1573,7 @@ class ProfileController extends GetxController {
     int completed = 0;
     int total = 7;
     if (companyName.isNotEmpty || firstName.isNotEmpty) completed++;
-    if ((json['bio'] as String?)?.isNotEmpty == true) completed++;
+    if ((json['bio'])?.isNotEmpty == true) completed++;
     if (json['address'] != null || json['addresses'] != null) completed++;
     if (json['socialLinks'] != null) completed++;
     if (json['tradeLicenseNumber'] != null) completed++;
@@ -1404,10 +1588,8 @@ class ProfileController extends GetxController {
         socialLinks.map((link) {
           final linkMap = link as Map<String, dynamic>;
           return SocialAccount(
-            platform: _capitalizeFirst(linkMap['platform'] as String? ?? ''),
-            iconPath: _getIconPathForPlatform(
-              linkMap['platform'] as String? ?? '',
-            ),
+            platform: _capitalizeFirst(linkMap['platform'] ?? ''),
+            iconPath: _getIconPathForPlatform(linkMap['platform'] ?? ''),
             handle:
                 (linkMap['profileUrl'] ?? linkMap['url'] ?? linkMap['link'])
                     ?.toString() ??
@@ -1451,10 +1633,10 @@ class ProfileController extends GetxController {
         addresses.map((addr) {
           final addrMap = addr as Map<String, dynamic>;
           return UserLocation(
-            name: addrMap['addressName'] as String? ?? 'Office',
-            thana: addrMap['thana'] as String? ?? '',
-            zilla: addrMap['zilla'] as String? ?? '',
-            fullAddress: addrMap['fullAddress'] as String? ?? '',
+            name: addrMap['addressName'] ?? 'Office',
+            thana: addrMap['thana'] ?? '',
+            zilla: addrMap['zilla'] ?? '',
+            fullAddress: addrMap['fullAddress'] ?? '',
           );
         }).toList(),
       );
@@ -1497,11 +1679,11 @@ class ProfileController extends GetxController {
           methods.add(
             PayoutMethod.bank(
               payoutId: bankMap['id']?.toString(),
-              bankName: bankMap['bankName'] as String? ?? '',
-              accountName: bankMap['bankAccHolderName'] as String? ?? '',
-              accountNo: bankMap['bankAccNo'] as String? ?? '',
-              branchName: bankMap['bankBranchName'] as String? ?? '',
-              routingNumber: bankMap['bankRoutingNo'] as String? ?? '',
+              bankName: bankMap['bankName'] ?? '',
+              accountName: bankMap['bankAccHolderName'] ?? '',
+              accountNo: bankMap['bankAccNo'] ?? '',
+              branchName: bankMap['bankBranchName'] ?? '',
+              routingNumber: bankMap['bankRoutingNo'] ?? '',
               isApproved: bankMap['status'] == 'approved',
             ),
           );
@@ -1515,10 +1697,9 @@ class ProfileController extends GetxController {
           methods.add(
             PayoutMethod.bKash(
               payoutId: mobileMap['id']?.toString(),
-              bKashNo: mobileMap['accountNo'] as String? ?? '',
-              bKashName: mobileMap['accountHolderName'] as String? ?? '',
-              bKashAccountType:
-                  mobileMap['accountType'] as String? ?? 'Personal',
+              bKashNo: mobileMap['accountNo'] ?? '',
+              bKashName: mobileMap['accountHolderName'] ?? '',
+              bKashAccountType: mobileMap['accountType'] ?? 'Personal',
               isApproved: mobileMap['status'] == 'approved',
             ),
           );
@@ -1804,13 +1985,14 @@ class ProfileController extends GetxController {
     locationNameController.dispose();
     locationFullAddressController.dispose();
 
+    serviceFeeController.removeListener(_syncServiceFeeFromController);
+    dollarRateController.removeListener(_syncDollarRateFromController);
+
+    serviceFeeController.dispose();
+    dollarRateController.dispose();
+
     super.onClose();
   }
-
-  /// Dropdown options
-  final thanaList = ['Rampura', 'Banani', 'Dhanmondi', 'Uttara', 'Mirpur'];
-
-  final zillaList = ['Dhaka', 'Chittagong', 'Khulna', 'Rajshahi'];
 
   /// Selected values
   final selectedThana = Rx<String?>(null);
@@ -2039,12 +2221,7 @@ class ProfileController extends GetxController {
 
       if (accountTypeService.isInfluencer) {
         final service = Get.find<InfluencerProfileService>();
-        final wrappedResult = await ApiErrorHandler.call(
-          () => service.updateBasicInfo(profileImage: url, bio: bioText.value),
-        );
-        final result =
-            wrappedResult.data ??
-            ApiResult.failure(wrappedResult.error ?? 'unknown_error'.tr);
+        final result = await service.getProfile();
         if (result.isSuccess && result.data != null) {
           await _fetchProfileData();
           return;
@@ -2078,12 +2255,8 @@ class ProfileController extends GetxController {
     try {
       if (accountTypeService.isInfluencer) {
         final service = Get.find<InfluencerProfileService>();
-        final wrappedResult = await ApiErrorHandler.call(
-          () => service.removeProfileImage(),
-        );
-        final result =
-            wrappedResult.data ??
-            ApiResult.failure(wrappedResult.error ?? 'unknown_error'.tr);
+
+        final result = await service.removeProfileImage();
         if (!result.isSuccess) return;
         await _fetchProfileData();
         return;
@@ -2192,19 +2365,13 @@ class ProfileController extends GetxController {
             Get.snackbar('Error', 'Please fill all bank payout fields');
             return;
           }
-
-          final wrappedResult = await ApiErrorHandler.call(
-            () => service.addBankPayout(
-              bankName: bankName,
-              accountHolderName: holder,
-              accountNo: accountNo,
-              branchName: branchName,
-              routingNo: routing,
-            ),
+          final result = await service.addBankPayout(
+            bankName: bankName,
+            accountHolderName: holder,
+            accountNo: accountNo,
+            branchName: branchName,
+            routingNo: routing,
           );
-          final result =
-              wrappedResult.data ??
-              ApiResult.failure(wrappedResult.error ?? 'unknown_error'.tr);
 
           if (!result.isSuccess) {
             Get.snackbar('Error', result.error ?? 'Failed to add payout');
@@ -2220,16 +2387,11 @@ class ProfileController extends GetxController {
             return;
           }
 
-          final wrappedResult = await ApiErrorHandler.call(
-            () => service.addMobilePayout(
-              accountType: accountType.isEmpty ? 'Bkash' : accountType,
-              accountHolderName: holder,
-              accountNo: accountNo,
-            ),
+          final result = await service.addMobilePayout(
+            accountType: accountType.isEmpty ? 'Bkash' : accountType,
+            accountHolderName: holder,
+            accountNo: accountNo,
           );
-          final result =
-              wrappedResult.data ??
-              ApiResult.failure(wrappedResult.error ?? 'unknown_error'.tr);
 
           if (!result.isSuccess) {
             Get.snackbar('Error', result.error ?? 'Failed to add payout');
@@ -2330,15 +2492,11 @@ class ProfileController extends GetxController {
     isSavingProfile.value = true;
     try {
       final service = Get.find<InfluencerProfileService>();
-      final wrappedResult = await ApiErrorHandler.call(
-        () => service.removePayout(
-          type: payout.payoutType,
-          accountNo: payoutAccountNo,
-        ),
+
+      final result = await service.removePayout(
+        type: payout.payoutType,
+        accountNo: payoutAccountNo,
       );
-      final result =
-          wrappedResult.data ??
-          ApiResult.failure(wrappedResult.error ?? 'unknown_error'.tr);
 
       if (result.isSuccess) {
         payoutMethods.removeWhere(
@@ -2845,7 +3003,9 @@ class ProfileController extends GetxController {
     isLoadingAllowedSkills.value = false;
   }
 
-  // -------------------- LOCATIONS (Influencer only) --------------------
+  // -------------------- LOCATIONS --------------------
+  final LocationService _locationService = Get.find<LocationService>();
+
   final locationsExpanded = true.obs;
 
   final RxBool showNewLocationForm = false.obs;
@@ -2855,33 +3015,152 @@ class ProfileController extends GetxController {
   final TextEditingController locationFullAddressController =
       TextEditingController();
 
-  final selectedLocationThana = Rx<String?>(null);
-  final selectedLocationZilla = Rx<String?>(null);
+  final RxnString selectedLocationThana = RxnString();
+  final RxnString selectedLocationThanaId = RxnString();
+  final RxnString selectedLocationZilla = RxnString();
+  final RxnString selectedLocationZillaId = RxnString();
+
+  final RxList<ZillaModel> locationZillas = <ZillaModel>[].obs;
+  final RxList<ThanaModel> locationThanas = <ThanaModel>[].obs;
+
+  final isLoadingLocationZillas = false.obs;
+  final isLoadingLocationThanas = false.obs;
+
+  List<String> get zillaList =>
+      locationZillas.map((e) => e.displayName).toList(growable: false);
+
+  List<String> get thanaList =>
+      locationThanas.map((e) => e.displayName).toList(growable: false);
 
   void toggleLocations() => locationsExpanded.toggle();
 
-  void setLocationThana(String? v) => selectedLocationThana.value = v;
-  void setLocationZilla(String? v) => selectedLocationZilla.value = v;
+  Future<void> loadLocationZillas() async {
+    if (isLoadingLocationZillas.value) return;
+    isLoadingLocationZillas.value = true;
+
+    final result = await ApiErrorHandler.call(
+      () => _locationService.fetchAllZillas(),
+      showError: false,
+    );
+
+    if (result.isSuccess && result.data != null) {
+      locationZillas.assignAll(result.data!);
+    }
+
+    isLoadingLocationZillas.value = false;
+  }
+
+  Future<void> setLocationZilla(String? value) async {
+    selectedLocationZilla.value = value;
+    selectedLocationThana.value = null;
+    selectedLocationThanaId.value = null;
+    locationThanas.clear();
+
+    if (value == null || value.trim().isEmpty) {
+      selectedLocationZillaId.value = null;
+      return;
+    }
+
+    final zilla = locationZillas.firstWhereOrNull(
+      (e) => e.displayName == value,
+    );
+    selectedLocationZillaId.value = zilla?.id;
+
+    if (zilla != null) {
+      await loadLocationThanasByZilla(zilla.id);
+    }
+  }
+
+  void setLocationThana(String? value) {
+    selectedLocationThana.value = value;
+
+    if (value == null || value.trim().isEmpty) {
+      selectedLocationThanaId.value = null;
+      return;
+    }
+
+    final thana = locationThanas.firstWhereOrNull(
+      (e) => e.displayName == value,
+    );
+    selectedLocationThanaId.value = thana?.id;
+  }
+
+  Future<void> loadLocationThanasByZilla(String zillaId) async {
+    if (isLoadingLocationThanas.value) return;
+    isLoadingLocationThanas.value = true;
+
+    final result = await ApiErrorHandler.call(
+      () => _locationService.fetchAllThanasByZilla(zillaId: zillaId),
+      showError: false,
+    );
+
+    if (result.isSuccess && result.data != null) {
+      locationThanas.assignAll(result.data!);
+    }
+
+    isLoadingLocationThanas.value = false;
+  }
 
   void startAddLocation() {
     editingLocationIndex.value = null;
     locationNameController.clear();
     locationFullAddressController.clear();
     selectedLocationThana.value = null;
+    selectedLocationThanaId.value = null;
     selectedLocationZilla.value = null;
+    selectedLocationZillaId.value = null;
+    locationThanas.clear();
+
+    if (locationZillas.isEmpty) {
+      loadLocationZillas();
+    }
+
     showNewLocationForm.value = true;
     locationsExpanded.value = true;
   }
 
-  void startEditLocation(int index) {
+  Future<void> startEditLocation(int index) async {
     if (index < 0 || index >= locations.length) return;
     final loc = locations[index];
 
     editingLocationIndex.value = index;
     locationNameController.text = loc.name;
     locationFullAddressController.text = loc.fullAddress;
-    selectedLocationThana.value = loc.thana;
-    selectedLocationZilla.value = loc.zilla;
+
+    selectedLocationZilla.value = null;
+    selectedLocationZillaId.value = null;
+    selectedLocationThana.value = null;
+    selectedLocationThanaId.value = null;
+    locationThanas.clear();
+
+    if (locationZillas.isEmpty) {
+      await loadLocationZillas();
+    }
+
+    final matchedZilla = locationZillas.firstWhereOrNull(
+      (e) => e.displayName.toLowerCase() == loc.zilla.trim().toLowerCase(),
+    );
+
+    if (matchedZilla != null) {
+      selectedLocationZilla.value = matchedZilla.displayName;
+      selectedLocationZillaId.value = matchedZilla.id;
+
+      await loadLocationThanasByZilla(matchedZilla.id);
+
+      final matchedThana = locationThanas.firstWhereOrNull(
+        (e) => e.displayName.toLowerCase() == loc.thana.trim().toLowerCase(),
+      );
+
+      if (matchedThana != null) {
+        selectedLocationThana.value = matchedThana.displayName;
+        selectedLocationThanaId.value = matchedThana.id;
+      } else {
+        selectedLocationThana.value = loc.thana;
+      }
+    } else {
+      selectedLocationZilla.value = loc.zilla;
+      selectedLocationThana.value = loc.thana;
+    }
 
     showNewLocationForm.value = true;
     locationsExpanded.value = true;
@@ -2918,18 +3197,13 @@ class ProfileController extends GetxController {
     if (accountTypeService.isInfluencer) {
       final service = Get.find<InfluencerProfileService>();
 
-      final wrappedResult = await ApiErrorHandler.call(
-        () => service.addAddress(
-          addressName: name,
-          thana: thana,
-          zilla: zilla,
-          fullAddress: full,
-          isDefault: false,
-        ),
+      final result = await service.addAddress(
+        addressName: name,
+        thana: thana,
+        zilla: zilla,
+        fullAddress: full,
+        isDefault: false,
       );
-      final result =
-          wrappedResult.data ??
-          ApiResult.failure(wrappedResult.error ?? 'unknown_error'.tr);
 
       if (result.isSuccess && result.data != null) {
         influencerProfile.value = result.data;
@@ -3258,17 +3532,12 @@ class ProfileController extends GetxController {
             ? (profileFieldValues['Website'] ?? '').trim()
             : null;
 
-        final basicInfoWrapped = await ApiErrorHandler.call(
-          () => service.updateBasicInfo(
-            firstName: firstNameValue,
-            lastName: lastNameValue,
-            bio: bioText.value,
-            website: websiteValue,
-          ),
+        final basicInfoResult = await service.updateBasicInfo(
+          firstName: firstNameValue,
+          lastName: lastNameValue,
+          bio: bioText.value,
+          website: websiteValue,
         );
-        final basicInfoResult =
-            basicInfoWrapped.data ??
-            ApiResult.failure(basicInfoWrapped.error ?? 'unknown_error'.tr);
         if (!basicInfoResult.isSuccess) return;
 
         final nichesWrapped = await ApiErrorHandler.call(
@@ -3523,7 +3792,7 @@ class ProfileController extends GetxController {
                 ).trim(),
               },
             )
-            .where((item) => (item['url'] as String).isNotEmpty)
+            .where((item) => (item['url']).isNotEmpty)
             .toList(growable: false);
         if (socialPayload.isNotEmpty) {
           final socialResult = await ApiErrorHandler.call(

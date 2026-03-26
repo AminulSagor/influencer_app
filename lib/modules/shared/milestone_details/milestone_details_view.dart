@@ -37,31 +37,26 @@ class MilestoneDetailsView extends GetView<MilestoneDetailsController> {
             ? Obx(() {
                 final isPaidAd = job.campaignType == CampaignType.paidAd;
                 final selected = controller.selectedBrandSubmission;
+                final selectedIds = controller.selectedBrandSubmissionIds;
 
-                if (selected == null) return const SizedBox.shrink();
+                final canReview = isPaidAd
+                    ? selectedIds.isNotEmpty
+                    : ((selected?.serverId ?? '').trim().isNotEmpty);
 
-                final hasSubmissionId = (selected.serverId ?? '')
-                    .trim()
-                    .isNotEmpty;
-
-                // hide if already completed (optional)
-                if (selected.status.value == BrandSubmissionStatus.completed) {
+                if (!canReview) return const SizedBox.shrink();
+                if (controller.isSelectedBrandSubmissionFinalized) {
                   return const SizedBox.shrink();
                 }
 
                 return _AcceptDeclineSection(
                   isPaidAd: isPaidAd,
-                  onAccept: hasSubmissionId
-                      ? controller.approveSelectedBrandSubmission
-                      : null,
-                  onDecline: hasSubmissionId
-                      ? () => _showDeclineSheet(
-                          context: context,
-                          onSubmit: (reason) {
-                            controller.declineSelectedBrandSubmission(reason);
-                          },
-                        )
-                      : null,
+                  onAccept: controller.approveSelectedBrandSubmission,
+                  onDecline: () => _showDeclineSheet(
+                    context: context,
+                    onSubmit: (reason) {
+                      controller.declineSelectedBrandSubmission(reason);
+                    },
+                  ),
                 );
               })
             : null,
@@ -97,12 +92,10 @@ class MilestoneDetailsView extends GetView<MilestoneDetailsController> {
                     Padding(
                       padding: EdgeInsets.symmetric(horizontal: 16.w),
                       child: Obx(() {
-                        final selected = controller.selectedBrandSubmission;
-                        final hasSubmission = (selected?.serverId ?? '')
-                            .trim()
-                            .isNotEmpty;
+                        final hasSubmission = controller.brandSubmissions.any(
+                          (e) => (e.serverId ?? '').trim().isNotEmpty,
+                        );
 
-                        // ✅ If no submission exists on this milestone, hide report admin UI entirely
                         if (!hasSubmission) {
                           return const SizedBox.shrink();
                         }
@@ -140,39 +133,53 @@ class MilestoneDetailsView extends GetView<MilestoneDetailsController> {
                                 height: 50.h,
                               )
                             else ...[
-                              Container(
-                                width: double.infinity,
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 18.w,
-                                  vertical: 16.h,
+                              GestureDetector(
+                                onTap: () => _showWriteReportDialog(
+                                  context: context,
+                                  onSubmit: (reason) =>
+                                      controller.submitAdminReport(reason),
                                 ),
-                                decoration: BoxDecoration(
-                                  color: AppPalette.secondary,
-                                  borderRadius: BorderRadius.circular(12.r),
-                                ),
-                                child: Column(
-                                  children: [
-                                    Text(
-                                      'reported_to_admin_title'.tr,
-                                      style: TextStyle(
-                                        fontSize: 16.sp,
-                                        fontWeight: FontWeight.w800,
-                                        color: Colors.white,
-                                      ),
+                                child: Container(
+                                  width: double.infinity,
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 18.w,
+                                    vertical: 16.h,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        AppPalette.secondary,
+                                        AppPalette.primary,
+                                      ],
                                     ),
-                                    if (againText.isNotEmpty) ...[
-                                      SizedBox(height: 6.h),
+                                    borderRadius: BorderRadius.circular(
+                                      kBorderRadius.r,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    children: [
                                       Text(
-                                        againText,
+                                        'reported_to_admin_title'.tr,
                                         style: TextStyle(
-                                          fontSize: 11.sp,
+                                          fontSize: 16.sp,
                                           fontWeight: FontWeight.w500,
-                                          color: Colors.white.withOpacity(0.9),
+                                          color: AppPalette.thirdColor,
                                         ),
-                                        textAlign: TextAlign.center,
                                       ),
+                                      if (againText.isNotEmpty) ...[
+                                        SizedBox(height: 6.h),
+                                        Text(
+                                          againText,
+                                          style: TextStyle(
+                                            fontSize: 10.sp,
+                                            fontWeight: FontWeight.w500,
+                                            color: AppPalette.thirdColor,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ],
                                     ],
-                                  ],
+                                  ),
                                 ),
                               ),
                             ],

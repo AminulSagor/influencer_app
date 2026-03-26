@@ -1,4 +1,6 @@
 import 'package:get/get.dart';
+import 'package:influencer_app/core/services/location_service.dart';
+import 'package:influencer_app/core/services/notification_navigation_service.dart';
 
 import '../controllers/language_controller.dart';
 import 'package:influencer_app/modules/ad_agency/services/agency_onboarding_service.dart';
@@ -24,13 +26,10 @@ class InitialBinding extends Bindings {
     Get.put(LanguageController(), permanent: true);
     Get.put<AccountTypeService>(AccountTypeService(), permanent: true);
 
-    // Storage first
     Get.put<TokenService>(TokenService(), permanent: true);
 
-    // ApiClient next (depends on TokenService)
     Get.put<ApiClient>(ApiClient(Get.find<TokenService>()), permanent: true);
 
-    // Auth service (depends on ApiClient + TokenService)
     Get.put<AuthService>(
       AuthService(
         apiClient: Get.find<ApiClient>(),
@@ -39,13 +38,15 @@ class InitialBinding extends Bindings {
       permanent: true,
     );
 
-    // Campaign service (depends on ApiClient)
     Get.put(CampaignService(Get.find<ApiClient>()), permanent: true);
 
-    // Onboarding check service (depends on ApiClient)
+    Get.lazyPut<LocationService>(
+      () => LocationService(Get.find<ApiClient>()),
+      fenix: true,
+    );
+
     Get.put<OnboardingCheckService>(OnboardingCheckService(), permanent: true);
 
-    // Feature services (depend on ApiClient)
     Get.put(
       InfluencerOnboardingService(Get.find<ApiClient>()),
       permanent: true,
@@ -64,18 +65,26 @@ class InitialBinding extends Bindings {
     Get.put(AnalyticsService(Get.find<ApiClient>()), permanent: true);
     Get.put(ReportService(Get.find<ApiClient>()), permanent: true);
     Get.put(EarningsService(Get.find<ApiClient>()), permanent: true);
-    //Get.put(LeadManagerService(Get.find<ApiClient>()), permanent: true);
+
     Get.lazyPut<NotificationService>(
       () => NotificationService(Get.find<ApiClient>()),
       fenix: true,
     );
+
     Get.put<AppUserSessionController>(
       AppUserSessionController(),
       permanent: true,
     );
+
     Get.lazyPut<NotificationsController>(
       () => NotificationsController(service: Get.find<NotificationService>()),
       fenix: true,
     );
+
+    final notificationNavigationService = Get.put(
+      NotificationNavigationService(),
+      permanent: true,
+    );
+    notificationNavigationService.init();
   }
 }

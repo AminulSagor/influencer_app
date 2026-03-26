@@ -129,16 +129,15 @@ class OnboardingStatus {
       hasAddress: addresses != null && addresses.isNotEmpty,
       hasSocialLinks: socialLinks != null && socialLinks.isNotEmpty,
       hasNidSubmitted:
-          json['nidNumber'] != null && (json['nidNumber'] as String).isNotEmpty,
-      nidStatus: nidVerification?['status'] as String?,
+          json['nidNumber'] != null && (json['nidNumber']).isNotEmpty,
+      nidStatus: nidVerification?['status'],
       hasPayoutSetup: hasPayout,
-      isEmailVerified: json['isEmailVerified'] as bool? ?? false,
+      isEmailVerified: json['isEmailVerified'] ?? false,
       hasProfileImage:
-          json['profileImage'] != null &&
-          (json['profileImage'] as String).isNotEmpty,
+          json['profileImage'] != null && (json['profileImage']).isNotEmpty,
       hasNiches: niches != null && niches.isNotEmpty,
       hasSkills: skills != null && skills.isNotEmpty,
-      hasBio: json['bio'] != null && (json['bio'] as String).isNotEmpty,
+      hasBio: json['bio'] != null && (json['bio']).isNotEmpty,
     );
   }
 
@@ -174,27 +173,23 @@ class OnboardingStatus {
       hasAddress: addresses != null && addresses.isNotEmpty,
       hasSocialLinks: socialLinks != null && socialLinks.isNotEmpty,
       hasNidSubmitted:
-          json['nidNumber'] != null && (json['nidNumber'] as String).isNotEmpty,
-      nidStatus: nidVerification?['nidStatus'] as String?,
+          json['nidNumber'] != null && (json['nidNumber']).isNotEmpty,
+      nidStatus: nidVerification?['nidStatus'],
       hasPayoutSetup: hasPayout,
-      isEmailVerified: json['isEmailVerified'] as bool? ?? false,
+      isEmailVerified: json['isEmailVerified'] ?? false,
       hasTradeLicense:
           json['tradeLicenseNumber'] != null &&
-          (json['tradeLicenseNumber'] as String).isNotEmpty,
-      tradeLicenseStatus:
-          tradeLicenseVerification?['tradeLicenseStatus'] as String?,
-      hasTin:
-          json['tinNumber'] != null && (json['tinNumber'] as String).isNotEmpty,
-      tinStatus: tinVerification?['tinStatus'] as String?,
-      hasBin:
-          json['binNumber'] != null && (json['binNumber'] as String).isNotEmpty,
-      binStatus: binVerification?['binStatus'] as String?,
+          (json['tradeLicenseNumber']).isNotEmpty,
+      tradeLicenseStatus: tradeLicenseVerification?['tradeLicenseStatus'],
+      hasTin: json['tinNumber'] != null && (json['tinNumber']).isNotEmpty,
+      tinStatus: tinVerification?['tinStatus'],
+      hasBin: json['binNumber'] != null && (json['binNumber']).isNotEmpty,
+      binStatus: binVerification?['binStatus'],
       hasProfileImage:
-          json['profileImage'] != null &&
-          (json['profileImage'] as String).isNotEmpty,
+          json['profileImage'] != null && (json['profileImage']).isNotEmpty,
       hasNiches: niches != null && niches.isNotEmpty,
       hasSkills: skills != null && skills.isNotEmpty,
-      hasBio: json['bio'] != null && (json['bio'] as String).isNotEmpty,
+      hasBio: json['bio'] != null && (json['bio']).isNotEmpty,
     );
   }
 

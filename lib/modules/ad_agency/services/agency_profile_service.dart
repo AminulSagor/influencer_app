@@ -109,22 +109,6 @@ class AgencyProfileService {
     );
   }
 
-  Future<Map<String, dynamic>> getServiceFee() async {
-    final res = await _api.dio.get('/agency/profile/service-fee');
-    if (res.data is Map<String, dynamic>)
-      return res.data as Map<String, dynamic>;
-    if (res.data is Map) return Map<String, dynamic>.from(res.data as Map);
-    return const {};
-  }
-
-  Future<Map<String, dynamic>> getDollarRate() async {
-    final res = await _api.dio.get('/agency/profile/dollar-rate');
-    if (res.data is Map<String, dynamic>)
-      return res.data as Map<String, dynamic>;
-    if (res.data is Map) return Map<String, dynamic>.from(res.data as Map);
-    return const {};
-  }
-
   Future<void> addBankPayout({
     required String bankName,
     required String accountHolderName,

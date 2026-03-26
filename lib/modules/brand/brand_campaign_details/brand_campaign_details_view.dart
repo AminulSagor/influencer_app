@@ -210,23 +210,27 @@ class _CampaignDetailsCard extends GetView<BrandCampaignDetailsController> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      controller.campaignTitle.value,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w300,
-                      ),
-                    ),
+                    Obx(() {
+                      return Text(
+                        controller.campaignTitle.value,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w300,
+                        ),
+                      );
+                    }),
                     SizedBox(height: 6.h),
-                    Text(
-                      formatCurrencyByLocale(controller.totalCost),
-                      style: TextStyle(
-                        color: AppPalette.thirdColor,
-                        fontSize: 24.sp,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                    Obx(() {
+                      return Text(
+                        formatCurrencyByLocale(controller.totalCost),
+                        style: TextStyle(
+                          color: AppPalette.thirdColor,
+                          fontSize: 24.sp,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      );
+                    }),
                   ],
                 ),
               ),
@@ -255,7 +259,9 @@ class _CampaignDetailsCard extends GetView<BrandCampaignDetailsController> {
               );
             }
 
-            if (controller.isPaidAd) return SizedBox.shrink();
+            if (controller.isPaidAd || controller.influencers.isEmpty) {
+              return SizedBox.shrink();
+            }
 
             return Row(
               children: [
@@ -524,16 +530,6 @@ class _Chip extends StatelessWidget {
   }
 }
 
-class _MiniPlatform extends StatelessWidget {
-  final String iconPath;
-  const _MiniPlatform({required this.iconPath});
-
-  @override
-  Widget build(BuildContext context) {
-    return Image.asset(iconPath, width: 24.w, height: 24.w, fit: BoxFit.cover);
-  }
-}
-
 /// ---------------- CAMPAIGN PROGRESS ----------------
 
 class _CampaignProgressCard extends GetView<BrandCampaignDetailsController> {
@@ -557,6 +553,8 @@ class _CampaignProgressCard extends GetView<BrandCampaignDetailsController> {
               return current.index >= step.index;
             }
 
+            final paymentStatus = controller.paymentStatus.value;
+
             return Column(
               children: [
                 _ProgressRow(
@@ -573,7 +571,9 @@ class _CampaignProgressCard extends GetView<BrandCampaignDetailsController> {
                 ),
                 _ProgressRow(
                   iconAssetPath: 'assets/icons/paid_bill.png',
-                  title: 'brand_campaign_details_paid'.tr,
+                  title: paymentStatus.toLowerCase().contains('partial')
+                      ? 'brand_campaign_details_paid_partial'.tr
+                      : 'brand_campaign_details_paid'.tr,
                   subtitle: 'brand_campaign_details_paid_sub'.tr,
                   active: isActive(CampaignProgressStep.paid),
                 ),
@@ -665,13 +665,17 @@ class _ProgressRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.w400,
-                      color: titleColor,
-                    ),
+                  Row(
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w400,
+                          color: titleColor,
+                        ),
+                      ),
+                    ],
                   ),
                   SizedBox(height: 2.h),
                   Text(
@@ -1267,7 +1271,7 @@ class _RatingCard extends GetView<BrandCampaignDetailsController> {
       child: Column(
         children: [
           Obx(() {
-            final r = controller.rating.value;
+            controller.rating.value;
             return Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(5, (i) {
@@ -1651,9 +1655,10 @@ class _ContentAssetsCard extends GetView<BrandCampaignDetailsController> {
   }
 }
 
-class _AssetTile extends StatelessWidget {
+class _AssetTile extends GetView<BrandCampaignDetailsController> {
   final JobAsset asset;
   final VoidCallback onTap;
+
   const _AssetTile({required this.asset, required this.onTap});
 
   @override
@@ -1671,63 +1676,70 @@ class _AssetTile extends StatelessWidget {
       }
     }
 
-    return Container(
-      margin: EdgeInsets.only(bottom: 10.h),
-      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 10.h),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(kBorderRadius.r),
-        border: Border.all(color: AppPalette.secondary, width: kBorderWidth0_5),
-        gradient: LinearGradient(
-          begin: Alignment.bottomLeft,
-          end: Alignment.topRight,
-          colors: [AppPalette.white, AppPalette.white, AppPalette.thirdColor],
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(iconFor(asset.kind), color: AppPalette.secondary, size: 25.sp),
-          10.w.horizontalSpace,
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  asset.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w500,
-                    color: AppPalette.secondary,
-                  ),
-                ),
-                2.h.verticalSpace,
-                Text(
-                  asset.meta,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w400,
-                    color: AppPalette.secondary.withAlpha(153),
-                  ),
-                ),
-              ],
-            ),
+    return InkWell(
+      onTap: () => controller.openAssetLink(asset.pathOrUrl),
+      borderRadius: BorderRadius.circular(kBorderRadius.r),
+      child: Container(
+        margin: EdgeInsets.only(bottom: 10.h),
+        padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 10.h),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(kBorderRadius.r),
+          border: Border.all(
+            color: AppPalette.secondary,
+            width: kBorderWidth0_5,
           ),
-          10.w.horizontalSpace,
-          InkWell(
-            onTap: onTap,
-            child: Padding(
-              padding: EdgeInsets.only(right: 8.w),
-              child: Image.asset(
-                'assets/icons/download.png',
-                width: 23.w,
-                color: AppPalette.secondary,
+          gradient: LinearGradient(
+            begin: Alignment.bottomLeft,
+            end: Alignment.topRight,
+            colors: [AppPalette.white, AppPalette.white, AppPalette.thirdColor],
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(iconFor(asset.kind), color: AppPalette.secondary, size: 25.sp),
+            10.w.horizontalSpace,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    asset.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w500,
+                      color: AppPalette.secondary,
+                    ),
+                  ),
+                  2.h.verticalSpace,
+                  Text(
+                    asset.meta,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w400,
+                      color: AppPalette.secondary.withAlpha(153),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-        ],
+            10.w.horizontalSpace,
+            InkWell(
+              onTap: () => controller.openAssetLink(asset.pathOrUrl),
+              child: Padding(
+                padding: EdgeInsets.only(right: 8.w),
+                child: Image.asset(
+                  'assets/icons/download.png',
+                  width: 23.w,
+                  color: AppPalette.secondary,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1889,7 +1901,7 @@ class _BrandAssetsCard extends GetView<BrandCampaignDetailsController> {
   }
 }
 
-class _BrandAssetTile extends StatelessWidget {
+class _BrandAssetTile extends GetView<BrandCampaignDetailsController> {
   final BrandAssetLink asset;
   final VoidCallback onRemove;
 
@@ -1897,60 +1909,67 @@ class _BrandAssetTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: EdgeInsets.only(bottom: 10.h),
-      padding: EdgeInsets.all(12.w),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(kBorderRadius.r),
-        border: Border.all(color: AppPalette.secondary, width: kBorderWidth0_5),
-        gradient: LinearGradient(
-          begin: Alignment.bottomLeft,
-          end: Alignment.topRight,
-          colors: [AppPalette.white, AppPalette.white, AppPalette.thirdColor],
+    return InkWell(
+      onTap: () => controller.openAssetLink(asset.url),
+      borderRadius: BorderRadius.circular(kBorderRadius.r),
+      child: Container(
+        margin: EdgeInsets.only(bottom: 10.h),
+        padding: EdgeInsets.all(12.w),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(kBorderRadius.r),
+          border: Border.all(
+            color: AppPalette.secondary,
+            width: kBorderWidth0_5,
+          ),
+          gradient: LinearGradient(
+            begin: Alignment.bottomLeft,
+            end: Alignment.topRight,
+            colors: [AppPalette.white, AppPalette.white, AppPalette.thirdColor],
+          ),
         ),
-      ),
-      child: Row(
-        children: [
-          Icon(asset.icon, size: 30.sp, color: AppPalette.secondary),
-          10.w.horizontalSpace,
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  asset.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w500,
-                    color: AppPalette.primary,
+        child: Row(
+          children: [
+            Icon(asset.icon, size: 30.sp, color: AppPalette.secondary),
+            10.w.horizontalSpace,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    asset.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w500,
+                      color: AppPalette.primary,
+                    ),
                   ),
-                ),
-                2.h.verticalSpace,
-                Text(
-                  asset.url ?? '-',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w400,
-                    color: AppPalette.secondary.withAlpha(153),
+                  2.h.verticalSpace,
+                  Text(
+                    asset.url ?? '-',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w400,
+                      color: AppPalette.secondary.withAlpha(153),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          10.w.horizontalSpace,
-          InkWell(
-            onTap: onRemove,
-            child: Icon(
-              Icons.close_rounded,
-              size: 20.sp,
-              color: AppPalette.secondary,
+            10.w.horizontalSpace,
+            InkWell(
+              onTap: onRemove,
+              child: Icon(
+                Icons.close_rounded,
+                size: 20.sp,
+                color: AppPalette.secondary,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1989,64 +2008,6 @@ class _CardTitle extends StatelessWidget {
         ),
       ],
     );
-  }
-}
-
-class _PaidAdTabPills extends GetView<BrandCampaignDetailsController> {
-  @override
-  Widget build(BuildContext context) {
-    return Obx(() {
-      final selected = controller.paidAdTabIndex.value; // 0/1
-
-      Widget pill({
-        required String text,
-        required bool active,
-        required VoidCallback onTap,
-      }) {
-        return Expanded(
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(999.r),
-            child: Container(
-              height: 44.h,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: active ? AppPalette.primary : AppPalette.defaultFill,
-                borderRadius: BorderRadius.circular(999.r),
-                border: Border.all(
-                  color: AppPalette.border1,
-                  width: kBorderWidth0_5,
-                ),
-              ),
-              child: Text(
-                text,
-                style: TextStyle(
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w900,
-                  color: active ? AppPalette.white : AppPalette.greyText,
-                ),
-              ),
-            ),
-          ),
-        );
-      }
-
-      return Row(
-        children: [
-          pill(
-            text: 'brand_campaign_details_agency_quotes_tab'.tr,
-            active: selected == 0,
-            onTap: () => controller.setPaidAdTab(0),
-          ),
-          10.w.horizontalSpace,
-          pill(
-            text: 'brand_campaign_details_campaign_overview_tab'.tr,
-            active: selected == 1,
-            onTap: () => controller.setPaidAdTab(1),
-          ),
-        ],
-      );
-    });
   }
 }
 

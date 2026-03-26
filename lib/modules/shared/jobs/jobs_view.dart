@@ -782,7 +782,11 @@ class JobsView extends GetView<JobsController> {
                 ...items.map(
                   (job) => Padding(
                     padding: EdgeInsets.only(bottom: 12.h),
-                    child: _brandDraftOrCanceledCard(job, isCanceled: false),
+                    child: _brandDraftOrCanceledCard(
+                      job,
+                      isCanceled: false,
+                      onDelete: () => controller.deleteDraftCampaign(job),
+                    ),
                   ),
                 ),
                 _bottomLoader(isLoading: isLoading),
@@ -1061,7 +1065,9 @@ class JobsView extends GetView<JobsController> {
                       SizedBox(height: 6.h),
                       Text(
                         isQuotation
-                            ? formatNumberByLocale(job.progressPercent ?? 0)
+                            ? formatNumberByLocale(
+                                job.totalQuotationsReceived ?? 0,
+                              )
                             : formatCurrencyByLocale(job.budget),
                         style: TextStyle(
                           fontSize: 26.sp,
@@ -1225,7 +1231,11 @@ class JobsView extends GetView<JobsController> {
     );
   }
 
-  Widget _brandDraftOrCanceledCard(JobItem job, {required bool isCanceled}) {
+  Widget _brandDraftOrCanceledCard(
+    JobItem job, {
+    required bool isCanceled,
+    VoidCallback? onDelete,
+  }) {
     final cTitle = isCanceled ? AppPalette.defaultStroke : AppPalette.primary;
     final cSub = isCanceled ? AppPalette.defaultStroke : AppPalette.greyText;
     final cMoney = isCanceled ? AppPalette.defaultStroke : AppPalette.secondary;
@@ -1284,19 +1294,34 @@ class JobsView extends GetView<JobsController> {
                   ],
                 ),
               ),
-              GestureDetector(
-                onTap: () => controller.editDraftCampaign(job),
-                child: Text(
-                  'Edit >',
-                  style: TextStyle(
-                    fontSize: 12.sp,
-                    color: isCanceled
-                        ? AppPalette.defaultStroke
-                        : AppPalette.black,
-                    fontWeight: FontWeight.w300,
-                  ),
+              if (!isCanceled)
+                Column(
+                  children: [
+                    GestureDetector(
+                      onTap: () => controller.editDraftCampaign(job),
+                      child: Text(
+                        'Edit >',
+                        style: TextStyle(
+                          fontSize: 12.sp,
+                          color: AppPalette.black,
+                          fontWeight: FontWeight.w300,
+                        ),
+                      ),
+                    ),
+                    6.h.verticalSpace,
+                    GestureDetector(
+                      onTap: onDelete,
+                      child: Text(
+                        'Delete',
+                        style: TextStyle(
+                          fontSize: 12.sp,
+                          color: AppPalette.reportFlaggedActive,
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
             ],
           ),
           SizedBox(height: 10.h),

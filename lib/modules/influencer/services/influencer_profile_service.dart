@@ -1,3 +1,5 @@
+import 'dart:developer' as dev;
+
 import '../../../core/services/api_client.dart';
 import '../../../core/services/api_error_handler.dart';
 import '../models/influencer_profile_model.dart';
@@ -97,7 +99,7 @@ class InfluencerProfileService {
     });
   }
 
-  Future<ApiResult<InfluencerProfile>> updateAddress({
+  Future<ApiResult<void>> updateAddress({
     required String currentAddressName,
     required String addressName,
     required String thana,
@@ -108,7 +110,7 @@ class InfluencerProfileService {
     return ApiErrorHandler.call(() async {
       final encodedName = Uri.encodeComponent(currentAddressName);
 
-      final res = await _api.dio.patch(
+      await _api.dio.patch(
         '/influencer/profile/address/$encodedName',
         data: {
           'addressName': addressName,
@@ -119,8 +121,6 @@ class InfluencerProfileService {
           'isDefault': isDefault,
         },
       );
-
-      return InfluencerProfile.fromJson(res.data);
     });
   }
 

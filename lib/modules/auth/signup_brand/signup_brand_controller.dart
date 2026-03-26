@@ -11,7 +11,9 @@ import 'package:influencer_app/modules/ad_agency/services/upload_service.dart';
 import 'package:influencer_app/modules/brand/models/onboarding_models.dart';
 import 'package:influencer_app/modules/brand/services/brand_onboarding_services.dart';
 import '../../../core/enums/account_type.dart';
+import '../../../core/models/location_models.dart';
 import '../../../core/models/social_link.dart';
+import '../../../core/services/location_service.dart';
 import '../../../core/utils/bd_phone_input_formatter.dart';
 import '../../../routes/app_routes.dart';
 import 'package:path/path.dart' as path;
@@ -36,6 +38,8 @@ class _MutableBrandOnboardingData {
 class SignupBrandController extends GetxController {
   // ----------------- Step 1 (basic info) -----------------
   final formKey = GlobalKey<FormState>();
+
+  final LocationService _locationService = Get.find<LocationService>();
 
   final brandNameController = TextEditingController();
   final firstNameController = TextEditingController();
@@ -66,6 +70,7 @@ class SignupBrandController extends GetxController {
     if (phoneController.text.trim().isEmpty) {
       phoneController.text = '+88 ';
     }
+    loadZillas();
   }
 
   void setLanguage(String code) {
@@ -116,27 +121,89 @@ class SignupBrandController extends GetxController {
   final addressFormKey = GlobalKey<FormState>();
 
   final RxnString selectedThana = RxnString();
+  final RxnString selectedThanaId = RxnString();
   final RxnString selectedZilla = RxnString();
+  final RxnString selectedZillaId = RxnString();
   final fullAddressController = TextEditingController();
 
-  final List<String> thanaOptions = const [
-    'Dhanmondi',
-    'Gulshan',
-    'Banani',
-    'Mirpur',
-  ];
+  final RxList<ZillaModel> zillas = <ZillaModel>[].obs;
+  final RxList<ThanaModel> thanas = <ThanaModel>[].obs;
 
-  final List<String> zillaOptions = const [
-    'Dhaka',
-    'Chattogram',
-    'Barishal',
-    'Sylhet',
-  ];
+  final isLoadingZillas = false.obs;
+  final isLoadingThanas = false.obs;
+
+  List<String> get zillaOptions =>
+      zillas.map((e) => e.displayName).toList(growable: false);
+
+  List<String> get thanaOptions =>
+      thanas.map((e) => e.displayName).toList(growable: false);
+
+  Future<void> loadZillas() async {
+    if (isLoadingZillas.value) return;
+    isLoadingZillas.value = true;
+
+    final result = await ApiErrorHandler.call(
+      () => _locationService.fetchAllZillas(),
+      showError: false,
+    );
+
+    if (result.isSuccess && result.data != null) {
+      zillas.assignAll(result.data!);
+    }
+
+    isLoadingZillas.value = false;
+  }
+
+  Future<void> onZillaChanged(String? value) async {
+    selectedZilla.value = value;
+    selectedThana.value = null;
+    selectedThanaId.value = null;
+    thanas.clear();
+
+    if (value == null || value.trim().isEmpty) {
+      selectedZillaId.value = null;
+      return;
+    }
+
+    final zilla = zillas.firstWhereOrNull((e) => e.displayName == value);
+    selectedZillaId.value = zilla?.id;
+
+    if (zilla != null) {
+      await loadThanasByZilla(zilla.id);
+    }
+  }
+
+  void onThanaChanged(String? value) {
+    selectedThana.value = value;
+
+    if (value == null || value.trim().isEmpty) {
+      selectedThanaId.value = null;
+      return;
+    }
+
+    final thana = thanas.firstWhereOrNull((e) => e.displayName == value);
+    selectedThanaId.value = thana?.id;
+  }
+
+  Future<void> loadThanasByZilla(String zillaId) async {
+    if (isLoadingThanas.value) return;
+    isLoadingThanas.value = true;
+
+    final result = await ApiErrorHandler.call(
+      () => _locationService.fetchAllThanasByZilla(zillaId: zillaId),
+      showError: false,
+    );
+
+    if (result.isSuccess && result.data != null) {
+      thanas.assignAll(result.data!);
+    }
+
+    isLoadingThanas.value = false;
+  }
 
   void onAddressContinue() {
     if (addressFormKey.currentState?.validate() != true) return;
 
-    // Save address data to onboarding model
     onboardingData.thana = selectedThana.value?.trim();
     onboardingData.zilla = selectedZilla.value?.trim();
     onboardingData.fullAddress = fullAddressController.text.trim();

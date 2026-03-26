@@ -1,3 +1,5 @@
+import 'dart:developer' as dev;
+
 import 'package:dio/dio.dart';
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
@@ -39,6 +41,7 @@ class ApiErrorHandler {
       return ApiResult.failure(message);
     } catch (e) {
       final message = e.toString();
+      dev.log('the error : ${e.toString()}');
       if (showError) {
         _showErrorSnackbar(errorTitle, message);
       }

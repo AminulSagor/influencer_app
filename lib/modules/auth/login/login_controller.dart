@@ -1,4 +1,6 @@
 // lib/modules/auth/login/login_controller.dart
+import 'dart:developer' as dev;
+
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -30,9 +32,9 @@ class LoginController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    // if (phoneController.text.trim().isEmpty) {
-    //   phoneController.text = '+88 ';
-    // }
+    if (phoneController.text.trim().isEmpty) {
+      phoneController.text = '+88 ';
+    }
   }
 
   void togglePasswordVisibility() {
@@ -84,6 +86,8 @@ class LoginController extends GetxController {
           ),
           showError: false,
         );
+
+        dev.log('FCM: $currentFcmToken and $savedFcmToken');
       }
     }
 

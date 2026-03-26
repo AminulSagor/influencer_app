@@ -11,6 +11,7 @@ import 'package:influencer_app/core/utils/constants.dart';
 import 'package:influencer_app/core/utils/currency_formatter.dart';
 import 'package:influencer_app/core/utils/number_formatter.dart';
 import 'package:influencer_app/core/widgets/custom_button.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/models/job_item.dart';
 import '../../../core/widgets/empty_details_message.dart';
@@ -61,10 +62,6 @@ class CampaignDetailsView extends GetView<CampaignDetailsController> {
                     status: status,
                     isExpanded: controller.milestonesExpanded.value,
                     onToggle: controller.toggleMilestones,
-                    paidCountOverride:
-                        controller.accountTypeService.isInfluencer
-                        ? controller.withdrawPaidCount.value
-                        : null,
                     totalEarningsOverride:
                         controller.accountTypeService.isInfluencer
                         ? formatCurrencyByLocale(
@@ -179,8 +176,11 @@ class _CampaignOverviewCard extends StatelessWidget {
           // Back + label
           Obx(() {
             final showRating =
-                accountTypeService.isAdAgency &&
-                controller.isCampaignRated.value;
+                (accountTypeService.isAdAgency ||
+                    accountTypeService.isInfluencer) &&
+                (controller.isCampaignRated.value ||
+                    controller.campaignStatus.value == CampaignStatus.complete);
+
             final rating = controller.campaignRating.value;
 
             return Row(
@@ -802,6 +802,7 @@ class _MilestoneCard extends GetView<CampaignDetailsController> {
                     ),
                   ),
                 ),
+                5.w.horizontalSpace,
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 3.h),
                   decoration: BoxDecoration(
@@ -1069,6 +1070,8 @@ class _ContentAssets extends GetView<CampaignDetailsController> {
                 leadingIconPath: icon,
                 title: asset.title,
                 subtitle: asset.meta,
+                trailingIconPath: 'assets/icons/download.png',
+                url: asset.pathOrUrl,
               ),
             );
           }),
@@ -1171,7 +1174,7 @@ class _BrandAssets extends GetView<CampaignDetailsController> {
                 subtitle: (asset.value?.trim().isNotEmpty ?? false)
                     ? asset.value!.trim()
                     : '—',
-                trailingIconPath: 'assets/icons/cancel_outline.png',
+                url: asset.value,
               ),
             ),
           ),
@@ -1500,69 +1503,110 @@ class _AssetRow extends StatelessWidget {
   final String title;
   final String subtitle;
   final String leadingIconPath;
-  final String trailingIconPath;
+  final String? trailingIconPath;
+  final String? url;
 
   const _AssetRow({
     required this.title,
     required this.subtitle,
     this.leadingIconPath = 'assets/icons/image.png',
-    this.trailingIconPath = 'assets/icons/download.png',
+    this.trailingIconPath,
+    this.url,
   });
+
+  Future<void> _openAsset() async {
+    String raw = url?.trim() ?? '';
+    if (raw.isEmpty) {
+      Get.snackbar('Error', 'No asset url found.');
+      return;
+    }
+
+    if (!raw.startsWith('http://') && !raw.startsWith('https://')) {
+      raw = 'https://$raw';
+    }
+
+    final uri = Uri.tryParse(raw);
+    if (uri == null) {
+      Get.snackbar('Error', 'Invalid asset url.');
+      return;
+    }
+
+    final opened = await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+
+    if (!opened) {
+      final fallback = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+
+      if (!fallback) {
+        Get.snackbar('Error', 'Could not open asset.');
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.all(12.w),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.bottomLeft,
-          end: Alignment.topRight,
-          colors: [AppPalette.white, AppPalette.white, AppPalette.thirdColor],
+    return InkWell(
+      onTap: _openAsset,
+      borderRadius: BorderRadius.circular(kBorderRadius.r),
+      child: Container(
+        padding: EdgeInsets.all(12.w),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.bottomLeft,
+            end: Alignment.topRight,
+            colors: [AppPalette.white, AppPalette.white, AppPalette.thirdColor],
+          ),
+          borderRadius: BorderRadius.circular(kBorderRadius.r),
+          border: Border.all(
+            color: AppPalette.secondary,
+            width: kBorderWidth0_5,
+          ),
         ),
-        borderRadius: BorderRadius.circular(kBorderRadius.r),
-        border: Border.all(color: AppPalette.secondary, width: kBorderWidth0_5),
-      ),
-      child: Row(
-        children: [
-          Image.asset(
-            leadingIconPath,
-            width: 24.w,
-            height: 24.w,
-            fit: BoxFit.cover,
-            color: AppPalette.secondary,
-          ),
-          SizedBox(width: 10.w),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: AppPalette.secondary,
-                  ),
-                ),
-                SizedBox(height: 2.h),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 12.sp,
-                    color: AppPalette.secondary.withAlpha(153),
-                  ),
-                ),
-              ],
+        child: Row(
+          children: [
+            Image.asset(
+              leadingIconPath,
+              width: 24.w,
+              height: 24.w,
+              fit: BoxFit.cover,
+              color: AppPalette.secondary,
             ),
-          ),
-          Image.asset(
-            trailingIconPath,
-            width: 24.w,
-            height: 24.w,
-            fit: BoxFit.cover,
-            color: AppPalette.secondary,
-          ),
-        ],
+            SizedBox(width: 10.w),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: AppPalette.secondary,
+                    ),
+                  ),
+                  SizedBox(height: 2.h),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 12.sp,
+                      color: AppPalette.secondary.withAlpha(153),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (trailingIconPath != null)
+              Image.asset(
+                trailingIconPath!,
+                width: 24.w,
+                height: 24.w,
+                fit: BoxFit.cover,
+                color: AppPalette.secondary,
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -1670,9 +1714,9 @@ class _PaymentMilestonesSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final totalCount = milestones.length;
 
-    final paidCount =
-        paidCountOverride ??
-        milestones.where((m) => m.status == MilestoneStatus.approved).length;
+    final paidCount = milestones
+        .where((m) => m.status == MilestoneStatus.paid)
+        .length;
 
     final double progress = totalCount == 0
         ? 0.0
@@ -1860,7 +1904,7 @@ class _TotalEarningsCard extends StatelessWidget {
                       ),
                     ),
                     child: Text(
-                      'common_completed'.tr,
+                      'ms_paid'.tr,
                       style: TextStyle(
                         fontSize: 12.sp,
                         fontWeight: FontWeight.w400,
@@ -1870,7 +1914,8 @@ class _TotalEarningsCard extends StatelessWidget {
                   ),
                 ],
 
-                if (accountTypeService.isInfluencer) ...[
+                if (accountTypeService.isInfluencer &&
+                    status != CampaignStatus.complete) ...[
                   4.h.verticalSpace,
                   CustomButton(
                     onTap: disableWithdrawButton ? null : onWithdrawalRequest,
@@ -2090,7 +2135,6 @@ class _RatingStars extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: List.generate(5, (index) {
-        final starValue = index + 1;
         final diff = rating - index;
 
         IconData icon;

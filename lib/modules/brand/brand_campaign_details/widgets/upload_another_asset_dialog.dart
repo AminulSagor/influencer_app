@@ -10,6 +10,14 @@ typedef IconForAsset = IconData Function(JobAssetKind kind);
 typedef FormatBytes = String Function(int bytes);
 typedef ExtUpper = String Function(String filename);
 typedef FilenameNoExt = String Function(String filename);
+typedef SubmitContentAsset =
+    Future<void> Function({
+      required String title,
+      required String fileName,
+      required int fileBytes,
+      required String filePath,
+      required JobAssetKind kind,
+    });
 
 class UploadAnotherAssetDialog extends StatefulWidget {
   const UploadAnotherAssetDialog({
@@ -20,16 +28,16 @@ class UploadAnotherAssetDialog extends StatefulWidget {
     required this.formatBytes,
     required this.extUpper,
     required this.filenameNoExt,
+    required this.onSubmit,
   });
 
   final RxList<JobAsset> contentAssets;
-
   final GuessAssetKind guessAssetKind;
   final IconForAsset iconForAsset;
-
   final FormatBytes formatBytes;
   final ExtUpper extUpper;
   final FilenameNoExt filenameNoExt;
+  final SubmitContentAsset onSubmit;
 
   static Future<void> show({
     required RxList<JobAsset> contentAssets,
@@ -38,6 +46,7 @@ class UploadAnotherAssetDialog extends StatefulWidget {
     required FormatBytes formatBytes,
     required ExtUpper extUpper,
     required FilenameNoExt filenameNoExt,
+    required SubmitContentAsset onSubmit,
   }) {
     return Get.dialog(
       UploadAnotherAssetDialog(
@@ -47,6 +56,7 @@ class UploadAnotherAssetDialog extends StatefulWidget {
         formatBytes: formatBytes,
         extUpper: extUpper,
         filenameNoExt: filenameNoExt,
+        onSubmit: onSubmit,
       ),
       barrierDismissible: false,
     );
@@ -65,6 +75,7 @@ class _UploadAnotherAssetDialogState extends State<UploadAnotherAssetDialog> {
   final RxnString pickedPath = RxnString();
   final pickedKind = JobAssetKind.other.obs;
   final isPicking = false.obs;
+  final isSubmitting = false.obs;
 
   @override
   void dispose() {
@@ -91,6 +102,39 @@ class _UploadAnotherAssetDialogState extends State<UploadAnotherAssetDialog> {
       pickedKind.value = widget.guessAssetKind(f.name);
     } finally {
       isPicking.value = false;
+    }
+  }
+
+  Future<void> _submit() async {
+    final name = pickedName.value;
+    final bytes = pickedBytes.value;
+    final filePath = pickedPath.value;
+
+    if (name == null || bytes == null || filePath == null || filePath.isEmpty) {
+      Get.snackbar('Error', 'Please select a file.');
+      return;
+    }
+
+    final customTitle = _assetTitleCtrl.text.trim();
+    final fallbackTitle = widget.filenameNoExt(name);
+    final title = customTitle.isNotEmpty ? customTitle : fallbackTitle;
+
+    try {
+      isSubmitting.value = true;
+
+      await widget.onSubmit(
+        title: title,
+        fileName: name,
+        fileBytes: bytes,
+        filePath: filePath,
+        kind: pickedKind.value,
+      );
+
+      if (mounted) {
+        Get.back();
+      }
+    } finally {
+      isSubmitting.value = false;
     }
   }
 
@@ -169,7 +213,9 @@ class _UploadAnotherAssetDialogState extends State<UploadAnotherAssetDialog> {
               return SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: isPicking.value ? null : pickFile,
+                  onPressed: isPicking.value || isSubmitting.value
+                      ? null
+                      : pickFile,
                   style: OutlinedButton.styleFrom(
                     minimumSize: Size(double.infinity, 46.h),
                     side: const BorderSide(color: softBorder),
@@ -282,37 +328,13 @@ class _UploadAnotherAssetDialogState extends State<UploadAnotherAssetDialog> {
                 Expanded(
                   child: Obx(() {
                     final canSave =
-                        pickedName.value != null && pickedBytes.value != null;
+                        pickedName.value != null &&
+                        pickedBytes.value != null &&
+                        pickedPath.value != null &&
+                        !isSubmitting.value;
 
                     return ElevatedButton(
-                      onPressed: canSave
-                          ? () {
-                              final name = pickedName.value!;
-                              final bytes = pickedBytes.value!;
-                              final path = pickedPath.value;
-
-                              final ext = widget.extUpper(name);
-                              final meta =
-                                  '$ext – ${widget.formatBytes(bytes)}';
-
-                              final customTitle = _assetTitleCtrl.text.trim();
-                              final fallbackTitle = widget.filenameNoExt(name);
-                              final title = customTitle.isNotEmpty
-                                  ? customTitle
-                                  : fallbackTitle;
-
-                              widget.contentAssets.add(
-                                JobAsset(
-                                  title: title,
-                                  meta: meta,
-                                  kind: pickedKind.value,
-                                  pathOrUrl: path,
-                                ),
-                              );
-
-                              Get.back();
-                            }
-                          : null,
+                      onPressed: canSave ? _submit : null,
                       style: ElevatedButton.styleFrom(
                         minimumSize: Size(double.infinity, 46.h),
                         backgroundColor: primary.withOpacity(
@@ -323,7 +345,16 @@ class _UploadAnotherAssetDialogState extends State<UploadAnotherAssetDialog> {
                         ),
                         elevation: 0,
                       ),
-                      child: Text('common_done'.tr),
+                      child: isSubmitting.value
+                          ? SizedBox(
+                              width: 18.w,
+                              height: 18.w,
+                              child: const CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Text('common_done'.tr),
                     );
                   }),
                 ),

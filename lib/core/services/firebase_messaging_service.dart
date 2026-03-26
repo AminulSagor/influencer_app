@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as dev;
 
@@ -29,9 +30,52 @@ class FirebaseMessagingService {
 
   static final FirebaseMessaging _messaging = FirebaseMessaging.instance;
 
+  static final StreamController<Map<String, dynamic>>
+  _notificationDataController =
+      StreamController<Map<String, dynamic>>.broadcast();
+
+  static final StreamController<Map<String, dynamic>>
+  _notificationTapController =
+      StreamController<Map<String, dynamic>>.broadcast();
+
+  static Map<String, dynamic>? _pendingTapData;
+
+  static Stream<Map<String, dynamic>> get notificationStream =>
+      _notificationDataController.stream;
+
+  static Stream<Map<String, dynamic>> get notificationTapStream =>
+      _notificationTapController.stream;
+
+  static Map<String, dynamic>? consumePendingTapData() {
+    if (_pendingTapData == null) return null;
+    final data = Map<String, dynamic>.from(_pendingTapData!);
+    _pendingTapData = null;
+    return data;
+  }
+
   static Future<void> init() async {
     await Firebase.initializeApp();
-    await LocalNotificationService.init();
+
+    await LocalNotificationService.init(
+      onNotificationTap: (payload) {
+        if (payload == null || payload.trim().isEmpty) return;
+
+        try {
+          final decoded = jsonDecode(payload);
+          if (decoded is Map<String, dynamic>) {
+            _emitNotificationTap(decoded);
+          } else if (decoded is Map) {
+            _emitNotificationTap(Map<String, dynamic>.from(decoded));
+          }
+        } catch (e) {
+          dev.log(
+            'Failed to parse local notification payload',
+            name: 'FirebaseMessagingService',
+            error: e,
+          );
+        }
+      },
+    );
 
     await _requestPermission();
     await _setupForegroundPresentation();
@@ -54,7 +98,21 @@ class FirebaseMessagingService {
           'data': initialMessage.data,
         },
       );
+
+      _emitNotificationData(initialMessage.data);
+      _emitNotificationTap(initialMessage.data);
     }
+  }
+
+  static void _emitNotificationData(Map<String, dynamic> data) {
+    if (data.isEmpty) return;
+    _notificationDataController.add(Map<String, dynamic>.from(data));
+  }
+
+  static void _emitNotificationTap(Map<String, dynamic> data) {
+    if (data.isEmpty) return;
+    _pendingTapData = Map<String, dynamic>.from(data);
+    _notificationTapController.add(Map<String, dynamic>.from(data));
   }
 
   static Future<void> _requestPermission() async {
@@ -84,7 +142,6 @@ class FirebaseMessagingService {
 
   static Future<void> _logFcmToken() async {
     final token = await _messaging.getToken();
-
     dev.log('FCM Token: ${token ?? 'null'}', name: 'FirebaseMessagingService');
   }
 
@@ -134,6 +191,13 @@ class FirebaseMessagingService {
         },
       );
 
+      dev.log(
+        'Full message = ${message.toMap()}',
+        name: 'FirebaseMessagingService',
+      );
+
+      _emitNotificationData(message.data);
+
       final title =
           message.notification?.title ??
           message.data['title']?.toString() ??
@@ -162,6 +226,14 @@ class FirebaseMessagingService {
           'data': message.data,
         },
       );
+
+      _emitNotificationData(message.data);
+      _emitNotificationTap(message.data);
     });
+  }
+
+  static Future<void> dispose() async {
+    await _notificationDataController.close();
+    await _notificationTapController.close();
   }
 }

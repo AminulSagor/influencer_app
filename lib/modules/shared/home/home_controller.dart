@@ -168,6 +168,14 @@ class HomeController extends GetxController {
     dashboard.value = current;
   }
 
+  CampaignType _parseCampaignType(String? raw) {
+    final v = (raw ?? '').trim().toLowerCase();
+    if (v == 'paid_ad' || v == 'paidad' || v == 'paid-ad') {
+      return CampaignType.paidAd;
+    }
+    return CampaignType.influencerPromotion;
+  }
+
   List<JobItem> _mapJobs(List<Map<String, dynamic>> items) {
     return items.map((json) {
       final id = _stringFrom(json, [
@@ -182,8 +190,15 @@ class HomeController extends GetxController {
         'title',
         'jobName',
       ]);
-      final subTitle = _stringFrom(json, ['campaignType', 'type', 'subTitle']);
-      final subTitleTrKey = (subTitle ?? '').contains('influencer')
+      final rawCampaignType = _stringFrom(json, [
+        'campaignType',
+        'type',
+        'subTitle',
+      ]);
+      final parsedCampaignType = _parseCampaignType(rawCampaignType);
+
+      final subTitleTrKey =
+          parsedCampaignType == CampaignType.influencerPromotion
           ? 'create_campaign_type_influencer_title'
           : 'create_campaign_type_paid_title';
       final assignedToName = json['assignedTo'] == null
@@ -229,7 +244,7 @@ class HomeController extends GetxController {
         title: title ?? '—',
         subTitle: subTitleTrKey,
         clientName: clientName ?? '—',
-        campaignType: CampaignType.paidAd,
+        campaignType: parsedCampaignType,
         dateLabel: dateLabel ?? '—',
         budget: budget,
         sharePercent: sharePercent,

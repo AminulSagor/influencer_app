@@ -335,49 +335,74 @@ class CampaignService {
     return _expectMap(res.data, 'rate agency');
   }
 
-  Future<Map<String, dynamic>> reviewClientSubmission({
-    required String submissionId,
+  Future<Map<String, dynamic>> reviewAgencyMilestoneSubmissions({
+    required String milestoneId,
+    required List<String> submissionIds,
     required String action,
-    String? report,
     String? reason,
   }) async {
-    final normalizedAction = action.trim().toLowerCase();
-    final payload = <String, dynamic>{'action': normalizedAction};
+    final payload = <String, dynamic>{
+      'submissionIds': submissionIds,
+      'action': action.trim().toLowerCase(),
+      if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
+    };
 
-    final trimmedReport = report?.trim();
-    if (trimmedReport != null && trimmedReport.isNotEmpty) {
-      payload['report'] = trimmedReport;
-    }
+    final res = await _api.dio.post(
+      '/campaign/client/submissions/$milestoneId/bulk-review',
+      data: payload,
+    );
 
-    final trimmedReason = reason?.trim();
-    if (trimmedReason != null && trimmedReason.isNotEmpty) {
-      payload['reason'] = trimmedReason;
-    }
+    return _expectMap(res.data, 'review agency milestone submissions');
+  }
+
+  Future<Map<String, dynamic>> reviewInfluencerSubmission({
+    required String submissionId,
+    required String action,
+    String? reason,
+  }) async {
+    final payload = <String, dynamic>{
+      'action': action.trim().toLowerCase(),
+      if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
+    };
 
     final res = await _api.dio.post(
       '/campaign/client/submission/$submissionId/review',
       data: payload,
     );
-    return _expectMap(res.data, 'review client submission');
+
+    return _expectMap(res.data, 'review influencer submission');
   }
 
-  Future<Map<String, dynamic>> reportClientSubmission({
-    required String submissionId,
+  Future<Map<String, dynamic>> reportAgencyMilestone({
+    required String milestoneId,
     required String report,
   }) async {
     final res = await _api.dio.post(
-      '/campaign/client/submissions/$submissionId/report',
+      '/campaign/client/milestones/agency/$milestoneId/report',
       data: {'report': report.trim()},
     );
-    return _expectMap(res.data, 'report client submission');
+
+    return _expectMap(res.data, 'report agency milestone');
   }
 
-  Future<Map<String, dynamic>> payClientSubmissionBonus({
-    required String submissionId,
+  Future<Map<String, dynamic>> reportInfluencerMilestone({
+    required String milestoneId,
+    required String report,
+  }) async {
+    final res = await _api.dio.post(
+      '/campaign/client/milestones/influencer/$milestoneId/report',
+      data: {'report': report.trim()},
+    );
+
+    return _expectMap(res.data, 'report influencer milestone');
+  }
+
+  Future<Map<String, dynamic>> payInfluencerBonus({
+    required String milestoneId,
     required int amount,
   }) async {
     final res = await _api.dio.post(
-      '/campaign/client/submissions/$submissionId/bonus',
+      '/campaign/client/milestones/influencer/$milestoneId/bonus',
       data: {'amount': amount},
     );
     return _expectMap(res.data, 'pay client submission bonus');
@@ -603,12 +628,12 @@ class CampaignService {
     return _expectMap(res.data, 'rate influencer');
   }
 
-  Future<Map<String, dynamic>> payClientMilestoneBonus({
+  Future<Map<String, dynamic>> payAgencyBonus({
     required String milestoneId,
     required int amount,
   }) async {
     final res = await _api.dio.post(
-      '/campaign/client/milestone/$milestoneId/bonus',
+      '/campaign/client/milestones/agency/$milestoneId/bonus',
       data: {'amount': amount},
     );
     return _expectMap(res.data, 'pay client milestone bonus');
@@ -649,7 +674,7 @@ class CampaignService {
   }
 
   static Map<String, dynamic> _expectMap(dynamic data, String context) {
-    if (data is Map) return Map<String, dynamic>.from(data as Map);
+    if (data is Map) return Map<String, dynamic>.from(data);
     throw DioException(
       requestOptions: RequestOptions(path: ''),
       message: '$context response is not a valid map',
@@ -721,5 +746,16 @@ class CampaignService {
     );
 
     return _expectMap(res.data, 'request campaign cancellation');
+  }
+
+  Future<Map<String, dynamic>> addCampaignAssets({
+    required String campaignId,
+    required List<Map<String, dynamic>> assets,
+  }) async {
+    final res = await _api.dio.post(
+      '/campaign/$campaignId/assets',
+      data: {'assets': assets},
+    );
+    return _expectMap(res.data, 'add campaign assets');
   }
 }

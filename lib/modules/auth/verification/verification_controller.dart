@@ -30,7 +30,7 @@ class VerificationController extends GetxController {
     super.onInit();
     final args = Get.arguments as Map<String, dynamic>?;
 
-    phoneNumber = args?['phone'] as String? ?? '+1 555 0100';
+    phoneNumber = args?['phone'] ?? '';
     accountType =
         args?['accountType'] as AccountType? ?? AccountType.influencer;
     _isPreviewFlow = args?['preview'] as bool? ?? false;

@@ -127,11 +127,11 @@ class InfluencerProfile {
 
   factory InfluencerProfile.fromJson(Map<String, dynamic> json) {
     return InfluencerProfile(
-      id: json['id'] as String,
-      firstName: json['firstName'] as String? ?? '',
-      lastName: json['lastName'] as String? ?? '',
-      bio: json['bio'] as String?,
-      profileImage: json['profileImage'] as String?,
+      id: json['id'],
+      firstName: json['firstName'] ?? '',
+      lastName: json['lastName'] ?? '',
+      bio: json['bio'] ?? '',
+      profileImage: json['profileImage'] ?? '',
       addresses:
           (json['addresses'] as List<dynamic>?)
               ?.map(
@@ -145,23 +145,21 @@ class InfluencerProfile {
       skills: (json['skills'] as List<dynamic>?)
           ?.map((e) => InfluencerSkill.fromJson(e))
           .toList(),
-      website: json['website'] as String?,
+      website: json['website'] ?? '',
       socialLinks: (json['socialLinks'] as List<dynamic>?)
           ?.map((e) => InfluencerSocialLink.fromJson(e as Map<String, dynamic>))
           .toList(),
-      nidNumber: json['nidNumber'] as String?,
-      nidFrontImg: json['nidFrontImg'] as String?,
-      nidBackImg: json['nidBackImg'] as String?,
+      nidNumber: json['nidNumber'] ?? '',
+      nidFrontImg: json['nidFrontImg'] ?? '',
+      nidBackImg: json['nidBackImg'] ?? '',
       nidVerification: json['nidVerification'] is Map<String, dynamic>
           ? NidVerificationStatus.fromJson(
               json['nidVerification'] as Map<String, dynamic>,
             )
           : null,
-      profileImg: json['profileImg'] as String?,
+      profileImg: json['profileImg'] ?? '',
       isOnboardingComplete:
-          json['isOnboardingComplete'] as bool? ??
-          json['isVerified'] as bool? ??
-          false,
+          json['isOnboardingComplete'] ?? json['isVerified'] ?? false,
       payouts: json['payouts'] != null
           ? InfluencerPayouts.fromJson(json['payouts'] as Map<String, dynamic>)
           : null,
@@ -169,9 +167,9 @@ class InfluencerProfile {
       totalReviews: _parseInt(json['totalReviews']),
       isPhoneVerified: _parseBoolOrNull(json['isPhoneVerified']),
       isEmailVerified: _parseBoolOrNull(json['isEmailVerified']),
-      userId: json['userId'] as String,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      updatedAt: DateTime.parse(json['updatedAt'] as String),
+      userId: json['userId'] ?? '',
+      createdAt: DateTime.parse(json['createdAt'] ?? ''),
+      updatedAt: DateTime.parse(json['updatedAt'] ?? ''),
     );
   }
 
@@ -271,12 +269,12 @@ class InfluencerAddress {
 
   factory InfluencerAddress.fromJson(Map<String, dynamic> json) {
     return InfluencerAddress(
-      addressName: json['addressName'] as String?,
-      thana: json['thana'] as String?,
-      zilla: json['zilla'] as String?,
-      country: json['country'] as String?,
-      fullAddress: json['fullAddress'] as String?,
-      isDefault: json['isDefault'] as bool? ?? false,
+      addressName: json['addressName'] ?? '',
+      thana: json['thana'] ?? '',
+      zilla: json['zilla'] ?? '',
+      country: json['country'] ?? '',
+      fullAddress: json['fullAddress'] ?? '',
+      isDefault: json['isDefault'] ?? false,
     );
   }
 
@@ -317,7 +315,7 @@ class InfluencerSocialLink {
         .trim();
 
     return InfluencerSocialLink(
-      platform: json['platform'] as String? ?? '',
+      platform: json['platform'] ?? '',
       url:
           (json['profileUrl'] ?? json['url'] ?? json['link'])?.toString() ?? '',
       website: json['website']?.toString(),
@@ -356,7 +354,7 @@ class InfluencerNiche {
       final rawStatus = (json['status'] ?? json['verificationStatus'])
           ?.toString();
       return InfluencerNiche(
-        name: json['name'] as String? ?? json['niche'] as String? ?? '',
+        name: json['name'] ?? json['niche'] ?? '',
         status: _normalizeVerificationStatus(rawStatus),
       );
     }
@@ -399,7 +397,7 @@ class InfluencerSkill {
       final rawStatus = (json['status'] ?? json['verificationStatus'])
           ?.toString();
       return InfluencerSkill(
-        name: json['name'] as String? ?? json['skill'] as String? ?? '',
+        name: json['name'] ?? json['skill'] ?? '',
         status: _normalizeVerificationStatus(rawStatus),
       );
     }
@@ -454,7 +452,7 @@ class NidVerificationStatus {
         rejectionReason: (json['rejectionReason'] ?? json['nidRejectReason'])
             ?.toString(),
         verifiedAt: json['verifiedAt'] != null
-            ? DateTime.tryParse(json['verifiedAt'] as String)
+            ? DateTime.tryParse(json['verifiedAt'] ?? '')
             : null,
       );
     }
@@ -540,14 +538,14 @@ class BankPayout {
     final normalizedStatus = rawStatus == 'active' ? 'approved' : rawStatus;
 
     return BankPayout(
-      id: json['id'] as String?,
-      bankName: json['bankName'] as String? ?? '',
-      bankAccHolderName: json['bankAccHolderName'] as String? ?? '',
-      bankAccNo: json['bankAccNo'] as String? ?? '',
-      bankBranchName: json['bankBranchName'] as String?,
-      bankRoutingNo: json['bankRoutingNo'] as String?,
+      id: json['id'] ?? '',
+      bankName: json['bankName'] ?? '',
+      bankAccHolderName: json['bankAccHolderName'] ?? '',
+      bankAccNo: json['bankAccNo'] ?? '',
+      bankBranchName: json['bankBranchName'] ?? '',
+      bankRoutingNo: json['bankRoutingNo'] ?? '',
       status: normalizedStatus,
-      isDefault: json['isDefault'] as bool? ?? false,
+      isDefault: json['isDefault'] ?? false,
     );
   }
 
@@ -595,12 +593,12 @@ class MobilePayout {
     final normalizedStatus = rawStatus == 'active' ? 'approved' : rawStatus;
 
     return MobilePayout(
-      id: json['id'] as String?,
-      accountType: json['accountType'] as String? ?? '',
-      accountHolderName: json['accountHolderName'] as String? ?? '',
-      accountNo: json['accountNo'] as String? ?? '',
+      id: json['id'] ?? '',
+      accountType: json['accountType'] ?? '',
+      accountHolderName: json['accountHolderName'] ?? '',
+      accountNo: json['accountNo'] ?? '',
       status: normalizedStatus,
-      isDefault: json['isDefault'] as bool? ?? false,
+      isDefault: json['isDefault'] ?? false,
     );
   }
 

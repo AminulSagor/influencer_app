@@ -64,38 +64,36 @@ class SkillsSectionCard extends StatelessWidget {
                     // Verified by admin
                     FittedBox(
                       fit: BoxFit.scaleDown,
-                      child: Builder(
-                        builder: (_) {
-                          final total = controller.skills.length;
-                          final verified = controller.skills
-                              .where(controller.isSkillVerified)
-                              .length;
-                          final allVerified = total > 0 && verified == total;
+                      child: Obx(() {
+                        final total = controller.skills.length;
+                        final verified = controller.skills
+                            .where(controller.isSkillVerified)
+                            .length;
+                        final allVerified = total > 0 && verified == total;
 
-                          return Row(
-                            children: [
-                              Text(
-                                '$verified/$total Verified',
-                                style: TextStyle(
-                                  fontSize: 10.sp,
-                                  fontWeight: FontWeight.w400,
-                                  color: AppPalette.black,
-                                ),
+                        return Row(
+                          children: [
+                            Text(
+                              '$verified/$total Verified',
+                              style: TextStyle(
+                                fontSize: 10.sp,
+                                fontWeight: FontWeight.w400,
+                                color: AppPalette.black,
                               ),
-                              4.w.horizontalSpace,
-                              Icon(
-                                allVerified
-                                    ? Icons.verified_rounded
-                                    : Icons.access_time_filled,
-                                size: 16.sp,
-                                color: allVerified
-                                    ? const Color(0xFF4cbff2)
-                                    : AppPalette.complemetary,
-                              ),
-                            ],
-                          );
-                        },
-                      ),
+                            ),
+                            4.w.horizontalSpace,
+                            Icon(
+                              allVerified
+                                  ? Icons.verified_rounded
+                                  : Icons.access_time_filled,
+                              size: 16.sp,
+                              color: allVerified
+                                  ? const Color(0xFF4cbff2)
+                                  : AppPalette.complemetary,
+                            ),
+                          ],
+                        );
+                      }),
                     ),
 
                     4.w.horizontalSpace,
