@@ -20,6 +20,10 @@ class SignupInfluencerAddressView extends GetView<SignupInfluencerController> {
     final isBrand = accountTypeService.isBrand;
     final isInfluencer = accountTypeService.isInfluencer;
 
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.onAddressPageOpened();
+    });
+
     final title = isInfluencer
         ? 'influ_addr_title'.tr
         : isBrand

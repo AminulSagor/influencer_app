@@ -68,37 +68,35 @@ class PayoutSettingsSection extends StatelessWidget {
                         )
                       : Image.asset(
                           'assets/icons/bkash.png',
-                          width: 25.w,
+                          width: 30.w,
                           fit: BoxFit.cover,
                         ),
                   SizedBox(width: 8.w),
                   Expanded(
-                    child: FittedBox(
-                      fit: .scaleDown,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            title ?? '',
-                            style: TextStyle(
-                              fontSize: 12.sp,
-                              fontWeight: FontWeight.w500,
-                              color: textColor,
-                            ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        Text(
+                          title ?? '',
+                          style: TextStyle(
+                            fontSize: 12.sp,
+                            fontWeight: FontWeight.w500,
+                            color: textColor,
                           ),
-                          Text(
-                            subTitle ?? '',
-                            style: TextStyle(
-                              fontSize: 10.sp,
-                              color: AppPalette.subtext,
-                            ),
+                        ),
+                        Text(
+                          subTitle ?? '',
+                          style: TextStyle(
+                            fontSize: 10.sp,
+                            color: AppPalette.subtext,
                           ),
-                          Text(
-                            account ?? '',
-                            style: TextStyle(fontSize: 10.sp, color: textColor),
-                          ),
-                        ],
-                      ),
+                        ),
+                        Text(
+                          account ?? '',
+                          style: TextStyle(fontSize: 10.sp, color: textColor),
+                        ),
+                      ],
                     ),
                   ),
                   if (payout.isApproved) ...[

@@ -11,6 +11,9 @@ class TagSelectionDialog extends StatefulWidget {
   final String searchHint;
   final List<String> options;
   final List<String> initialSelected;
+  final String confirmText;
+  final bool isLoading;
+  final Future<void> Function(List<String> selected) onConfirm;
 
   const TagSelectionDialog({
     super.key,
@@ -18,6 +21,9 @@ class TagSelectionDialog extends StatefulWidget {
     required this.searchHint,
     required this.options,
     required this.initialSelected,
+    required this.confirmText,
+    required this.isLoading,
+    required this.onConfirm,
   });
 
   @override
@@ -151,12 +157,15 @@ class _TagSelectionDialogState extends State<TagSelectionDialog> {
             ),
             SizedBox(height: 18.h),
             CustomButton(
-              onTap: () => Get.back<List<String>>(
-                result: _selected.toList(growable: false),
-              ),
-              btnText: 'Save Changes',
+              onTap: widget.isLoading
+                  ? null
+                  : () async {
+                      await widget.onConfirm(_selected.toList(growable: false));
+                    },
+              btnText: widget.confirmText,
               width: double.infinity,
-              height: 48.h,
+              textColor: AppPalette.white,
+              isLoading: widget.isLoading,
             ),
           ],
         ),

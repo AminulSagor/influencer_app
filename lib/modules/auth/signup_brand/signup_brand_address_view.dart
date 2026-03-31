@@ -22,6 +22,10 @@ class SignupBrandAddressView extends GetView<SignupBrandController> {
     final accountTypeService = Get.find<AccountTypeService>();
     final isBrand = accountTypeService.isBrand;
 
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.onAddressPageOpened();
+    });
+
     final title = isBrand ? 'brand_addr_title'.tr : 'influ_addr_title'.tr;
     final subtitle = isBrand
         ? 'brand_addr_subtitle'.tr

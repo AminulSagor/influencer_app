@@ -78,16 +78,28 @@ class CustomButton extends StatelessWidget {
     final hasLeading = leading != null;
     final hasTrailing = trailing != null;
 
-    final bool disabled = isDisabled || onTap == null;
+    final bool disabled = isDisabled || onTap == null || isLoading;
 
     final childContent = FittedBox(
       fit: BoxFit.scaleDown,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (hasLeading) ...[leading!, SizedBox(width: gap)],
+          if (hasLeading && !isLoading) ...[leading!, SizedBox(width: gap)],
+          if (isLoading)
+            Padding(
+              padding: EdgeInsets.only(right: 8.w),
+              child: SizedBox(
+                width: 14.w,
+                height: 14.w,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: textColor ?? AppPalette.white,
+                ),
+              ),
+            ),
           Text(
-            isLoading ? 'Loading..' : btnText,
+            isLoading ? 'Loading...' : btnText,
             style:
                 (textStyle ??
                         TextStyle(

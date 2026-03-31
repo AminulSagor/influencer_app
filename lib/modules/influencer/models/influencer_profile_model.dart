@@ -23,6 +23,7 @@ class InfluencerProfile {
   final InfluencerPayouts? payouts;
   final double averageRating;
   final int totalReviews;
+  final bool isVerified;
   final bool? isPhoneVerified;
   final bool? isEmailVerified;
   final String userId;
@@ -46,6 +47,7 @@ class InfluencerProfile {
     this.nidVerification,
     this.profileImg,
     required this.isOnboardingComplete,
+    required this.isVerified,
     this.payouts,
     this.averageRating = 0.0,
     this.totalReviews = 0,
@@ -91,6 +93,7 @@ class InfluencerProfile {
     InfluencerPayouts? payouts,
     double? averageRating,
     int? totalReviews,
+    bool? isVerified,
     bool? isPhoneVerified,
     bool? isEmailVerified,
     String? userId,
@@ -117,6 +120,7 @@ class InfluencerProfile {
       payouts: payouts ?? this.payouts,
       averageRating: averageRating ?? this.averageRating,
       totalReviews: totalReviews ?? this.totalReviews,
+      isVerified: isVerified ?? this.isVerified,
       isPhoneVerified: isPhoneVerified ?? this.isPhoneVerified,
       isEmailVerified: isEmailVerified ?? this.isEmailVerified,
       userId: userId ?? this.userId,
@@ -125,17 +129,25 @@ class InfluencerProfile {
     );
   }
 
-  factory InfluencerProfile.fromJson(Map<String, dynamic> json) {
+  factory InfluencerProfile.fromJson(Map<String, dynamic> source) {
+    // Handle potential data wrapping from API
+    final json = (source['data'] is Map<String, dynamic>)
+        ? source['data'] as Map<String, dynamic>
+        : source;
+
     return InfluencerProfile(
-      id: json['id'],
-      firstName: json['firstName'] ?? '',
-      lastName: json['lastName'] ?? '',
-      bio: json['bio'] ?? '',
-      profileImage: json['profileImage'] ?? '',
+      id: (json['id'] ?? json['_id'] ?? '').toString(),
+      firstName: (json['firstName'] ?? '').toString(),
+      lastName: (json['lastName'] ?? '').toString(),
+      bio: (json['bio'] ?? '').toString(),
+      profileImage: (json['profileImage'] ?? json['profileImg'] ?? '')
+          .toString(),
       addresses:
           (json['addresses'] as List<dynamic>?)
               ?.map(
-                (e) => InfluencerAddress.fromJson(e as Map<String, dynamic>),
+                (e) => InfluencerAddress.fromJson(
+                  e is Map ? Map<String, dynamic>.from(e) : {},
+                ),
               )
               .toList() ??
           [],
@@ -145,31 +157,38 @@ class InfluencerProfile {
       skills: (json['skills'] as List<dynamic>?)
           ?.map((e) => InfluencerSkill.fromJson(e))
           .toList(),
-      website: json['website'] ?? '',
+      website: (json['website'] ?? '').toString(),
       socialLinks: (json['socialLinks'] as List<dynamic>?)
-          ?.map((e) => InfluencerSocialLink.fromJson(e as Map<String, dynamic>))
+          ?.map(
+            (e) => InfluencerSocialLink.fromJson(
+              e is Map ? Map<String, dynamic>.from(e) : {},
+            ),
+          )
           .toList(),
-      nidNumber: json['nidNumber'] ?? '',
-      nidFrontImg: json['nidFrontImg'] ?? '',
-      nidBackImg: json['nidBackImg'] ?? '',
-      nidVerification: json['nidVerification'] is Map<String, dynamic>
-          ? NidVerificationStatus.fromJson(
-              json['nidVerification'] as Map<String, dynamic>,
-            )
+      nidNumber: (json['nidNumber'] ?? '').toString(),
+      nidFrontImg: (json['nidFrontImg'] ?? json['nidFrontImage'] ?? '')
+          .toString(),
+      nidBackImg: (json['nidBackImg'] ?? json['nidBackImage'] ?? '').toString(),
+      nidVerification: json['nidVerification'] != null
+          ? NidVerificationStatus.fromJson(json['nidVerification'])
           : null,
-      profileImg: json['profileImg'] ?? '',
-      isOnboardingComplete:
-          json['isOnboardingComplete'] ?? json['isVerified'] ?? false,
+      profileImg: (json['profileImg'] ?? json['profileImage'] ?? '').toString(),
+      isOnboardingComplete: _parseBool(
+        json['isOnboardingComplete'] ?? json['isVerified'] ?? false,
+      ),
+      isVerified: _parseBool(json['isVerified'] ?? false),
       payouts: json['payouts'] != null
-          ? InfluencerPayouts.fromJson(json['payouts'] as Map<String, dynamic>)
+          ? InfluencerPayouts.fromJson(
+              Map<String, dynamic>.from(json['payouts'] as Map),
+            )
           : null,
       averageRating: _parseDouble(json['averageRating']),
       totalReviews: _parseInt(json['totalReviews']),
       isPhoneVerified: _parseBoolOrNull(json['isPhoneVerified']),
       isEmailVerified: _parseBoolOrNull(json['isEmailVerified']),
-      userId: json['userId'] ?? '',
-      createdAt: DateTime.parse(json['createdAt'] ?? ''),
-      updatedAt: DateTime.parse(json['updatedAt'] ?? ''),
+      userId: (json['userId'] ?? json['uid'] ?? '').toString(),
+      createdAt: _parseDateTime(json['createdAt']),
+      updatedAt: _parseDateTime(json['updatedAt']),
     );
   }
 
@@ -191,6 +210,7 @@ class InfluencerProfile {
       'nidVerification': nidVerification?.toJson(),
       'profileImg': profileImg,
       'isOnboardingComplete': isOnboardingComplete,
+      'isVerified': isVerified,
       'payouts': payouts?.toJson(),
       'averageRating': averageRating,
       'totalReviews': totalReviews,
@@ -218,6 +238,16 @@ class InfluencerProfile {
     return 0;
   }
 
+  static bool _parseBool(dynamic value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      return normalized == 'true' || normalized == '1';
+    }
+    return false;
+  }
+
   static bool? _parseBoolOrNull(dynamic value) {
     if (value == null) return null;
     if (value is bool) return value;
@@ -228,6 +258,14 @@ class InfluencerProfile {
       if (normalized == 'false' || normalized == '0') return false;
     }
     return null;
+  }
+
+  static DateTime _parseDateTime(dynamic value) {
+    if (value == null) return DateTime.now();
+    if (value is DateTime) return value;
+    final str = value.toString();
+    if (str.isEmpty) return DateTime.now();
+    return DateTime.tryParse(str) ?? DateTime.now();
   }
 }
 
@@ -269,12 +307,12 @@ class InfluencerAddress {
 
   factory InfluencerAddress.fromJson(Map<String, dynamic> json) {
     return InfluencerAddress(
-      addressName: json['addressName'] ?? '',
-      thana: json['thana'] ?? '',
-      zilla: json['zilla'] ?? '',
-      country: json['country'] ?? '',
-      fullAddress: json['fullAddress'] ?? '',
-      isDefault: json['isDefault'] ?? false,
+      addressName: (json['addressName'] ?? '').toString(),
+      thana: (json['thana'] ?? '').toString(),
+      zilla: (json['zilla'] ?? '').toString(),
+      country: (json['country'] ?? '').toString(),
+      fullAddress: (json['fullAddress'] ?? '').toString(),
+      isDefault: json['isDefault'] == true,
     );
   }
 
@@ -304,7 +342,7 @@ class InfluencerSocialLink {
     this.status = 'unverified',
   });
 
-  bool get isVerified => status == 'verified';
+  bool get isVerified => (status == 'verified' || status == 'approved');
   bool get isPending => status == 'pending';
   bool get isRejected => status == 'rejected';
 

@@ -1,3 +1,5 @@
+import 'dart:developer' as dev;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -14,6 +16,7 @@ import 'package:influencer_app/core/widgets/search_field.dart';
 import 'package:influencer_app/routes/app_routes.dart';
 
 import 'jobs_controller.dart';
+import '../../../core/widgets/shimmer_utils.dart';
 
 class JobsView extends GetView<JobsController> {
   const JobsView({super.key});
@@ -88,6 +91,10 @@ class JobsView extends GetView<JobsController> {
                     vertical: 15.h,
                   ),
                   child: Obx(() {
+                    if (controller.isInitialLoading.value) {
+                      return ShimmerUtils.listShimmer(itemCount: 6);
+                    }
+
                     if (isBrand) {
                       switch (controller.currentTabIndex.value) {
                         case 0:
@@ -376,6 +383,7 @@ class JobsView extends GetView<JobsController> {
                     child: JobOfferCard(
                       job: job,
                       type: 'new',
+                      isLoading: controller.loadingJobId.value == job.id,
                       onAccept: () {
                         if (controller.isAdAgency) {
                           controller.acceptAgencyOffer(job);
@@ -424,6 +432,7 @@ class JobsView extends GetView<JobsController> {
                     child: JobOfferCard(
                       job: job,
                       type: 'quoted',
+                      isLoading: controller.loadingJobId.value == job.id,
                       onView: () => controller.openJobDetails(job),
                     ),
                   ),
@@ -462,6 +471,7 @@ class JobsView extends GetView<JobsController> {
                     child: JobOfferCard(
                       job: job,
                       type: 'active',
+                      isLoading: controller.loadingJobId.value == job.id,
                       onView: () => controller.openJobDetails(job),
                     ),
                   ),
@@ -500,6 +510,7 @@ class JobsView extends GetView<JobsController> {
                     child: JobOfferCard(
                       job: job,
                       type: 'complete',
+                      isLoading: controller.loadingJobId.value == job.id,
                       onView: () => controller.openJobDetails(job),
                     ),
                   ),
@@ -538,6 +549,7 @@ class JobsView extends GetView<JobsController> {
                     child: JobOfferCard(
                       job: job,
                       type: 'pending',
+                      isLoading: controller.loadingJobId.value == job.id,
                       onView: () => controller.openJobDetails(job),
                     ),
                   ),
@@ -576,6 +588,7 @@ class JobsView extends GetView<JobsController> {
                     child: JobOfferCard(
                       job: job,
                       type: 'declined',
+                      isLoading: controller.loadingJobId.value == job.id,
                       onView: () => controller.openJobDetails(job),
                     ),
                   ),
@@ -611,7 +624,10 @@ class JobsView extends GetView<JobsController> {
                 ...items.map(
                   (job) => Padding(
                     padding: EdgeInsets.only(bottom: 12.h),
-                    child: _brandActiveCard(job),
+                    child: GestureDetector(
+                      onTap: () => controller.openJobDetails(job),
+                      child: _brandActiveCard(job),
+                    ),
                   ),
                 ),
                 _bottomLoader(isLoading: isLoading),
@@ -645,7 +661,10 @@ class JobsView extends GetView<JobsController> {
                 ...items.map(
                   (job) => Padding(
                     padding: EdgeInsets.only(bottom: 12.h),
-                    child: _brandBudgetingCard(job),
+                    child: GestureDetector(
+                      onTap: () => controller.openJobDetails(job),
+                      child: _brandBudgetingCard(job),
+                    ),
                   ),
                 ),
                 _bottomLoader(isLoading: isLoading),
@@ -750,7 +769,10 @@ class JobsView extends GetView<JobsController> {
                 ...items.map(
                   (job) => Padding(
                     padding: EdgeInsets.only(bottom: 12.h),
-                    child: _brandCompletedCard(job),
+                    child: GestureDetector(
+                      onTap: () => controller.openJobDetails(job),
+                      child: _brandCompletedCard(job),
+                    ),
                   ),
                 ),
                 _bottomLoader(isLoading: isLoading),
@@ -1204,7 +1226,7 @@ class JobsView extends GetView<JobsController> {
                 ),
               ),
               const Spacer(),
-              _ratingStars(job.rating ?? 0),
+              _ratingStars(job.rating ?? 0.0),
             ],
           ),
           SizedBox(height: 6.h),
@@ -1344,16 +1366,45 @@ class JobsView extends GetView<JobsController> {
     );
   }
 
-  Widget _ratingStars(int rating) {
+  Widget _ratingStars(double rating) {
+    dev.log('The rating: $rating');
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: List.generate(5, (i) {
-        final filled = i < rating;
-        return Icon(
-          Icons.star_rounded,
-          size: 16.sp,
-          color: filled ? AppPalette.starDark : AppPalette.backgroundDark,
-        );
+        if (rating >= i + 1) {
+          return Icon(
+            Icons.star_rounded,
+            size: 16.sp,
+            color: AppPalette.starDark,
+          );
+        } else if (rating > i && rating < i + 1) {
+          final fractional = rating - i;
+          if (fractional > 0.75) {
+            return Icon(
+              Icons.star_rounded,
+              size: 16.sp,
+              color: AppPalette.starDark,
+            );
+          } else if (fractional >= 0.25) {
+            return Icon(
+              Icons.star_half_rounded,
+              size: 16.sp,
+              color: AppPalette.starDark,
+            );
+          } else {
+            return Icon(
+              Icons.star_rounded,
+              size: 16.sp,
+              color: AppPalette.defaultStroke,
+            );
+          }
+        } else {
+          return Icon(
+            Icons.star_rounded,
+            size: 16.sp,
+            color: AppPalette.defaultStroke,
+          );
+        }
       }),
     );
   }

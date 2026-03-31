@@ -80,6 +80,7 @@ class EarningsController extends GetxController {
   final transactionTotalPages = 1.obs;
   final transactionTotalItems = 0.obs;
   final transactionItems = <TransactionModel>[].obs;
+  final RxBool isInitialLoading = false.obs;
 
   final int _clientsPageSize = 4;
   final int _transactionsPageSize = 4;
@@ -139,8 +140,13 @@ class EarningsController extends GetxController {
   }
 
   Future<void> _loadInitial() async {
-    await _loadOverview();
-    await fetchTransactionPage(1);
+    isInitialLoading.value = true;
+    try {
+      await _loadOverview();
+      await fetchTransactionPage(1);
+    } finally {
+      isInitialLoading.value = false;
+    }
   }
 
   Map<String, dynamic> _asMap(dynamic value) {

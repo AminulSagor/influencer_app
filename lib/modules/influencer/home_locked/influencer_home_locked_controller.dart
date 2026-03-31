@@ -1,6 +1,5 @@
-// lib/modules/influencer/home_locked/influencer_home_locked_controller.dart
 import 'package:get/get.dart';
-import 'package:influencer_app/core/services/onboarding_check_service.dart';
+import 'package:influencer_app/core/controllers/app_user_session_controller.dart';
 import 'package:influencer_app/routes/app_routes.dart';
 
 enum StepStatus { completed, inReview, pending, declined }
@@ -9,8 +8,6 @@ class ProgressStep {
   final String title;
   final String subtitle;
   final StepStatus status;
-
-  /// Optional help text for the profile card question mark.
   final String? helpText;
 
   const ProgressStep({
@@ -22,125 +19,201 @@ class ProgressStep {
 }
 
 class InfluencerHomeLockedController extends GetxController {
-  final _onboardingService = Get.find<OnboardingCheckService>();
+  final AppUserSessionController _session =
+      Get.find<AppUserSessionController>();
 
-  // Expand / collapse
   final isVerificationExpanded = true.obs;
   final isProfileExpanded = true.obs;
-
-  // Loading state
   final isLoading = false.obs;
 
-  // Reactive lists for steps
   final verificationSteps = <ProgressStep>[].obs;
   final profileSteps = <ProgressStep>[].obs;
 
-  // Progress values (0–1)
-  double get verificationProgress =>
-      _onboardingService.status.value?.influencerVerificationProgress ?? 0.0;
-  double get profileProgress =>
-      _onboardingService.status.value?.profileProgress ?? 0.0;
+  double get verificationProgress => _progressFromSteps(verificationSteps);
+  double get profileProgress => _progressFromSteps(profileSteps);
 
   @override
   void onInit() {
     super.onInit();
-    _buildStepsFromStatus();
 
-    // Listen for status changes
-    ever(_onboardingService.status, (_) => _buildStepsFromStatus());
+    _buildStepsFromProfile();
+
+    ever(_session.influencerProfile, (_) => _buildStepsFromProfile());
+
+    Future.microtask(refreshStatus);
   }
 
-  void _buildStepsFromStatus() {
-    final status = _onboardingService.status.value;
-    if (status == null) return;
+  void _buildStepsFromProfile() {
+    final profile = _session.influencerProfile.value;
+    if (profile == null) {
+      verificationSteps.clear();
+      profileSteps.clear();
+      return;
+    }
 
-    // Build verification steps
-    verificationSteps.value = [
+    final json = profile.toJson();
+
+    final firstName = _readString(json['firstName']);
+    final lastName = _readString(json['lastName']);
+    final bio = _readString(json['bio']);
+    final profileImg = _readString(json['profileImg']).isNotEmpty
+        ? _readString(json['profileImg'])
+        : _readString(json['profileImage']);
+
+    final addresses = _readList(json['addresses']);
+    final niches = _readList(json['niches']);
+    final skills = _readList(json['skills']);
+    final socialLinks = _readList(json['socialLinks']);
+
+    final nidNumber = _readString(json['nidNumber']);
+    final nidFrontImg = _readString(json['nidFrontImg']);
+    final nidBackImg = _readString(json['nidBackImg']);
+    final nidVerification = _readMap(json['nidVerification']);
+
+    final payouts = _readMap(json['payouts']);
+
+    final basicInfoCompleted =
+        _hasText(firstName) &&
+        _hasText(lastName) &&
+        _hasText(bio) &&
+        addresses.isNotEmpty;
+
+    final hasSocialPortfolio = socialLinks.isNotEmpty;
+    final hasProfilePhoto = _hasText(profileImg);
+    final hasBio = _hasText(bio);
+    final hasNiches = niches.isNotEmpty;
+    final hasSkills = skills.isNotEmpty;
+
+    final nidSubmitted =
+        _hasText(nidNumber) || _hasText(nidFrontImg) || _hasText(nidBackImg);
+
+    final payoutState = _resolvePayoutState(payouts);
+
+    verificationSteps.assignAll([
       ProgressStep(
         title: 'basic_info'.tr,
-        subtitle: status.hasAddress
+        subtitle: basicInfoCompleted
             ? 'completed'.tr
             : 'that_is_how_we_reach_you'.tr,
-        status: status.hasAddress ? StepStatus.completed : StepStatus.pending,
+        status: basicInfoCompleted ? StepStatus.completed : StepStatus.pending,
       ),
       ProgressStep(
         title: 'social_portfolio'.tr,
-        subtitle: status.hasSocialLinks
+        subtitle: hasSocialPortfolio
             ? 'completed'.tr
             : 'add_at_least_one_social'.tr,
-        status: status.hasSocialLinks
-            ? StepStatus.completed
-            : StepStatus.pending,
+        status: hasSocialPortfolio ? StepStatus.completed : StepStatus.pending,
       ),
       ProgressStep(
         title: 'NID',
-        subtitle: _getNidSubtitle(status),
-        status: _getNidStatus(status),
+        subtitle: _verificationSubtitle(
+          hasSubmitted: nidSubmitted,
+          status: _readString(nidVerification['nidStatus']),
+          rejectReason: _readString(nidVerification['nidRejectReason']),
+        ),
+        status: _verificationStepStatus(
+          hasSubmitted: nidSubmitted,
+          status: _readString(nidVerification['nidStatus']),
+        ),
       ),
       ProgressStep(
         title: 'payment_setup'.tr,
-        subtitle: status.hasPayoutSetup ? 'completed'.tr : 'pending'.tr,
-        status: status.hasPayoutSetup
-            ? StepStatus.completed
-            : StepStatus.pending,
+        subtitle: payoutState.subtitle,
+        status: payoutState.status,
       ),
       ProgressStep(
         title: 'verify_email'.tr,
-        subtitle: status.isEmailVerified ? 'completed'.tr : 'pending'.tr,
-        status: status.isEmailVerified
+        subtitle: json['isEmailVerified'] == true
+            ? 'completed'.tr
+            : 'pending'.tr,
+        status: json['isEmailVerified'] == true
             ? StepStatus.completed
             : StepStatus.pending,
       ),
-    ];
+    ]);
 
-    // Build profile steps (optional, for profile completion)
-    profileSteps.value = [
+    profileSteps.assignAll([
       ProgressStep(
         title: 'add_profile_picture'.tr,
-        subtitle: status.hasProfileImage
+        subtitle: hasProfilePhoto
             ? 'completed'.tr
             : 'that_is_how_we_reach_you'.tr,
-        status: status.hasProfileImage
-            ? StepStatus.completed
-            : StepStatus.pending,
+        status: hasProfilePhoto ? StepStatus.completed : StepStatus.pending,
       ),
       ProgressStep(
         title: 'add_niches'.tr,
-        subtitle: status.hasNiches ? 'completed'.tr : 'pending'.tr,
-        status: status.hasNiches ? StepStatus.completed : StepStatus.pending,
+        subtitle: hasNiches ? 'completed'.tr : 'pending'.tr,
+        status: hasNiches ? StepStatus.completed : StepStatus.pending,
         helpText: 'niche_help_text'.tr,
       ),
       ProgressStep(
         title: 'add_skills'.tr,
-        subtitle: status.hasSkills ? 'completed'.tr : 'pending'.tr,
-        status: status.hasSkills ? StepStatus.completed : StepStatus.pending,
+        subtitle: hasSkills ? 'completed'.tr : 'pending'.tr,
+        status: hasSkills ? StepStatus.completed : StepStatus.pending,
         helpText: 'skills_help_text'.tr,
       ),
       ProgressStep(
         title: 'add_bio'.tr,
-        subtitle: status.hasBio ? 'completed'.tr : 'pending'.tr,
-        status: status.hasBio ? StepStatus.completed : StepStatus.pending,
+        subtitle: hasBio ? 'completed'.tr : 'pending'.tr,
+        status: hasBio ? StepStatus.completed : StepStatus.pending,
       ),
-    ];
+    ]);
   }
 
-  String _getNidSubtitle(OnboardingStatus status) {
-    if (!status.hasNidSubmitted) return 'pending'.tr;
-    switch (status.nidStatus) {
-      case 'approved':
-        return 'verified'.tr;
-      case 'pending':
-        return 'in_review'.tr;
-      case 'rejected':
-        return 'declined'.tr;
-      default:
-        return 'pending'.tr;
+  Future<void> refreshStatus() async {
+    if (isLoading.value) return;
+
+    isLoading.value = true;
+    try {
+      await _session.preloadUserData(forceRefresh: true);
+      _buildStepsFromProfile();
+    } finally {
+      isLoading.value = false;
     }
   }
 
-  StepStatus _getNidStatus(OnboardingStatus status) {
-    if (!status.hasNidSubmitted) return StepStatus.pending;
-    switch (status.nidStatus) {
+  void toggleVerificationSection() => isVerificationExpanded.toggle();
+  void toggleProfileSection() => isProfileExpanded.toggle();
+
+  void openVerificationGuide() {}
+
+  void goToProfile() {
+    Get.toNamed(AppRoutes.profile, id: 1);
+  }
+
+  void contactSupport() {
+    Get.toNamed(AppRoutes.support, id: 1);
+  }
+
+  double _progressFromSteps(List<ProgressStep> steps) {
+    if (steps.isEmpty) return 0.0;
+
+    double total = 0;
+    for (final step in steps) {
+      switch (step.status) {
+        case StepStatus.completed:
+          total += 1.0;
+          break;
+        case StepStatus.inReview:
+          total += 0.5;
+          break;
+        case StepStatus.pending:
+        case StepStatus.declined:
+          total += 0.0;
+          break;
+      }
+    }
+
+    return (total / steps.length).clamp(0.0, 1.0);
+  }
+
+  StepStatus _verificationStepStatus({
+    required bool hasSubmitted,
+    required String status,
+  }) {
+    if (!hasSubmitted) return StepStatus.pending;
+
+    switch (status.toLowerCase()) {
       case 'approved':
         return StepStatus.completed;
       case 'pending':
@@ -152,28 +225,91 @@ class InfluencerHomeLockedController extends GetxController {
     }
   }
 
-  // ---- Actions ----
-  void toggleVerificationSection() => isVerificationExpanded.toggle();
+  String _verificationSubtitle({
+    required bool hasSubmitted,
+    required String status,
+    required String rejectReason,
+  }) {
+    if (!hasSubmitted) return 'pending'.tr;
 
-  void toggleProfileSection() => isProfileExpanded.toggle();
-
-  Future<void> refreshStatus() async {
-    isLoading.value = true;
-    await _onboardingService.fetchOnboardingStatus();
-    isLoading.value = false;
+    switch (status.toLowerCase()) {
+      case 'approved':
+        return 'verified'.tr;
+      case 'pending':
+        return 'in_review'.tr;
+      case 'rejected':
+        return _hasText(rejectReason) ? rejectReason : 'declined'.tr;
+      default:
+        return 'pending'.tr;
+    }
   }
 
-  void openVerificationGuide() {
-    // TODO: navigate to verification guide page
+  _PayoutStepState _resolvePayoutState(Map<String, dynamic> payouts) {
+    final bank = _readList(payouts['bank']);
+    final mobileBanking = _readList(payouts['mobileBanking']);
+    final all = [...bank, ...mobileBanking];
+
+    if (all.isEmpty) {
+      return _PayoutStepState(
+        status: StepStatus.pending,
+        subtitle: 'pending'.tr,
+      );
+    }
+
+    final statuses = all
+        .map((e) => _readString((e as Map?)?['accStatus']).toLowerCase())
+        .where((e) => e.isNotEmpty)
+        .toList(growable: false);
+
+    if (statuses.any((e) => e == 'approved')) {
+      return _PayoutStepState(
+        status: StepStatus.completed,
+        subtitle: 'completed'.tr,
+      );
+    }
+
+    if (statuses.any((e) => e == 'pending')) {
+      return _PayoutStepState(
+        status: StepStatus.inReview,
+        subtitle: 'in_review'.tr,
+      );
+    }
+
+    if (statuses.any((e) => e == 'rejected')) {
+      return _PayoutStepState(
+        status: StepStatus.declined,
+        subtitle: 'declined'.tr,
+      );
+    }
+
+    return _PayoutStepState(status: StepStatus.pending, subtitle: 'pending'.tr);
   }
 
-  void goToProfile() {
-    Get.toNamed(AppRoutes.profile, id: 1);
+  List<dynamic> _readList(dynamic value) {
+    if (value is List) return value;
+    return const [];
   }
 
-  void contactSupport() {
-    Get.toNamed(AppRoutes.support, id: 1);
+  Map<String, dynamic> _readMap(dynamic value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) {
+      return Map<String, dynamic>.from(value);
+    }
+    return const {};
   }
+
+  String _readString(dynamic value) {
+    return value?.toString().trim() ?? '';
+  }
+
+  bool _hasText(String value) => value.trim().isNotEmpty;
+}
+
+class _PayoutStepState {
+  final StepStatus status;
+  final String subtitle;
+
+  const _PayoutStepState({required this.status, required this.subtitle});
 }
 
 class InfluencerHomeLockedBinding extends Bindings {

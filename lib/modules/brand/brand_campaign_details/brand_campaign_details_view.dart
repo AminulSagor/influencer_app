@@ -12,6 +12,7 @@ import '../../../core/widgets/app_pagination_row.dart';
 import '../../../core/widgets/app_pill_tabs.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../../core/models/job_item.dart';
+import '../../../core/widgets/shimmer_utils.dart';
 import '../../../core/widgets/sort_toggle_chip.dart';
 import 'brand_campaign_details_controller.dart';
 import 'widgets/provide_rating_dialog.dart';
@@ -23,14 +24,22 @@ class BrandCampaignDetailsView extends GetView<BrandCampaignDetailsController> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppPalette.background,
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: controller.refreshCampaignDetails,
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(
-              parent: BouncingScrollPhysics(),
-            ),
-            child: Padding(
+      body: Obx(() {
+        if (controller.isInitialLoading.value) {
+          return ShimmerUtils.campaignDetailsShimmer();
+        }
+
+        return SafeArea(
+          child: RefreshIndicator(
+            onRefresh: controller.refreshCampaignDetails,
+            child: SingleChildScrollView(
+              key: const PageStorageKey<String>(
+                'brand_campaign_details_scroll',
+              ),
+              controller: controller.pageScrollController,
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
               padding: EdgeInsets.fromLTRB(14.w, 12.h, 14.w, 18.h),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -109,7 +118,6 @@ class BrandCampaignDetailsView extends GetView<BrandCampaignDetailsController> {
                           ),
                         ),
                         12.h.verticalSpace,
-
                         Obx(() {
                           final tab = controller.paidAdTabIndex.value;
 
@@ -124,8 +132,8 @@ class BrandCampaignDetailsView extends GetView<BrandCampaignDetailsController> {
               ),
             ),
           ),
-        ),
-      ),
+        );
+      }),
     );
   }
 }
@@ -172,27 +180,37 @@ class _CampaignDetailsCard extends GetView<BrandCampaignDetailsController> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Title row
-          Row(
-            children: [
-              InkWell(
-                onTap: () => Get.back(id: 1),
-                child: Icon(Icons.arrow_back, color: Colors.white, size: 20.sp),
-              ),
-              10.w.horizontalSpace,
-              Expanded(
-                child: Text(
-                  'brand_campaign_details_campaign_details'.tr,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTheme.textStyle.copyWith(
+          Obx(() {
+            final showRating = controller.isRated.value;
+            final rating = controller.rating.value;
+
+            return Row(
+              children: [
+                InkWell(
+                  onTap: () => Get.back(id: 1),
+                  child: Icon(
+                    Icons.arrow_back,
                     color: Colors.white,
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w600,
+                    size: 20.sp,
                   ),
                 ),
-              ),
-            ],
-          ),
+                10.w.horizontalSpace,
+                Expanded(
+                  child: Text(
+                    'brand_campaign_details_campaign_details'.tr,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTheme.textStyle.copyWith(
+                      color: Colors.white,
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                if (showRating) ...[_RatingStars(rating: rating.toDouble())],
+              ],
+            );
+          }),
           10.h.verticalSpace,
 
           // Campaign name + amount
@@ -800,15 +818,20 @@ class _QuoteDetailsCard extends GetView<BrandCampaignDetailsController> {
                   ),
                   12.w.horizontalSpace,
                   Expanded(
-                    child: CustomButton(
-                      btnText: 'brand_campaign_details_accept_quote'.tr,
-                      btnColor: AppPalette.secondary,
-                      borderColor: Colors.transparent,
-                      showBorder: false,
-                      textColor: AppPalette.white,
-                      isDisabled: !controller.isYourTurn.value,
-                      onTap: controller.onAcceptQuote,
-                    ),
+                    child: Obx(() {
+                      return CustomButton(
+                        btnText: 'brand_campaign_details_accept_quote'.tr,
+                        btnColor: AppPalette.secondary,
+                        borderColor: Colors.transparent,
+                        showBorder: false,
+                        textColor: AppPalette.white,
+                        isDisabled:
+                            !controller.isYourTurn.value ||
+                            controller.isAcceptQuoteLoading.value,
+                        isLoading: controller.isAcceptQuoteLoading.value,
+                        onTap: controller.onAcceptQuote,
+                      );
+                    }),
                   ),
                 ],
               );
@@ -1288,10 +1311,7 @@ class _RatingCard extends GetView<BrandCampaignDetailsController> {
           }),
           10.h.verticalSpace,
           CustomButton(
-            onTap: () {
-              controller.provideRating();
-              ProvideRatingDialog.show(isPaidAd: controller.isPaidAd);
-            },
+            onTap: controller.provideRating,
             btnText: controller.isPaidAd
                 ? 'Provide Ratings To This Agency'
                 : 'Provide Ratings To Influencers',
@@ -2075,6 +2095,8 @@ class _AgencyBidsTab extends GetView<BrandCampaignDetailsController> {
                     usdValue: usd.toDouble(),
                     onAcceptAndPay: () =>
                         controller.onAcceptAgencyOfferAndPay(o),
+                    isLoading:
+                        controller.payingAgencyOfferId.value == o.agencyId,
                   );
                 }).toList(),
 
@@ -2107,6 +2129,7 @@ class _AgencyOfferCard extends StatelessWidget {
   final int budgetExclAgencyBdt;
   final double usdValue;
   final VoidCallback onAcceptAndPay;
+  final bool isLoading;
 
   const _AgencyOfferCard({
     required this.name,
@@ -2117,6 +2140,7 @@ class _AgencyOfferCard extends StatelessWidget {
     required this.budgetExclAgencyBdt,
     required this.usdValue,
     required this.onAcceptAndPay,
+    required this.isLoading,
   });
 
   String _bdt(int v) => '৳$v';
@@ -2283,10 +2307,12 @@ class _AgencyOfferCard extends StatelessWidget {
           12.h.verticalSpace,
 
           CustomButton(
-            onTap: onAcceptAndPay,
+            onTap: isLoading ? null : onAcceptAndPay,
             btnText: 'brand_campaign_details_accept_quote_and_pay'.tr,
             textColor: AppPalette.white,
             width: double.infinity,
+            isLoading: isLoading,
+            isDisabled: isLoading,
           ),
         ],
       ),
@@ -2414,6 +2440,40 @@ class _DangerZoneCard extends GetView<BrandCampaignDetailsController> {
               }),
             ],
           ],
+        );
+      }),
+    );
+  }
+}
+
+class _RatingStars extends StatelessWidget {
+  final double rating;
+
+  const _RatingStars({required this.rating});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: List.generate(5, (index) {
+        final diff = rating - index;
+
+        IconData icon;
+        Color color;
+
+        if (diff >= 0.75) {
+          icon = Icons.star_rounded;
+          color = AppPalette.starDark;
+        } else if (diff >= 0.25) {
+          icon = Icons.star_half_rounded;
+          color = AppPalette.starDark;
+        } else {
+          icon = Icons.star_rounded;
+          color = AppPalette.white;
+        }
+
+        return Padding(
+          padding: EdgeInsets.only(left: 4.w),
+          child: Icon(icon, size: 18.sp, color: color),
         );
       }),
     );

@@ -20,6 +20,7 @@ class JobOfferCard extends StatelessWidget {
   final VoidCallback? onView;
   final VoidCallback? onDecline;
   final VoidCallback? onAccept;
+  final bool isLoading;
 
   const JobOfferCard({
     super.key,
@@ -28,6 +29,7 @@ class JobOfferCard extends StatelessWidget {
     this.onView,
     this.onDecline,
     this.onAccept,
+    this.isLoading = false,
   });
 
   @override
@@ -42,263 +44,298 @@ class JobOfferCard extends StatelessWidget {
     final accountTypeService = Get.find<AccountTypeService>();
     final isAdAgency = accountTypeService.isAdAgency;
 
-    return Container(
-      padding: EdgeInsets.all(12.w),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(kBorderRadius.r),
-        border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // title + due/view
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      job.title,
+    return GestureDetector(
+      onTap: onView,
+      child: Container(
+        padding: EdgeInsets.all(12.w),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(kBorderRadius.r),
+          border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // title + due/view
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        job.title,
+                        style: TextStyle(
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w600,
+                          color: isDeclined
+                              ? AppPalette.defaultStroke
+                              : AppPalette.primary,
+                        ),
+                      ),
+                      SizedBox(height: 4.h),
+                      Text(
+                        !isAdAgency
+                            ? formatCurrencyByLocale(job.budget)
+                            : '${formatNumberByLocale(job.sharePercent)}%',
+                        style: TextStyle(
+                          fontSize: 18.sp,
+                          color: isDeclined
+                              ? AppPalette.defaultStroke
+                              : isPending
+                              ? AppPalette.complemetary
+                              : AppPalette.secondary,
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                if ((!isAdAgency && isNew) || isComplete || isPending)
+                  GestureDetector(
+                    onTap: onView,
+                    child: Text(
+                      '${'common_view'.tr} >',
                       style: TextStyle(
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.w600,
-                        color: isDeclined
-                            ? AppPalette.defaultStroke
-                            : AppPalette.primary,
+                        fontSize: 10.sp,
+                        color: AppPalette.black,
+                        fontWeight: FontWeight.w300,
                       ),
                     ),
-                    SizedBox(height: 4.h),
-                    Text(
-                      !isAdAgency
-                          ? formatCurrencyByLocale(job.budget)
-                          : '${formatNumberByLocale(job.sharePercent)}%',
+                  ),
+
+                if (isActive)
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 14.w,
+                      vertical: 5.h,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppPalette.complemetaryFill,
+                      borderRadius: BorderRadius.circular(kBorderRadiusSmall.r),
+                      border: Border.all(
+                        color: AppPalette.complemetary,
+                        width: kBorderWeight1,
+                      ),
+                    ),
+                    child: Text(
+                      localizeDueLabel(job.dueLabel),
                       style: TextStyle(
-                        fontSize: 18.sp,
-                        color: isDeclined
-                            ? AppPalette.defaultStroke
-                            : isPending
-                            ? AppPalette.complemetary
-                            : AppPalette.secondary,
+                        color: AppPalette.complemetary,
+                        fontSize: 10.sp,
                         fontWeight: FontWeight.w400,
                       ),
                     ),
-                  ],
-                ),
-              ),
-
-              if ((!isAdAgency && isNew) || isComplete || isPending)
-                GestureDetector(
-                  onTap: onView,
-                  child: Text(
-                    '${'common_view'.tr} >',
-                    style: TextStyle(
-                      fontSize: 10.sp,
-                      color: AppPalette.black,
-                      fontWeight: FontWeight.w300,
-                    ),
                   ),
-                ),
-
-              if (isActive)
-                Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 14.w,
-                    vertical: 5.h,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppPalette.complemetaryFill,
-                    borderRadius: BorderRadius.circular(kBorderRadiusSmall.r),
-                    border: Border.all(
-                      color: AppPalette.complemetary,
-                      width: kBorderWeight1,
-                    ),
-                  ),
-                  child: Text(
-                    localizeDueLabel(job.dueLabel),
-                    style: TextStyle(
-                      color: AppPalette.complemetary,
-                      fontSize: 10.sp,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-
-          SizedBox(height: 8.h),
-
-          Row(
-            children: [
-              Icon(
-                Icons.person,
-                size: 15.sp,
-                color: isDeclined
-                    ? AppPalette.defaultStroke
-                    : AppPalette.complemetary,
-              ),
-              SizedBox(width: 6.w),
-              Text(
-                job.clientName,
-                style: TextStyle(
-                  fontSize: 12.sp,
-                  color: isDeclined
-                      ? AppPalette.defaultStroke
-                      : AppPalette.complemetary,
-                  fontWeight: FontWeight.w400,
-                ),
-              ),
-              if (isComplete) ...[
-                const Spacer(),
-                _ratingStars(job.rating ?? 0),
               ],
-            ],
-          ),
+            ),
 
-          SizedBox(height: 4.h),
+            SizedBox(height: 8.h),
 
-          Row(
-            children: [
-              Icon(
-                Icons.access_time_filled,
-                size: 14.sp,
-                color: isDeclined
-                    ? AppPalette.defaultStroke
-                    : AppPalette.complemetary,
-              ),
-              SizedBox(width: 6.w),
-              Text(
-                job.dateLabel,
-                style: TextStyle(
-                  fontSize: 12.sp,
+            Row(
+              children: [
+                Icon(
+                  Icons.person,
+                  size: 15.sp,
                   color: isDeclined
                       ? AppPalette.defaultStroke
                       : AppPalette.complemetary,
-                  fontWeight: FontWeight.w400,
                 ),
-              ),
-              const Spacer(),
-              if (isAdAgency)
+                SizedBox(width: 6.w),
                 Text(
-                  '${'common_budget'.tr}: ${formatCurrencyByLocale(job.budget)}',
+                  job.clientName,
                   style: TextStyle(
                     fontSize: 12.sp,
                     color: isDeclined
                         ? AppPalette.defaultStroke
-                        : AppPalette.secondary,
+                        : AppPalette.complemetary,
                     fontWeight: FontWeight.w400,
                   ),
                 ),
-            ],
-          ),
-
-          if (isNew) ...[
-            if (isAdAgency) ...[
-              SizedBox(height: 10.h),
-              _RequoteCountdown(
-                initialMinutes: job.timeLeftToRequoteMinutes ?? 0,
-              ),
-            ],
-
-            SizedBox(height: 12.h),
-
-            Row(
-              children: [
-                Expanded(
-                  child: CustomButton(
-                    onTap: onAccept,
-                    btnText: isAdAgency ? 'Accept Quote' : 'common_accept'.tr,
-                    textColor: AppPalette.white,
-                  ),
-                ),
-                SizedBox(width: 10.w),
-                Expanded(
-                  child: CustomButton(
-                    onTap: isAdAgency ? onView : onDecline,
-                    btnText: isAdAgency ? 'View Details' : 'common_decline'.tr,
-                    btnColor: AppPalette.defaultFill,
-                  ),
-                ),
+                if (isComplete) ...[
+                  const Spacer(),
+                  _ratingStars(job.rating ?? 0.0),
+                ],
               ],
             ),
 
-            if (isAdAgency) ...[
-              SizedBox(height: 8.h),
-              Text(
-                _requoteHintText(job.timeLeftToRequoteMinutes),
-                style: TextStyle(
-                  fontSize: 11.sp,
-                  color: AppPalette.defaultStroke,
-                  fontWeight: FontWeight.w400,
-                ),
-              ),
-            ],
-          ],
-
-          if (isQuoted) ...[
-            SizedBox(height: 12.h),
-            CustomButton(
-              onTap: onView,
-              btnText: 'View Details',
-              textColor: AppPalette.white,
-              width: double.infinity,
-            ),
-          ],
-
-          if (isActive) ...[
-            SizedBox(height: 12.h),
-            LinearProgressIndicator(
-              value: (job.progressPercent ?? 0) / 100,
-              minHeight: 6.h,
-              backgroundColor: AppPalette.secondary.withAlpha(77),
-              color: AppPalette.secondary,
-              borderRadius: BorderRadius.circular(kBorderRadiusSmall.r),
-            ),
             SizedBox(height: 4.h),
+
             Row(
               children: [
+                Icon(
+                  Icons.access_time_filled,
+                  size: 14.sp,
+                  color: isDeclined
+                      ? AppPalette.defaultStroke
+                      : AppPalette.complemetary,
+                ),
+                SizedBox(width: 6.w),
                 Text(
-                  'home_progress_complete_line'.trParams({
-                    'percent': formatNumberByLocale(job.progressPercent ?? 0),
-                  }),
+                  job.dateLabel,
                   style: TextStyle(
                     fontSize: 12.sp,
-                    color: AppPalette.complemetary,
+                    color: isDeclined
+                        ? AppPalette.defaultStroke
+                        : AppPalette.complemetary,
                     fontWeight: FontWeight.w400,
                   ),
                 ),
                 const Spacer(),
-                GestureDetector(
-                  onTap: onView,
-                  child: Text(
-                    '${'common_view'.tr} >',
+                if (isAdAgency)
+                  Text(
+                    '${'common_budget'.tr}: ${formatCurrencyByLocale(job.budget)}',
                     style: TextStyle(
-                      fontSize: 10.sp,
-                      color: AppPalette.black,
-                      fontWeight: FontWeight.w300,
+                      fontSize: 12.sp,
+                      color: isDeclined
+                          ? AppPalette.defaultStroke
+                          : AppPalette.secondary,
+                      fontWeight: FontWeight.w400,
                     ),
+                  ),
+              ],
+            ),
+
+            if (isNew) ...[
+              if (isAdAgency) ...[
+                SizedBox(height: 10.h),
+                _RequoteCountdown(
+                  initialMinutes: job.timeLeftToRequoteMinutes ?? 0,
+                ),
+              ],
+
+              SizedBox(height: 12.h),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: CustomButton(
+                      onTap: onAccept,
+                      isLoading: isLoading,
+                      btnText: isAdAgency ? 'Accept Quote' : 'common_accept'.tr,
+                      textColor: AppPalette.white,
+                    ),
+                  ),
+                  SizedBox(width: 10.w),
+                  Expanded(
+                    child: CustomButton(
+                      onTap: isAdAgency ? onView : onDecline,
+                      isLoading: isLoading,
+                      btnText: isAdAgency
+                          ? 'View Details'
+                          : 'common_decline'.tr,
+                      btnColor: AppPalette.defaultFill,
+                    ),
+                  ),
+                ],
+              ),
+
+              if (isAdAgency) ...[
+                SizedBox(height: 8.h),
+                Text(
+                  _requoteHintText(job.timeLeftToRequoteMinutes),
+                  style: TextStyle(
+                    fontSize: 11.sp,
+                    color: AppPalette.defaultStroke,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
               ],
-            ),
+            ],
+
+            if (isQuoted) ...[
+              SizedBox(height: 12.h),
+              CustomButton(
+                onTap: onView,
+                btnText: 'View Details',
+                textColor: AppPalette.white,
+                width: double.infinity,
+              ),
+            ],
+
+            if (isActive) ...[
+              SizedBox(height: 12.h),
+              LinearProgressIndicator(
+                value: (job.progressPercent ?? 0) / 100,
+                minHeight: 6.h,
+                backgroundColor: AppPalette.secondary.withAlpha(77),
+                color: AppPalette.secondary,
+                borderRadius: BorderRadius.circular(kBorderRadiusSmall.r),
+              ),
+              SizedBox(height: 4.h),
+              Row(
+                children: [
+                  Text(
+                    'home_progress_complete_line'.trParams({
+                      'percent': formatNumberByLocale(job.progressPercent ?? 0),
+                    }),
+                    style: TextStyle(
+                      fontSize: 12.sp,
+                      color: AppPalette.complemetary,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: onView,
+                    child: Text(
+                      '${'common_view'.tr} >',
+                      style: TextStyle(
+                        fontSize: 10.sp,
+                        color: AppPalette.black,
+                        fontWeight: FontWeight.w300,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
 
-  Widget _ratingStars(int rating) {
+  Widget _ratingStars(double rating) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: List.generate(5, (i) {
-        final filled = i < rating;
-        return Icon(
-          Icons.star_rounded,
-          size: 14.sp,
-          color: filled ? AppPalette.starDark : AppPalette.backgroundDark,
-        );
+        if (rating >= i + 1) {
+          return Icon(
+            Icons.star_rounded,
+            size: 14.sp,
+            color: AppPalette.starDark,
+          );
+        } else if (rating > i && rating < i + 1) {
+          final fractional = rating - i;
+          if (fractional > 0.75) {
+            return Icon(
+              Icons.star_rounded,
+              size: 14.sp,
+              color: AppPalette.starDark,
+            );
+          } else if (fractional >= 0.25) {
+            return Icon(
+              Icons.star_half_rounded,
+              size: 14.sp,
+              color: AppPalette.starDark,
+            );
+          } else {
+            return Icon(
+              Icons.star_rounded,
+              size: 14.sp,
+              color: AppPalette.backgroundDark,
+            );
+          }
+        } else {
+          return Icon(
+            Icons.star_rounded,
+            size: 14.sp,
+            color: AppPalette.backgroundDark,
+          );
+        }
       }),
     );
   }

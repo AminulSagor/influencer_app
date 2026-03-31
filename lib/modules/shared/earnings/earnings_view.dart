@@ -14,6 +14,7 @@ import '../../../core/widgets/earnings_overview_card.dart';
 import '../../../core/widgets/search_field.dart';
 import '../../../core/widgets/transaction_card.dart';
 import 'earnings_controller.dart';
+import '../../../core/widgets/shimmer_utils.dart';
 
 class EarningsView extends GetView<EarningsController> {
   const EarningsView({super.key});
@@ -35,14 +36,32 @@ class EarningsView extends GetView<EarningsController> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 15.h.verticalSpace,
-                Obx(
-                  () => EarningsOverviewCard(
-                    lifetimeEarnings: controller.lifetimeEarnings.value,
-                    pendingEarnings: controller.pendingEarnings.value,
-                  ),
-                ),
-                SizedBox(height: 16.h),
-                _TransactionsBody(controller: controller),
+                Obx(() {
+                  if (controller.isInitialLoading.value) {
+                    return Column(
+                      children: [
+                        ShimmerUtils.shimmerContainer(
+                          width: double.infinity,
+                          height: 100.h,
+                        ),
+                        SizedBox(height: 16.h),
+                        ShimmerUtils.listShimmer(itemCount: 4),
+                      ],
+                    );
+                  }
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      EarningsOverviewCard(
+                        lifetimeEarnings: controller.lifetimeEarnings.value,
+                        pendingEarnings: controller.pendingEarnings.value,
+                      ),
+                      SizedBox(height: 16.h),
+                      _TransactionsBody(controller: controller),
+                    ],
+                  );
+                }),
                 SizedBox(height: 24.h),
               ],
             ),

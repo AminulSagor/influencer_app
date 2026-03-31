@@ -27,7 +27,7 @@ class JobItem {
   /// Optional preformatted due label (fallback)
   final String? dueLabel;
 
-  final int? rating;
+  final double? rating;
   final String? profitLabel;
   final String? vatLabel;
   final String? totalCostLabel;

@@ -22,6 +22,7 @@ class AgencyProfileService {
     String? lastName,
     String? agencyBio,
     String? logo,
+    String? secondaryPhone,
   }) async {
     final payload = <String, dynamic>{
       if (agencyName != null) 'agencyName': agencyName,
@@ -29,6 +30,7 @@ class AgencyProfileService {
       if (lastName != null) 'lastName': lastName,
       if (agencyBio != null) 'agencyBio': agencyBio,
       if (logo != null) 'logo': logo,
+      if (secondaryPhone != null) 'secondaryPhone': secondaryPhone,
     };
 
     final res = await _api.dio.patch(
@@ -66,7 +68,6 @@ class AgencyProfileService {
   }
 
   Future<Map<String, dynamic>?> updateAddress({
-    required String addressName,
     required String thana,
     required String zilla,
     required String fullAddress,
@@ -179,13 +180,13 @@ class AgencyProfileService {
 
   Future<Map<String, dynamic>?> updateTradeLicense({
     required String tradeLicenseNumber,
-    required String tradeLicenseImg,
+    required String tradeLicenseImage,
   }) async {
     final res = await _api.dio.patch(
       '/agency/profile/verification/trade-license',
       data: {
         'tradeLicenseNumber': tradeLicenseNumber,
-        'tradeLicenseImg': tradeLicenseImg,
+        'tradeLicenseImage': tradeLicenseImage,
       },
     );
     return _mapFromResponseData(res.data);

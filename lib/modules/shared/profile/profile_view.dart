@@ -1,6 +1,3 @@
-import 'dart:io';
-
-import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -9,9 +6,9 @@ import 'package:influencer_app/core/services/account_type_service.dart';
 import 'package:influencer_app/core/theme/app_palette.dart';
 import 'package:influencer_app/core/utils/constants.dart';
 import 'package:influencer_app/core/widgets/custom_button.dart';
-import 'package:influencer_app/core/widgets/custom_drop_down_menu.dart';
 
 import '../../../core/widgets/custom_text_form_field.dart';
+import '../../../core/widgets/shimmer_utils.dart';
 import 'enums/profile_status.dart';
 import 'enums/verification_state.dart';
 import 'profile_controller.dart';
@@ -23,7 +20,6 @@ import 'widgets/payout_settings_section.dart';
 import 'widgets/profile_header_card.dart';
 import 'widgets/profile_settings_section.dart';
 import 'widgets/skills_section_card.dart';
-import 'widgets/verification_inprogress_section.dart';
 import 'widgets/verification_section.dart';
 
 class ProfileView extends GetView<ProfileController> {
@@ -63,10 +59,15 @@ class ProfileView extends GetView<ProfileController> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         SizedBox(height: 10.h),
-                        ProfileHeaderCard(
-                          controller: controller,
-                          onStatusTap: controller.showVerificationPage,
-                        ),
+                        Obx(() {
+                          if (controller.isInitialLoading.value) {
+                            return ShimmerUtils.profileHeaderShimmer();
+                          }
+                          return ProfileHeaderCard(
+                            controller: controller,
+                            onStatusTap: controller.showVerificationPage,
+                          );
+                        }),
                         SizedBox(height: 10.h),
                         if (!isBrand)
                           _ProfileCompletionCard(controller: controller),
@@ -205,15 +206,9 @@ class ProfileView extends GetView<ProfileController> {
                                   isExpanded:
                                       controller.verificationExpanded.value,
                                   onToggle: controller.toggleVerification,
-                                  child:
-                                      controller.profileStatus.value ==
-                                          ProfileStatus.unverified
-                                      ? VerificationSection(
-                                          controller: controller,
-                                        )
-                                      : VerificationInprogressSection(
-                                          controller: controller,
-                                        ),
+                                  child: VerificationSection(
+                                    controller: controller,
+                                  ),
                                 ),
                               ),
                               SizedBox(height: 12.h),
@@ -239,20 +234,6 @@ class ProfileView extends GetView<ProfileController> {
                             ],
                           ),
                         ),
-                        SizedBox(height: 16.h),
-                        if (isInfluencer || isAdAgency)
-                          Obx(
-                            () => CustomButton(
-                              onTap: controller.isSavingProfile.value
-                                  ? null
-                                  : controller.onSaveVerificationMethods,
-                              btnText: 'Save Update',
-                              height: 56.h,
-                              width: double.infinity,
-                              textColor: AppPalette.white,
-                              isLoading: controller.isSavingProfile.value,
-                            ),
-                          ),
                       ],
                     ),
                   ),
@@ -330,10 +311,34 @@ class _BioSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CustomTextFormField(
-      hintText: 'Write a short bio that describes you & your content.',
-      controller: controller.bioController,
-      maxLines: 4,
+    return Column(
+      children: [
+        CustomTextFormField(
+          hintText: 'Write a short bio that describes you & your content.',
+          controller: controller.bioController,
+          maxLines: 4,
+        ),
+        SizedBox(height: 10.h),
+        Obx(
+          () => CustomButton(
+            onTap: controller.accountTypeService.isAdAgency
+                ? (controller.isSavingAgencyBio.value
+                      ? null
+                      : controller.saveAgencyBio)
+                : controller.accountTypeService.isInfluencer
+                ? (controller.isSavingBio.value
+                      ? null
+                      : controller.saveInfluencerBio)
+                : null,
+            isLoading: controller.accountTypeService.isAdAgency
+                ? controller.isSavingAgencyBio.value
+                : controller.isSavingBio.value,
+            btnText: 'save'.tr,
+            width: double.infinity,
+            textColor: AppPalette.white,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -508,6 +513,7 @@ class _SocialLinksSection extends StatelessWidget {
                         account.platform,
                         account.handle,
                       ),
+                      readOnly: true,
                       onChanged: (value) =>
                           controller.setSocialHandle(account.platform, value),
                       textStyle: TextStyle(
@@ -531,11 +537,15 @@ class _SocialLinksSection extends StatelessWidget {
                         : AppPalette.complemetary,
                   ),
                   SizedBox(width: 8.w),
-                  Image.asset(
-                    'assets/icons/edit.png',
-                    width: 16.w,
-                    height: 16.w,
-                    fit: BoxFit.cover,
+                  GestureDetector(
+                    onTap: () =>
+                        controller.showAddSocialDialog(account: account),
+                    child: Image.asset(
+                      'assets/icons/edit.png',
+                      width: 16.w,
+                      height: 16.w,
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ],
               ),

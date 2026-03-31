@@ -13,7 +13,10 @@ import 'package:influencer_app/modules/brand/services/brand_onboarding_services.
 import '../../../core/enums/account_type.dart';
 import '../../../core/models/location_models.dart';
 import '../../../core/models/social_link.dart';
+import '../../../core/services/firebase_messaging_service.dart';
 import '../../../core/services/location_service.dart';
+import '../../../core/services/campaign_service.dart';
+import '../../../core/services/token_service.dart';
 import '../../../core/utils/bd_phone_input_formatter.dart';
 import '../../../routes/app_routes.dart';
 import 'package:path/path.dart' as path;
@@ -51,6 +54,7 @@ class SignupBrandController extends GetxController {
   final accountTypeService = Get.find<AccountTypeService>();
   final _onboardingService = Get.find<BrandOnboardingService>();
   final _uploadService = Get.find<UploadService>();
+  final _campaignService = Get.find<CampaignService>();
 
   // Onboarding data collection (using mutable fields)
   final onboardingData = _MutableBrandOnboardingData();
@@ -64,13 +68,44 @@ class SignupBrandController extends GetxController {
   // language toggle
   final isEnglish = true.obs;
 
+  // add this field inside SignupBrandController
+  bool _addressPageBootstrapped = false;
+
+  final TokenService _tokenService = Get.find<TokenService>();
+
+  Future<void> _registerFcmTokenIfNeeded() async {
+    try {
+      final savedToken = await _tokenService.getFcmToken();
+      if (savedToken != null && savedToken.trim().isNotEmpty) {
+        return;
+      }
+
+      final liveToken = await FirebaseMessagingService.getCurrentFcmToken();
+      if (liveToken == null || liveToken.trim().isEmpty) {
+        return;
+      }
+
+      await authService.registerDeviceFcmToken(token: liveToken.trim());
+    } catch (_) {
+      // do not block signup success navigation because of fcm registration failure
+    }
+  }
+
   @override
   void onInit() {
     super.onInit();
     if (phoneController.text.trim().isEmpty) {
       phoneController.text = '+88 ';
     }
-    loadZillas();
+    _loadPlatforms();
+  }
+
+  Future<void> onAddressPageOpened() async {
+    if (_addressPageBootstrapped) return;
+    _addressPageBootstrapped = true;
+
+    await loadZillas();
+    await _loadPlatforms();
   }
 
   void setLanguage(String code) {
@@ -218,13 +253,10 @@ class SignupBrandController extends GetxController {
   final RxnString selectedPlatform = RxnString();
   final profileLinkController = TextEditingController();
 
-  final List<String> platformOptions = const [
-    'Facebook',
-    'Instagram',
-    'YouTube',
-    'TikTok',
-    'X (Twitter)',
-  ];
+  final allowedPlatforms = <String>[].obs;
+  final isLoadingPlatforms = false.obs;
+
+  List<String> get platformOptions => allowedPlatforms.toList(growable: false);
 
   final RxList<SocialLink> socialLinks = <SocialLink>[].obs;
 
@@ -440,7 +472,7 @@ class SignupBrandController extends GetxController {
 
   Future<void> onTinSkip() async {
     if (isUploadingTin.value || isFinishing.value) return;
-    await _finishBrandSignup();
+    await finishSignup();
   }
 
   Future<void> onTinContinue() async {
@@ -476,7 +508,7 @@ class SignupBrandController extends GetxController {
     isUploadingTin.value = false;
 
     if (result.isSuccess) {
-      _finishBrandSignup();
+      finishSignup();
     }
   }
 
@@ -530,10 +562,25 @@ class SignupBrandController extends GetxController {
     }
   }
 
+  Future<void> _loadPlatforms() async {
+    if (allowedPlatforms.isNotEmpty || isLoadingPlatforms.value) return;
+    isLoadingPlatforms.value = true;
+
+    final result = await ApiErrorHandler.call(
+      () => _campaignService.fetchPlatforms(),
+      showError: false,
+    );
+
+    if (result.isSuccess && result.data != null) {
+      allowedPlatforms.assignAll(result.data!);
+    }
+    isLoadingPlatforms.value = false;
+  }
+
   // ----------------- Final Submission -----------------
 
   /// Collect all data and submit brand onboarding
-  Future<void> _finishBrandSignup() async {
+  Future<void> finishSignup() async {
     if (isFinishing.value) return;
     isFinishing.value = true;
 
@@ -543,14 +590,12 @@ class SignupBrandController extends GetxController {
     final lastName = lastNameController.text.trim();
 
     final result = await ApiErrorHandler.call(() async {
-      // Update basic info (brandName, firstName, lastName)
       await _onboardingService.updateBasicInfo(
         brandName: brandName,
         firstName: firstName,
         lastName: lastName,
       );
 
-      // Build final onboarding request with all collected data
       final request = BrandOnboardingRequest(
         thana: onboardingData.thana,
         zilla: onboardingData.zilla,
@@ -567,8 +612,8 @@ class SignupBrandController extends GetxController {
         binNumber: onboardingData.binNumber,
       );
 
-      // Submit onboarding data
       await _onboardingService.submitOnboarding(request);
+      await _registerFcmTokenIfNeeded();
       return true;
     });
 

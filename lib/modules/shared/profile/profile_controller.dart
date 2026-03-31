@@ -19,7 +19,10 @@ import 'package:influencer_app/modules/ad_agency/services/upload_service.dart';
 import 'package:influencer_app/modules/influencer/models/influencer_profile_model.dart';
 import 'package:influencer_app/modules/influencer/services/influencer_profile_service.dart';
 import 'package:influencer_app/modules/brand/services/brand_onboarding_services.dart';
-import 'package:influencer_app/routes/app_routes.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:influencer_app/core/utils/constants.dart';
+import 'package:influencer_app/core/widgets/custom_button.dart';
+import 'package:influencer_app/core/widgets/custom_text_form_field.dart';
 
 import '../../../core/models/location_models.dart';
 import '../../../core/services/location_service.dart';
@@ -41,6 +44,7 @@ class ProfileController extends GetxController {
   final TokenService _tokenService = Get.find<TokenService>();
   final CampaignService _campaignService = Get.find<CampaignService>();
   final _apiData = ProfileUserModel();
+  final RxBool isInitialLoading = false.obs;
   // ---------------------------------------------------------------------------
   // BASIC PROFILE STATE
   // ---------------------------------------------------------------------------
@@ -59,7 +63,6 @@ class ProfileController extends GetxController {
   RxString get userEmail => _apiData.userEmail;
   RxString get userPhone => _apiData.userPhone;
   RxString get brandWebsite => _apiData.brandWebsite;
-  final RxnBool _jwtAdminVerified = RxnBool();
 
   // Text values
   final bioController = TextEditingController();
@@ -118,16 +121,13 @@ class ProfileController extends GetxController {
 
   final allowedNiches = <String>[].obs;
   final allowedSkills = <String>[].obs;
+  final allowedPlatforms = <String>[].obs;
   final isLoadingAllowedNiches = false.obs;
   final isLoadingAllowedSkills = false.obs;
+  final isLoadingAllowedPlatforms = false.obs;
 
-  final List<String> socialPlatformOptions = const [
-    'Instagram',
-    'YouTube',
-    'TikTok',
-    'Facebook',
-    'X',
-  ];
+  List<String> get socialPlatformOptions =>
+      allowedPlatforms.toList(growable: false);
 
   // Editable field buffers
   final RxMap<String, String> profileFieldValues = <String, String>{}.obs;
@@ -139,6 +139,7 @@ class ProfileController extends GetxController {
   final isSavingProfileSettings = false.obs;
   final isSavingBrandAssetsSection = false.obs;
   final isSavingVerificationSection = false.obs;
+  final isAddingSocial = false.obs;
 
   /// Loading state for profile fetch
   final isLoadingProfile = false.obs;
@@ -182,6 +183,13 @@ class ProfileController extends GetxController {
   List<String> get agencyThanaList =>
       agencyThanas.map((e) => e.displayName).toList(growable: false);
 
+  final isSavingBio = false.obs;
+  final isSavingInfluencerSettings = false.obs;
+  final isSavingInfluencerNid = false.obs;
+  final isSavingSkills = false.obs;
+  final isSavingNiches = false.obs;
+  final isSavingLocation = false.obs;
+
   @override
   void onInit() {
     super.onInit();
@@ -190,9 +198,37 @@ class ProfileController extends GetxController {
     serviceFeeController.addListener(_syncServiceFeeFromController);
     dollarRateController.addListener(_syncDollarRateFromController);
     _setupVerificationMediaUploadWorkers();
-    loadLocationZillas();
-    loadAgencyZillas();
+
+    if (accountTypeService.isBrand) {
+      _hydrateBrandLookupsFromSession();
+    }
+
+    if (accountTypeService.isAdAgency) {
+      loadAgencyZillas();
+    }
+
     _hydrateOrFetchProfileData();
+  }
+
+  void _hydrateBrandLookupsFromSession() {
+    if (appUserSession.brandZillas.isNotEmpty) {
+      locationZillas.assignAll(appUserSession.brandZillas);
+    }
+
+    if (appUserSession.brandThanas.isNotEmpty) {
+      locationThanas.assignAll(appUserSession.brandThanas);
+    }
+
+    if (appUserSession.brandPlatforms.isNotEmpty) {
+      allowedPlatforms.assignAll(appUserSession.brandPlatforms);
+    }
+
+    if (allowedPlatforms.isNotEmpty) {
+      final current = selectedBrandPlatform.value?.trim();
+      if (current == null || !allowedPlatforms.contains(current)) {
+        selectedBrandPlatform.value = allowedPlatforms.first;
+      }
+    }
   }
 
   void _setServiceFeeText(String value) {
@@ -220,6 +256,326 @@ class ProfileController extends GetxController {
     final value = dollarRateController.text;
     if (dollarRateText.value != value) {
       dollarRateText.value = value;
+    }
+  }
+
+  Future<void> _hydrateClientAddressDropdowns({
+    required String zillaName,
+    required String thanaName,
+  }) async {
+    if (locationZillas.isEmpty) {
+      await loadLocationZillas();
+    }
+
+    final matchedZilla = locationZillas.firstWhereOrNull(
+      (e) => e.displayName.toLowerCase() == zillaName.toLowerCase(),
+    );
+
+    if (matchedZilla == null) {
+      selectedLocationZilla.value = zillaName.isEmpty ? null : zillaName;
+      selectedLocationZillaId.value = null;
+      selectedLocationThana.value = thanaName.isEmpty ? null : thanaName;
+      selectedLocationThanaId.value = null;
+      locationThanas.clear();
+      return;
+    }
+
+    selectedLocationZilla.value = matchedZilla.displayName;
+    selectedLocationZillaId.value = matchedZilla.id;
+
+    await loadLocationThanasByZilla(matchedZilla.id);
+
+    final matchedThana = locationThanas.firstWhereOrNull(
+      (e) => e.displayName.toLowerCase() == thanaName.toLowerCase(),
+    );
+
+    if (matchedThana != null) {
+      selectedLocationThana.value = matchedThana.displayName;
+      selectedLocationThanaId.value = matchedThana.id;
+    } else {
+      selectedLocationThana.value = thanaName.isEmpty ? null : thanaName;
+      selectedLocationThanaId.value = null;
+    }
+  }
+
+  Future<void> saveInfluencerBio() async {
+    if (!accountTypeService.isInfluencer || isSavingBio.value) return;
+
+    final bio = bioController.text.trim();
+
+    isSavingBio.value = true;
+    try {
+      final service = Get.find<InfluencerProfileService>();
+      final result = await service.updateBasicInfo(bio: bio);
+
+      if (!result.isSuccess || result.data == null) {
+        Get.snackbar('Error', result.error ?? 'Failed to save bio');
+        return;
+      }
+      Get.snackbar('Success', 'Bio saved successfully');
+
+      await _fetchProfileData();
+      // influencerProfile.value = result.data!;
+      // _populateFromInfluencerProfile(result.data!);
+    } finally {
+      isSavingBio.value = false;
+    }
+  }
+
+  Future<void> saveInfluencerProfileSettings() async {
+    if (!accountTypeService.isInfluencer || isSavingInfluencerSettings.value) {
+      return;
+    }
+
+    final firstName = (profileFieldValues['First Name'] ?? '').trim();
+    final lastName = (profileFieldValues['Last Name'] ?? '').trim();
+
+    if (firstName.isEmpty || lastName.isEmpty) {
+      Get.snackbar('Error', 'First name and last name are required.');
+      return;
+    }
+
+    isSavingInfluencerSettings.value = true;
+    try {
+      final service = Get.find<InfluencerProfileService>();
+      final result = await service.updateBasicInfo(
+        firstName: firstName,
+        lastName: lastName,
+      );
+
+      if (!result.isSuccess || result.data == null) {
+        Get.snackbar(
+          'Error',
+          result.error ?? 'Failed to update profile settings',
+        );
+        return;
+      }
+
+      // influencerProfile.value = result.data!;
+      // _populateFromInfluencerProfile(result.data!);
+      await _fetchProfileData();
+    } finally {
+      isSavingInfluencerSettings.value = false;
+    }
+  }
+
+  Future<void> saveInfluencerNidVerification() async {
+    if (!accountTypeService.isInfluencer || isSavingInfluencerNid.value) return;
+
+    final nidNumber = nidNumberController.text.trim();
+    final nidFront = nidFrontUploadedUrl.value?.trim() ?? '';
+    final nidBack = nidBackUploadedUrl.value?.trim() ?? '';
+
+    if (nidNumber.isEmpty || nidFront.isEmpty || nidBack.isEmpty) {
+      Get.snackbar(
+        'Error',
+        'NID number, front image and back image are required.',
+      );
+      return;
+    }
+
+    isSavingInfluencerNid.value = true;
+    try {
+      final service = Get.find<InfluencerProfileService>();
+      final result = await service.submitNidVerification(
+        nidNumber: nidNumber,
+        nidFrontImg: nidFront,
+        nidBackImg: nidBack,
+      );
+
+      if (!result.isSuccess || result.data == null) {
+        Get.snackbar(
+          'Error',
+          result.error ?? 'Failed to submit NID verification',
+        );
+        return;
+      }
+
+      // influencerProfile.value = result.data!;
+      // _populateFromInfluencerProfile(result.data!);
+      await _fetchProfileData();
+    } finally {
+      isSavingInfluencerNid.value = false;
+    }
+  }
+
+  final isSavingAgencyBio = false.obs;
+
+  Future<void> saveAgencyBio() async {
+    if (!accountTypeService.isAdAgency || isSavingAgencyBio.value) return;
+
+    final bio = bioController.text.trim();
+
+    isSavingAgencyBio.value = true;
+    try {
+      final agencyService = Get.find<AgencyProfileService>();
+      final result = await ApiErrorHandler.call(
+        () => agencyService.updateBasicInfo(agencyBio: bio),
+      );
+      if (!result.isSuccess) return;
+
+      await _fetchAgencyProfile();
+      Get.snackbar(
+        'success_title'.tr,
+        'profile_update_saved'.tr,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } finally {
+      isSavingAgencyBio.value = false;
+    }
+  }
+
+  final isSavingAgencySettings = false.obs;
+
+  Future<void> saveAgencyProfileSettings() async {
+    if (!accountTypeService.isAdAgency || isSavingAgencySettings.value) return;
+
+    final agencyName = (profileFieldValues['Agency Name'] ?? '').trim();
+    final firstName = (profileFieldValues['First Name'] ?? '').trim();
+    final lastName = (profileFieldValues['Last Name'] ?? '').trim();
+    final secondaryPhone =
+        (profileFieldValues['Secondary Phone Number (Optional)'] ?? '').trim();
+
+    final thana = (selectedAgencyThana.value ?? '').trim();
+    final zilla = (selectedAgencyZilla.value ?? '').trim();
+    final fullAddress = (profileFieldValues['Full Address'] ?? '').trim();
+
+    if (agencyName.isEmpty || firstName.isEmpty || lastName.isEmpty) {
+      Get.snackbar(
+        'Error',
+        'Agency name, first name and last name are required.',
+      );
+      return;
+    }
+
+    if (thana.isEmpty || zilla.isEmpty || fullAddress.isEmpty) {
+      Get.snackbar('Error', 'Thana, zilla and full address are required.');
+      return;
+    }
+
+    isSavingAgencySettings.value = true;
+    try {
+      final agencyService = Get.find<AgencyProfileService>();
+
+      final basicInfoResult = await ApiErrorHandler.call(
+        () => agencyService.updateBasicInfo(
+          agencyName: agencyName,
+          firstName: firstName,
+          lastName: lastName,
+          secondaryPhone: secondaryPhone.isEmpty ? null : secondaryPhone,
+        ),
+      );
+      if (!basicInfoResult.isSuccess) return;
+
+      final addressResult = await ApiErrorHandler.call(
+        () => agencyService.updateAddress(
+          thana: thana,
+          zilla: zilla,
+          fullAddress: fullAddress,
+        ),
+      );
+      if (!addressResult.isSuccess) return;
+
+      await _fetchAgencyProfile();
+      Get.snackbar(
+        'success_title'.tr,
+        'profile_update_saved'.tr,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } finally {
+      isSavingAgencySettings.value = false;
+    }
+  }
+
+  final isSavingAgencyVerification = false.obs;
+
+  Future<void> saveAgencyVerificationMethods() async {
+    if (!accountTypeService.isAdAgency || isSavingAgencyVerification.value)
+      return;
+
+    if (isUploadingVerificationMedia) {
+      Get.snackbar('Error', 'Please wait for media upload to complete.');
+      return;
+    }
+
+    isSavingAgencyVerification.value = true;
+    try {
+      final agencyService = Get.find<AgencyProfileService>();
+
+      final nidNumber = nidNumberController.text.trim();
+      final nidFront = nidFrontUploadedUrl.value?.trim() ?? '';
+      final nidBack = nidBackUploadedUrl.value?.trim() ?? '';
+
+      if (nidNumber.isNotEmpty || nidFront.isNotEmpty || nidBack.isNotEmpty) {
+        if (nidNumber.isEmpty || nidFront.isEmpty || nidBack.isEmpty) {
+          Get.snackbar(
+            'Error',
+            'NID number, front image and back image are required together.',
+          );
+          return;
+        }
+
+        final result = await ApiErrorHandler.call(
+          () => agencyService.updateNid(
+            nidNumber: nidNumber,
+            nidFrontImg: nidFront,
+            nidBackImg: nidBack,
+          ),
+        );
+        if (!result.isSuccess) return;
+      }
+
+      final tradeNumber = tradeNumberController.text.trim();
+      final tradeImage = tradeLicenseUploadedUrl.value?.trim() ?? '';
+      if (tradeNumber.isNotEmpty || tradeImage.isNotEmpty) {
+        if (tradeNumber.isEmpty || tradeImage.isEmpty) {
+          Get.snackbar(
+            'Error',
+            'Trade license number and image are required together.',
+          );
+          return;
+        }
+
+        final result = await ApiErrorHandler.call(
+          () => agencyService.updateTradeLicense(
+            tradeLicenseNumber: tradeNumber,
+            tradeLicenseImage: tradeImage,
+          ),
+        );
+        if (!result.isSuccess) return;
+      }
+
+      final tinNumber = tinNumberController.text.trim();
+      final tinImage = tinUploadedUrl.value?.trim() ?? '';
+      if (tinNumber.isNotEmpty || tinImage.isNotEmpty) {
+        if (tinNumber.isEmpty || tinImage.isEmpty) {
+          Get.snackbar('Error', 'TIN number and image are required together.');
+          return;
+        }
+
+        final result = await ApiErrorHandler.call(
+          () =>
+              agencyService.updateTin(tinNumber: tinNumber, tinImage: tinImage),
+        );
+        if (!result.isSuccess) return;
+      }
+
+      final binNumber = binNumberController.text.trim();
+      if (binNumber.isNotEmpty) {
+        final result = await ApiErrorHandler.call(
+          () => agencyService.updateBin(binNumber: binNumber),
+        );
+        if (!result.isSuccess) return;
+      }
+
+      await _fetchAgencyProfile();
+      Get.snackbar(
+        'success_title'.tr,
+        'profile_update_saved'.tr,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } finally {
+      isSavingAgencyVerification.value = false;
     }
   }
 
@@ -357,43 +713,43 @@ class ProfileController extends GetxController {
   }
 
   Future<void> _hydrateOrFetchProfileData() async {
-    isLoadingProfile.value = true;
+    isInitialLoading.value = true;
+    try {
+      await _loadUserFromToken();
 
-    await _loadUserFromToken();
+      if (appUserSession.isLoaded.value) {
+        if (appUserSession.userEmail.value.trim().isNotEmpty) {
+          userEmail.value = appUserSession.userEmail.value.trim();
+        }
+        if (appUserSession.userPhone.value.trim().isNotEmpty) {
+          userPhone.value = appUserSession.userPhone.value.trim();
+        }
 
-    if (appUserSession.isLoaded.value) {
-      if (appUserSession.userEmail.value.trim().isNotEmpty) {
-        userEmail.value = appUserSession.userEmail.value.trim();
-      }
-      if (appUserSession.userPhone.value.trim().isNotEmpty) {
-        userPhone.value = appUserSession.userPhone.value.trim();
+        if (accountTypeService.isInfluencer &&
+            appUserSession.influencerProfile.value != null) {
+          final profile = appUserSession.influencerProfile.value!;
+          influencerProfile.value = profile;
+          _populateFromInfluencerProfile(profile);
+          return;
+        }
+
+        if (accountTypeService.isAdAgency &&
+            appUserSession.agencyProfileJson.value != null) {
+          _populateFromAgencyJson(appUserSession.agencyProfileJson.value!);
+          return;
+        }
+
+        if (accountTypeService.isBrand &&
+            appUserSession.brandProfileJson.value != null) {
+          await _populateFromBrandJson(appUserSession.brandProfileJson.value!);
+          return;
+        }
       }
 
-      if (accountTypeService.isInfluencer &&
-          appUserSession.influencerProfile.value != null) {
-        final profile = appUserSession.influencerProfile.value!;
-        influencerProfile.value = profile;
-        _populateFromInfluencerProfile(profile);
-        isLoadingProfile.value = false;
-        return;
-      }
-
-      if (accountTypeService.isAdAgency &&
-          appUserSession.agencyProfileJson.value != null) {
-        _populateFromAgencyJson(appUserSession.agencyProfileJson.value!);
-        isLoadingProfile.value = false;
-        return;
-      }
-
-      if (accountTypeService.isBrand &&
-          appUserSession.brandProfileJson.value != null) {
-        _populateFromBrandJson(appUserSession.brandProfileJson.value!);
-        isLoadingProfile.value = false;
-        return;
-      }
+      await _fetchProfileData();
+    } finally {
+      isInitialLoading.value = false;
     }
-
-    await _fetchProfileData();
   }
 
   /// Fetches profile data from API based on account type
@@ -790,56 +1146,227 @@ class ProfileController extends GetxController {
     socialHandleEdits[platform.toLowerCase()] = value;
   }
 
-  void showAddSocialDialog() {
-    newSocialPlatform.value = null;
-    newSocialHandleController.clear();
+  void showAddSocialDialog({SocialAccount? account}) {
+    if (account != null) {
+      newSocialPlatform.value = account.platform;
+      newSocialHandleController.text = account.handle;
+    } else {
+      newSocialPlatform.value = null;
+      newSocialHandleController.clear();
+    }
+    _ensureAllowedPlatformsLoaded();
 
     Get.dialog(
       AlertDialog(
-        title: const Text('Add Social Link'),
+        backgroundColor: AppPalette.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(kBorderRadius.r),
+        ),
+        title: Text(
+          account == null ? 'Add Social Link' : 'Edit Social Link',
+          style: TextStyle(
+            color: AppPalette.primary,
+            fontSize: 18.sp,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Obx(
-              () => DropdownButtonFormField<String>(
-                initialValue: newSocialPlatform.value,
-                decoration: const InputDecoration(hintText: 'Select platform'),
-                items: socialPlatformOptions
-                    .map(
-                      (platform) => DropdownMenuItem<String>(
-                        value: platform,
-                        child: Text(platform),
+              () => Container(
+                padding: EdgeInsets.symmetric(horizontal: 12.w),
+                decoration: BoxDecoration(
+                  color: AppPalette.background,
+                  borderRadius: BorderRadius.circular(10.r),
+                  border: Border.all(color: AppPalette.border1),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    dropdownColor: AppPalette.white,
+                    value: newSocialPlatform.value,
+                    hint: Text(
+                      'Select platform',
+                      style: TextStyle(
+                        color: AppPalette.subtext,
+                        fontSize: 14.sp,
                       ),
-                    )
-                    .toList(growable: false),
-                onChanged: (value) => newSocialPlatform.value = value,
+                    ),
+                    isExpanded: true,
+                    items: socialPlatformOptions
+                        .map(
+                          (platform) => DropdownMenuItem<String>(
+                            value: platform,
+                            child: Text(
+                              platform,
+                              style: TextStyle(
+                                color: AppPalette.black,
+                                fontSize: 14.sp,
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(growable: false),
+                    onChanged: (value) => newSocialPlatform.value = value,
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 12),
-            TextField(
+            SizedBox(height: 16.h),
+            CustomTextFormField(
               controller: newSocialHandleController,
-              decoration: const InputDecoration(
-                hintText: '@username or profile URL',
+              hintText: '@username or profile URL',
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 12.w,
+                vertical: 12.h,
               ),
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Get.back(), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () {
-              final platform = newSocialPlatform.value?.trim() ?? '';
-              final handle = newSocialHandleController.text.trim();
-              if (platform.isEmpty || handle.isEmpty) return;
+          Padding(
+            padding: EdgeInsets.only(bottom: 10.h),
+            child: Row(
+              children: [
+                Expanded(
+                  child: CustomButton(
+                    onTap: () => Get.back(),
+                    btnText: 'Cancel',
+                    btnColor: AppPalette.defaultFill,
+                    textColor: AppPalette.black,
+                    height: 45.h,
+                  ),
+                ),
+                SizedBox(width: 10.w),
+                Expanded(
+                  child: Obx(
+                    () => CustomButton(
+                      onTap: isAddingSocial.value
+                          ? null
+                          : () async {
+                              if (accountTypeService.isAdAgency) {
+                                final platform = (newSocialPlatform.value ?? '')
+                                    .trim()
+                                    .toLowerCase();
+                                final url = newSocialHandleController.text
+                                    .trim();
 
-              addOrUpdateSocialAccount(platform: platform, handle: handle);
-              Get.back();
-            },
-            child: const Text('Add'),
+                                if (platform.isEmpty || url.isEmpty) {
+                                  Get.snackbar(
+                                    'Error',
+                                    'Platform and link are required.',
+                                  );
+                                  return;
+                                }
+
+                                isAddingSocial.value = true;
+                                try {
+                                  final agencyService =
+                                      Get.find<AgencyProfileService>();
+                                  final payload = [
+                                    {'platform': platform, 'url': url},
+                                  ];
+
+                                  final result = await ApiErrorHandler.call(
+                                    () => agencyService.updateSocials(
+                                      socialLinks: payload,
+                                    ),
+                                  );
+                                  if (!result.isSuccess) return;
+
+                                  Get.back();
+                                  await _fetchAgencyProfile();
+                                } finally {
+                                  isAddingSocial.value = false;
+                                }
+                                return;
+                              }
+                              final platform =
+                                  newSocialPlatform.value?.trim() ?? '';
+                              final handle = newSocialHandleController.text
+                                  .trim();
+                              if (platform.isEmpty || handle.isEmpty) return;
+
+                              if (accountTypeService.isInfluencer) {
+                                _saveSocialLinkDirectly(platform, handle);
+                              } else {
+                                addOrUpdateSocialAccount(
+                                  platform: platform,
+                                  handle: handle,
+                                );
+                                Get.back();
+                              }
+                            },
+                      btnText: account == null ? 'Add' : 'Save',
+                      isLoading: isAddingSocial.value,
+                      height: 45.h,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
+      barrierDismissible: true,
     );
+  }
+
+  Future<void> _saveSocialLinkDirectly(String platform, String handle) async {
+    isAddingSocial.value = true;
+    try {
+      final normalizedPlatform = platform.trim().toLowerCase();
+      final normalizedHandle = handle.trim();
+
+      // Gather current social links
+      final currentLinks = influencerProfile.value?.socialLinks ?? [];
+      final List<InfluencerSocialLink> updatedList = List.from(currentLinks);
+
+      final index = updatedList.indexWhere(
+        (e) => e.platform.toLowerCase() == normalizedPlatform,
+      );
+
+      if (index >= 0) {
+        updatedList[index] = InfluencerSocialLink(
+          platform: normalizedPlatform,
+          url: normalizedHandle,
+          status: updatedList[index].status,
+        );
+      } else {
+        updatedList.add(
+          InfluencerSocialLink(
+            platform: normalizedPlatform,
+            url: normalizedHandle,
+            status: 'unverified',
+          ),
+        );
+      }
+
+      final service = Get.find<InfluencerProfileService>();
+      final result = await service.updateSocialLinks(updatedList);
+
+      if (result.isSuccess && result.data != null) {
+        influencerProfile.value = result.data;
+        appUserSession.influencerProfile.value = result.data;
+        _populateFromInfluencerProfile(result.data!);
+        Get.back();
+        Get.snackbar(
+          'Success',
+          'Social link updated successfully',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green.withAlpha(200),
+          colorText: Colors.white,
+        );
+      } else {
+        Get.snackbar(
+          'Error',
+          result.error ?? 'Failed to update social link',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      }
+    } finally {
+      isAddingSocial.value = false;
+    }
   }
 
   void addOrUpdateSocialAccount({
@@ -879,34 +1406,66 @@ class ProfileController extends GetxController {
 
   Future<void> showAddNicheDialog() async {
     await _ensureAllowedNichesLoaded();
+
     if (allowedNiches.isEmpty) {
       Get.snackbar(
-        'Niches unavailable',
-        'Could not load available niches right now.',
+        'Error',
+        'No niches available right now.',
         snackPosition: SnackPosition.BOTTOM,
       );
       return;
     }
 
-    final selected = await Get.dialog<List<String>>(
-      TagSelectionDialog(
-        title: 'Niche',
-        searchHint: 'Search Niche',
-        options: allowedNiches.toList(growable: false),
-        initialSelected: niches.toList(growable: false),
+    await Get.dialog(
+      Obx(
+        () => TagSelectionDialog(
+          title: 'Niche',
+          searchHint: 'Search Niche',
+          options: allowedNiches.toList(growable: false),
+          initialSelected: niches.toList(growable: false),
+          confirmText: 'Save',
+          isLoading: isSavingNiches.value,
+          onConfirm: (selected) async {
+            isSavingNiches.value = true;
+            try {
+              if (accountTypeService.isAdAgency) {
+                isSavingNiches.value = true;
+                try {
+                  final agencyService = Get.find<AgencyProfileService>();
+                  final result = await ApiErrorHandler.call(
+                    () => agencyService.updateNiches(selected),
+                  );
+                  if (!result.isSuccess) return;
+
+                  Get.back();
+                  await _fetchAgencyProfile();
+                } finally {
+                  isSavingNiches.value = false;
+                }
+                return;
+              }
+              final service = Get.find<InfluencerProfileService>();
+              final result = await service.updateNiches(selected);
+
+              if (!result.isSuccess || result.data == null) {
+                Get.snackbar(
+                  'Error',
+                  result.error ?? 'Failed to update niches',
+                );
+                return;
+              }
+
+              await _fetchProfileData();
+              // _populateFromInfluencerProfile(result.data!);
+              Get.back();
+            } finally {
+              isSavingNiches.value = false;
+            }
+          },
+        ),
       ),
-      barrierDismissible: true,
+      barrierDismissible: !isSavingNiches.value,
     );
-
-    if (selected == null) return;
-    final nextStatuses = <String, String>{};
-    for (final value in selected) {
-      final key = value.toLowerCase();
-      nextStatuses[key] = nicheStatuses[key] ?? 'pending';
-    }
-
-    niches.assignAll(selected);
-    nicheStatuses.assignAll(nextStatuses);
   }
 
   void addNiche(String niche) {
@@ -939,6 +1498,25 @@ class ProfileController extends GetxController {
       allowedNiches.assignAll(items);
     }
     isLoadingAllowedNiches.value = false;
+  }
+
+  Future<void> _ensureAllowedPlatformsLoaded() async {
+    if (allowedPlatforms.isNotEmpty || isLoadingAllowedPlatforms.value) return;
+    isLoadingAllowedPlatforms.value = true;
+
+    final result = await ApiErrorHandler.call(
+      () => _campaignService.fetchPlatforms(),
+      showError: false,
+    );
+
+    if (result.isSuccess && result.data != null) {
+      final items = result.data!
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList(growable: false);
+      allowedPlatforms.assignAll(items);
+    }
+    isLoadingAllowedPlatforms.value = false;
   }
 
   /// Get NID verification state from profile
@@ -1008,21 +1586,11 @@ class ProfileController extends GetxController {
 
     if (email != null) userEmail.value = email;
     if (phone != null) userPhone.value = phone;
-
-    final jwtVerified = _toBool(payload['isVerified']);
-    if (jwtVerified != null) {
-      _jwtAdminVerified.value = jwtVerified;
-      profileStatus.value = jwtVerified
-          ? ProfileStatus.verified
-          : ProfileStatus.unverified;
-    }
   }
 
   void _setProfileStatusFromVerification({dynamic profileIsVerified}) {
-    final jwtVerified = _jwtAdminVerified.value;
-    final apiVerified = _toBool(profileIsVerified);
-    final isVerified = jwtVerified ?? apiVerified ?? false;
-    profileStatus.value = isVerified
+    final apiVerified = _toBool(profileIsVerified) ?? false;
+    profileStatus.value = apiVerified
         ? ProfileStatus.verified
         : ProfileStatus.unverified;
   }
@@ -1079,26 +1647,26 @@ class ProfileController extends GetxController {
     return text.isEmpty ? null : text;
   }
 
-  BrandHandlePlatform? _brandPlatformFromString(dynamic platform) {
+  String? _brandPlatformFromString(dynamic platform) {
     final value = platform?.toString().toLowerCase().trim();
     switch (value) {
       case 'facebook':
-        return BrandHandlePlatform.facebook;
+        return 'Facebook';
       case 'instagram':
-        return BrandHandlePlatform.instagram;
+        return 'Instagram';
       case 'tiktok':
-        return BrandHandlePlatform.tiktok;
+        return 'Tiktok';
       case 'youtube':
-        return BrandHandlePlatform.youtube;
+        return 'Youtube';
       case 'x':
       case 'twitter':
-        return BrandHandlePlatform.x;
+        return 'X';
       case 'linkedin':
-        return BrandHandlePlatform.linkedin;
+        return 'Linkedin';
       case 'website':
-        return BrandHandlePlatform.website;
+        return 'Website';
       default:
-        return null;
+        return value;
     }
   }
 
@@ -1198,7 +1766,7 @@ class ProfileController extends GetxController {
     debugPrint('  Name: ${json['firstName']} ${json['lastName']}');
     debugPrint('  isOnboardingComplete: ${json['isOnboardingComplete']}');
 
-    _populateFromBrandJson(json);
+    await _populateFromBrandJson(json);
   }
 
   /// Populates controller fields from Agency profile JSON
@@ -1349,15 +1917,9 @@ class ProfileController extends GetxController {
 
     if (address != null) {
       if (address is Map) {
-        final fullAddress = (address['fullAddress'] ?? '').toString().trim();
-        final thana = (address['thana'] ?? '').toString().trim();
         final zilla = (address['zilla'] ?? '').toString().trim();
 
-        final locParts = <String>[
-          if (fullAddress.isNotEmpty) fullAddress,
-          if (thana.isNotEmpty) thana,
-          if (zilla.isNotEmpty) zilla,
-        ];
+        final locParts = <String>[if (zilla.isNotEmpty) zilla, 'Bangladesh'];
 
         profileLocation.value = locParts.isEmpty
             ? 'Dhaka, Bangladesh'
@@ -1378,6 +1940,12 @@ class ProfileController extends GetxController {
       if (banks != null) {
         for (final bank in banks) {
           final bankMap = bank as Map<String, dynamic>;
+          final rawBankStatus =
+              (bankMap['accStatus'] ?? bankMap['status'] ?? '')
+                  .toString()
+                  .toLowerCase()
+                  .trim();
+
           methods.add(
             PayoutMethod.bank(
               payoutId: bankMap['id']?.toString(),
@@ -1386,7 +1954,8 @@ class ProfileController extends GetxController {
               accountNo: bankMap['bankAccNo'] ?? '',
               branchName: bankMap['bankBranchName'] ?? '',
               routingNumber: bankMap['bankRoutingNo'] ?? '',
-              isApproved: bankMap['status'] == 'approved',
+              isApproved:
+                  rawBankStatus == 'approved' || rawBankStatus == 'active',
             ),
           );
         }
@@ -1396,13 +1965,20 @@ class ProfileController extends GetxController {
       if (mobile != null) {
         for (final m in mobile) {
           final mobileMap = m as Map<String, dynamic>;
+          final rawMobileStatus =
+              (mobileMap['accStatus'] ?? mobileMap['status'] ?? '')
+                  .toString()
+                  .toLowerCase()
+                  .trim();
+
           methods.add(
             PayoutMethod.bKash(
               payoutId: mobileMap['id']?.toString(),
               bKashNo: mobileMap['accountNo'] ?? '',
               bKashName: mobileMap['accountHolderName'] ?? '',
               bKashAccountType: mobileMap['accountType'] ?? 'Personal',
-              isApproved: mobileMap['status'] == 'approved',
+              isApproved:
+                  rawMobileStatus == 'approved' || rawMobileStatus == 'active',
             ),
           );
         }
@@ -1529,7 +2105,6 @@ class ProfileController extends GetxController {
         label: 'Secondary Phone Number (Optional)',
         hintText: 'Enter Secondary Phone Number',
         value: secondaryPhone,
-        isReadOnly: true,
       ),
     ]);
     _hydrateAgencyAddressDropdowns(json);
@@ -1538,7 +2113,8 @@ class ProfileController extends GetxController {
   }
 
   /// Populates controller fields from Brand profile JSON
-  void _populateFromBrandJson(Map<String, dynamic> json) {
+  Future<void> _populateFromBrandJson(Map<String, dynamic> json) async {
+    _hydrateBrandLookupsFromSession();
     final userModel = ProfileIdentityModel.fromBrandJson(
       json,
       fallbackEmail: userEmail.value,
@@ -1555,7 +2131,31 @@ class ProfileController extends GetxController {
     final lastName = json['lastName'] ?? '';
     brandName.value = companyName;
     _setBioText(json['bio'] ?? '');
-    _setBrandWebsite(_stringOrNull(json['website']));
+    _setBrandWebsite((json['website'] ?? '').toString());
+
+    if (allowedPlatforms.isEmpty) {
+      _hydrateBrandLookupsFromSession();
+    }
+
+    if (allowedPlatforms.isEmpty) {
+      await _ensureAllowedPlatformsLoaded();
+    }
+
+    if (allowedPlatforms.isNotEmpty) {
+      final current = selectedBrandPlatform.value?.trim();
+      if (current == null || !allowedPlatforms.contains(current)) {
+        selectedBrandPlatform.value = allowedPlatforms.first;
+      }
+    }
+
+    if (locationZillas.isEmpty || locationThanas.isEmpty) {
+      _hydrateBrandLookupsFromSession();
+    }
+
+    await _hydrateClientAddressDropdowns(
+      zillaName: (json['zilla'] ?? '').toString().trim(),
+      thanaName: (json['thana'] ?? '').toString().trim(),
+    );
     profileImageFile.value = null;
 
     appUserSession.brandProfileJson.value = Map<String, dynamic>.from(json);
@@ -1603,7 +2203,7 @@ class ProfileController extends GetxController {
       for (final link in socialLinks) {
         if (link is! Map<String, dynamic>) continue;
         final platform = _brandPlatformFromString(link['platform']);
-        if (platform == null || platform == BrandHandlePlatform.website) {
+        if (platform == null || platform == 'Website') {
           continue;
         }
         final linkValue =
@@ -1737,15 +2337,15 @@ class ProfileController extends GetxController {
         isRequired: true,
       ),
       ProfileField(
-        label: 'Thana',
-        hintText: 'Enter Thana',
-        value: primaryLocation?.thana ?? (_stringOrNull(json['thana']) ?? ''),
-        isRequired: true,
-      ),
-      ProfileField(
         label: 'Zilla',
         hintText: 'Enter Zilla',
         value: primaryLocation?.zilla ?? (_stringOrNull(json['zilla']) ?? ''),
+        isRequired: true,
+      ),
+      ProfileField(
+        label: 'Thana',
+        hintText: 'Enter Thana',
+        value: primaryLocation?.thana ?? (_stringOrNull(json['thana']) ?? ''),
         isRequired: true,
       ),
       ProfileField(
@@ -2215,17 +2815,27 @@ class ProfileController extends GetxController {
           : accountTypeService.isAdAgency
           ? 'agency-profile'
           : 'brand-profile';
+
       final url = await _uploadFile(file: picked, module: module);
       if (url.isEmpty) return;
+
       profileImageUrl.value = url;
 
       if (accountTypeService.isInfluencer) {
         final service = Get.find<InfluencerProfileService>();
-        final result = await service.getProfile();
-        if (result.isSuccess && result.data != null) {
-          await _fetchProfileData();
+        final result = await service.updateBasicInfo(profileImage: url);
+        if (!result.isSuccess || result.data == null) {
+          Get.snackbar(
+            'Error',
+            result.error ?? 'Failed to update profile photo',
+          );
           return;
         }
+
+        // influencerProfile.value = result.data!;
+        // _populateFromInfluencerProfile(result.data!);
+        await _fetchProfileData();
+        return;
       } else if (accountTypeService.isAdAgency) {
         final service = Get.find<AgencyProfileService>();
         final result = await ApiErrorHandler.call(
@@ -2590,7 +3200,6 @@ class ProfileController extends GetxController {
         hintText: 'Enter Secondary Phone Number',
         value: '',
         isRequired: false,
-        isReadOnly: true,
       ),
     ]);
     _syncProfileFieldDefaults();
@@ -2708,21 +3317,13 @@ class ProfileController extends GetxController {
   // -------------------- BRAND ASSETS (Brand only) --------------------
   final brandWebsiteController = TextEditingController();
 
-  final Rx<BrandHandlePlatform?> selectedBrandPlatform =
-      Rx<BrandHandlePlatform?>(BrandHandlePlatform.instagram);
+  final RxnString selectedBrandPlatform = RxnString('Instagram');
 
   final brandNewLinkController = TextEditingController();
 
   final brandAssets = <BrandAssetItem>[].obs;
 
-  List<BrandHandlePlatform> get brandPlatforms => const [
-    BrandHandlePlatform.facebook,
-    BrandHandlePlatform.instagram,
-    BrandHandlePlatform.tiktok,
-    BrandHandlePlatform.youtube,
-    BrandHandlePlatform.linkedin,
-    BrandHandlePlatform.x,
-  ];
+  List<String> get brandPlatforms => allowedPlatforms.toList(growable: false);
 
   void addBrandAsset() {
     final p = selectedBrandPlatform.value;
@@ -2750,9 +3351,7 @@ class ProfileController extends GetxController {
     if (isSavingBrandAssetsSection.value) return;
     final website = brandWebsiteController.text.trim();
     final handles = brandAssets
-        .map(
-          (e) => {'platform': e.platform.name, 'url': e.controller.text.trim()},
-        )
+        .map((e) => {'platform': e.platform, 'url': e.controller.text.trim()})
         .toList();
 
     if (!accountTypeService.isBrand) return;
@@ -2784,8 +3383,8 @@ class ProfileController extends GetxController {
     final companyName = (profileFieldValues['Company Name'] ?? '').trim();
     final firstName = (profileFieldValues['First Name'] ?? '').trim();
     final lastName = (profileFieldValues['Last Name'] ?? '').trim();
-    final thana = (profileFieldValues['Thana'] ?? '').trim();
-    final zilla = (profileFieldValues['Zilla'] ?? '').trim();
+    final thana = (selectedLocationThana.value ?? '').trim();
+    final zilla = (selectedLocationZilla.value ?? '').trim();
     final fullAddress = (profileFieldValues['Full Address'] ?? '').trim();
 
     if (companyName.isEmpty || firstName.isEmpty || lastName.isEmpty) {
@@ -2813,7 +3412,6 @@ class ProfileController extends GetxController {
 
       final addressResult = await ApiErrorHandler.call(
         () => brandService.updateAddress(
-          // addressName: 'Office',
           thana: thana,
           zilla: zilla,
           fullAddress: fullAddress,
@@ -2822,6 +3420,7 @@ class ProfileController extends GetxController {
       if (!addressResult.isSuccess) return;
 
       await _fetchProfileData();
+
       Get.snackbar(
         'success_title'.tr,
         'profile_update_saved'.tr,
@@ -2955,33 +3554,55 @@ class ProfileController extends GetxController {
 
   Future<void> showAddSkillDialog() async {
     await _ensureAllowedSkillsLoaded();
+
     if (allowedSkills.isEmpty) {
       Get.snackbar(
-        'Skills unavailable',
-        'Could not load available skills right now.',
+        'Error',
+        'No skills available right now.',
         snackPosition: SnackPosition.BOTTOM,
       );
       return;
     }
 
-    final selected = await Get.dialog<List<String>>(
-      TagSelectionDialog(
-        title: 'Skills',
-        searchHint: 'Search Skills',
-        options: allowedSkills.toList(growable: false),
-        initialSelected: skills.toList(growable: false),
-      ),
-      barrierDismissible: true,
-    );
+    await Get.dialog(
+      StatefulBuilder(
+        builder: (context, setState) {
+          return Obx(
+            () => TagSelectionDialog(
+              title: 'Skills',
+              searchHint: 'Search Skills',
+              options: allowedSkills.toList(growable: false),
+              initialSelected: skills.toList(growable: false),
+              confirmText: 'Save',
+              isLoading: isSavingSkills.value,
+              onConfirm: (selected) async {
+                isSavingSkills.value = true;
+                try {
+                  final service = Get.find<InfluencerProfileService>();
+                  final result = await service.updateSkills(selected);
 
-    if (selected == null) return;
-    final nextStatuses = <String, String>{};
-    for (final skill in selected) {
-      final key = skill.toLowerCase();
-      nextStatuses[key] = skillStatuses[key] ?? 'pending';
-    }
-    skills.assignAll(selected);
-    skillStatuses.assignAll(nextStatuses);
+                  if (!result.isSuccess || result.data == null) {
+                    Get.snackbar(
+                      'Error',
+                      result.error ?? 'Failed to update skills',
+                    );
+                    return;
+                  }
+
+                  // influencerProfile.value = result.data!;
+                  // _populateFromInfluencerProfile(result.data!);
+                  await _fetchProfileData();
+                  Get.back();
+                } finally {
+                  isSavingSkills.value = false;
+                }
+              },
+            ),
+          );
+        },
+      ),
+      barrierDismissible: !isSavingSkills.value,
+    );
   }
 
   Future<void> _ensureAllowedSkillsLoaded() async {
@@ -3196,23 +3817,52 @@ class ProfileController extends GetxController {
 
     if (accountTypeService.isInfluencer) {
       final service = Get.find<InfluencerProfileService>();
+      final editIndex = editingLocationIndex.value;
 
-      final result = await service.addAddress(
-        addressName: name,
-        thana: thana,
-        zilla: zilla,
-        fullAddress: full,
-        isDefault: false,
-      );
+      if (isSavingLocation.value) return;
+      isSavingLocation.value = true;
 
-      if (result.isSuccess && result.data != null) {
-        influencerProfile.value = result.data;
-        _populateFromInfluencerProfile(result.data!);
+      try {
+        if (editIndex != null &&
+            editIndex >= 0 &&
+            editIndex < locations.length) {
+          final current = locations[editIndex];
+
+          final result = await service.updateAddress(
+            currentAddressName: current.name,
+            addressName: name,
+            thana: thana,
+            zilla: zilla,
+            fullAddress: full,
+            isDefault: false,
+          );
+
+          if (!result.isSuccess) {
+            Get.snackbar('Error', result.error ?? 'Failed to update address');
+            return;
+          }
+        } else {
+          final result = await service.addAddress(
+            addressName: name,
+            thana: thana,
+            zilla: zilla,
+            fullAddress: full,
+            isDefault: false,
+          );
+
+          if (!result.isSuccess || result.data == null) {
+            Get.snackbar('Error', result.error ?? 'Failed to save location');
+            return;
+          }
+        }
+
         await _fetchProfileData();
-      } else {
-        Get.snackbar('Error', result.error ?? 'Failed to save location');
-        return;
+        cancelLocationForm();
+      } finally {
+        isSavingLocation.value = false;
       }
+
+      return;
     } else {
       if (accountTypeService.isBrand) {
         final brandService = Get.find<BrandOnboardingService>();
@@ -3229,7 +3879,6 @@ class ProfileController extends GetxController {
         final agencyService = Get.find<AgencyProfileService>();
         final result = await ApiErrorHandler.call(
           () => agencyService.updateAddress(
-            addressName: name,
             thana: thana,
             zilla: zilla,
             fullAddress: full,
@@ -3540,21 +4189,13 @@ class ProfileController extends GetxController {
         );
         if (!basicInfoResult.isSuccess) return;
 
-        final nichesWrapped = await ApiErrorHandler.call(
-          () => service.updateNiches(niches.toList(growable: false)),
+        final nichesResult = await service.updateNiches(
+          niches.toList(growable: false),
         );
-        final nichesResult =
-            nichesWrapped.data ??
-            ApiResult.failure(nichesWrapped.error ?? 'unknown_error'.tr);
         if (!nichesResult.isSuccess) return;
 
         if (skills.isNotEmpty) {
-          final skillsWrapped = await ApiErrorHandler.call(
-            () => service.updateSkills(skills.toList()),
-          );
-          final skillsResult =
-              skillsWrapped.data ??
-              ApiResult.failure(skillsWrapped.error ?? 'unknown_error'.tr);
+          final skillsResult = await service.updateSkills(skills.toList());
           if (!skillsResult.isSuccess) return;
         }
 
@@ -3582,12 +4223,7 @@ class ProfileController extends GetxController {
               .toList(growable: false);
 
           if (updatedLinks.isNotEmpty) {
-            final socialWrapped = await ApiErrorHandler.call(
-              () => service.updateSocialLinks(updatedLinks),
-            );
-            final socialResult =
-                socialWrapped.data ??
-                ApiResult.failure(socialWrapped.error ?? 'unknown_error'.tr);
+            final socialResult = await service.updateSocialLinks(updatedLinks);
             if (!socialResult.isSuccess) return;
           }
         }
@@ -3616,16 +4252,11 @@ class ProfileController extends GetxController {
             frontUrl.isNotEmpty &&
             backUrl != null &&
             backUrl.isNotEmpty) {
-          final nidWrapped = await ApiErrorHandler.call(
-            () => service.submitNidVerification(
-              nidNumber: nidNumber,
-              nidFrontImg: frontUrl ?? '',
-              nidBackImg: backUrl ?? '',
-            ),
+          final nidResult = await service.submitNidVerification(
+            nidNumber: nidNumber,
+            nidFrontImg: frontUrl,
+            nidBackImg: backUrl,
           );
-          final nidResult =
-              nidWrapped.data ??
-              ApiResult.failure(nidWrapped.error ?? 'unknown_error'.tr);
           if (!nidResult.isSuccess) return;
         }
       } else if (accountTypeService.isBrand) {
@@ -3762,7 +4393,6 @@ class ProfileController extends GetxController {
             fullAddressValue.isNotEmpty) {
           final addressResult = await ApiErrorHandler.call(
             () => agencyService.updateAddress(
-              addressName: 'Office',
               thana: thanaValue,
               zilla: zillaValue,
               fullAddress: fullAddressValue,
@@ -3853,7 +4483,7 @@ class ProfileController extends GetxController {
           final tradeResult = await ApiErrorHandler.call(
             () => agencyService.updateTradeLicense(
               tradeLicenseNumber: tradeNumber,
-              tradeLicenseImg: tradeUrl ?? '',
+              tradeLicenseImage: tradeUrl ?? '',
             ),
           );
           if (!tradeResult.isSuccess) return;

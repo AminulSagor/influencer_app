@@ -113,27 +113,26 @@ class NotificationsController extends GetxController {
   }
 
   void markAllAsRead() {
-    ApiErrorHandler.call(
-      () => _service.markAllAsRead(basePath: _basePath),
-      showError: false,
-    ).then((_) {
-      earlierItems.addAll(newItems);
-      _appUserSession.updateNotifications(
-        newItems: const [],
-        earlierItems: [
-          ..._appUserSession.earlierNotifications,
-          ..._appUserSession.newNotifications,
-        ],
-      );
-      newItems.clear();
-    });
+    ApiErrorHandler.call(() => _service.markAllAsRead(), showError: false).then(
+      (_) {
+        earlierItems.addAll(newItems);
+        _appUserSession.updateNotifications(
+          newItems: const [],
+          earlierItems: [
+            ..._appUserSession.earlierNotifications,
+            ..._appUserSession.newNotifications,
+          ],
+        );
+        newItems.clear();
+      },
+    );
   }
 
   void markSingleAsRead(NotificationItem item) {
     if (item.id.trim().isEmpty) return;
 
     ApiErrorHandler.call(
-      () => _service.markSingleAsRead(id: item.id, basePath: _basePath),
+      () => _service.markSingleAsRead(id: item.id),
       showError: false,
     ).then((_) {
       newItems.removeWhere((e) => e.id == item.id);

@@ -18,6 +18,9 @@ class SignupAgencyAddressView extends GetView<SignupAgencyController> {
 
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.onAddressPageOpened();
+    });
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(

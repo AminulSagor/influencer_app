@@ -1,37 +1,30 @@
 import 'package:flutter/material.dart';
 
-enum BrandHandlePlatform {
-  facebook,
-  instagram,
-  tiktok,
-  youtube,
-  x,
-  linkedin,
-  website,
-}
-
 class BrandAssetItem {
-  final BrandHandlePlatform platform;
+  final String platform;
   final TextEditingController controller;
 
   BrandAssetItem({required this.platform, required this.controller});
 
   String get platformKey {
-    switch (platform) {
-      case BrandHandlePlatform.facebook:
+    switch (platform.toLowerCase()) {
+      case 'facebook':
         return 'brand_platform_facebook';
-      case BrandHandlePlatform.instagram:
+      case 'instagram':
         return 'brand_platform_instagram';
-      case BrandHandlePlatform.tiktok:
+      case 'tiktok':
         return 'brand_platform_tiktok';
-      case BrandHandlePlatform.youtube:
+      case 'youtube':
         return 'brand_platform_youtube';
-      case BrandHandlePlatform.x:
+      case 'x':
+      case 'twitter':
         return 'brand_platform_x';
-      case BrandHandlePlatform.linkedin:
+      case 'linkedin':
         return 'brand_platform_linkedin';
-      case BrandHandlePlatform.website:
+      case 'website':
         return 'brand_platform_website';
+      default:
+        return platform;
     }
   }
 }

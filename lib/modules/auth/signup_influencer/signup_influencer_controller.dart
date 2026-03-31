@@ -12,7 +12,10 @@ import '../../../core/models/social_link.dart';
 import '../../../core/services/account_type_service.dart';
 import '../../../core/services/auth_services.dart';
 import '../../../core/services/api_error_handler.dart';
+import '../../../core/services/firebase_messaging_service.dart';
 import '../../../core/services/location_service.dart';
+import '../../../core/services/campaign_service.dart';
+import '../../../core/services/token_service.dart';
 import '../../../routes/app_routes.dart';
 
 import '../../ad_agency/services/upload_service.dart';
@@ -31,6 +34,7 @@ class SignupInfluencerController extends GetxController {
   final isUploadingNid = false.obs;
 
   final LocationService _locationService = Get.find<LocationService>();
+  final CampaignService _campaignService = Get.find<CampaignService>();
 
   // ----------------- Aggregated Onboarding Data -----------------
   final InfluencerOnboardingModel onboardingData = InfluencerOnboardingModel();
@@ -46,13 +50,22 @@ class SignupInfluencerController extends GetxController {
   final phoneController = TextEditingController();
   final passwordController = TextEditingController(); // ✅ required
 
+  bool _addressPageBootstrapped = false;
+
   @override
   void onInit() {
     super.onInit();
     if (phoneController.text.trim().isEmpty) {
       phoneController.text = '+88 ';
     }
-    loadZillas();
+  }
+
+  Future<void> onAddressPageOpened() async {
+    if (_addressPageBootstrapped) return;
+    _addressPageBootstrapped = true;
+
+    await loadZillas();
+    await _loadPlatforms();
   }
 
   Future<void> onStep1Continue() async {
@@ -194,13 +207,10 @@ class SignupInfluencerController extends GetxController {
   final RxnString selectedPlatform = RxnString();
   final profileLinkController = TextEditingController();
 
-  final List<String> platformOptions = const [
-    'Facebook',
-    'Instagram',
-    'YouTube',
-    'TikTok',
-    'X (Twitter)',
-  ];
+  final allowedPlatforms = <String>[].obs;
+  final isLoadingPlatforms = false.obs;
+
+  List<String> get platformOptions => allowedPlatforms.toList(growable: false);
 
   final RxList<SocialLink> socialLinks = <SocialLink>[].obs;
 
@@ -288,14 +298,36 @@ class SignupInfluencerController extends GetxController {
     if (file != null) nidBackPath.value = file.path;
   }
 
+  final TokenService _tokenService = Get.find<TokenService>();
+
+  Future<void> _registerFcmTokenIfNeeded() async {
+    try {
+      final savedToken = await _tokenService.getFcmToken();
+      if (savedToken != null && savedToken.trim().isNotEmpty) {
+        return;
+      }
+
+      final liveToken = await FirebaseMessagingService.getCurrentFcmToken();
+      if (liveToken == null || liveToken.trim().isEmpty) {
+        return;
+      }
+
+      await _authService.registerDeviceFcmToken(token: liveToken.trim());
+    } catch (_) {
+      // do not block signup success navigation because of fcm registration failure
+    }
+  }
+
   Future<void> onKycSkip() async {
     if (isSubmitting.value || isUploadingNid.value) return;
 
     isSubmitting.value = true;
 
-    final result = await ApiErrorHandler.call(
-      () => _onboardingService.submitOnboarding(onboardingData),
-    );
+    final result = await ApiErrorHandler.call(() async {
+      await _onboardingService.submitOnboarding(onboardingData);
+      await _registerFcmTokenIfNeeded();
+      return true;
+    });
 
     isSubmitting.value = false;
 
@@ -311,12 +343,10 @@ class SignupInfluencerController extends GetxController {
     if (nidFormKey.currentState?.validate() != true) return;
     if (isSubmitting.value || isUploadingNid.value) return;
 
-    // Save NID number
     onboardingData.nidNumber = nidNumberController.text.trim().isEmpty
         ? null
         : nidNumberController.text.trim();
 
-    // Upload NID images if provided
     isUploadingNid.value = true;
 
     final uploadResult = await ApiErrorHandler.call(() async {
@@ -342,12 +372,13 @@ class SignupInfluencerController extends GetxController {
 
     if (!uploadResult.isSuccess) return;
 
-    // Submit onboarding data
     isSubmitting.value = true;
 
-    final result = await ApiErrorHandler.call(
-      () => _onboardingService.submitOnboarding(onboardingData),
-    );
+    final result = await ApiErrorHandler.call(() async {
+      await _onboardingService.submitOnboarding(onboardingData);
+      await _registerFcmTokenIfNeeded();
+      return true;
+    });
 
     isSubmitting.value = false;
 
@@ -357,6 +388,21 @@ class SignupInfluencerController extends GetxController {
         arguments: {'accountType': AccountType.influencer},
       );
     }
+  }
+
+  Future<void> _loadPlatforms() async {
+    if (allowedPlatforms.isNotEmpty || isLoadingPlatforms.value) return;
+    isLoadingPlatforms.value = true;
+
+    final result = await ApiErrorHandler.call(
+      () => _campaignService.fetchPlatforms(),
+      showError: false,
+    );
+
+    if (result.isSuccess && result.data != null) {
+      allowedPlatforms.assignAll(result.data!);
+    }
+    isLoadingPlatforms.value = false;
   }
 
   // ----------------- File Upload Helper -----------------

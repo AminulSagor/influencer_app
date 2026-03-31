@@ -37,7 +37,7 @@ import '../../support/support_controller.dart';
 import '../../support/support_view.dart';
 
 class BottomNavRouteGenerator {
-  static Route<dynamic>? generateRoute(RouteSettings settings) {
+  static Route<dynamic> generateRoute(RouteSettings settings) {
     // We grab the service to check permissions for exclusive routes
     final accountService = Get.find<AccountTypeService>();
 

@@ -23,16 +23,14 @@ class FundCampaignDialog {
     required FmtAmount fmt,
     required ParseAmount parseAmount,
     required PayHandler onPay,
+    RxBool? isPaying,
   }) {
     final due = totalDue > 0 ? totalDue : 18000;
     final minPay = (due * 0.5).round();
 
     final amountRx = due.obs;
     final amountCtrl = TextEditingController(text: fmt(due));
-    final methodRx = trOr(
-      'brand_campaign_fund_card',
-      'Credit / Debit Card',
-    ).obs;
+    final methodRx = 'SSLCommerz'.obs;
 
     void setAmount(int v) {
       amountRx.value = v;
@@ -228,14 +226,8 @@ class FundCampaignDialog {
                 5.h.verticalSpace,
                 Obx(() {
                   return CustomDropDownMenu(
-                    hintText: trOr(
-                      'brand_campaign_fund_card',
-                      'Credit / Debit Card',
-                    ),
-                    options: [
-                      trOr('brand_campaign_fund_card', 'Credit / Debit Card'),
-                      trOr('brand_campaign_fund_bkash', 'bKash'),
-                    ],
+                    hintText: 'SSLCommerz',
+                    options: ['SSLCommerz'],
                     value: methodRx.value,
                     onChanged: (v) => methodRx.value = v ?? 'card',
                   );
@@ -244,22 +236,27 @@ class FundCampaignDialog {
                 Obx(() {
                   final amt = amountRx.value;
                   final canPay = amt >= minPay && amt <= due;
+                  final loading = isPaying?.value ?? false;
+
                   return CustomButton(
-                    onTap: canPay
+                    onTap: (canPay && !loading)
                         ? () async {
                             await onPay(amount: amt);
                           }
                         : () {
-                            Get.snackbar(
-                              trOr('common_error', 'Error'),
-                              trOr(
-                                'brand_campaign_payment_invalid',
-                                'Amount must be between minimum and total due.',
-                              ),
-                            );
+                            if (!loading) {
+                              Get.snackbar(
+                                trOr('common_error', 'Error'),
+                                trOr(
+                                  'brand_campaign_payment_invalid',
+                                  'Amount must be between minimum and total due.',
+                                ),
+                              );
+                            }
                           },
                     btnText: trOr('brand_campaign_pay_now', 'Pay Now'),
-                    isDisabled: !canPay,
+                    isLoading: loading,
+                    isDisabled: !canPay || loading,
                     width: double.infinity,
                     btnColor: canPay ? AppPalette.secondary : AppPalette.fill2,
                     textColor: canPay ? AppPalette.white : AppPalette.greyText,

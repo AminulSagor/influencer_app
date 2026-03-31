@@ -113,18 +113,12 @@ class NotificationService {
     return NotificationsResponse(data: data, meta: meta);
   }
 
-  Future<void> markAllAsRead({String? basePath}) async {
-    final base = (basePath != null && basePath.trim().isNotEmpty)
-        ? basePath.trim()
-        : _defaultBase;
-    await _api.dio.patch('$base/read-all', data: const {});
+  Future<void> markAllAsRead() async {
+    await _api.dio.patch('/notifications/read-all');
   }
 
-  Future<void> markSingleAsRead({required String id, String? basePath}) async {
-    final base = (basePath != null && basePath.trim().isNotEmpty)
-        ? basePath.trim()
-        : _defaultBase;
-    await _api.dio.patch('$base/$id/read', data: const {});
+  Future<void> markSingleAsRead({required String id}) async {
+    await _api.dio.patch('/notifications/$id/read');
   }
 
   Map<String, dynamic> _expectMap(dynamic v, String label, String base) {

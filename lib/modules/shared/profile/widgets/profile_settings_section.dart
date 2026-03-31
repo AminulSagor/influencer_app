@@ -14,12 +14,12 @@ class ProfileSettingsSection extends StatelessWidget {
 
   const ProfileSettingsSection({super.key, required this.controller});
 
-  bool _isAgencyZillaField(String label) {
+  bool _isZillaField(String label) {
     final lower = label.trim().toLowerCase();
     return lower == 'zilla';
   }
 
-  bool _isAgencyThanaField(String label) {
+  bool _isThanaField(String label) {
     final lower = label.trim().toLowerCase();
     return lower == 'thana';
   }
@@ -28,6 +28,7 @@ class ProfileSettingsSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Obx(() {
       final isAgency = controller.accountTypeService.isAdAgency;
+      final isClient = controller.accountTypeService.isBrand;
 
       return Column(
         children: [
@@ -89,32 +90,43 @@ class ProfileSettingsSection extends StatelessWidget {
           33.h.verticalSpace,
 
           ...controller.profileFields.expand((field) {
-            if (isAgency && _isAgencyZillaField(field.label)) {
+            if ((isAgency || isClient) && _isZillaField(field.label)) {
               return [
                 Padding(
                   padding: EdgeInsets.only(bottom: 10.h),
                   child: Obx(
                     () => CustomDropDownMenu(
                       title: field.label + (field.isRequired ? ' *' : ''),
-                      hintText: controller.isLoadingAgencyZillas.value
-                          ? 'Loading zilla...'
-                          : 'Select zilla',
-                      options: controller.agencyZillaList,
-                      value: controller.selectedAgencyZilla.value,
-                      onChanged: controller.setAgencyZilla,
+                      hintText: isAgency
+                          ? (controller.isLoadingAgencyZillas.value
+                                ? 'Loading zilla...'
+                                : 'Select zilla')
+                          : (controller.isLoadingLocationZillas.value
+                                ? 'Loading zilla...'
+                                : 'Select zilla'),
+                      options: isAgency
+                          ? controller.agencyZillaList
+                          : controller.zillaList,
+                      value: isAgency
+                          ? controller.selectedAgencyZilla.value
+                          : controller.selectedLocationZilla.value,
+                      onChanged: isAgency
+                          ? controller.setAgencyZilla
+                          : controller.setLocationZilla,
                     ),
                   ),
                 ),
               ];
             }
 
-            if (isAgency && _isAgencyThanaField(field.label)) {
+            if ((isAgency || isClient) && _isThanaField(field.label)) {
               return [
                 Padding(
                   padding: EdgeInsets.only(bottom: 10.h),
                   child: Obx(() {
-                    final enabled =
-                        controller.selectedAgencyZillaId.value != null;
+                    final enabled = isAgency
+                        ? controller.selectedAgencyZillaId.value != null
+                        : controller.selectedLocationZillaId.value != null;
 
                     return Opacity(
                       opacity: enabled ? 1 : 0.6,
@@ -124,12 +136,22 @@ class ProfileSettingsSection extends StatelessWidget {
                           title: field.label + (field.isRequired ? ' *' : ''),
                           hintText: !enabled
                               ? 'Select zilla first'
-                              : controller.isLoadingAgencyThanas.value
-                              ? 'Loading thana...'
-                              : 'Select thana',
-                          options: controller.agencyThanaList,
-                          value: controller.selectedAgencyThana.value,
-                          onChanged: controller.setAgencyThana,
+                              : isAgency
+                              ? (controller.isLoadingAgencyThanas.value
+                                    ? 'Loading thana...'
+                                    : 'Select thana')
+                              : (controller.isLoadingLocationThanas.value
+                                    ? 'Loading thana...'
+                                    : 'Select thana'),
+                          options: isAgency
+                              ? controller.agencyThanaList
+                              : controller.thanaList,
+                          value: isAgency
+                              ? controller.selectedAgencyThana.value
+                              : controller.selectedLocationThana.value,
+                          onChanged: isAgency
+                              ? controller.setAgencyThana
+                              : controller.setLocationThana,
                         ),
                       ),
                     );
@@ -178,6 +200,36 @@ class ProfileSettingsSection extends StatelessWidget {
               btnColor: AppPalette.secondary,
               textColor: AppPalette.white,
               isLoading: controller.isSavingProfileSettings.value,
+            ),
+          ],
+
+          if (controller.accountTypeService.isInfluencer) ...[
+            8.h.verticalSpace,
+            Obx(
+              () => CustomButton(
+                onTap: controller.isSavingInfluencerSettings.value
+                    ? null
+                    : controller.saveInfluencerProfileSettings,
+                btnText: 'save'.tr,
+                width: double.infinity,
+                textColor: AppPalette.white,
+                isLoading: controller.isSavingInfluencerSettings.value,
+              ),
+            ),
+          ],
+
+          if (controller.accountTypeService.isAdAgency) ...[
+            8.h.verticalSpace,
+            Obx(
+              () => CustomButton(
+                onTap: controller.isSavingAgencySettings.value
+                    ? null
+                    : controller.saveAgencyProfileSettings,
+                btnText: 'save'.tr,
+                width: double.infinity,
+                textColor: AppPalette.white,
+                isLoading: controller.isSavingAgencySettings.value,
+              ),
             ),
           ],
         ],

@@ -10,6 +10,7 @@ import '../../../core/utils/constants.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/number_formatter.dart';
 import '../../../core/widgets/earnings_overview_card.dart';
+import '../../../core/widgets/shimmer_utils.dart';
 import '../../../core/widgets/job_offer_card.dart';
 import '../jobs/jobs_controller.dart';
 import 'home_controller.dart';
@@ -23,17 +24,25 @@ class HomeView extends GetView<HomeController> {
 
     return Scaffold(
       backgroundColor: AppPalette.background,
-      body: SafeArea(
-        child: RefreshIndicator(
+      body: Obx(() {
+        if (controller.isInitialLoading.value) {
+          return Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 20.h),
+            child: ShimmerUtils.campaignDetailsShimmer(),
+          );
+        }
+        return RefreshIndicator(
           onRefresh: controller.refreshDashboard,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(
               parent: BouncingScrollPhysics(),
             ),
-            padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
+            padding: EdgeInsets.symmetric(horizontal: 20.w),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
+                18.h.verticalSpace,
                 if (!accountTypeService.isBrand) ...[
                   Obx(() {
                     final dashboard = controller.dashboard.value;
@@ -53,8 +62,8 @@ class HomeView extends GetView<HomeController> {
               ],
             ),
           ),
-        ),
-      ),
+        );
+      }),
     );
   }
 

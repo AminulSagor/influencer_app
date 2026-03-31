@@ -128,14 +128,17 @@ class LoginController extends GetxController {
       '  → Dashboard will be: ${isVerifiedByAdmin ? "UNLOCKED ✅" : "LOCKED 🔒"}',
     );
 
-    await _appUserSessionController.preloadUserData(forceRefresh: true);
+    final isVerifiedByApi = await _appUserSessionController.preloadUserData(
+      forceRefresh: true,
+    );
 
     isLoading.value = false;
 
-    Get.snackbar('Success', result.data!.message);
+    Get.snackbar('Success', result.data?.message ?? 'Login Successful');
+
     Get.offAllNamed(
       AppRoutes.bottomNav,
-      arguments: {'isAccountVerified': isVerifiedByAdmin},
+      arguments: {'isAccountVerified': isVerifiedByApi},
     );
   }
 

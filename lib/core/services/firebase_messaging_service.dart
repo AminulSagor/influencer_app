@@ -53,6 +53,17 @@ class FirebaseMessagingService {
     return data;
   }
 
+  static Future<String?> getCurrentFcmToken() async {
+    final token = await _messaging.getToken();
+    final normalized = token?.trim();
+
+    if (normalized == null || normalized.isEmpty) {
+      return null;
+    }
+
+    return normalized;
+  }
+
   static Future<void> init() async {
     await Firebase.initializeApp();
 

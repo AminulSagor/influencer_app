@@ -12,8 +12,10 @@ class ProvideRatingDialog extends GetView<BrandCampaignDetailsController> {
 
   const ProvideRatingDialog({super.key, required this.isPaidAd});
 
-  static void show({required bool isPaidAd}) {
-    Get.dialog(
+  static Future<void> show({required bool isPaidAd}) async {
+    if (Get.isDialogOpen == true) return;
+
+    await Get.dialog(
       ProvideRatingDialog(isPaidAd: isPaidAd),
       barrierDismissible: true,
     );
@@ -42,10 +44,20 @@ class ProvideRatingDialog extends GetView<BrandCampaignDetailsController> {
 class _InfluencerRatingContent extends GetView<BrandCampaignDetailsController> {
   const _InfluencerRatingContent();
 
+  String _formatRatedAt(DateTime? date) {
+    if (date == null) return '';
+    final d = date.toLocal();
+    final day = d.day.toString().padLeft(2, '0');
+    final month = d.month.toString().padLeft(2, '0');
+    final year = d.year.toString();
+    return '$day/$month/$year';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Obx(() {
       final items = controller.rateInfluencerItems.toList(growable: false);
+      final allRated = controller.areAllInfluencersAlreadyRated;
 
       return Column(
         mainAxisSize: MainAxisSize.min,
@@ -71,6 +83,8 @@ class _InfluencerRatingContent extends GetView<BrandCampaignDetailsController> {
                 final item = items[index];
 
                 return Obx(() {
+                  final alreadyRated = item.isAlreadyRated.value;
+
                   return AnimatedContainer(
                     duration: const Duration(milliseconds: 180),
                     width: double.infinity,
@@ -86,20 +100,41 @@ class _InfluencerRatingContent extends GetView<BrandCampaignDetailsController> {
                     child: Column(
                       children: [
                         InkWell(
-                          onTap: () =>
-                              controller.toggleInfluencerRatingExpand(index),
+                          onTap: alreadyRated
+                              ? null
+                              : () => controller.toggleInfluencerRatingExpand(
+                                  index,
+                                ),
                           child: Row(
                             children: [
                               _AvatarCircle(imageUrl: item.image),
                               SizedBox(width: 12.w),
                               Expanded(
-                                child: Text(
-                                  item.name,
-                                  style: TextStyle(
-                                    fontSize: 14.sp,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      item.name,
+                                      style: TextStyle(
+                                        fontSize: 14.sp,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    if (alreadyRated) ...[
+                                      SizedBox(height: 4.h),
+                                      Text(
+                                        item.ratedAt.value == null
+                                            ? 'Rating already submitted'
+                                            : 'Rated on ${_formatRatedAt(item.ratedAt.value)}',
+                                        style: TextStyle(
+                                          fontSize: 10.sp,
+                                          fontWeight: FontWeight.w500,
+                                          color: AppPalette.thirdColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
                               ),
                               Row(
@@ -115,18 +150,20 @@ class _InfluencerRatingContent extends GetView<BrandCampaignDetailsController> {
                                   );
                                 }),
                               ),
-                              SizedBox(width: 6.w),
-                              Icon(
-                                item.isExpanded.value
-                                    ? Icons.keyboard_arrow_up_rounded
-                                    : Icons.keyboard_arrow_down_rounded,
-                                color: Colors.white,
-                              ),
+                              if (!alreadyRated) ...[
+                                SizedBox(width: 6.w),
+                                Icon(
+                                  item.isExpanded.value
+                                      ? Icons.keyboard_arrow_up_rounded
+                                      : Icons.keyboard_arrow_down_rounded,
+                                  color: Colors.white,
+                                ),
+                              ],
                             ],
                           ),
                         ),
 
-                        if (item.isExpanded.value) ...[
+                        if (item.isExpanded.value && !alreadyRated) ...[
                           SizedBox(height: 18.h),
                           _StarPicker(
                             rating: item.rating.value,
@@ -158,23 +195,33 @@ class _InfluencerRatingContent extends GetView<BrandCampaignDetailsController> {
           SizedBox(height: 18.h),
 
           Obx(() {
+            final loading = controller.isSubmittingRatings.value;
             return CustomButton(
-              onTap: controller.isSubmittingRatings.value
+              onTap: (loading || allRated)
                   ? null
                   : controller.submitInfluencerRatings,
-              btnText: controller.isSubmittingRatings.value
+              btnText: loading
                   ? 'Submitting...'
+                  : allRated
+                  ? 'Ratings Already Submitted'
                   : 'Submit Your Ratings',
               width: double.infinity,
-              btnColor: AppPalette.secondary,
-              textColor: AppPalette.white,
+              btnColor: (loading || allRated)
+                  ? AppPalette.defaultFill
+                  : AppPalette.secondary,
+              textColor: (loading || allRated)
+                  ? AppPalette.greyText
+                  : AppPalette.white,
+              isDisabled: loading || allRated,
             );
           }),
 
           SizedBox(height: 8.h),
           Center(
             child: Text(
-              "You Haven't Submitted Your Ratings Yet",
+              allRated
+                  ? 'You have already submitted all influencer ratings'
+                  : "You Haven't Submitted Your Ratings Yet",
               style: TextStyle(fontSize: 11.sp, color: AppPalette.greyText),
             ),
           ),

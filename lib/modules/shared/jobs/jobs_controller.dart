@@ -138,6 +138,8 @@ class JobsController extends GetxController {
   final RxMap<int, int> influencerTabCounts = <int, int>{}.obs;
   final brandBudgetPendingTotal = 0.obs;
   final brandQuotationReceivedTotal = 0.obs;
+  final RxBool isInitialLoading = false.obs;
+  final RxString loadingJobId = ''.obs;
 
   final Map<int, int> _brandBudgetPageByChip = {0: 1, 1: 1, 2: 1};
 
@@ -364,41 +366,46 @@ class JobsController extends GetxController {
   }
 
   Future<void> _initLoad() async {
-    if (isBrand) {
+    isInitialLoading.value = true;
+    try {
       if (isBrand) {
-        await Future.wait([
-          fetchBrandActive(reset: true),
-          fetchBrandCompleted(reset: true),
-          fetchBrandDrafts(reset: true),
-          fetchBrandCanceled(reset: true),
-        ]);
+        if (isBrand) {
+          await Future.wait([
+            fetchBrandActive(reset: true),
+            fetchBrandCompleted(reset: true),
+            fetchBrandDrafts(reset: true),
+            fetchBrandCanceled(reset: true),
+          ]);
 
-        await fetchBrandBudgeting(reset: true);
-      }
-    } else {
-      if (isInfluencer) {
-        await fetchInfluencerCounts();
-      }
+          await fetchBrandBudgeting(reset: true);
+        }
+      } else {
+        if (isInfluencer) {
+          await fetchInfluencerCounts();
+        }
 
-      if (isAdAgency) {
+        if (isAdAgency) {
+          await Future.wait([
+            fetchNewOffers(reset: true),
+            fetchQuotedJobs(reset: true),
+            fetchActiveJobs(reset: true),
+            fetchCompletedJobs(reset: true),
+            fetchPendingPayments(reset: true),
+            fetchDeclinedJobs(reset: true),
+          ]);
+          return;
+        }
+
         await Future.wait([
           fetchNewOffers(reset: true),
-          fetchQuotedJobs(reset: true),
           fetchActiveJobs(reset: true),
           fetchCompletedJobs(reset: true),
           fetchPendingPayments(reset: true),
           fetchDeclinedJobs(reset: true),
         ]);
-        return;
       }
-
-      await Future.wait([
-        fetchNewOffers(reset: true),
-        fetchActiveJobs(reset: true),
-        fetchCompletedJobs(reset: true),
-        fetchPendingPayments(reset: true),
-        fetchDeclinedJobs(reset: true),
-      ]);
+    } finally {
+      isInitialLoading.value = false;
     }
   }
 
@@ -1126,13 +1133,18 @@ class JobsController extends GetxController {
     final campaignId = job.id;
     if (campaignId == null || campaignId.isEmpty) return;
 
-    final result = await ApiErrorHandler.call(
-      () => _apiClient.dio.post('/campaign/agency/$campaignId/accept'),
-    );
+    loadingJobId.value = campaignId;
+    try {
+      final result = await ApiErrorHandler.call(
+        () => _apiClient.dio.post('/campaign/agency/$campaignId/accept'),
+      );
 
-    if (result.isSuccess) {
-      newOffers.removeWhere((e) => e.id == campaignId);
-      await fetchActiveJobs(reset: true);
+      if (result.isSuccess) {
+        newOffers.removeWhere((e) => e.id == campaignId);
+        await fetchActiveJobs(reset: true);
+      }
+    } finally {
+      loadingJobId.value = '';
     }
   }
 
@@ -1140,16 +1152,21 @@ class JobsController extends GetxController {
     final campaignId = job.id;
     if (campaignId == null || campaignId.isEmpty) return;
 
-    final result = await ApiErrorHandler.call(
-      () => _apiClient.dio.post(
-        '/campaign/agency/decline-offer',
-        data: {'campaignId': campaignId},
-      ),
-    );
+    loadingJobId.value = campaignId;
+    try {
+      final result = await ApiErrorHandler.call(
+        () => _apiClient.dio.post(
+          '/campaign/agency/decline-offer',
+          data: {'campaignId': campaignId},
+        ),
+      );
 
-    if (result.isSuccess) {
-      newOffers.removeWhere((e) => e.id == campaignId);
-      await fetchDeclinedJobs(reset: true);
+      if (result.isSuccess) {
+        newOffers.removeWhere((e) => e.id == campaignId);
+        await fetchDeclinedJobs(reset: true);
+      }
+    } finally {
+      loadingJobId.value = '';
     }
   }
 
@@ -1742,15 +1759,20 @@ class JobsController extends GetxController {
       return;
     }
 
-    final result = await ApiErrorHandler.call(
-      () => _campaignService.acceptInfluencerJobOffer(jobId: jobId),
-    );
+    loadingJobId.value = jobId;
+    try {
+      final result = await ApiErrorHandler.call(
+        () => _campaignService.acceptInfluencerJobOffer(jobId: jobId),
+      );
 
-    if (result.isSuccess) {
-      newOffers.removeWhere((e) => e.id == jobId);
-      await fetchActiveJobs(reset: true);
-      await fetchPendingPayments(reset: true);
-      await fetchInfluencerCounts();
+      if (result.isSuccess) {
+        newOffers.removeWhere((e) => e.id == jobId);
+        await fetchActiveJobs(reset: true);
+        await fetchPendingPayments(reset: true);
+        await fetchInfluencerCounts();
+      }
+    } finally {
+      loadingJobId.value = '';
     }
   }
 
@@ -1766,17 +1788,22 @@ class JobsController extends GetxController {
 
     if (reason == null || reason.trim().isEmpty) return;
 
-    final result = await ApiErrorHandler.call(
-      () => _campaignService.declineInfluencerJobOffer(
-        jobId: jobId,
-        reason: reason,
-      ),
-    );
+    loadingJobId.value = jobId;
+    try {
+      final result = await ApiErrorHandler.call(
+        () => _campaignService.declineInfluencerJobOffer(
+          jobId: jobId,
+          reason: reason,
+        ),
+      );
 
-    if (result.isSuccess) {
-      newOffers.removeWhere((e) => e.id == jobId);
-      await fetchDeclinedJobs(reset: true);
-      await fetchInfluencerCounts();
+      if (result.isSuccess) {
+        newOffers.removeWhere((e) => e.id == jobId);
+        await fetchDeclinedJobs(reset: true);
+        await fetchInfluencerCounts();
+      }
+    } finally {
+      loadingJobId.value = '';
     }
   }
 
@@ -1784,16 +1811,21 @@ class JobsController extends GetxController {
     final jobId = job.id;
     if (jobId == null || jobId.isEmpty) return;
 
-    final result = await ApiErrorHandler.call(
-      () => _apiClient.dio.post(
-        '/campaign/influencer/job/$jobId/complete',
-        data: {'completionNotes': 'Job completed'},
-      ),
-    );
+    loadingJobId.value = jobId;
+    try {
+      final result = await ApiErrorHandler.call(
+        () => _apiClient.dio.post(
+          '/campaign/influencer/job/$jobId/complete',
+          data: {'completionNotes': 'Job completed'},
+        ),
+      );
 
-    if (result.isSuccess) {
-      await fetchCompletedJobs(reset: true);
-      await fetchInfluencerCounts();
+      if (result.isSuccess) {
+        await fetchCompletedJobs(reset: true);
+        await fetchInfluencerCounts();
+      }
+    } finally {
+      loadingJobId.value = '';
     }
   }
 
@@ -1807,6 +1839,7 @@ class JobsController extends GetxController {
     final budget = _numToDouble(json['totalBudget']);
     final createdAt = json['createdAt'];
     final deadline = json['deadline'];
+    final rating = double.tryParse(json['rating']?.toString() ?? '');
     final progress = (json['progress'] as num?)?.toInt() ?? 0;
 
     final assignedTo = (json['assignedTo'] as List?) ?? const [];
@@ -1833,6 +1866,7 @@ class JobsController extends GetxController {
       clientName: clientName,
       campaignType: _parseCampaignType(campaignTypeRaw),
       dateLabel: dateLabel,
+      rating: rating,
       budget: isQuotation
           ? budget
           : (budgetPending > 0 ? budgetPending : budget),

@@ -15,6 +15,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/models/job_item.dart';
 import '../../../core/widgets/empty_details_message.dart';
+import '../../../core/widgets/shimmer_utils.dart';
 import 'campaign_details_controller.dart';
 
 class CampaignDetailsView extends GetView<CampaignDetailsController> {
@@ -39,101 +40,108 @@ class CampaignDetailsView extends GetView<CampaignDetailsController> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                16.h.verticalSpace,
-                _CampaignOverviewCard(job: job),
-                SizedBox(height: 12.h),
+                if (controller.isInitialLoading.value)
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 24.h),
+                    child: ShimmerUtils.listShimmer(itemCount: 5),
+                  )
+                else ...[
+                  16.h.verticalSpace,
+                  _CampaignOverviewCard(job: job),
+                  SizedBox(height: 12.h),
 
-                // NEW OFFER ONLY: quote card
-                if (controller.showQuoteCard &&
-                    accountTypeService.isAdAgency) ...[
-                  _QuoteDetailsCard(
-                    job: job,
-                    onRequestRequote: controller.requestRequote,
-                    isRequoteLoading: controller.isRequoteLoading.value,
-                  ),
-                  SizedBox(height: 16.h),
-                ],
+                  // NEW OFFER ONLY: quote card
+                  if (controller.showQuoteCard &&
+                      accountTypeService.isAdAgency) ...[
+                    _QuoteDetailsCard(
+                      job: job,
+                      onRequestRequote: controller.requestRequote,
+                      isRequoteLoading: controller.isRequoteLoading.value,
+                    ),
+                    SizedBox(height: 16.h),
+                  ],
 
-                // --------- Payment Milestones ----------
-                Obx(() {
-                  return _PaymentMilestonesSection(
-                    job: job,
-                    milestones: controller.milestones,
-                    status: status,
-                    isExpanded: controller.milestonesExpanded.value,
-                    onToggle: controller.toggleMilestones,
-                    totalEarningsOverride:
-                        controller.accountTypeService.isInfluencer
-                        ? formatCurrencyByLocale(
-                            controller.withdrawApprovedAmount.value,
-                          )
-                        : null,
-                    canWithdraw:
-                        controller.accountTypeService.isInfluencer &&
-                        controller.withdrawAvailableAmount.value > 0,
-                    isWithdrawLoading: controller.isWithdrawalLoading.value,
-                  );
-                }),
-                SizedBox(height: 12.h),
+                  // --------- Payment Milestones ----------
+                  Obx(() {
+                    return _PaymentMilestonesSection(
+                      job: job,
+                      milestones: controller.milestones,
+                      status: status,
+                      isExpanded: controller.milestonesExpanded.value,
+                      onToggle: controller.toggleMilestones,
+                      totalEarningsOverride:
+                          controller.accountTypeService.isInfluencer
+                          ? formatCurrencyByLocale(
+                              controller.withdrawApprovedAmount.value,
+                            )
+                          : null,
+                      canWithdraw:
+                          controller.accountTypeService.isInfluencer &&
+                          controller.withdrawAvailableAmount.value > 0,
+                      isWithdrawLoading: controller.isWithdrawalLoading.value,
+                    );
+                  }),
+                  SizedBox(height: 12.h),
 
-                // --------- Campaign Brief ----------
-                Obx(
-                  () => _ExpandableSection(
-                    title: 'campaign_brief'.tr,
-                    iconPath: 'assets/icons/terms_condition.png',
-                    isExpanded: controller.briefExpanded.value,
-                    onToggle: controller.toggleBrief,
-                    child: _CampaignBrief(),
-                  ),
-                ),
-                SizedBox(height: 12.h),
-
-                // --------- Content Assets ----------
-                Obx(
-                  () => _ExpandableSection(
-                    title: 'campaign_content_assets'.tr,
-                    iconPath: 'assets/icons/download.png',
-                    isExpanded: controller.contentAssetsExpanded.value,
-                    onToggle: controller.toggleContentAssets,
-                    child: _ContentAssets(),
-                  ),
-                ),
-                SizedBox(height: 12.h),
-
-                // --------- Terms & Conditions ----------
-                Obx(
-                  () => _ExpandableSection(
-                    title: 'campaign_terms_conditions'.tr,
-                    iconPath: 'assets/icons/terms_condition.png',
-                    isExpanded: controller.termsExpanded.value,
-                    onToggle: controller.toggleTerms,
-                    child: _TermsAndConditions(),
-                  ),
-                ),
-                SizedBox(height: 12.h),
-
-                // --------- Brand Assets ----------
-                if (controller.accountTypeService.isAdAgency)
+                  // --------- Campaign Brief ----------
                   Obx(
                     () => _ExpandableSection(
-                      title: 'campaign_brand_assets'.tr,
-                      iconPath: 'assets/icons/download.png',
-                      isExpanded: controller.brandAssetsExpanded.value,
-                      onToggle: controller.toggleBrandAssets,
-                      child: _BrandAssets(),
+                      title: 'campaign_brief'.tr,
+                      iconPath: 'assets/icons/terms_condition.png',
+                      isExpanded: controller.briefExpanded.value,
+                      onToggle: controller.toggleBrief,
+                      child: _CampaignBrief(),
                     ),
                   ),
-                SizedBox(height: 24.h),
+                  SizedBox(height: 12.h),
 
-                if (controller.showAgencyNegotiatingCard) ...[
-                  _AgencyNegotiatingCard(),
-                ] else if (controller.showAgreementBar) ...[
-                  _AgreementSection(
-                    isChecked: controller.agreeToTerms.value,
-                    onToggle: controller.toggleAgree,
-                    onAccept: controller.onAccept,
-                    onDecline: controller.onDecline,
+                  // --------- Content Assets ----------
+                  Obx(
+                    () => _ExpandableSection(
+                      title: 'campaign_content_assets'.tr,
+                      iconPath: 'assets/icons/download.png',
+                      isExpanded: controller.contentAssetsExpanded.value,
+                      onToggle: controller.toggleContentAssets,
+                      child: _ContentAssets(),
+                    ),
                   ),
+                  SizedBox(height: 12.h),
+
+                  // --------- Terms & Conditions ----------
+                  Obx(
+                    () => _ExpandableSection(
+                      title: 'campaign_terms_conditions'.tr,
+                      iconPath: 'assets/icons/terms_condition.png',
+                      isExpanded: controller.termsExpanded.value,
+                      onToggle: controller.toggleTerms,
+                      child: _TermsAndConditions(),
+                    ),
+                  ),
+                  SizedBox(height: 12.h),
+
+                  // --------- Brand Assets ----------
+                  if (controller.accountTypeService.isAdAgency)
+                    Obx(
+                      () => _ExpandableSection(
+                        title: 'campaign_brand_assets'.tr,
+                        iconPath: 'assets/icons/download.png',
+                        isExpanded: controller.brandAssetsExpanded.value,
+                        onToggle: controller.toggleBrandAssets,
+                        child: _BrandAssets(),
+                      ),
+                    ),
+                  SizedBox(height: 24.h),
+
+                  if (controller.showAgencyNegotiatingCard) ...[
+                    _AgencyNegotiatingCard(),
+                  ] else if (controller.showAgreementBar) ...[
+                    _AgreementSection(
+                      isChecked: controller.agreeToTerms.value,
+                      onToggle: controller.toggleAgree,
+                      onAccept: controller.onAccept,
+                      onDecline: controller.onDecline,
+                    ),
+                  ],
                 ],
               ],
             ),
@@ -1188,7 +1196,7 @@ class _AgreementSection extends StatelessWidget {
   final bool isChecked;
   final VoidCallback onToggle;
   final VoidCallback onAccept;
-  final VoidCallback onDecline; // used for influencer only
+  final VoidCallback onDecline;
 
   const _AgreementSection({
     required this.isChecked,
@@ -1210,7 +1218,7 @@ class _AgreementSection extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(
-            top: Radius.circular(kBorderRadius),
+            top: Radius.circular(kBorderRadius.r),
           ),
           boxShadow: [
             BoxShadow(
@@ -1224,17 +1232,18 @@ class _AgreementSection extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (isAgency) ...[
-              // -------- Timer row (matches screenshot) ----------
+              // -------- Timer row ----------
               Obx(() {
                 final timeText = controller.requoteCountdownText;
                 final deadlineText = controller.requoteDeadlineText;
+
                 return Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Icon(
                       Icons.hourglass_bottom_rounded,
                       size: 22.sp,
-                      color: const Color(0xFFD1842A), // orange
+                      color: const Color(0xFFD1842A),
                     ),
                     SizedBox(width: 10.w),
                     Expanded(
@@ -1252,13 +1261,13 @@ class _AgreementSection extends StatelessWidget {
                                 TextSpan(
                                   text: timeText,
                                   style: const TextStyle(
-                                    color: Color(0xFFD1842A), // orange
+                                    color: Color(0xFFD1842A),
                                   ),
                                 ),
                                 TextSpan(
                                   text: ' Left To Requote',
                                   style: const TextStyle(
-                                    color: Color(0xFF3E5B1C), // deep green
+                                    color: Color(0xFF3E5B1C),
                                   ),
                                 ),
                               ],
@@ -1280,28 +1289,27 @@ class _AgreementSection extends StatelessWidget {
                   ],
                 );
               }),
+              SizedBox(height: 16.h),
+            ],
 
-              SizedBox(height: 14.h),
-
-              // -------- Agreement checkbox row ----------
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            // -------- Agreement Checkbox Row ----------
+            GestureDetector(
+              onTap: onToggle,
+              behavior: HitTestBehavior.opaque,
+              child: Row(
                 children: [
-                  GestureDetector(
-                    onTap: onToggle,
-                    child: Container(
-                      width: 24.w,
-                      height: 24.w,
-                      decoration: BoxDecoration(
-                        color: isChecked
-                            ? const Color(0xFF7BB23B)
-                            : const Color(0xFFE5E5E5),
-                        borderRadius: BorderRadius.circular(6.r),
-                      ),
-                      child: isChecked
-                          ? Icon(Icons.check, size: 18.sp, color: Colors.white)
-                          : null,
+                  Container(
+                    width: 24.w,
+                    height: 24.w,
+                    decoration: BoxDecoration(
+                      color: isChecked
+                          ? const Color(0xFF7BB23B)
+                          : const Color(0xFFE5E5E5),
+                      borderRadius: BorderRadius.circular(6.r),
                     ),
+                    child: isChecked
+                        ? Icon(Icons.check, size: 18.sp, color: Colors.white)
+                        : null,
                   ),
                   SizedBox(width: 12.w),
                   Expanded(
@@ -1331,44 +1339,52 @@ class _AgreementSection extends StatelessWidget {
                   ),
                 ],
               ),
+            ),
 
-              SizedBox(height: 16.h),
-            ],
+            SizedBox(height: 16.h),
 
             // -------- Buttons ----------
-            Row(
-              children: [
-                Expanded(
-                  child: Obx(() {
-                    controller.isRequoteExpired.value;
-                    final disabled =
-                        isAgency && controller.isRequoteExpired.value;
+            Obx(() {
+              final isAcceptDeclineLoading =
+                  controller.isAcceptDeclineLoading.value;
+              final isRequoteLoading = controller.isRequoteLoading.value;
+              final isRequoteExpired = controller.isRequoteExpired.value;
+              final disabledRequote = isAgency && isRequoteExpired;
 
-                    return CustomButton(
+              return Row(
+                children: [
+                  Expanded(
+                    child: CustomButton(
                       onTap: isAgency
-                          ? (disabled ? () {} : controller.requestRequote)
+                          ? (disabledRequote
+                                ? () {}
+                                : controller.requestRequote)
                           : onDecline,
+                      isLoading: isAgency
+                          ? isRequoteLoading
+                          : isAcceptDeclineLoading,
                       btnText: isAgency ? 'Requote' : 'common_decline'.tr,
                       textColor: isAgency
-                          ? (disabled ? Colors.grey : AppPalette.black)
+                          ? (disabledRequote ? Colors.grey : AppPalette.black)
                           : AppPalette.black,
                       btnColor: AppPalette.white,
-                      borderColor: disabled
+                      borderColor: disabledRequote
                           ? Colors.grey.withOpacity(0.5)
                           : AppPalette.border1,
-                    );
-                  }),
-                ),
-                SizedBox(width: 12.w),
-                Expanded(
-                  child: CustomButton(
-                    onTap: onAccept,
-                    btnText: 'common_accept'.tr,
-                    textColor: AppPalette.white,
+                    ),
                   ),
-                ),
-              ],
-            ),
+                  SizedBox(width: 12.w),
+                  Expanded(
+                    child: CustomButton(
+                      onTap: onAccept,
+                      isLoading: isAcceptDeclineLoading,
+                      btnText: 'common_accept'.tr,
+                      textColor: AppPalette.white,
+                    ),
+                  ),
+                ],
+              );
+            }),
           ],
         ),
       ),
@@ -1445,14 +1461,13 @@ class _AgencyNegotiatingCard extends StatelessWidget {
 
 class _SectionCard extends StatelessWidget {
   final Widget child;
-  final EdgeInsetsGeometry? padding;
 
-  const _SectionCard({required this.child, this.padding});
+  const _SectionCard({required this.child});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: padding ?? EdgeInsets.all(22.w),
+      padding: EdgeInsets.all(22.w),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(kBorderRadius.r),
@@ -1465,10 +1480,9 @@ class _SectionCard extends StatelessWidget {
 
 class _BulletText extends StatelessWidget {
   final String text;
-  final double? fontSize;
   final Color? fontColor;
 
-  const _BulletText(this.text, {this.fontSize, this.fontColor});
+  const _BulletText(this.text, {this.fontColor});
 
   @override
   Widget build(BuildContext context) {
@@ -1480,7 +1494,7 @@ class _BulletText extends StatelessWidget {
           Text(
             '•  ',
             style: TextStyle(
-              fontSize: fontSize ?? 12.sp,
+              fontSize: 12.sp,
               color: fontColor ?? AppPalette.subtext,
             ),
           ),
@@ -1488,7 +1502,7 @@ class _BulletText extends StatelessWidget {
             child: Text(
               text,
               style: TextStyle(
-                fontSize: fontSize ?? 12.sp,
+                fontSize: 12.sp,
                 color: fontColor ?? AppPalette.subtext,
               ),
             ),
@@ -1693,7 +1707,6 @@ class _PaymentMilestonesSection extends StatelessWidget {
   final CampaignStatus status;
   final bool isExpanded;
   final VoidCallback onToggle;
-  final int? paidCountOverride;
   final String? totalEarningsOverride;
   final bool canWithdraw;
   final bool isWithdrawLoading;
@@ -1704,7 +1717,6 @@ class _PaymentMilestonesSection extends StatelessWidget {
     required this.status,
     required this.isExpanded,
     required this.onToggle,
-    this.paidCountOverride,
     this.totalEarningsOverride,
     this.canWithdraw = false,
     this.isWithdrawLoading = false,
@@ -1850,7 +1862,7 @@ class _TotalEarningsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final accountTypeService = Get.find<AccountTypeService>();
 
-    final disableWithdrawButton = !canWithdraw || isWithdrawLoading;
+    // final disableWithdrawButton = !canWithdraw || isWithdrawLoading;
 
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
@@ -1918,17 +1930,16 @@ class _TotalEarningsCard extends StatelessWidget {
                     status != CampaignStatus.complete) ...[
                   4.h.verticalSpace,
                   CustomButton(
-                    onTap: disableWithdrawButton ? null : onWithdrawalRequest,
-                    btnText: isWithdrawLoading
-                        ? 'Requesting...'
-                        : 'campaign_withdrawal_request'.tr,
-                    btnColor: disableWithdrawButton
+                    onTap: onWithdrawalRequest,
+                    isLoading: isWithdrawLoading,
+                    isDisabled: !canWithdraw,
+                    btnText: 'campaign_withdrawal_request'.tr,
+                    btnColor: (!canWithdraw)
                         ? AppPalette.white
                         : AppPalette.secondary,
-                    isDisabled: disableWithdrawButton,
                     textStyle: AppTheme.textStyle.copyWith(
                       fontSize: 12.sp,
-                      color: disableWithdrawButton
+                      color: (!canWithdraw)
                           ? AppPalette.greyText
                           : AppPalette.thirdColor,
                     ),
@@ -1963,164 +1974,6 @@ class _TotalEarningsCard extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _WithdrawalSuccessDialog extends StatelessWidget {
-  final String title;
-  final String amount;
-
-  const _WithdrawalSuccessDialog({required this.title, required this.amount});
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
-      backgroundColor: Colors.white,
-      insetPadding: EdgeInsets.symmetric(horizontal: 20.w),
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(20.w, 15.h, 20.w, 30.h),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Align(
-              alignment: Alignment.topRight,
-              child: GestureDetector(
-                onTap: () => Get.back(),
-                child: Icon(
-                  Icons.close,
-                  size: 24.sp,
-                  color: AppPalette.secondary,
-                ),
-              ),
-            ),
-
-            Container(
-              width: 80.w,
-              height: 80.w,
-              decoration: const BoxDecoration(
-                color: AppPalette.secondary,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.check, size: 45.sp, color: Colors.white),
-            ),
-            SizedBox(height: 24.h),
-
-            Text(
-              'campaign_withdraw_sent'.tr,
-              textAlign: TextAlign.center,
-              style: AppTheme.textStyle.copyWith(
-                fontSize: 16.sp,
-                fontWeight: FontWeight.w600,
-                color: AppPalette.primary,
-              ),
-            ),
-            SizedBox(height: 12.h),
-            Text(
-              'campaign_withdraw_msg'.tr,
-              textAlign: TextAlign.center,
-              style: AppTheme.textStyle.copyWith(
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w300,
-                color: AppPalette.primary,
-              ),
-            ),
-            SizedBox(height: 26.h),
-
-            Container(
-              width: double.infinity,
-              padding: EdgeInsets.all(16.w),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [AppPalette.primary, AppPalette.secondary],
-                ),
-                borderRadius: BorderRadius.circular(12.r),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Image.asset(
-                        'assets/icons/online_ads.png',
-                        color: Colors.white,
-                      ),
-                      SizedBox(width: 12.w),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: AppTheme.textStyle.copyWith(
-                                fontSize: 16.sp,
-                                fontWeight: FontWeight.w300,
-                                color: AppPalette.white,
-                              ),
-                            ),
-                            Text(
-                              amount,
-                              style: AppTheme.textStyle.copyWith(
-                                fontSize: 24.sp,
-                                fontWeight: FontWeight.w600,
-                                color: AppPalette.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  SizedBox(height: 12.h),
-                  Divider(color: Colors.white.withOpacity(0.5), height: 1),
-                  SizedBox(height: 10.h),
-
-                  Row(
-                    children: [
-                      Text(
-                        'common_platforms'.tr,
-                        style: AppTheme.textStyle.copyWith(
-                          color: AppPalette.thirdColor,
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      12.w.horizontalSpace,
-                      const Spacer(),
-                      Image.asset(
-                        'assets/icons/instagram.png',
-                        width: 24.w,
-                        height: 24.w,
-                        fit: BoxFit.cover,
-                      ),
-                      SizedBox(width: 8.w),
-                      Image.asset(
-                        'assets/icons/youTube.png',
-                        width: 24.w,
-                        height: 24.w,
-                        fit: BoxFit.cover,
-                      ),
-                      SizedBox(width: 8.w),
-                      Image.asset(
-                        'assets/icons/tikTok.png',
-                        width: 24.w,
-                        height: 24.w,
-                        fit: BoxFit.cover,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

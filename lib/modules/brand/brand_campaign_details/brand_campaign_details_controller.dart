@@ -6,6 +6,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:get/get.dart';
+import 'package:influencer_app/modules/brand/brand_campaign_details/payment_webview_page.dart';
 import 'package:influencer_app/modules/brand/brand_campaign_details/widgets/influencer_milestone_picker_sheet.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -20,6 +21,7 @@ import '../../../core/services/api_error_handler.dart';
 import 'widgets/confirm_budget_dialog.dart';
 import 'widgets/fund_campaign_dialog.dart';
 import 'widgets/paid_ad_requote_dialog.dart';
+import 'widgets/provide_rating_dialog.dart';
 import 'widgets/requote_dialog.dart';
 import 'widgets/upload_another_asset_dialog.dart';
 import 'widgets/upload_another_brand_asset_dialog.dart';
@@ -90,6 +92,8 @@ class RateInfluencerItem {
 
   final RxInt rating;
   final RxBool isExpanded;
+  final RxBool isAlreadyRated;
+  final Rxn<DateTime> ratedAt;
 
   RateInfluencerItem({
     required this.influencerId,
@@ -97,8 +101,12 @@ class RateInfluencerItem {
     this.image,
     int initialRating = 0,
     bool expanded = false,
+    bool alreadyRated = false,
+    DateTime? ratedAtValue,
   }) : rating = initialRating.obs,
-       isExpanded = expanded.obs;
+       isExpanded = expanded.obs,
+       isAlreadyRated = alreadyRated.obs,
+       ratedAt = Rxn<DateTime>(ratedAtValue);
 }
 
 enum CampaignProgressStep { submitted, quoted, paid, promoting, completed }
@@ -109,6 +117,7 @@ class BrandCampaignDetailsController extends GetxController {
   StreamSubscription<Map<String, dynamic>>? _notificationSubscription;
 
   final paidAdTabIndex = 1.obs;
+  final RxBool isInitialLoading = false.obs;
   void setPaidAdTab(int i) => paidAdTabIndex.value = i.clamp(0, 1);
 
   final isSortLowToHigh = true.obs;
@@ -179,7 +188,7 @@ class BrandCampaignDetailsController extends GetxController {
   final assignedInfluencers = <AssignedInfluencerUi>[].obs;
   final RxnString selectedAssignmentId = RxnString();
   final isRated = false.obs;
-  final rating = 0.obs;
+  final rating = 0.0.obs;
   final campaignGoals = ''.obs;
   final productServiceDetails = ''.obs;
   final contentRequirements = <String>[].obs;
@@ -204,6 +213,21 @@ class BrandCampaignDetailsController extends GetxController {
   final isSubmittingCancellation = false.obs;
   final RxnString selectedAgencyOfferId = RxnString();
 
+  final RxBool isOpeningPaymentFlow = false.obs;
+  final RxBool isPayNowLoading = false.obs;
+  final RxBool isAcceptQuoteLoading = false.obs;
+
+  final RxnString payingAgencyOfferId = RxnString();
+
+  final RxBool hasLoadedOnce = false.obs;
+
+  final ScrollController pageScrollController = ScrollController();
+
+  bool get areAllInfluencersAlreadyRated {
+    if (rateInfluencerItems.isEmpty) return false;
+    return rateInfluencerItems.every((e) => e.isAlreadyRated.value);
+  }
+
   @override
   void onInit() {
     super.onInit();
@@ -226,6 +250,203 @@ class BrandCampaignDetailsController extends GetxController {
     _listenCampaignNotifications();
   }
 
+  void _showBlockingLoader() async {
+    if (Get.isDialogOpen == true) return;
+
+    Get.dialog(
+      const PopScope(
+        canPop: false,
+        child: Center(child: CircularProgressIndicator()),
+      ),
+      barrierDismissible: false,
+    );
+  }
+
+  void _hideBlockingLoader() {
+    if (Get.isDialogOpen == true) {
+      Get.back();
+    }
+  }
+
+  String _paymentMessageFromResponse(
+    Map<String, dynamic> response,
+    String fallback,
+  ) {
+    final msg = response['message']?.toString().trim();
+    if (msg != null && msg.isNotEmpty) return msg;
+
+    final data = response['data'];
+    if (data is Map) {
+      final nestedMsg = data['message']?.toString().trim();
+      if (nestedMsg != null && nestedMsg.isNotEmpty) return nestedMsg;
+    }
+
+    return fallback;
+  }
+
+  String? _extractGatewayUrl(Map<String, dynamic> response) {
+    final data = response['data'];
+    if (data is Map) {
+      final url = data['gatewayUrl']?.toString().trim();
+      if (url != null && url.isNotEmpty) return url;
+    }
+    return null;
+  }
+
+  String? _extractTranId(Map<String, dynamic> response) {
+    final data = response['data'];
+    if (data is Map) {
+      final tranId = data['tranId']?.toString().trim();
+      if (tranId != null && tranId.isNotEmpty) return tranId;
+    }
+    return null;
+  }
+
+  Future<void> _openPaymentGateway({
+    required String gatewayUrl,
+    required String tranId,
+    required String successMessage,
+    required String failMessage,
+  }) async {
+    final result = await Get.to<bool>(
+      () => PaymentWebViewPage(
+        initialUrl: gatewayUrl,
+        successUrl:
+            'https://influencerbackend-production.up.railway.app/payments/sslcommerz/success',
+        failUrl:
+            'https://influencerbackend-production.up.railway.app/payments/sslcommerz/fail',
+        initialTranId: tranId,
+        checkPaymentStatus: (tranId) =>
+            _campaignService.fetchPaymentStatus(tranId: tranId),
+      ),
+    );
+
+    if (result == true) {
+      await refreshCampaignDetails();
+      Get.snackbar('Success', successMessage);
+    } else if (result == false) {
+      Get.snackbar('Error', failMessage);
+    }
+  }
+
+  Future<void> payCampaignNow({required int amount}) async {
+    final campaignId = _extractCampaignId(arguments);
+    if (campaignId == null || campaignId.trim().isEmpty) {
+      Get.snackbar('Error', 'Missing campaign id.');
+      return;
+    }
+
+    if (isPayNowLoading.value || isOpeningPaymentFlow.value) return;
+
+    try {
+      isPayNowLoading.value = true;
+      isOpeningPaymentFlow.value = true;
+
+      _showBlockingLoader();
+
+      final response = await _campaignService.payCampaignAmount(
+        campaignId: campaignId,
+        amount: amount,
+      );
+
+      _hideBlockingLoader();
+
+      final gatewayUrl = _extractGatewayUrl(response);
+      final tranId = _extractTranId(response);
+
+      if (gatewayUrl == null) {
+        Get.snackbar('Error', 'Payment URL not found.');
+        return;
+      }
+
+      if (tranId == null) {
+        Get.snackbar('Error', 'Transaction id not found.');
+        return;
+      }
+
+      if (Get.isDialogOpen == true) {
+        Get.back();
+      }
+
+      final message = _paymentMessageFromResponse(
+        response,
+        'Payment session created successfully.',
+      );
+
+      await _openPaymentGateway(
+        gatewayUrl: gatewayUrl,
+        tranId: tranId,
+        successMessage: message,
+        failMessage: 'Payment failed.',
+      );
+    } catch (e) {
+      _hideBlockingLoader();
+      Get.snackbar('Error', e.toString());
+    } finally {
+      isPayNowLoading.value = false;
+      isOpeningPaymentFlow.value = false;
+    }
+  }
+
+  Future<void> payCampaignDueNow({required int amount}) async {
+    final campaignId = _extractCampaignId(arguments);
+    if (campaignId == null || campaignId.trim().isEmpty) {
+      Get.snackbar('Error', 'Missing campaign id.');
+      return;
+    }
+
+    if (isPayNowLoading.value || isOpeningPaymentFlow.value) return;
+
+    try {
+      isPayNowLoading.value = true;
+      isOpeningPaymentFlow.value = true;
+
+      _showBlockingLoader();
+
+      final response = await _campaignService.payCampaignDue(
+        campaignId: campaignId,
+        amount: amount,
+      );
+
+      _hideBlockingLoader();
+
+      final gatewayUrl = _extractGatewayUrl(response);
+      final tranId = _extractTranId(response);
+
+      if (gatewayUrl == null) {
+        Get.snackbar('Error', 'Payment URL not found.');
+        return;
+      }
+
+      if (tranId == null) {
+        Get.snackbar('Error', 'Transaction id not found.');
+        return;
+      }
+
+      if (Get.isDialogOpen == true) {
+        Get.back();
+      }
+
+      final message = _paymentMessageFromResponse(
+        response,
+        'Due payment session created successfully.',
+      );
+
+      await _openPaymentGateway(
+        gatewayUrl: gatewayUrl,
+        tranId: tranId,
+        successMessage: message,
+        failMessage: 'Due payment failed.',
+      );
+    } catch (e) {
+      _hideBlockingLoader();
+      Get.snackbar('Error', e.toString());
+    } finally {
+      isPayNowLoading.value = false;
+      isOpeningPaymentFlow.value = false;
+    }
+  }
+
   void _listenCampaignNotifications() {
     _notificationSubscription?.cancel();
 
@@ -233,38 +454,40 @@ class BrandCampaignDetailsController extends GetxController {
         .listen((data) async {
           final notificationCampaignId =
               data['campaignId']?.toString().trim() ?? '';
-          final notificationType = data['type']?.toString().trim() ?? '';
+          final notificationMilestoneId =
+              data['milestoneId']?.toString().trim() ?? '';
+
           final currentCampaignId = _extractCampaignId(arguments)?.trim() ?? '';
 
-          if (notificationCampaignId.isEmpty || currentCampaignId.isEmpty) {
-            return;
-          }
-
-          if (notificationCampaignId != currentCampaignId) {
-            return;
-          }
-
-          // optional filter if you only want quote-related refresh
-          const refreshableTypes = {
-            'NEW_QUOTE',
-            'QUOTE_UPDATED',
-            'CAMPAIGN_UPDATED',
-            'PAYMENT_UPDATED',
-            'MILESTONE_UPDATED',
+          final currentMilestoneIds = <String>{
+            ...milestones
+                .map((e) => (e.id ?? '').trim())
+                .where((e) => e.isNotEmpty),
+            ...masterMilestones
+                .map((e) => (e.id ?? '').trim())
+                .where((e) => e.isNotEmpty),
           };
 
-          if (notificationType.isNotEmpty &&
-              !refreshableTypes.contains(notificationType)) {
+          final bool campaignMatched =
+              notificationCampaignId.isNotEmpty &&
+              currentCampaignId.isNotEmpty &&
+              notificationCampaignId == currentCampaignId;
+
+          final bool milestoneMatched =
+              notificationMilestoneId.isNotEmpty &&
+              currentMilestoneIds.contains(notificationMilestoneId);
+
+          if (!campaignMatched && !milestoneMatched) {
             return;
           }
 
           dev.log(
-            'Matched campaign notification. Refreshing details page.',
+            'Matched notification. Refreshing brand campaign details page.',
             name: 'BrandCampaignDetailsController',
             error: {
               'currentCampaignId': currentCampaignId,
               'notificationCampaignId': notificationCampaignId,
-              'type': notificationType,
+              'notificationMilestoneId': notificationMilestoneId,
             },
           );
 
@@ -276,6 +499,7 @@ class BrandCampaignDetailsController extends GetxController {
   void onClose() {
     _notificationSubscription?.cancel();
     cancelReasonCtrl.dispose();
+    pageScrollController.dispose();
     super.onClose();
   }
 
@@ -283,10 +507,9 @@ class BrandCampaignDetailsController extends GetxController {
     if (isLoading.value) return;
 
     page.value = 1;
-    agencyOffers.clear();
     loadError.value = null;
 
-    await _loadFromApiIfPossible();
+    await _loadFromApiIfPossible(isRefresh: true);
   }
 
   Future<void> refreshAfterMilestoneUpdate() async {
@@ -335,15 +558,15 @@ class BrandCampaignDetailsController extends GetxController {
     await _loadAgencyBidsPage(campaignId);
   }
 
-  void prepareInfluencerRatingsDialog() {
+  Future<void> prepareInfluencerRatingsDialog() async {
     final items = assignedInfluencers
-        .map((e) {
-          return RateInfluencerItem(
+        .map(
+          (e) => RateInfluencerItem(
             influencerId: e.influencerId,
             name: e.name,
             image: e.image,
-          );
-        })
+          ),
+        )
         .toList(growable: false);
 
     if (items.isNotEmpty) {
@@ -351,6 +574,36 @@ class BrandCampaignDetailsController extends GetxController {
     }
 
     rateInfluencerItems.assignAll(items);
+
+    final campaignId = _extractCampaignId(arguments);
+    if (campaignId == null || campaignId.trim().isEmpty) return;
+
+    final result = await ApiErrorHandler.call(
+      () => _campaignService.fetchCampaignRatings(campaignId: campaignId),
+      showError: false,
+    );
+
+    if (!result.isSuccess || result.data == null) return;
+
+    final ratingsResponse = result.data as CampaignRatingsResponse;
+    final ratingMap = <String, CampaignInfluencerRatingItem>{
+      for (final item in ratingsResponse.influencerRatings)
+        item.influencerId: item,
+    };
+
+    for (final uiItem in rateInfluencerItems) {
+      final existing = ratingMap[uiItem.influencerId];
+      if (existing == null) continue;
+
+      if (existing.isRated) {
+        uiItem.rating.value = existing.rating.clamp(0, 5);
+        uiItem.isAlreadyRated.value = true;
+        uiItem.ratedAt.value = existing.ratedAt;
+        uiItem.isExpanded.value = false;
+      }
+    }
+
+    rateInfluencerItems.refresh();
   }
 
   void toggleInfluencerRatingExpand(int index) {
@@ -363,7 +616,11 @@ class BrandCampaignDetailsController extends GetxController {
 
   void setInfluencerDialogRating({required int index, required int rating}) {
     if (index < 0 || index >= rateInfluencerItems.length) return;
-    rateInfluencerItems[index].rating.value = rating.clamp(0, 5);
+
+    final item = rateInfluencerItems[index];
+    if (item.isAlreadyRated.value) return;
+
+    item.rating.value = rating.clamp(0, 5);
   }
 
   void setAgencyDialogRating(int value) {
@@ -459,15 +716,19 @@ class BrandCampaignDetailsController extends GetxController {
   // API loading
   // -------------------------
 
-  Future<void> _loadFromApiIfPossible() async {
+  Future<void> _loadFromApiIfPossible({bool isRefresh = false}) async {
     final campaignId = _extractCampaignId(arguments);
     if (campaignId == null || campaignId.trim().isEmpty) return;
+
+    final bool showInitialLoader = !hasLoadedOnce.value && !isRefresh;
+
+    if (showInitialLoader) {
+      isInitialLoading.value = true;
+    }
 
     try {
       isLoading.value = true;
       loadError.value = null;
-
-      agencyOffers.clear();
 
       final res = await _campaignService.fetchClientCampaignDetails(
         campaignId: campaignId,
@@ -490,10 +751,15 @@ class BrandCampaignDetailsController extends GetxController {
         totalAgencyBids.value = 0;
         agencyOffers.clear();
       }
+
+      hasLoadedOnce.value = true;
     } catch (e) {
       loadError.value = e.toString();
     } finally {
       isLoading.value = false;
+      if (showInitialLoader) {
+        isInitialLoading.value = false;
+      }
     }
   }
 
@@ -849,7 +1115,7 @@ class BrandCampaignDetailsController extends GetxController {
 
     // Rating
     isRated.value = data['isRated'];
-    rating.value = (_numToDouble(data['rating']).round()).clamp(0, 5);
+    rating.value = _numToDouble(data['rating']).clamp(0.0, 5.0);
     selectedInfluencerId.value = _extractInfluencerId(data);
 
     // Quote breakdown
@@ -988,6 +1254,7 @@ class BrandCampaignDetailsController extends GetxController {
       final item = Map<String, dynamic>.from(raw);
       final category = item['category']?.toString().toLowerCase();
       final fileName = item['fileName']?.toString().trim() ?? '';
+      final description = item['description']?.toString().trim() ?? '';
       final fileUrl = item['fileUrl']?.toString().trim();
       final fileSize = _numToInt(item['fileSize']);
       final mime = item['mimeType']?.toString().trim() ?? '';
@@ -998,7 +1265,9 @@ class BrandCampaignDetailsController extends GetxController {
         brand.add(
           BrandAssetLink(
             assetId: item['id']?.toString(),
-            title: fileName.isNotEmpty
+            title: description.isNotEmpty
+                ? description
+                : fileName.isNotEmpty
                 ? fileName
                 : (assetType ?? 'Brand Asset'),
             subtitle: assetType?.isNotEmpty == true ? assetType! : 'Page Link',
@@ -1017,7 +1286,11 @@ class BrandCampaignDetailsController extends GetxController {
 
         content.add(
           JobAsset(
-            title: fileName.isNotEmpty ? fileName : 'Asset',
+            title: description.isNotEmpty
+                ? description
+                : fileName.isNotEmpty
+                ? fileName
+                : 'Asset',
             meta: meta.isNotEmpty ? meta : '—',
             kind: _guessAssetKind(fileName),
             pathOrUrl: fileUrl?.isNotEmpty == true ? fileUrl : null,
@@ -1033,10 +1306,26 @@ class BrandCampaignDetailsController extends GetxController {
   void _mapMilestones(List<dynamic> list) {
     if (list.isEmpty) return;
 
+    final rawItems = list
+        .whereType<Map>()
+        .map((e) {
+          return Map<String, dynamic>.from(e);
+        })
+        .toList(growable: false);
+
+    final rawOrders = rawItems
+        .map((item) => (item['order'] as num?)?.toInt())
+        .whereType<int>()
+        .toList(growable: false);
+
+    // If backend sends 0 as first order => treat as 0-based.
+    // Otherwise treat provided order as already 1-based.
+    final bool isZeroBasedOrder = rawOrders.contains(0);
+
     final mapped = <Milestone>[];
-    for (final raw in list) {
-      if (raw is! Map) continue;
-      final item = Map<String, dynamic>.from(raw);
+
+    for (int i = 0; i < rawItems.length; i++) {
+      final item = rawItems[i];
 
       final id = item['id']?.toString().trim();
       final title = item['contentTitle']?.toString().trim() ?? 'Milestone';
@@ -1047,10 +1336,14 @@ class BrandCampaignDetailsController extends GetxController {
       final platform = item['platform']?.toString();
       final status = _parseMilestoneStatus(item['status']?.toString());
 
+      final int displayStep = order != null
+          ? (isZeroBasedOrder ? order + 1 : order)
+          : i + 1;
+
       mapped.add(
         Milestone(
           id: id,
-          stepLabel: ((order ?? mapped.length) + 1).toString(),
+          stepLabel: displayStep.toString(),
           title: title,
           subtitle: quantity?.isNotEmpty == true ? quantity : null,
           dayLabel: deliveryDays != null ? 'DAY $deliveryDays' : null,
@@ -1157,7 +1450,7 @@ class BrandCampaignDetailsController extends GetxController {
     deadlineDateText.value = j.dateLabel;
 
     // Rating (if any)
-    rating.value = (j.rating ?? 0).clamp(0, 5);
+    rating.value = _numToDouble(j.rating).clamp(0.0, 5.0);
 
     // Quote breakdown
     final b = (j.baseBudget ?? j.budget).round();
@@ -1261,14 +1554,19 @@ class BrandCampaignDetailsController extends GetxController {
 
   void setRating(int v) {
     final next = v.clamp(0, 5);
-    rating.value = next;
+    rating.value = next.toDouble();
   }
 
-  void provideRating() {
+  Future<void> provideRating() async {
+    if (Get.isDialogOpen == true) return;
+
     if (isPaidAd) {
-      agencyDialogRating.value = rating.value.clamp(0, 5);
+      agencyDialogRating.value = rating.value.round().clamp(0, 5);
+      await ProvideRatingDialog.show(isPaidAd: true);
     } else {
-      prepareInfluencerRatingsDialog();
+      await prepareInfluencerRatingsDialog();
+      if (Get.isDialogOpen == true) return;
+      await ProvideRatingDialog.show(isPaidAd: false);
     }
   }
 
@@ -1302,7 +1600,7 @@ class BrandCampaignDetailsController extends GetxController {
 
     if (!result.isSuccess) return;
 
-    rating.value = rate;
+    rating.value = rate.toDouble();
     Get.back();
 
     Get.snackbar(
@@ -1325,7 +1623,7 @@ class BrandCampaignDetailsController extends GetxController {
     }
 
     final ratedItems = rateInfluencerItems
-        .where((e) => e.rating.value > 0)
+        .where((e) => !e.isAlreadyRated.value && e.rating.value > 0)
         .toList(growable: false);
 
     if (ratedItems.isEmpty) {
@@ -1355,6 +1653,9 @@ class BrandCampaignDetailsController extends GetxController {
         isSubmittingRatings.value = false;
         return;
       }
+
+      item.isAlreadyRated.value = true;
+      item.ratedAt.value = DateTime.now();
     }
 
     isSubmittingRatings.value = false;
@@ -1381,19 +1682,37 @@ class BrandCampaignDetailsController extends GetxController {
   }
 
   Future<void> onAcceptQuote() async {
-    if (!isYourTurn.value) return;
+    if (!isYourTurn.value || isAcceptQuoteLoading.value) return;
 
-    if (isPaidAd) {
-      setPaidAdTab(0);
-      _openConfirmBudgetDialog();
-    } else {
+    try {
+      isAcceptQuoteLoading.value = true;
+      _showBlockingLoader();
+
+      if (isPaidAd) {
+        _hideBlockingLoader();
+        setPaidAdTab(0);
+        _openConfirmBudgetDialog();
+        return;
+      }
+
       final ok = await _acceptQuoteRequest();
+
+      _hideBlockingLoader();
+
       if (!ok) return;
+
       openFundCampaignDialog();
+    } catch (e) {
+      _hideBlockingLoader();
+      Get.snackbar('Error', e.toString());
+    } finally {
+      isAcceptQuoteLoading.value = false;
     }
   }
 
   Future<void> onAcceptAgencyOfferAndPay(PaidAdAgencyOffer offer) async {
+    if (isAcceptQuoteLoading.value) return;
+
     final campaignId = _extractCampaignId(arguments);
     if (campaignId == null || campaignId.trim().isEmpty) {
       Get.snackbar(
@@ -1403,21 +1722,30 @@ class BrandCampaignDetailsController extends GetxController {
       return;
     }
 
-    final accepted = await _acceptQuoteRequest();
-    if (!accepted) return;
-
     try {
-      isLoading.value = true;
+      isAcceptQuoteLoading.value = true;
+      payingAgencyOfferId.value = offer.agencyId;
+
+      _showBlockingLoader();
+
       await _campaignService.selectAgencyForCampaign(
         campaignId: campaignId,
         agencyId: offer.agencyId,
       );
+
+      selectedAgencyOfferId.value = offer.agencyId;
+
       await _loadFromApiIfPossible();
+
+      _hideBlockingLoader();
+
       openFundCampaignDialog();
     } catch (e) {
+      _hideBlockingLoader();
       Get.snackbar(trOr('common_error', 'Error'), _errorMessage(e));
     } finally {
-      isLoading.value = false;
+      isAcceptQuoteLoading.value = false;
+      payingAgencyOfferId.value = null;
     }
   }
 
@@ -1733,59 +2061,37 @@ class BrandCampaignDetailsController extends GetxController {
       fmt: _fmt,
       trOr: trOr,
       onRequote: _openPaidAdRequoteDialog,
-      onConfirm: _acceptQuoteRequest,
+      onConfirm: () async {
+        final ok = await _acceptQuoteRequest();
+        return ok;
+      },
     );
+  }
+
+  int _parseCurrencyToInt(String input) {
+    final cleaned = input.replaceAll(RegExp(r'[^0-9]'), '');
+    return int.tryParse(cleaned) ?? 0;
   }
 
   void openFundCampaignDialog() {
     final totalDue = dueAmount.value > 0 ? dueAmount.value : totalCost;
+    final alreadyPaid = paidAmount.value;
 
     FundCampaignDialog.show(
       campaignTitle: campaignTitle.value,
       totalDue: totalDue,
-      paidAmount: paidAmount.value,
+      paidAmount: alreadyPaid,
       trOr: trOr,
-      fmt: _fmt,
-      parseAmount: _parseAmount,
+      fmt: (amount) => formatCurrencyByLocale(amount),
+      parseAmount: _parseCurrencyToInt,
       onPay: ({required int amount}) async {
-        final campaignId = _extractCampaignId(arguments);
-        if (campaignId == null || campaignId.trim().isEmpty) {
-          Get.snackbar(
-            trOr('common_error', 'Error'),
-            trOr('brand_campaign_missing_id', 'Missing campaign id.'),
-          );
-          return;
-        }
-
-        final isDuePayment =
-            showDueButton.value && dueAmount.value > 0 && paidAmount.value > 0;
-
-        try {
-          isLoading.value = true;
-          if (isDuePayment) {
-            await _campaignService.payCampaignDue(
-              campaignId: campaignId,
-              amount: amount,
-            );
-          } else {
-            await _campaignService.payCampaignAmount(
-              campaignId: campaignId,
-              amount: amount,
-            );
-          }
-
-          await _loadFromApiIfPossible();
-          Get.back();
-          Get.snackbar(
-            trOr('brand_campaign_payment', 'Payment'),
-            trOr('brand_campaign_payment_success', 'Payment initiated.'),
-          );
-        } catch (e) {
-          Get.snackbar(trOr('common_error', 'Error'), _errorMessage(e));
-        } finally {
-          isLoading.value = false;
+        if (showDueButton.value && dueAmount.value > 0) {
+          await payCampaignDueNow(amount: amount);
+        } else {
+          await payCampaignNow(amount: amount);
         }
       },
+      isPaying: isPayNowLoading,
     );
   }
 

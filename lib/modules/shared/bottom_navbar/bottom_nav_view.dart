@@ -3,13 +3,11 @@ import 'package:get/get.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:influencer_app/core/controllers/app_user_session_controller.dart';
 import 'package:influencer_app/core/services/account_type_service.dart';
-import 'package:influencer_app/core/utils/constants.dart';
-import 'package:influencer_app/core/widgets/custom_button.dart';
+
 import '../../../core/widgets/logout_dialog.dart';
 import 'bottom_nav_controller.dart';
 import 'package:influencer_app/routes/app_routes.dart';
 import 'package:influencer_app/core/theme/app_palette.dart';
-import 'package:influencer_app/core/services/auth_services.dart';
 import 'utils/bottom_nav_route_generator.dart';
 
 class BottomNavView extends StatelessWidget {
@@ -42,8 +40,13 @@ class BottomNavView extends StatelessWidget {
                   // ---------- NESTED NAVIGATOR ----------
                   child: Navigator(
                     key: Get.nestedKey(1),
-                    // Dev mode: always show dashboard home (no verification checks)
-                    initialRoute: AppRoutes.home,
+                    onGenerateInitialRoutes: (_, __) {
+                      return [
+                        BottomNavRouteGenerator.generateRoute(
+                          RouteSettings(name: controller.initialNestedRoute),
+                        ),
+                      ];
+                    },
                     onGenerateRoute: BottomNavRouteGenerator.generateRoute,
                   ),
                 ),
@@ -447,18 +450,7 @@ class _DrawerProfileHeader extends StatelessWidget {
     AppUserSessionController session,
     AccountTypeService accountTypeService,
   ) {
-    if (accountTypeService.isInfluencer &&
-        session.influencerProfile.value != null) {
-      return session.influencerProfile.value!.isOnboardingComplete;
-    }
-
-    if (accountTypeService.isAdAgency &&
-        session.agencyProfileJson.value != null) {
-      final agencyJson = session.agencyProfileJson.value!;
-      return agencyJson['isOnboardingComplete'] as bool? ?? false;
-    }
-
-    return false;
+    return session.isUserVerified();
   }
 
   @override
@@ -521,7 +513,7 @@ class _DrawerProfileHeader extends StatelessWidget {
                     rating: ratingValue,
                     size: 20.sp,
                     filledColor: AppPalette.starDark,
-                    emptyColor: AppPalette.starDark.withOpacity(0.35),
+                    emptyColor: AppPalette.defaultFill,
                   ),
                   SizedBox(width: 8.w),
                   Text(
@@ -587,7 +579,7 @@ List<Widget> _buildRatingStars({
     } else if (i == full && hasHalf) {
       icon = Icons.star_half_rounded;
     } else {
-      icon = Icons.star_outline_rounded;
+      icon = Icons.star_rounded;
     }
 
     final isFilled = i < full || (i == full && hasHalf);

@@ -1,4 +1,5 @@
 // lib/modules/ad_agency/milestone_details/milestone_details_controller.dart
+import 'dart:async';
 import 'dart:developer' as dev;
 import 'dart:io';
 
@@ -10,6 +11,7 @@ import 'package:influencer_app/core/utils/currency_formatter.dart';
 import 'package:path/path.dart' as path;
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/services/firebase_messaging_service.dart';
 import '../../../core/utils/metric_number_util.dart';
 import '../../ad_agency/services/upload_service.dart';
 import '../../../core/models/job_item.dart';
@@ -34,17 +36,17 @@ enum MilestoneLocalStatus {
 
 class SubmissionReportHistoryItem {
   final String id;
+  final String milestoneId;
+  final String authorId;
   final String content;
-  final String authorRole;
-  final String actionTaken;
-  final DateTime createdAt;
+  final DateTime date;
 
   SubmissionReportHistoryItem({
     required this.id,
+    required this.milestoneId,
+    required this.authorId,
     required this.content,
-    required this.authorRole,
-    required this.actionTaken,
-    required this.createdAt,
+    required this.date,
   });
 }
 
@@ -182,7 +184,7 @@ class MilestoneDetailsController extends GetxController {
   final RxList<SubmissionReportHistoryItem> selectedSubmissionReports =
       <SubmissionReportHistoryItem>[].obs;
   final RxBool isSelectedSubmissionReportsLoading = false.obs;
-  final RxnString selectedSubmissionReportSubmissionId = RxnString();
+  final RxnString selectedSubmissionReportMilestoneId = RxnString();
 
   // bottom checkboxes
   final RxBool confirmOwnership = false.obs;
@@ -209,11 +211,30 @@ class MilestoneDetailsController extends GetxController {
 
   final RxBool isRefreshing = false.obs;
   final RxBool isInitialLoading = false.obs;
+  final RxBool isSubmitting = false.obs;
+  final RxBool isApproving = false.obs;
+  final RxBool isDeclining = false.obs;
+  final RxBool isReporting = false.obs;
+
+  double get combinedPaidAdCompletedPercent {
+    if (job.campaignType != CampaignType.paidAd) return 0;
+
+    return brandSubmissions
+        .where((s) => s.status.value == BrandSubmissionStatus.completed)
+        .fold<double>(0, (sum, s) => sum + s.avgPercent);
+  }
 
   bool get canShowBonusSection {
     if (!_accountTypeService.isBrand) return false;
-    if (currentMilestone.status != MilestoneStatus.approved) return false;
+    // if (currentMilestone.status != MilestoneStatus.approved) return false;
 
+    // ✅ Paid ad: multiple completed submissions can together exceed 100%
+
+    if (job.campaignType == CampaignType.paidAd) {
+      return combinedPaidAdCompletedPercent > 100;
+    }
+
+    // ✅ Influencer promotion / single-submission style: keep old metric-based logic
     int totalReach = 0;
     int totalViews = 0;
     int totalLikes = 0;
@@ -281,6 +302,8 @@ class MilestoneDetailsController extends GetxController {
 
   final RxInt agencyPaidAmountTotal = 0.obs;
 
+  StreamSubscription<Map<String, dynamic>>? _notificationSubscription;
+
   @override
   void onInit() {
     super.onInit();
@@ -296,6 +319,8 @@ class MilestoneDetailsController extends GetxController {
 
     _syncLocalStatusFromModel();
 
+    _listenCampaignNotifications();
+
     // ✅ ALWAYS FETCH FROM SERVER FOR ALL USERS
     _loadMilestoneDetailsByRole(showInitialLoader: true);
   }
@@ -304,11 +329,54 @@ class MilestoneDetailsController extends GetxController {
 
   @override
   void onClose() {
+    _notificationSubscription?.cancel();
     bonusAmountController.dispose();
     for (final s in submissions) {
       s.dispose();
     }
     super.onClose();
+  }
+
+  void _listenCampaignNotifications() {
+    _notificationSubscription?.cancel();
+
+    _notificationSubscription = FirebaseMessagingService.notificationStream
+        .listen((data) async {
+          final notificationCampaignId =
+              data['campaignId']?.toString().trim() ?? '';
+          final notificationMilestoneId =
+              data['milestoneId']?.toString().trim() ?? '';
+
+          final currentCampaignId = (job.id ?? '').trim();
+          final currentMilestoneId = (milestone.id ?? '').trim();
+
+          final bool campaignMatched =
+              notificationCampaignId.isNotEmpty &&
+              currentCampaignId.isNotEmpty &&
+              notificationCampaignId == currentCampaignId;
+
+          final bool milestoneMatched =
+              notificationMilestoneId.isNotEmpty &&
+              currentMilestoneId.isNotEmpty &&
+              notificationMilestoneId == currentMilestoneId;
+
+          if (!campaignMatched && !milestoneMatched) {
+            return;
+          }
+
+          dev.log(
+            'Matched notification. Refreshing milestone details page.',
+            name: 'MilestoneDetailsController',
+            error: {
+              'currentCampaignId': currentCampaignId,
+              'currentMilestoneId': currentMilestoneId,
+              'notificationCampaignId': notificationCampaignId,
+              'notificationMilestoneId': notificationMilestoneId,
+            },
+          );
+
+          await refreshMilestoneDetails();
+        });
   }
 
   Future<void> _loadMilestoneDetailsByRole({
@@ -450,10 +518,10 @@ class MilestoneDetailsController extends GetxController {
         .map(
           (e) => SubmissionReportHistoryItem(
             id: e['id']?.toString() ?? '',
+            milestoneId: e['milestoneId']?.toString() ?? '',
+            authorId: e['authorId']?.toString() ?? '',
             content: e['content']?.toString().trim() ?? '',
-            authorRole: e['authorRole']?.toString() ?? '',
-            actionTaken: e['actionTaken']?.toString() ?? '',
-            createdAt: _safeParseDateTime(e['createdAt']?.toString()),
+            date: _safeParseDateTime(e['date']?.toString()),
           ),
         )
         .where((e) => e.content.isNotEmpty)
@@ -463,25 +531,19 @@ class MilestoneDetailsController extends GetxController {
   Future<void> _loadSelectedSubmissionReportsForBrand() async {
     if (!_accountTypeService.isBrand) return;
 
-    final target = selectedBrandSubmission;
-    final submissionId = (target?.serverId ?? '').trim();
+    final milestoneId = (milestone.id ?? '').trim();
 
-    // no submission selected / no server id
-    if (submissionId.isEmpty) {
-      selectedSubmissionReportSubmissionId.value = null;
+    if (milestoneId.isEmpty) {
+      selectedSubmissionReportMilestoneId.value = null;
       selectedSubmissionReports.clear();
       return;
     }
 
-    // prevent duplicate reload if already loaded for same selection (optional)
-    // if (selectedSubmissionReportSubmissionId.value == submissionId &&
-    //     selectedSubmissionReports.isNotEmpty) return;
-
     isSelectedSubmissionReportsLoading.value = true;
-    selectedSubmissionReportSubmissionId.value = submissionId;
+    selectedSubmissionReportMilestoneId.value = milestoneId;
 
     final result = await ApiErrorHandler.call(
-      () => _campaignService.fetchSubmissionReport(submissionId: submissionId),
+      () => _campaignService.fetchSubmissionReport(milestoneId: milestoneId),
       showError: false,
     );
 
@@ -511,26 +573,31 @@ class MilestoneDetailsController extends GetxController {
       return;
     }
 
-    final result = await ApiErrorHandler.call(() {
-      if (job.campaignType == CampaignType.paidAd) {
-        return _campaignService.reportAgencyMilestone(
+    isReporting.value = true;
+    try {
+      final result = await ApiErrorHandler.call(() {
+        if (job.campaignType == CampaignType.paidAd) {
+          return _campaignService.reportAgencyMilestone(
+            milestoneId: milestoneId,
+            report: r,
+          );
+        }
+
+        return _campaignService.reportInfluencerMilestone(
           milestoneId: milestoneId,
           report: r,
         );
-      }
+      });
 
-      return _campaignService.reportInfluencerMilestone(
-        milestoneId: milestoneId,
-        report: r,
-      );
-    });
+      if (!result.isSuccess) return;
 
-    if (!result.isSuccess) return;
+      hasReportedToAdmin.value = true;
+      reportAgainAt.value = DateTime.now().add(const Duration(days: 1));
 
-    hasReportedToAdmin.value = true;
-    reportAgainAt.value = DateTime.now().add(const Duration(days: 1));
-
-    await _loadSelectedSubmissionReportsForBrand();
+      await _loadSelectedSubmissionReportsForBrand();
+    } finally {
+      isReporting.value = false;
+    }
   }
 
   String trOr(String key, String fallback) {
@@ -648,7 +715,7 @@ class MilestoneDetailsController extends GetxController {
         selectedBrandSubmissionIndex.value = null;
         selectedBrandSubmissionIndexes.clear();
         selectedSubmissionReports.clear();
-        selectedSubmissionReportSubmissionId.value = null;
+        selectedSubmissionReportMilestoneId.value = null;
       } else if (isPaidAd) {
         selectedBrandSubmissionIndex.value = null;
         selectedBrandSubmissionIndexes.clear();
@@ -1030,14 +1097,16 @@ class MilestoneDetailsController extends GetxController {
     final requestedAmount =
         double.tryParse(ui.amountController.text.trim()) ?? 0.0;
 
+    final targetAmount =
+        MetricNumberUtil.parseToInt(ui.metricValueController.text.trim()) ?? 0;
+
     final thePayload = {
       'description': ui.descriptionController.text.trim(),
       'liveLinks': ui.liveLinks,
       'proofAttachments': proofUrls,
       if (requestedAmount > 0) 'requestPaymentAmount': requestedAmount,
       "targetTitle": ui.metricLabelController.text.trim(),
-      "targetAmount":
-          double.tryParse(ui.metricValueController.text.trim()) ?? 0.0,
+      "targetAmount": targetAmount,
     };
     dev.log('THE PAYLOAD: $thePayload');
     return thePayload;
@@ -1171,7 +1240,7 @@ class MilestoneDetailsController extends GetxController {
   }
 
   /// Called from "Submit For Admin Review" button.
-  void submitForReview() {
+  void submitForReview() async {
     if (!confirmOwnership.value || !acceptLicense.value) {
       Get.snackbar(
         'Action required',
@@ -1192,14 +1261,19 @@ class MilestoneDetailsController extends GetxController {
       return;
     }
 
-    if (_accountTypeService.isAdAgency) {
-      _submitAgencyDraftSubmissions(milestoneId);
-      return;
-    }
+    isSubmitting.value = true;
+    try {
+      if (_accountTypeService.isAdAgency) {
+        await _submitAgencyDraftSubmissions(milestoneId);
+        return;
+      }
 
-    if (_accountTypeService.isInfluencer) {
-      _submitInfluencerOnly(milestoneId);
-      return;
+      if (_accountTypeService.isInfluencer) {
+        await _submitInfluencerOnly(milestoneId);
+        return;
+      }
+    } finally {
+      isSubmitting.value = false;
     }
   }
 
@@ -1668,36 +1742,41 @@ class MilestoneDetailsController extends GetxController {
   Future<void> approveSelectedBrandSubmission() async {
     final isPaidAd = job.campaignType == CampaignType.paidAd;
 
-    if (isPaidAd) {
+    isApproving.value = true;
+    try {
+      if (isPaidAd) {
+        final ok = await _reviewClientSubmission(
+          approve: true,
+          milestoneId: milestone.id?.trim(),
+          submissionIds: selectedBrandSubmissionIds,
+        );
+
+        if (!ok) return;
+
+        _markNeedsParentRefresh();
+        selectedBrandSubmissionIndexes.clear();
+        await _loadBrandMilestoneDetails(isPaidAd: true);
+        return;
+      }
+
+      final target = selectedBrandSubmission;
+      if (target == null) {
+        Get.snackbar('No submission', 'Please select a submission first.');
+        return;
+      }
+
       final ok = await _reviewClientSubmission(
         approve: true,
-        milestoneId: milestone.id?.trim(),
-        submissionIds: selectedBrandSubmissionIds,
+        submissionId: target.serverId,
       );
 
       if (!ok) return;
 
       _markNeedsParentRefresh();
-      selectedBrandSubmissionIndexes.clear();
-      await _loadBrandMilestoneDetails(isPaidAd: true);
-      return;
+      await _loadBrandMilestoneDetails(isPaidAd: false);
+    } finally {
+      isApproving.value = false;
     }
-
-    final target = selectedBrandSubmission;
-    if (target == null) {
-      Get.snackbar('No submission', 'Please select a submission first.');
-      return;
-    }
-
-    final ok = await _reviewClientSubmission(
-      approve: true,
-      submissionId: target.serverId,
-    );
-
-    if (!ok) return;
-
-    _markNeedsParentRefresh();
-    await _loadBrandMilestoneDetails(isPaidAd: false);
   }
 
   Future<void> declineSelectedBrandSubmission(String reason) async {
@@ -1709,38 +1788,43 @@ class MilestoneDetailsController extends GetxController {
 
     final isPaidAd = job.campaignType == CampaignType.paidAd;
 
-    if (isPaidAd) {
+    isDeclining.value = true;
+    try {
+      if (isPaidAd) {
+        final ok = await _reviewClientSubmission(
+          approve: false,
+          milestoneId: milestone.id?.trim(),
+          submissionIds: selectedBrandSubmissionIds,
+          reason: r,
+        );
+
+        if (!ok) return;
+
+        _markNeedsParentRefresh();
+        selectedBrandSubmissionIndexes.clear();
+        await _loadBrandMilestoneDetails(isPaidAd: true);
+        return;
+      }
+
+      final target = selectedBrandSubmission;
+      if (target == null) {
+        Get.snackbar('No submission', 'Please select a submission first.');
+        return;
+      }
+
       final ok = await _reviewClientSubmission(
         approve: false,
-        milestoneId: milestone.id?.trim(),
-        submissionIds: selectedBrandSubmissionIds,
+        submissionId: target.serverId,
         reason: r,
       );
 
       if (!ok) return;
 
       _markNeedsParentRefresh();
-      selectedBrandSubmissionIndexes.clear();
-      await _loadBrandMilestoneDetails(isPaidAd: true);
-      return;
+      await _loadBrandMilestoneDetails(isPaidAd: false);
+    } finally {
+      isDeclining.value = false;
     }
-
-    final target = selectedBrandSubmission;
-    if (target == null) {
-      Get.snackbar('No submission', 'Please select a submission first.');
-      return;
-    }
-
-    final ok = await _reviewClientSubmission(
-      approve: false,
-      submissionId: target.serverId,
-      reason: r,
-    );
-
-    if (!ok) return;
-
-    _markNeedsParentRefresh();
-    await _loadBrandMilestoneDetails(isPaidAd: false);
   }
 
   Future<bool> _reviewClientSubmission({

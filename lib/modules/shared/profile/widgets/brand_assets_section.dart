@@ -6,7 +6,6 @@ import 'package:influencer_app/core/utils/constants.dart';
 import 'package:influencer_app/core/widgets/custom_button.dart';
 import 'package:influencer_app/core/widgets/custom_text_form_field.dart';
 
-import '../models/brand_asset.dart';
 import '../profile_controller.dart';
 
 class BrandAssetsSection extends GetView<ProfileController> {
@@ -167,9 +166,9 @@ class BrandAssetsSection extends GetView<ProfileController> {
 }
 
 class _BrandPlatformDropdown extends StatelessWidget {
-  final BrandHandlePlatform? value;
-  final ValueChanged<BrandHandlePlatform?> onChanged;
-  final List<BrandHandlePlatform> items;
+  final String? value;
+  final ValueChanged<String?> onChanged;
+  final List<String> items;
 
   const _BrandPlatformDropdown({
     required this.value,
@@ -187,7 +186,7 @@ class _BrandPlatformDropdown extends StatelessWidget {
         border: Border.all(color: AppPalette.border1, width: kBorderWidth0_5),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<BrandHandlePlatform>(
+        child: DropdownButton<String>(
           value: value,
           isExpanded: true,
           icon: Icon(Icons.keyboard_arrow_down_rounded, size: 24.sp),
@@ -203,7 +202,7 @@ class _BrandPlatformDropdown extends StatelessWidget {
           ),
           items: items
               .map(
-                (p) => DropdownMenuItem(
+                (p) => DropdownMenuItem<String>(
                   value: p,
                   child: Text(
                     _labelForPlatform(p).tr,
@@ -224,22 +223,26 @@ class _BrandPlatformDropdown extends StatelessWidget {
     );
   }
 
-  String _labelForPlatform(BrandHandlePlatform p) {
-    switch (p) {
-      case BrandHandlePlatform.facebook:
+  String _labelForPlatform(String p) {
+    final key = p.toLowerCase();
+    switch (key) {
+      case 'facebook':
         return 'brand_platform_facebook';
-      case BrandHandlePlatform.instagram:
+      case 'instagram':
         return 'brand_platform_instagram';
-      case BrandHandlePlatform.tiktok:
+      case 'tiktok':
         return 'brand_platform_tiktok';
-      case BrandHandlePlatform.youtube:
+      case 'youtube':
         return 'brand_platform_youtube';
-      case BrandHandlePlatform.linkedin:
+      case 'linkedin':
         return 'brand_platform_linkedin';
-      case BrandHandlePlatform.x:
+      case 'x':
+      case 'twitter':
         return 'brand_platform_x';
-      case BrandHandlePlatform.website:
+      case 'website':
         return 'brand_platform_website';
+      default:
+        return p;
     }
   }
 }

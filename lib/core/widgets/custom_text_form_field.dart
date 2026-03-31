@@ -27,6 +27,7 @@ class CustomTextFormField extends StatelessWidget {
   final Color? borderColor;
   final double? borderRadius;
   final List<TextInputFormatter>? inputFormatters;
+  final bool readOnly;
 
   const CustomTextFormField({
     super.key,
@@ -51,6 +52,7 @@ class CustomTextFormField extends StatelessWidget {
     this.borderColor,
     this.borderRadius,
     this.inputFormatters,
+    this.readOnly = false,
   });
 
   @override
@@ -80,6 +82,7 @@ class CustomTextFormField extends StatelessWidget {
       controller: controller,
       maxLines: obscureText ? 1 : maxLines,
       enabled: enabled,
+      readOnly: readOnly,
       style: style,
       textAlign: textAlign ?? TextAlign.start,
       validator: validator,

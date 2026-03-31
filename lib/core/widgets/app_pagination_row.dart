@@ -83,7 +83,8 @@ class AppPaginationRow extends StatelessWidget {
             ),
 
           CustomButton(
-            onTap: (loading || p >= total) ? () {} : onNext,
+            onTap: (p >= total) ? null : onNext,
+            isLoading: loading,
             btnText: nextLabel,
             textColor: AppPalette.white,
           ),

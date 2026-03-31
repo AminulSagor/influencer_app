@@ -21,13 +21,23 @@ class HomeController extends GetxController {
   final _apiClient = Get.find<ApiClient>();
 
   final dashboard = HomeDashboardModel.empty().obs;
+  final RxBool isInitialLoading = false.obs;
 
   @override
-  void onInit() async {
+  void onInit() {
     super.onInit();
     final userType = _resolveUserType();
     dashboard.value = HomeDashboardModel.empty(userType: userType);
-    await refreshDashboard();
+    _initialLoad();
+  }
+
+  Future<void> _initialLoad() async {
+    isInitialLoading.value = true;
+    try {
+      await refreshDashboard();
+    } finally {
+      isInitialLoading.value = false;
+    }
   }
 
   Future<void> refreshDashboard() async {

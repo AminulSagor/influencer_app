@@ -1,7 +1,40 @@
 import 'package:dio/dio.dart';
+import 'package:get/get.dart';
 import '../models/job_item.dart';
 import '../../modules/brand/create_campaign/models/lookup_models.dart';
 import 'api_client.dart';
+
+class CampaignInfluencerRatingItem {
+  final String influencerId;
+  final String influencerName;
+  final String? influencerImage;
+  final bool isRated;
+  final int rating;
+  final DateTime? ratedAt;
+
+  const CampaignInfluencerRatingItem({
+    required this.influencerId,
+    required this.influencerName,
+    required this.influencerImage,
+    required this.isRated,
+    required this.rating,
+    required this.ratedAt,
+  });
+}
+
+class CampaignRatingsResponse {
+  final String campaignId;
+  final String campaignName;
+  final int overallCampaignRating;
+  final List<CampaignInfluencerRatingItem> influencerRatings;
+
+  const CampaignRatingsResponse({
+    required this.campaignId,
+    required this.campaignName,
+    required this.overallCampaignRating,
+    required this.influencerRatings,
+  });
+}
 
 class CampaignService {
   CampaignService(this._api);
@@ -12,6 +45,11 @@ class CampaignService {
 
   Future<List<String>> fetchNiches() async {
     final res = await _api.dio.get('$_campaignBase/get/niches');
+    return _extractNameList(res.data);
+  }
+
+  Future<List<String>> fetchPlatforms() async {
+    final res = await _api.dio.get('$_campaignBase/get/platforms');
     return _extractNameList(res.data);
   }
 
@@ -308,7 +346,11 @@ class CampaignService {
   }) async {
     final res = await _api.dio.post(
       '/campaign/client/campaign/pay',
-      data: {'campaignId': campaignId, 'amount': amount},
+      data: {
+        'campaignId': campaignId,
+        'amount': amount,
+        'locale': Get.locale?.languageCode ?? 'en',
+      },
     );
     return _expectMap(res.data, 'pay campaign amount');
   }
@@ -319,7 +361,11 @@ class CampaignService {
   }) async {
     final res = await _api.dio.post(
       '/campaign/client/pay-due',
-      data: {'campaignId': campaignId, 'amount': amount},
+      data: {
+        'campaignId': campaignId,
+        'amount': amount,
+        'locale': Get.locale?.languageCode ?? 'en',
+      },
     );
     return _expectMap(res.data, 'pay campaign due');
   }
@@ -403,7 +449,7 @@ class CampaignService {
   }) async {
     final res = await _api.dio.post(
       '/campaign/client/milestones/influencer/$milestoneId/bonus',
-      data: {'amount': amount},
+      data: {'amount': amount, 'locale': Get.locale?.languageCode ?? 'en'},
     );
     return _expectMap(res.data, 'pay client submission bonus');
   }
@@ -542,10 +588,12 @@ class CampaignService {
   }
 
   Future<Map<String, dynamic>> fetchSubmissionReport({
-    required String submissionId,
+    required String milestoneId,
   }) async {
-    final res = await _api.dio.get('/campaign/submission/$submissionId/report');
-    return _expectMap(res.data, 'submission report');
+    final res = await _api.dio.get(
+      '/campaign/client/milestones/$milestoneId/reports',
+    );
+    return _expectMap(res.data, 'milestone reports');
   }
 
   Future<Map<String, dynamic>> fetchAgencyCampaignProgress({
@@ -634,7 +682,7 @@ class CampaignService {
   }) async {
     final res = await _api.dio.post(
       '/campaign/client/milestones/agency/$milestoneId/bonus',
-      data: {'amount': amount},
+      data: {'amount': amount, 'locale': Get.locale?.languageCode ?? 'en'},
     );
     return _expectMap(res.data, 'pay client milestone bonus');
   }
@@ -757,5 +805,50 @@ class CampaignService {
       data: {'assets': assets},
     );
     return _expectMap(res.data, 'add campaign assets');
+  }
+
+  Future<CampaignRatingsResponse> fetchCampaignRatings({
+    required String campaignId,
+  }) async {
+    final res = await _api.dio.get('/campaign/get/ratings/$campaignId');
+
+    final data = _expectMap(res.data, 'campaign ratings');
+    final payload = _expectMap(data['data'], 'campaign ratings data');
+
+    final rawRatings = (payload['influencerRatings'] as List?) ?? const [];
+
+    final ratings = rawRatings
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .map(
+          (e) => CampaignInfluencerRatingItem(
+            influencerId: e['influencerId']?.toString() ?? '',
+            influencerName: e['influencerName']?.toString() ?? 'Influencer',
+            influencerImage: e['influencerImage']?.toString(),
+            isRated: e['isRated'] == true,
+            rating: ((e['rating'] as num?)?.toInt() ?? 0).clamp(0, 5),
+            ratedAt: DateTime.tryParse(e['ratedAt']?.toString() ?? ''),
+          ),
+        )
+        .where((e) => e.influencerId.isNotEmpty)
+        .toList(growable: false);
+
+    return CampaignRatingsResponse(
+      campaignId: payload['campaignId']?.toString() ?? campaignId,
+      campaignName: payload['campaignName']?.toString() ?? '',
+      overallCampaignRating:
+          ((payload['overallCampaignRating'] as num?)?.toInt() ?? 0).clamp(
+            0,
+            5,
+          ),
+      influencerRatings: ratings,
+    );
+  }
+
+  Future<Map<String, dynamic>> fetchPaymentStatus({
+    required String tranId,
+  }) async {
+    final res = await _api.dio.get('/payments/$tranId/status');
+    return _expectMap(res.data, 'payment status');
   }
 }

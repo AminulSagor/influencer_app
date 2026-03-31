@@ -12,6 +12,7 @@ import 'package:influencer_app/core/theme/app_theme.dart';
 import 'package:influencer_app/core/utils/currency_formatter.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../core/models/job_item.dart';
+import '../../../core/services/firebase_messaging_service.dart';
 import '../../../core/widgets/reason_bottom_sheet.dart';
 import '../../../routes/app_routes.dart';
 import '../../../core/utils/label_localizers.dart';
@@ -35,6 +36,7 @@ class CampaignDetailsController extends GetxController {
   final CampaignService _campaignService = Get.find<CampaignService>();
 
   final isPageRefreshing = false.obs;
+  final isInitialLoading = false.obs;
   final isAcceptDeclineLoading = false.obs;
   final isRequoteLoading = false.obs;
   String _serverStatus = '';
@@ -68,6 +70,8 @@ class CampaignDetailsController extends GetxController {
   final isCampaignRated = false.obs;
   final campaignRating = 0.0.obs;
 
+  StreamSubscription<Map<String, dynamic>>? _notificationSubscription;
+
   @override
   void onInit() {
     super.onInit();
@@ -78,7 +82,60 @@ class CampaignDetailsController extends GetxController {
     _job = arguments as JobItem;
     milestones.assignAll(job.milestones ?? const <Milestone>[]);
     _recalculateStatus();
+    _listenCampaignNotifications();
     _loadCampaignDetails();
+  }
+
+  void _listenCampaignNotifications() {
+    _notificationSubscription?.cancel();
+
+    _notificationSubscription = FirebaseMessagingService.notificationStream
+        .listen((data) async {
+          final notificationCampaignId =
+              data['campaignId']?.toString().trim() ?? '';
+          final notificationMilestoneId =
+              data['milestoneId']?.toString().trim() ?? '';
+
+          final currentCampaignIds = <String>{
+            (job.id ?? '').trim(),
+            (influencerJobCampaignId.value ?? '').trim(),
+          }.where((e) => e.isNotEmpty).toSet();
+
+          final currentMilestoneIds = milestones
+              .map((m) => (m.id ?? '').trim())
+              .where((e) => e.isNotEmpty)
+              .toSet();
+
+          final campaignMatched =
+              notificationCampaignId.isNotEmpty &&
+              currentCampaignIds.contains(notificationCampaignId);
+
+          final milestoneMatched =
+              notificationMilestoneId.isNotEmpty &&
+              currentMilestoneIds.contains(notificationMilestoneId);
+
+          if (!campaignMatched && !milestoneMatched) {
+            return;
+          }
+
+          dev.log(
+            'Matched notification. Refreshing campaign details page.',
+            name: 'CampaignDetailsController',
+            error: {
+              'notificationCampaignId': notificationCampaignId,
+              'notificationMilestoneId': notificationMilestoneId,
+              'currentCampaignIds': currentCampaignIds.toList(),
+              'currentMilestoneIds': currentMilestoneIds.toList(),
+            },
+          );
+
+          if (isInitialLoading.value || isPageRefreshing.value) {
+            return;
+          }
+
+          isPageRefreshing.value = true;
+          await refreshCampaignDetails();
+        });
   }
 
   void toggleMilestones() => milestonesExpanded.toggle();
@@ -421,26 +478,32 @@ class CampaignDetailsController extends GetxController {
       return;
     }
 
-    isPageRefreshing.value = true;
-
-    final result = await ApiErrorHandler.call(() async {
-      if (accountTypeService.isInfluencer) {
-        await _loadInfluencerJobDetails(id);
-        if (influencerJobCampaignId.value != null) {
-          await _loadInfluencerWithdrawableBalance(
-            influencerJobCampaignId.value!,
-          );
-        }
-      } else if (accountTypeService.isAdAgency) {
-        await _loadAgencyCampaignDetails(id);
-      }
-    });
-
-    if (!result.isSuccess && kDebugMode) {
-      print('Failed to load campaign details for $id');
+    final isRefresh = isPageRefreshing.value;
+    if (!isRefresh) {
+      isInitialLoading.value = true;
     }
 
-    isPageRefreshing.value = false;
+    try {
+      final result = await ApiErrorHandler.call(() async {
+        if (accountTypeService.isInfluencer) {
+          await _loadInfluencerJobDetails(id);
+          if (influencerJobCampaignId.value != null) {
+            await _loadInfluencerWithdrawableBalance(
+              influencerJobCampaignId.value!,
+            );
+          }
+        } else if (accountTypeService.isAdAgency) {
+          await _loadAgencyCampaignDetails(id);
+        }
+      });
+
+      if (!result.isSuccess && kDebugMode) {
+        print('Failed to load campaign details for $id');
+      }
+    } finally {
+      isPageRefreshing.value = false;
+      isInitialLoading.value = false;
+    }
   }
 
   // ✅ NEW: extract `{success, data:{...}}` safely (also supports raw map without data)
@@ -667,7 +730,7 @@ class CampaignDetailsController extends GetxController {
       progressPercent: job.progressPercent,
       dueInDays: job.dueInDays,
       dueLabel: dueLabel,
-      rating: _toDouble(root['rating']).round(),
+      rating: _toDouble(root['rating']),
       profitLabel: job.profitLabel,
       vatLabel: job.vatLabel,
       totalCostLabel: job.totalCostLabel,
@@ -844,7 +907,7 @@ class CampaignDetailsController extends GetxController {
       progressPercent: updated.progressPercent,
       dueInDays: updated.dueInDays,
       dueLabel: updated.dueLabel,
-      rating: campaignRating.value.round(),
+      rating: campaignRating.value,
       profitLabel: updated.profitLabel,
       vatLabel: updated.vatLabel,
       totalCostLabel: updated.totalCostLabel,
@@ -927,7 +990,13 @@ class CampaignDetailsController extends GetxController {
         campaignStatus.value = CampaignStatus.accepted;
         return;
       }
-      if ({'completed', 'complete', 'closed', 'paid'}.contains(_serverStatus)) {
+      if ({
+        'completed',
+        'complete',
+        'closed',
+        'paid',
+        'partial_paid',
+      }.contains(_serverStatus)) {
         campaignStatus.value = CampaignStatus.complete;
         return;
       }
@@ -1428,6 +1497,8 @@ class CampaignDetailsController extends GetxController {
 
   @override
   void onClose() {
+    _notificationSubscription?.cancel();
+    _notificationSubscription = null;
     _requoteTimer?.cancel();
     _requoteTimer = null;
     super.onClose();

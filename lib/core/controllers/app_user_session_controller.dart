@@ -13,7 +13,10 @@ import 'package:influencer_app/modules/influencer/services/influencer_profile_se
 
 import '../../modules/shared/bottom_navbar/bottom_nav_controller.dart';
 import '../../routes/app_routes.dart';
+import '../models/location_models.dart';
 import '../services/auth_services.dart';
+import '../services/campaign_service.dart';
+import '../services/location_service.dart';
 
 class AppUserSessionController extends GetxService {
   final isLoading = false.obs;
@@ -47,30 +50,123 @@ class AppUserSessionController extends GetxService {
   final NotificationService _notificationService =
       Get.find<NotificationService>();
 
+  final LocationService _locationService = Get.find<LocationService>();
+  final CampaignService _campaignService = Get.find<CampaignService>();
+
+  final brandZillas = <ZillaModel>[].obs;
+  final brandThanas = <ThanaModel>[].obs;
+  final brandPlatforms = <String>[].obs;
+
   String get _notificationBasePath => _accountTypeService.isBrand
       ? '/client/notifications'
       : _accountTypeService.isInfluencer
       ? '/influencer/notifications'
       : '/notifications';
 
-  Future<void> preloadUserData({bool forceRefresh = false}) async {
-    if (isLoading.value) return;
+  Future<bool> preloadUserData({bool forceRefresh = false}) async {
+    if (isLoading.value) {
+      return isUserVerified();
+    }
 
-    if (!forceRefresh && isLoaded.value) return;
+    if (!forceRefresh && isLoaded.value) {
+      return isUserVerified();
+    }
 
     isLoading.value = true;
+
     try {
       if (forceRefresh) {
         reset();
       }
 
       await _loadUserFromToken();
-      await Future.wait([_loadProfile(), _loadNotifications()]);
+
+      if (_accountTypeService.isBrand) {
+        await _preloadBrandLookupsBeforeProfile();
+      }
+
+      await _loadProfile();
+
+      if (_accountTypeService.isBrand) {
+        await _preloadBrandThanasAfterProfile();
+      }
+
+      await _loadNotifications();
+
       isLoaded.value = true;
+      return isUserVerified();
     } catch (e) {
       debugPrint('[AppUserSession] preload failed: $e');
+      return false;
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  Future<void> _preloadBrandLookupsBeforeProfile() async {
+    await Future.wait([_loadBrandZillas(), _loadBrandPlatforms()]);
+  }
+
+  Future<void> _loadBrandZillas() async {
+    if (brandZillas.isNotEmpty) return;
+
+    final result = await ApiErrorHandler.call(
+      () => _locationService.fetchAllZillas(),
+      showError: false,
+    );
+
+    if (result.isSuccess && result.data != null) {
+      brandZillas.assignAll(result.data!);
+    }
+  }
+
+  Future<void> _loadBrandPlatforms() async {
+    if (brandPlatforms.isNotEmpty) return;
+
+    final result = await ApiErrorHandler.call(
+      () => _campaignService.fetchPlatforms(),
+      showError: false,
+    );
+
+    if (result.isSuccess && result.data != null) {
+      final items = result.data!
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList(growable: false);
+
+      brandPlatforms.assignAll(items);
+    }
+  }
+
+  Future<void> _preloadBrandThanasAfterProfile() async {
+    final json = brandProfileJson.value;
+    if (json == null || json.isEmpty) return;
+
+    final zillaName = (json['zilla'] ?? '').toString().trim();
+    if (zillaName.isEmpty) return;
+
+    if (brandZillas.isEmpty) {
+      await _loadBrandZillas();
+    }
+
+    final matchedZilla = brandZillas.firstWhereOrNull(
+      (e) => e.displayName.toLowerCase() == zillaName.toLowerCase(),
+    );
+
+    if (matchedZilla == null) {
+      brandThanas.clear();
+      return;
+    }
+
+    final result = await ApiErrorHandler.call(
+      () => _locationService.fetchAllThanasByZilla(zillaId: matchedZilla.id),
+      showError: false,
+    );
+
+    if (result.isSuccess && result.data != null) {
+      brandThanas.assignAll(result.data!);
+    } else {
+      brandThanas.clear();
     }
   }
 
@@ -212,6 +308,45 @@ class AppUserSessionController extends GetxService {
       debugPrint('[AppUserSession] notifications load failed: $e');
       updateNotifications(newItems: const [], earlierItems: const []);
     }
+  }
+
+  /// Extracts verification status from loaded profile data
+  bool isUserVerified() {
+    if (_accountTypeService.isInfluencer) {
+      final profile = influencerProfile.value;
+      return profile?.isVerified ?? false;
+    }
+
+    if (_accountTypeService.isAdAgency) {
+      final json = agencyProfileJson.value;
+      if (json == null) return false;
+
+      return _toBool(json['isVerified']) ??
+          _toBool((json['user'] as Map?)?['isVerified']) ??
+          false;
+    }
+
+    if (_accountTypeService.isBrand) {
+      final json = brandProfileJson.value;
+      if (json == null) return false;
+
+      return _toBool(json['isVerified']) ??
+          _toBool((json['user'] as Map?)?['isVerified']) ??
+          false;
+    }
+
+    return false;
+  }
+
+  bool? _toBool(dynamic value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      if (normalized == 'true' || normalized == '1') return true;
+      if (normalized == 'false' || normalized == '0') return false;
+    }
+    return null;
   }
 
   void reset() {

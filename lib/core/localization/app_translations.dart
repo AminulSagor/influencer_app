@@ -337,6 +337,8 @@ class AppTranslations extends Translations {
       'add_niches': 'Add Niches',
       'add_skills': 'Add Skills',
       'add_bio': 'Add Bio',
+      'add_website': 'Add Website',
+      'add_address': 'Add Address',
       'completed': 'Completed',
       'verified': 'Verified',
       'in_review': 'In Review',
@@ -1140,6 +1142,11 @@ class AppTranslations extends Translations {
       "jobs_decline_reason_hint": "Write the reason for declining",
       "jobs_decline_submit": "Submit decline",
       "jobs_decline_reason_required": "Please enter a decline reason",
+
+      'save': 'Save',
+      'locations_add_address': 'Add Address',
+      'locations_edit_address': 'Edit Address',
+      'locations_save_address': 'Save Address',
     },
 
     // Bangla
@@ -1482,10 +1489,12 @@ class AppTranslations extends Translations {
       'add_niches': 'নিস যোগ করুন',
       'add_skills': 'স্কিল যোগ করুন',
       'add_bio': 'বায়ো লিখুন',
+      'add_website': 'ওয়েবসাইট যোগ করুন',
+      'add_address': 'ঠিকানা যোগ করুন',
       'completed': 'সম্পন্ন',
       'verified': 'ভেরিফাইড',
-      'in_review': 'পর্যালোচনাধীন',
-      'declined': 'বাতিল',
+      'in_review': 'রিভিউতে',
+      'declined': 'প্রত্যাখ্যাত',
       'that_is_how_we_reach_you': 'এভাবেই আমরা আপনার সাথে যোগাযোগ করব',
       'add_at_least_one_social': 'কমপক্ষে একটি সোশ্যাল লিংক যোগ করুন',
       'niche_help_text':
@@ -2288,6 +2297,10 @@ class AppTranslations extends Translations {
       "jobs_decline_reason_hint": "প্রত্যাখ্যানের কারণ লিখুন",
       "jobs_decline_submit": "প্রত্যাখ্যান জমা দিন",
       "jobs_decline_reason_required": "দয়া করে প্রত্যাখ্যানের কারণ লিখুন",
+      'save': 'সেভ',
+      'locations_add_address': 'ঠিকানা যোগ করুন',
+      'locations_edit_address': 'ঠিকানা সম্পাদনা করুন',
+      'locations_save_address': 'ঠিকানা সেভ করুন',
     },
   };
 }

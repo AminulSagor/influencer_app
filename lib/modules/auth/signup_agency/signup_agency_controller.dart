@@ -9,7 +9,9 @@ import '../../../core/enums/account_type.dart';
 import '../../../core/models/location_models.dart';
 import '../../../core/models/social_link.dart';
 import '../../../core/services/campaign_service.dart';
+import '../../../core/services/firebase_messaging_service.dart';
 import '../../../core/services/location_service.dart';
+import '../../../core/services/token_service.dart';
 import '../../../core/utils/bd_phone_input_formatter.dart';
 import '../../../routes/app_routes.dart';
 import 'widgets/experienced_niche_dialog.dart';
@@ -179,22 +181,18 @@ class SignupAgencyController extends GetxController {
   // ----------------- Step 3 (expertise / industries) -----------------
   final expertiseFormKey = GlobalKey<FormState>();
 
-  // Dropdown options
-  final List<String> platformOptions = const [
-    'Facebook',
-    'Instagram',
-    'YouTube',
-    'TikTok',
-    'X (Twitter)',
-    'Google Ads',
-    'LinkedIn',
-  ];
-
   final RxList<String> allNiches = <String>[].obs;
   final isLoadingNiches = false.obs;
 
+  final allowedPlatforms = <String>[].obs;
+  final isLoadingPlatforms = false.obs;
+
+  List<String> get platformOptions => allowedPlatforms.toList(growable: false);
+
   // List of platform blocks shown in the UI
   final RxList<AgencyPlatformEntry> platforms = <AgencyPlatformEntry>[].obs;
+
+  bool _addressPageBootstrapped = false;
 
   @override
   void onInit() {
@@ -203,8 +201,14 @@ class SignupAgencyController extends GetxController {
       phoneController.text = '+88 ';
     }
     platforms.add(AgencyPlatformEntry());
-    _loadNiches();
-    loadZillas();
+  }
+
+  Future<void> onAddressPageOpened() async {
+    if (_addressPageBootstrapped) return;
+    _addressPageBootstrapped = true;
+    await loadZillas();
+    await _loadNiches();
+    await _loadPlatforms();
   }
 
   Future<void> _loadNiches() async {
@@ -222,6 +226,21 @@ class SignupAgencyController extends GetxController {
     }, showError: false);
 
     isLoadingNiches.value = false;
+  }
+
+  Future<void> _loadPlatforms() async {
+    if (allowedPlatforms.isNotEmpty || isLoadingPlatforms.value) return;
+    isLoadingPlatforms.value = true;
+
+    final result = await ApiErrorHandler.call(
+      () => _campaignService.fetchPlatforms(),
+      showError: false,
+    );
+
+    if (result.isSuccess && result.data != null) {
+      allowedPlatforms.assignAll(result.data!);
+    }
+    isLoadingPlatforms.value = false;
   }
 
   void addPlatform() {
@@ -521,11 +540,30 @@ class SignupAgencyController extends GetxController {
     }
   }
 
+  final TokenService _tokenService = Get.find<TokenService>();
+
+  Future<void> _registerFcmTokenIfNeeded() async {
+    try {
+      final savedToken = await _tokenService.getFcmToken();
+      if (savedToken != null && savedToken.trim().isNotEmpty) {
+        return;
+      }
+
+      final liveToken = await FirebaseMessagingService.getCurrentFcmToken();
+      if (liveToken == null || liveToken.trim().isEmpty) {
+        return;
+      }
+
+      await authService.registerDeviceFcmToken(token: liveToken.trim());
+    } catch (_) {
+      // do not block signup success navigation because of fcm registration failure
+    }
+  }
+
   Future<void> _finishAgencySignup() async {
     if (isFinishing.value) return;
     isFinishing.value = true;
 
-    // Collect niches from expertise step
     final niches = _collectUniqueNiches();
     if (niches.isEmpty) {
       isFinishing.value = false;
@@ -539,9 +577,9 @@ class SignupAgencyController extends GetxController {
     onboardingData.niches = niches;
 
     final result = await ApiErrorHandler.call(() async {
-      // Submit all onboarding data in one request
       await _agencyOnboardingService.submitOnboarding(onboardingData);
       await _agencyOnboardingService.updateNiches(niches);
+      await _registerFcmTokenIfNeeded();
       return true;
     });
 

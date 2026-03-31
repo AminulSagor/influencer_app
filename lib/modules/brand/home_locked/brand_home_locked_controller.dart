@@ -1,6 +1,5 @@
-// lib/modules/brand/home_locked/brand_home_locked_controller.dart
 import 'package:get/get.dart';
-import 'package:influencer_app/core/services/onboarding_check_service.dart';
+import 'package:influencer_app/core/controllers/app_user_session_controller.dart';
 import 'package:influencer_app/routes/app_routes.dart';
 
 enum StepStatus { completed, inReview, pending, declined }
@@ -9,8 +8,6 @@ class ProgressStep {
   final String title;
   final String subtitle;
   final StepStatus status;
-
-  /// Optional help text for the profile card question mark.
   final String? helpText;
 
   const ProgressStep({
@@ -22,158 +19,263 @@ class ProgressStep {
 }
 
 class BrandHomeLockedController extends GetxController {
-  final _onboardingService = Get.find<OnboardingCheckService>();
+  final AppUserSessionController _session =
+      Get.find<AppUserSessionController>();
 
-  // Expand / collapse
   final isVerificationExpanded = true.obs;
   final isProfileExpanded = true.obs;
-
-  // Loading state
   final isLoading = false.obs;
 
-  // Reactive lists for steps
   final verificationSteps = <ProgressStep>[].obs;
   final profileSteps = <ProgressStep>[].obs;
 
-  // Progress values (0–1)
-  double get verificationProgress =>
-      _onboardingService.status.value?.brandAgencyVerificationProgress ?? 0.0;
-  double get profileProgress =>
-      _onboardingService.status.value?.profileProgress ?? 0.0;
+  double get verificationProgress => _progressFromSteps(verificationSteps);
+  double get profileProgress => _progressFromSteps(profileSteps);
 
   @override
   void onInit() {
     super.onInit();
-    _buildStepsFromStatus();
 
-    // Listen for status changes
-    ever(_onboardingService.status, (_) => _buildStepsFromStatus());
+    _buildStepsFromProfile();
+
+    ever<Map<String, dynamic>?>(
+      _session.brandProfileJson,
+      (_) => _buildStepsFromProfile(),
+    );
+
+    Future.microtask(refreshStatus);
   }
 
-  void _buildStepsFromStatus() {
-    final status = _onboardingService.status.value;
-    if (status == null) return;
+  void _buildStepsFromProfile() {
+    final json = _session.brandProfileJson.value;
 
-    // Build verification steps for Brand
-    verificationSteps.value = [
+    if (json == null || json.isEmpty) {
+      verificationSteps.clear();
+      profileSteps.clear();
+      return;
+    }
+
+    final brandName = _readString(json['brandName']);
+    final firstName = _readString(json['firstName']);
+    final lastName = _readString(json['lastName']);
+    final profileImg = _readString(json['profileImg']);
+    final email = _readString(json['email']);
+    final phone = _readString(json['phone']).isNotEmpty
+        ? _readString(json['phone'])
+        : _readString(json['primaryPhone']);
+
+    final thana = _readString(json['thana']);
+    final zilla = _readString(json['zilla']);
+    final fullAddress = _readString(json['fullAddress']);
+    final country = _readString(json['country']);
+    final website = _readString(json['website']);
+
+    final niches = _readList(json['niches']);
+    final socialLinks = _readList(json['socialLinks']);
+
+    final nidNumber = _readString(json['nidNumber']);
+    final nidFrontImg = _readString(json['nidFrontImg']);
+    final nidBackImg = _readString(json['nidBackImg']);
+    final nidVerification = _readMap(json['nidVerification']);
+
+    final tradeLicenseNumber = _readString(json['tradeLicenseNumber']);
+    final tradeLicenseImg = _readString(json['tradeLicenseImg']);
+    final tradeLicenseVerification = _readMap(json['tradeLicenseVerification']);
+
+    final tinNumber = _readString(json['tinNumber']);
+    final tinImage = _readString(json['tinImage']);
+    final tinVerification = _readMap(json['tinVerification']);
+
+    final binNumber = _readString(json['binNumber']);
+    final binVerification = _readMap(json['binVerification']);
+
+    final basicInfoCompleted =
+        _hasText(brandName) &&
+        _hasText(firstName) &&
+        _hasText(lastName) &&
+        _hasText(email) &&
+        _hasText(phone) &&
+        _hasText(thana) &&
+        _hasText(zilla) &&
+        _hasText(fullAddress) &&
+        _hasText(country);
+
+    final hasSocialPortfolio = socialLinks.isNotEmpty;
+    final hasProfilePhoto = _hasText(profileImg);
+    final hasNiches = niches.isNotEmpty;
+    final hasWebsite = _hasText(website);
+    final hasAddress =
+        _hasText(thana) &&
+        _hasText(zilla) &&
+        _hasText(fullAddress) &&
+        _hasText(country);
+
+    final nidSubmitted =
+        _hasText(nidNumber) || _hasText(nidFrontImg) || _hasText(nidBackImg);
+
+    final tradeLicenseSubmitted =
+        _hasText(tradeLicenseNumber) || _hasText(tradeLicenseImg);
+
+    final tinSubmitted = _hasText(tinNumber) || _hasText(tinImage);
+    final binSubmitted = _hasText(binNumber);
+
+    verificationSteps.assignAll([
       ProgressStep(
         title: 'basic_info'.tr,
-        subtitle: status.hasAddress
+        subtitle: basicInfoCompleted
             ? 'completed'.tr
             : 'that_is_how_we_reach_you'.tr,
-        status: status.hasAddress ? StepStatus.completed : StepStatus.pending,
+        status: basicInfoCompleted ? StepStatus.completed : StepStatus.pending,
       ),
       ProgressStep(
         title: 'social_portfolio'.tr,
-        subtitle: status.hasSocialLinks
+        subtitle: hasSocialPortfolio
             ? 'completed'.tr
             : 'add_at_least_one_social'.tr,
-        status: status.hasSocialLinks
-            ? StepStatus.completed
-            : StepStatus.pending,
+        status: hasSocialPortfolio ? StepStatus.completed : StepStatus.pending,
       ),
       ProgressStep(
         title: 'NID',
-        subtitle: _getVerificationSubtitle(
-          status.hasNidSubmitted,
-          status.nidStatus,
+        subtitle: _verificationSubtitle(
+          hasSubmitted: nidSubmitted,
+          status: _readString(nidVerification['nidStatus']),
+          rejectReason: _readString(nidVerification['nidRejectReason']),
         ),
-        status: _getVerificationStepStatus(
-          status.hasNidSubmitted,
-          status.nidStatus,
+        status: _verificationStepStatus(
+          hasSubmitted: nidSubmitted,
+          status: _readString(nidVerification['nidStatus']),
         ),
       ),
       ProgressStep(
         title: 'trade_license'.tr,
-        subtitle: _getVerificationSubtitle(
-          status.hasTradeLicense,
-          status.tradeLicenseStatus,
+        subtitle: _verificationSubtitle(
+          hasSubmitted: tradeLicenseSubmitted,
+          status: _readString(tradeLicenseVerification['tradeLicenseStatus']),
+          rejectReason: _readString(
+            tradeLicenseVerification['tradeLicenseRejectReason'],
+          ),
         ),
-        status: _getVerificationStepStatus(
-          status.hasTradeLicense,
-          status.tradeLicenseStatus,
+        status: _verificationStepStatus(
+          hasSubmitted: tradeLicenseSubmitted,
+          status: _readString(tradeLicenseVerification['tradeLicenseStatus']),
         ),
       ),
       ProgressStep(
         title: 'TIN',
-        subtitle: _getVerificationSubtitle(status.hasTin, status.tinStatus),
-        status: _getVerificationStepStatus(status.hasTin, status.tinStatus),
+        subtitle: _verificationSubtitle(
+          hasSubmitted: tinSubmitted,
+          status: _readString(tinVerification['tinStatus']),
+          rejectReason: _readString(tinVerification['tinRejectReason']),
+        ),
+        status: _verificationStepStatus(
+          hasSubmitted: tinSubmitted,
+          status: _readString(tinVerification['tinStatus']),
+        ),
       ),
       ProgressStep(
         title: 'BIN',
-        subtitle: _getVerificationSubtitle(status.hasBin, status.binStatus),
-        status: _getVerificationStepStatus(status.hasBin, status.binStatus),
-      ),
-      ProgressStep(
-        title: 'payment_setup'.tr,
-        subtitle: status.hasPayoutSetup ? 'completed'.tr : 'pending'.tr,
-        status: status.hasPayoutSetup
-            ? StepStatus.completed
-            : StepStatus.pending,
+        subtitle: _verificationSubtitle(
+          hasSubmitted: binSubmitted,
+          status: _readString(binVerification['binStatus']),
+          rejectReason: _readString(binVerification['binRejectReason']),
+        ),
+        status: _verificationStepStatus(
+          hasSubmitted: binSubmitted,
+          status: _readString(binVerification['binStatus']),
+        ),
       ),
       ProgressStep(
         title: 'verify_email'.tr,
-        subtitle: status.isEmailVerified ? 'completed'.tr : 'pending'.tr,
-        status: status.isEmailVerified
+        subtitle: json['isEmailVerified'] == true
+            ? 'completed'.tr
+            : 'pending'.tr,
+        status: json['isEmailVerified'] == true
             ? StepStatus.completed
             : StepStatus.pending,
       ),
-    ];
+    ]);
 
-    // Build profile steps (optional, for profile completion)
-    profileSteps.value = [
+    profileSteps.assignAll([
       ProgressStep(
         title: 'add_profile_picture'.tr,
-        subtitle: status.hasProfileImage
+        subtitle: hasProfilePhoto
             ? 'completed'.tr
             : 'that_is_how_we_reach_you'.tr,
-        status: status.hasProfileImage
-            ? StepStatus.completed
-            : StepStatus.pending,
+        status: hasProfilePhoto ? StepStatus.completed : StepStatus.pending,
+      ),
+      // ProgressStep(
+      //   title: 'add_niches'.tr,
+      //   subtitle: hasNiches ? 'completed'.tr : 'pending'.tr,
+      //   status: hasNiches ? StepStatus.completed : StepStatus.pending,
+      //   helpText: 'niche_help_text'.tr,
+      // ),
+      ProgressStep(
+        title: 'add_website'.tr,
+        subtitle: hasWebsite ? 'completed'.tr : 'pending'.tr,
+        status: hasWebsite ? StepStatus.completed : StepStatus.pending,
       ),
       ProgressStep(
-        title: 'add_niches'.tr,
-        subtitle: status.hasNiches ? 'completed'.tr : 'pending'.tr,
-        status: status.hasNiches ? StepStatus.completed : StepStatus.pending,
-        helpText: 'niche_help_text'.tr,
+        title: 'add_address'.tr,
+        subtitle: hasAddress ? 'completed'.tr : 'pending'.tr,
+        status: hasAddress ? StepStatus.completed : StepStatus.pending,
       ),
-      ProgressStep(
-        title: 'add_skills'.tr,
-        subtitle: status.hasSkills ? 'completed'.tr : 'pending'.tr,
-        status: status.hasSkills ? StepStatus.completed : StepStatus.pending,
-        helpText: 'skills_help_text'.tr,
-      ),
-      ProgressStep(
-        title: 'add_bio'.tr,
-        subtitle: status.hasBio ? 'completed'.tr : 'pending'.tr,
-        status: status.hasBio ? StepStatus.completed : StepStatus.pending,
-      ),
-    ];
+    ]);
   }
 
-  String _getVerificationSubtitle(
-    bool hasSubmitted,
-    String? verificationStatus,
-  ) {
-    if (!hasSubmitted) return 'pending'.tr;
-    switch (verificationStatus) {
-      case 'approved':
-        return 'verified'.tr;
-      case 'pending':
-        return 'in_review'.tr;
-      case 'rejected':
-        return 'declined'.tr;
-      default:
-        return 'pending'.tr;
+  Future<void> refreshStatus() async {
+    if (isLoading.value) return;
+
+    isLoading.value = true;
+    try {
+      await _session.preloadUserData(forceRefresh: true);
+      _buildStepsFromProfile();
+    } finally {
+      isLoading.value = false;
     }
   }
 
-  StepStatus _getVerificationStepStatus(
-    bool hasSubmitted,
-    String? verificationStatus,
-  ) {
+  void toggleVerificationSection() => isVerificationExpanded.toggle();
+  void toggleProfileSection() => isProfileExpanded.toggle();
+
+  void openVerificationGuide() {}
+
+  void goToProfile() {
+    Get.toNamed(AppRoutes.profile, id: 1);
+  }
+
+  void contactSupport() {
+    Get.toNamed(AppRoutes.support, id: 1);
+  }
+
+  double _progressFromSteps(List<ProgressStep> steps) {
+    if (steps.isEmpty) return 0.0;
+
+    double total = 0;
+    for (final step in steps) {
+      switch (step.status) {
+        case StepStatus.completed:
+          total += 1.0;
+          break;
+        case StepStatus.inReview:
+          total += 0.5;
+          break;
+        case StepStatus.pending:
+        case StepStatus.declined:
+          total += 0.0;
+          break;
+      }
+    }
+
+    return (total / steps.length).clamp(0.0, 1.0);
+  }
+
+  StepStatus _verificationStepStatus({
+    required bool hasSubmitted,
+    required String status,
+  }) {
     if (!hasSubmitted) return StepStatus.pending;
-    switch (verificationStatus) {
+
+    switch (status.toLowerCase()) {
       case 'approved':
         return StepStatus.completed;
       case 'pending':
@@ -185,28 +287,43 @@ class BrandHomeLockedController extends GetxController {
     }
   }
 
-  // ---- Actions ----
-  void toggleVerificationSection() => isVerificationExpanded.toggle();
+  String _verificationSubtitle({
+    required bool hasSubmitted,
+    required String status,
+    required String rejectReason,
+  }) {
+    if (!hasSubmitted) return 'pending'.tr;
 
-  void toggleProfileSection() => isProfileExpanded.toggle();
-
-  Future<void> refreshStatus() async {
-    isLoading.value = true;
-    await _onboardingService.fetchOnboardingStatus();
-    isLoading.value = false;
+    switch (status.toLowerCase()) {
+      case 'approved':
+        return 'verified'.tr;
+      case 'pending':
+        return 'in_review'.tr;
+      case 'rejected':
+        return _hasText(rejectReason) ? rejectReason : 'declined'.tr;
+      default:
+        return 'pending'.tr;
+    }
   }
 
-  void openVerificationGuide() {
-    // TODO: navigate to verification guide page
+  List<dynamic> _readList(dynamic value) {
+    if (value is List) return value;
+    return const [];
   }
 
-  void goToProfile() {
-    Get.toNamed(AppRoutes.profile, id: 1);
+  Map<String, dynamic> _readMap(dynamic value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) {
+      return Map<String, dynamic>.from(value);
+    }
+    return const {};
   }
 
-  void contactSupport() {
-    Get.toNamed(AppRoutes.support, id: 1);
+  String _readString(dynamic value) {
+    return value?.toString().trim() ?? '';
   }
+
+  bool _hasText(String value) => value.trim().isNotEmpty;
 }
 
 class BrandHomeLockedBinding extends Bindings {

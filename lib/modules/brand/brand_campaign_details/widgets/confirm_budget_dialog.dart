@@ -101,8 +101,8 @@ class ConfirmBudgetDialog {
                   Expanded(
                     child: CustomButton(
                       onTap: () async {
-                        final ok = await onConfirm();
-                        if (ok) Get.back();
+                        Get.back(); // Dismiss current dialog first
+                        await onConfirm();
                       },
                       btnText: trOr('brand_campaign_confirm_btn', 'Confirm'),
                       textColor: AppPalette.white,

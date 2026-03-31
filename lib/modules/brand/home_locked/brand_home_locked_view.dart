@@ -303,7 +303,7 @@ class _TimelineItem extends StatelessWidget {
                 height: 32.w,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: color.withAlpha(30),
+                  color: color.withAlpha(50),
                 ),
                 child: Icon(_statusIcon(), color: color, size: 18.sp),
               ),

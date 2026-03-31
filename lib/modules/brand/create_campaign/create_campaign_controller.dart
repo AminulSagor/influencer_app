@@ -153,7 +153,10 @@ class CreateCampaignController extends GetxController {
   final commentsCtrl = TextEditingController();
   final promoGoalCtrl = TextEditingController();
 
-  final platformOptions = const ['Facebook', 'Instagram', 'YouTube', 'TikTok'];
+  final platforms = <String>[].obs;
+  final isLoadingPlatforms = false.obs;
+
+  List<String> get platformOptions => platforms.toList(growable: false);
 
   double get vatPercent => _vatPercentConst;
   int get minBudget => _minBudget;
@@ -229,14 +232,17 @@ class CreateCampaignController extends GetxController {
 
     if (step == 2) {
       final type = selectedType.value;
+
       if (type == CampaignType.influencerPromotion) {
         return selectedProductType.value != null &&
-            (selectedInfluencerNiche.value != null &&
-                selectedInfluencerNiche.value!.trim().isNotEmpty);
+            selectedProductType.value!.trim().isNotEmpty &&
+            selectedInfluencerNiche.value != null &&
+            selectedInfluencerNiche.value!.trim().isNotEmpty;
       }
+
       if (type == CampaignType.paidAd) {
         return selectedPaidAdNiche.value != null &&
-            selectedAgencyIds.isNotEmpty;
+            selectedPaidAdNiche.value!.trim().isNotEmpty;
       }
     }
 
@@ -410,6 +416,8 @@ class CreateCampaignController extends GetxController {
           ..addAll(niches);
       }
 
+      await _loadPlatforms();
+
       // Load other agencies (no niche filter) on init
       await _loadOtherAgencyPage(reset: true);
 
@@ -417,6 +425,20 @@ class CreateCampaignController extends GetxController {
     }, showError: false);
 
     isLoadingLookups.value = false;
+  }
+
+  Future<void> _loadPlatforms() async {
+    if (platforms.isNotEmpty || isLoadingPlatforms.value) return;
+    isLoadingPlatforms.value = true;
+
+    try {
+      final items = await _campaignService.fetchPlatforms();
+      if (items.isNotEmpty) {
+        platforms.assignAll(items);
+      }
+    } catch (_) {}
+
+    isLoadingPlatforms.value = false;
   }
 
   // ── Recommended agencies (WITH niche) ──

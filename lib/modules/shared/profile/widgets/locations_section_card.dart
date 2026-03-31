@@ -130,9 +130,11 @@ class _LocationTile extends StatelessWidget {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
       decoration: BoxDecoration(
-        color: AppPalette.thirdColor.withAlpha(60),
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: AppPalette.secondary, width: 0.8),
+        borderRadius: BorderRadius.circular(kBorderRadius.r),
+        border: Border.all(color: AppPalette.secondary, width: kBorderWidth0_5),
+        gradient: LinearGradient(
+          colors: [AppPalette.white, AppPalette.white, AppPalette.thirdColor],
+        ),
       ),
       child: Row(
         children: [
@@ -151,7 +153,7 @@ class _LocationTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 13.sp,
+                    fontSize: 12.sp,
                     fontWeight: FontWeight.w700,
                     color: AppPalette.primary,
                   ),
@@ -188,6 +190,8 @@ class _AddLocationForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isEditMode = controller.editingLocationIndex.value != null;
+
     return Container(
       padding: EdgeInsets.all(14.w),
       decoration: BoxDecoration(
@@ -202,11 +206,12 @@ class _AddLocationForm extends StatelessWidget {
           Row(
             children: [
               Text(
-                'locations_add_new'
-                    .tr, // "Add New Address" / "নতুন ঠিকানা যোগ করুন"
+                isEditMode
+                    ? 'locations_edit_address'.tr
+                    : 'locations_add_address'.tr,
                 style: TextStyle(
                   fontSize: 14.sp,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w600,
                   color: AppPalette.primary,
                 ),
               ),
@@ -295,18 +300,14 @@ class _AddLocationForm extends StatelessWidget {
 
           16.h.verticalSpace,
 
-          CustomButton.dotted(
-            height: 46.h,
+          CustomButton(
+            onTap: controller.isSavingLocation.value
+                ? null
+                : controller.saveLocationForm,
+            btnText: 'locations_save_address'.tr,
             width: double.infinity,
-            onTap: controller.saveLocationForm,
-            btnText: controller.editingLocationIndex.value == null
-                ? '+  ${'locations_add_another'.tr}'
-                : 'locations_save_btn'.tr, // "Save Address" / "সেভ করুন"
-            btnColor: AppPalette.white,
-            borderColor: AppPalette.secondary,
-            textColor: AppPalette.secondary,
-            borderRadius: 10.r,
-            dashPattern: const [4, 3],
+            textColor: AppPalette.white,
+            isLoading: controller.isSavingLocation.value,
           ),
         ],
       ),

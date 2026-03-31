@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:influencer_app/core/controllers/app_user_session_controller.dart';
+import 'package:influencer_app/core/services/auth_services.dart';
+import 'package:influencer_app/core/services/firebase_messaging_service.dart';
 import 'package:influencer_app/core/services/notification_navigation_service.dart';
 
 import '../../../core/enums/account_type.dart';
@@ -16,6 +18,7 @@ class BootstrapController extends GetxController {
   late final TokenService _tokenService;
   late final AccountTypeService _accountTypeService;
   late final AppUserSessionController _appUserSessionController;
+  late final AuthService _authService;
 
   @override
   void onInit() {
@@ -23,6 +26,7 @@ class BootstrapController extends GetxController {
     _tokenService = Get.find<TokenService>();
     _accountTypeService = Get.find<AccountTypeService>();
     _appUserSessionController = Get.find<AppUserSessionController>();
+    _authService = Get.find<AuthService>();
     debugPrint('[Bootstrap] onInit');
     Future.microtask(_bootstrap);
   }
@@ -46,41 +50,35 @@ class BootstrapController extends GetxController {
       }
 
       if (storedToken != null && storedToken.isNotEmpty) {
-        debugPrint('[Bootstrap] token present');
         final isExpired = JwtDecoder.isExpired(storedToken);
         debugPrint('[Bootstrap] token expired=$isExpired');
 
         if (!isExpired) {
           final payload = JwtDecoder.decode(storedToken);
-          debugPrint('[Bootstrap] token decoded');
 
           final role =
               payload['role'] ??
               payload['accountType'] ??
               (payload['user'] is Map ? payload['user']['role'] : null);
 
-          debugPrint('[Bootstrap] role=$role');
-
           if (role == 'influencer') {
             _accountTypeService.setRole(AccountType.influencer);
-            debugPrint('[Bootstrap] set role -> influencer');
           } else if (role == 'brand' || role == 'client') {
             _accountTypeService.setRole(AccountType.brand);
-            debugPrint('[Bootstrap] set role -> brand');
           } else if (role == 'agency') {
             _accountTypeService.setRole(AccountType.adAgency);
-            debugPrint('[Bootstrap] set role -> adAgency');
           }
 
-          final isVerifiedByAdmin = payload['isVerified'] as bool? ?? false;
-          debugPrint('[Bootstrap] isVerifiedByAdmin=$isVerifiedByAdmin');
+          await _ensureDeviceFcmTokenRegistered();
 
-          await _appUserSessionController.preloadUserData();
+          await _appUserSessionController.preloadUserData(forceRefresh: true);
+          final isVerifiedByApi = _appUserSessionController.isUserVerified();
 
-          debugPrint('[Bootstrap] routing -> bottomNav');
+          debugPrint('[Bootstrap] isVerifiedByApi=$isVerifiedByApi');
+
           Get.offAllNamed(
             AppRoutes.bottomNav,
-            arguments: {'isAccountVerified': isVerifiedByAdmin},
+            arguments: {'isAccountVerified': isVerifiedByApi},
           );
 
           if (Get.isRegistered<NotificationNavigationService>()) {
@@ -98,6 +96,37 @@ class BootstrapController extends GetxController {
       debugPrint('[Bootstrap] error: $e');
       debugPrint(stack.toString());
       Get.offAllNamed(AppRoutes.login);
+    }
+  }
+
+  Future<void> _ensureDeviceFcmTokenRegistered() async {
+    try {
+      final savedFcmToken = await _tokenService.getFcmToken();
+
+      debugPrint(
+        '[Bootstrap] savedFcmToken=${savedFcmToken == null ? 'null' : '***'}',
+      );
+
+      if (savedFcmToken != null && savedFcmToken.trim().isNotEmpty) {
+        return;
+      }
+
+      final liveFcmToken = await FirebaseMessagingService.getCurrentFcmToken();
+
+      debugPrint(
+        '[Bootstrap] liveFcmToken=${liveFcmToken == null ? 'null' : '***'}',
+      );
+
+      if (liveFcmToken == null || liveFcmToken.isEmpty) {
+        return;
+      }
+
+      await _authService.registerDeviceFcmToken(token: liveFcmToken);
+
+      debugPrint('[Bootstrap] FCM token registered and saved');
+    } catch (e, stack) {
+      debugPrint('[Bootstrap] FCM registration skipped: $e');
+      debugPrint(stack.toString());
     }
   }
 }
