@@ -1,3 +1,5 @@
+import 'dart:developer' as dev;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -50,13 +52,19 @@ class BrandCampaignDetailsView extends GetView<BrandCampaignDetailsController> {
                   Obx(() {
                     controller.campaignType.value;
                     final isPaidAd = controller.isPaidAd;
-                    final isActive =
-                        controller.progressStep.value ==
-                            CampaignProgressStep.promoting ||
-                        controller.progressStep.value ==
-                            CampaignProgressStep.completed;
-                    final showAgencyTabs =
-                        !isActive && controller.agencyOffers.isNotEmpty;
+                    final progressStep = controller.progressStep.value;
+
+                    final shouldShowAgencyTabs =
+                        controller.agencyOffers.isNotEmpty &&
+                        (progressStep == CampaignProgressStep.submitted ||
+                            progressStep == CampaignProgressStep.quoted);
+
+                    dev.log(
+                      'campaignStatus: ${controller.campaignStatus.value}, '
+                      'progressStep: $progressStep, '
+                      'agencyOffers: ${controller.agencyOffers.length}, '
+                      'shouldShowAgencyTabs: $shouldShowAgencyTabs',
+                    );
 
                     Widget detailsColumn() {
                       return Column(
@@ -89,7 +97,7 @@ class BrandCampaignDetailsView extends GetView<BrandCampaignDetailsController> {
                       );
                     }
 
-                    if (!showAgencyTabs) {
+                    if (!shouldShowAgencyTabs) {
                       return detailsColumn();
                     }
 
@@ -436,6 +444,8 @@ class _CampaignDetailsCard extends GetView<BrandCampaignDetailsController> {
                       CampaignProgressStep.promoting ||
                   controller.progressStep.value == CampaignProgressStep.paid ||
                   controller.progressStep.value ==
+                      CampaignProgressStep.quoted ||
+                  controller.progressStep.value ==
                       CampaignProgressStep.completed;
               if (isActive && controller.showDueButton.value) {
                 return Column(
@@ -566,12 +576,12 @@ class _CampaignProgressCard extends GetView<BrandCampaignDetailsController> {
             final current = controller.progressStep.value;
 
             bool isActive(CampaignProgressStep step) {
-              // submitted always true in UI
               if (step == CampaignProgressStep.submitted) return true;
               return current.index >= step.index;
             }
 
             final paymentStatus = controller.paymentStatus.value;
+            final hasPaidAmount = controller.paidAmount.value > 0;
 
             return Column(
               children: [
@@ -593,7 +603,7 @@ class _CampaignProgressCard extends GetView<BrandCampaignDetailsController> {
                       ? 'brand_campaign_details_paid_partial'.tr
                       : 'brand_campaign_details_paid'.tr,
                   subtitle: 'brand_campaign_details_paid_sub'.tr,
-                  active: isActive(CampaignProgressStep.paid),
+                  active: hasPaidAmount && isActive(CampaignProgressStep.paid),
                 ),
                 _ProgressRow(
                   iconAssetPath: 'assets/icons/online_ads.png',
@@ -757,6 +767,11 @@ class _QuoteDetailsCard extends GetView<BrandCampaignDetailsController> {
             final amountColor = !showDue
                 ? AppPalette.secondary
                 : AppPalette.subtext;
+            final isPaidAd = controller.isPaidAd;
+            final campaignStatus = controller.campaignStatus.value
+                .trim()
+                .toLowerCase();
+            final isCampaignActive = campaignStatus == 'active';
             return Column(
               children: [
                 _KVRow(
@@ -778,7 +793,7 @@ class _QuoteDetailsCard extends GetView<BrandCampaignDetailsController> {
                   v: formatCurrencyByLocale(controller.totalCost),
                   amountColor: amountColor,
                 ),
-                if (showDue) ...[
+                if (showDue && (!isPaidAd || isCampaignActive)) ...[
                   10.h.verticalSpace,
                   _KVRow(
                     k: 'brand_campaign_details_paid_campaign_amount'.tr,
@@ -836,9 +851,16 @@ class _QuoteDetailsCard extends GetView<BrandCampaignDetailsController> {
                 ],
               );
             }
+
+            final isPaidAd = controller.isPaidAd;
+            final campaignStatus = controller.campaignStatus.value
+                .trim()
+                .toLowerCase();
+            final isCampaignActive = campaignStatus == 'active';
             if (controller.dueAmount.value > 0 &&
                 controller.showDueButton.value &&
-                !isPendingAgency) {
+                !isPendingAgency &&
+                (!isPaidAd || isCampaignActive)) {
               return CustomButton(
                 width: double.infinity,
                 btnText: 'brand_campaign_details_pay_due'.tr,
@@ -850,7 +872,7 @@ class _QuoteDetailsCard extends GetView<BrandCampaignDetailsController> {
                 onTap: controller.openFundCampaignDialog,
               );
             }
-            if (isPendingAgency) {
+            if (!isPendingAgency && !(!isPaidAd || isCampaignActive)) {
               return CustomButton(
                 width: double.infinity,
                 btnText: 'brand_campaign_details_budget_confirmed'.tr,

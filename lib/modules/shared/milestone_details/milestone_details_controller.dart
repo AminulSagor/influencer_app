@@ -20,6 +20,7 @@ import '../../../core/services/api_client.dart';
 import '../../../core/services/api_error_handler.dart';
 import '../../../core/services/campaign_service.dart';
 import '../../../core/theme/app_palette.dart';
+import '../../brand/brand_campaign_details/payment_webview_page.dart';
 import 'widgets/bonus_payment_dialog.dart';
 import 'widgets/brand_submission_card.dart';
 
@@ -215,6 +216,101 @@ class MilestoneDetailsController extends GetxController {
   final RxBool isApproving = false.obs;
   final RxBool isDeclining = false.obs;
   final RxBool isReporting = false.obs;
+
+  bool _isBlockingLoaderVisible = false;
+
+  void _showBlockingLoader() {
+    if (_isBlockingLoaderVisible) return;
+
+    _isBlockingLoaderVisible = true;
+
+    Get.dialog(
+      const PopScope(
+        canPop: false,
+        child: Center(child: CircularProgressIndicator()),
+      ),
+      barrierDismissible: false,
+    );
+  }
+
+  Future<void> _hideBlockingLoader() async {
+    if (!_isBlockingLoaderVisible) return;
+
+    if (Get.isDialogOpen == true) {
+      Get.back();
+      await Future.delayed(const Duration(milliseconds: 120));
+    }
+
+    _isBlockingLoaderVisible = false;
+  }
+
+  String _paymentMessageFromResponse(
+    Map<String, dynamic> response,
+    String fallback,
+  ) {
+    final msg = response['message']?.toString().trim();
+    if (msg != null && msg.isNotEmpty) return msg;
+
+    final data = response['data'];
+    if (data is Map) {
+      final nestedMsg = data['message']?.toString().trim();
+      if (nestedMsg != null && nestedMsg.isNotEmpty) return nestedMsg;
+    }
+
+    return fallback;
+  }
+
+  String? _extractBonusGatewayUrl(Map<String, dynamic> response) {
+    final data = response['data'];
+    if (data is Map) {
+      final url =
+          data['paymentUrl']?.toString().trim() ??
+          data['gatewayUrl']?.toString().trim();
+      if (url != null && url.isNotEmpty) return url;
+    }
+    return null;
+  }
+
+  String? _extractBonusTranId(Map<String, dynamic> response) {
+    final data = response['data'];
+    if (data is Map) {
+      final tranId =
+          data['transactionId']?.toString().trim() ??
+          data['tranId']?.toString().trim();
+      if (tranId != null && tranId.isNotEmpty) return tranId;
+    }
+    return null;
+  }
+
+  Future<void> _openBonusPaymentGateway({
+    required String gatewayUrl,
+    required String tranId,
+    required String successMessage,
+    required String failMessage,
+  }) async {
+    final result = await Get.to<bool>(
+      () => PaymentWebViewPage(
+        initialUrl: gatewayUrl,
+        successUrl:
+            'https://influencerbackend-production.up.railway.app/payments/sslcommerz/success',
+        failUrl:
+            'https://influencerbackend-production.up.railway.app/payments/sslcommerz/fail',
+        initialTranId: tranId,
+        checkPaymentStatus: (tranId) =>
+            _campaignService.fetchPaymentStatus(tranId: tranId),
+      ),
+    );
+
+    if (result == true) {
+      _markNeedsParentRefresh();
+      await _loadBrandMilestoneDetails(
+        isPaidAd: job.campaignType == CampaignType.paidAd,
+      );
+      Get.snackbar('Success', successMessage);
+    } else if (result == false) {
+      Get.snackbar('Error', failMessage);
+    }
+  }
 
   double get combinedPaidAdCompletedPercent {
     if (job.campaignType != CampaignType.paidAd) return 0;
@@ -525,7 +621,8 @@ class MilestoneDetailsController extends GetxController {
           ),
         )
         .where((e) => e.content.isNotEmpty)
-        .toList(growable: false);
+        .toList(growable: false)
+      ..sort((a, b) => b.date.compareTo(a.date));
   }
 
   Future<void> _loadSelectedSubmissionReportsForBrand() async {
@@ -536,6 +633,8 @@ class MilestoneDetailsController extends GetxController {
     if (milestoneId.isEmpty) {
       selectedSubmissionReportMilestoneId.value = null;
       selectedSubmissionReports.clear();
+      hasReportedToAdmin.value = false;
+      reportAgainAt.value = null;
       return;
     }
 
@@ -549,13 +648,22 @@ class MilestoneDetailsController extends GetxController {
 
     if (!result.isSuccess || result.data == null) {
       selectedSubmissionReports.clear();
+      hasReportedToAdmin.value = false;
+      reportAgainAt.value = null;
       isSelectedSubmissionReportsLoading.value = false;
       return;
     }
 
-    selectedSubmissionReports.assignAll(
-      _mapSubmissionReportResponse(result.data),
-    );
+    final reports = _mapSubmissionReportResponse(result.data);
+
+    selectedSubmissionReports.assignAll(reports);
+    hasReportedToAdmin.value = reports.isNotEmpty;
+
+    if (reports.isNotEmpty) {
+      reportAgainAt.value = reports.first.date;
+    } else {
+      reportAgainAt.value = null;
+    }
 
     isSelectedSubmissionReportsLoading.value = false;
   }
@@ -592,7 +700,7 @@ class MilestoneDetailsController extends GetxController {
       if (!result.isSuccess) return;
 
       hasReportedToAdmin.value = true;
-      reportAgainAt.value = DateTime.now().add(const Duration(days: 1));
+      reportAgainAt.value = DateTime.now();
 
       await _loadSelectedSubmissionReportsForBrand();
     } finally {
@@ -747,6 +855,7 @@ class MilestoneDetailsController extends GetxController {
         ui.achievedComments.value = _intFrom(s['achievedComments']);
 
         _applyAgencyMetricFromMilestone(ui);
+        _bindAgencyAmountController(ui);
 
         ui.declinedEditEnabled.value = false;
         ui.isSubmitted.value = true;
@@ -764,6 +873,15 @@ class MilestoneDetailsController extends GetxController {
         submissions.add(ui);
         idx++;
       }
+
+      if (submissions.isEmpty) {
+        final ui = SubmissionUiModel(index: 1);
+        _applyAgencyMetricFromMilestone(ui);
+        _bindAgencyAmountController(ui);
+        submissions.add(ui);
+      }
+
+      submissions.refresh();
 
       agencyPaidAmountTotal.value = paidAmountSum;
 
@@ -1015,6 +1133,64 @@ class MilestoneDetailsController extends GetxController {
   }
 
   // payment progress: approved/requested amount vs milestone amount
+  int _requestedAmountOf(SubmissionUiModel submission) {
+    return _parseAmount(submission.amountController.text);
+  }
+
+  int get totalRequestedAmount {
+    return submissions.fold<int>(
+      0,
+      (sum, submission) => sum + _requestedAmountOf(submission),
+    );
+  }
+
+  int get remainingRequestableAmount {
+    final remaining = milestoneAmountTotal - totalRequestedAmount;
+    return remaining < 0 ? 0 : remaining;
+  }
+
+  int remainingRequestableAmountFor(SubmissionUiModel current) {
+    final alreadyRequestedExcludingCurrent = submissions.fold<int>(0, (sum, s) {
+      if (identical(s, current)) return sum;
+      return sum + _requestedAmountOf(s);
+    });
+
+    final remaining = milestoneAmountTotal - alreadyRequestedExcludingCurrent;
+    return remaining < 0 ? 0 : remaining;
+  }
+
+  bool get canAddAnotherSubmission {
+    if (!_accountTypeService.isAdAgency) return true;
+    return remainingRequestableAmount > 0;
+  }
+
+  void _bindAgencyAmountController(SubmissionUiModel ui) {
+    if (!_accountTypeService.isAdAgency) return;
+
+    ui.amountController.addListener(() {
+      final raw = ui.amountController.text.trim();
+
+      if (raw.isEmpty) {
+        submissions.refresh();
+        return;
+      }
+
+      final currentValue = _parseAmount(raw);
+      final maxAllowed = remainingRequestableAmountFor(ui);
+      final safeValue = currentValue.clamp(0, maxAllowed);
+      final safeText = safeValue.toString();
+
+      if (raw != safeText) {
+        ui.amountController.value = TextEditingValue(
+          text: safeText,
+          selection: TextSelection.collapsed(offset: safeText.length),
+        );
+      }
+
+      submissions.refresh();
+    });
+  }
+
   bool get showPaymentProgress =>
       _accountTypeService.isAdAgency &&
       _parseAmount(currentMilestone.amountLabel) > 0;
@@ -1052,10 +1228,15 @@ class MilestoneDetailsController extends GetxController {
   void toggleLicense() => acceptLicense.toggle();
 
   void addSubmission() {
+    if (_accountTypeService.isAdAgency && !canAddAnotherSubmission) {
+      return;
+    }
+
     final ui = SubmissionUiModel(index: submissions.length + 1);
 
     if (_accountTypeService.isAdAgency) {
       _applyAgencyMetricFromMilestone(ui);
+      _bindAgencyAmountController(ui);
     }
 
     submissions.add(ui);
@@ -1908,46 +2089,73 @@ class MilestoneDetailsController extends GetxController {
       return;
     }
 
-    isBonusPaymentLoading.value = true;
+    if (isBonusPaymentLoading.value) return;
 
-    final result = await ApiErrorHandler.call(() async {
-      if (job.campaignType == CampaignType.paidAd) {
+    try {
+      isBonusPaymentLoading.value = true;
+
+      if (Get.isDialogOpen == true) {
+        Get.back();
+        await Future.delayed(const Duration(milliseconds: 120));
+      }
+
+      _showBlockingLoader();
+
+      final response = await (() async {
         final milestoneId = milestone.id?.trim() ?? '';
         if (milestoneId.isEmpty) {
           throw Exception('Milestone id not found.');
         }
 
-        dev.log('BONUS PAID : Agency - $amount $milestoneId');
+        if (job.campaignType == CampaignType.paidAd) {
+          dev.log('BONUS PAID : Agency - $amount $milestoneId');
 
-        return await _campaignService.payAgencyBonus(
-          milestoneId: milestoneId,
-          amount: amount,
-        );
-      } else {
-        final milestoneId = milestone.id?.trim() ?? '';
-        if (milestoneId.isEmpty) {
-          throw Exception('Milestone id not found.');
+          return await _campaignService.payAgencyBonus(
+            milestoneId: milestoneId,
+            amount: amount,
+          );
         }
 
         dev.log('BONUS PAID : Influencer - $amount $milestoneId');
+
         return await _campaignService.payInfluencerBonus(
           milestoneId: milestoneId,
           amount: amount,
         );
+      })();
+
+      await _hideBlockingLoader();
+
+      final gatewayUrl = _extractBonusGatewayUrl(response);
+      final tranId = _extractBonusTranId(response);
+
+      if (gatewayUrl == null) {
+        Get.snackbar('Error', 'Payment URL not found.');
+        return;
       }
-    });
 
-    isBonusPaymentLoading.value = false;
+      if (tranId == null) {
+        Get.snackbar('Error', 'Transaction id not found.');
+        return;
+      }
 
-    if (!result.isSuccess) return;
+      final message = _paymentMessageFromResponse(
+        response,
+        'Bonus payment initiated successfully.',
+      );
 
-    Get.back();
-    Get.snackbar('Success', 'Bonus payment completed successfully.');
-
-    _markNeedsParentRefresh();
-    await _loadBrandMilestoneDetails(
-      isPaidAd: job.campaignType == CampaignType.paidAd,
-    );
+      await _openBonusPaymentGateway(
+        gatewayUrl: gatewayUrl,
+        tranId: tranId,
+        successMessage: message,
+        failMessage: 'Bonus payment failed.',
+      );
+    } catch (e) {
+      await _hideBlockingLoader();
+      Get.snackbar('Error', e.toString());
+    } finally {
+      isBonusPaymentLoading.value = false;
+    }
   }
 
   Future<void> openLink(String rawUrl) async {

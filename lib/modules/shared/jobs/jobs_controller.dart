@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer' as dev;
 
 import 'package:flutter/widgets.dart';
@@ -10,6 +11,7 @@ import 'package:intl/intl.dart';
 import '../../../core/models/job_item.dart';
 import '../../../core/services/api_client.dart';
 import '../../../core/services/api_error_handler.dart';
+import '../../../core/services/firebase_messaging_service.dart';
 import '../../../core/widgets/reason_bottom_sheet.dart';
 import '../../../routes/app_routes.dart';
 import 'widgets/delete_campaign_dialog.dart';
@@ -151,6 +153,8 @@ class JobsController extends GetxController {
     2: false,
   };
 
+  StreamSubscription<Map<String, dynamic>>? _notificationSubscription;
+
   @override
   void onInit() {
     super.onInit();
@@ -184,11 +188,13 @@ class JobsController extends GetxController {
       }
     }, time: const Duration(milliseconds: 450));
 
+    _listenJobNotifications();
     _initLoad();
   }
 
   @override
   void onClose() {
+    _notificationSubscription?.cancel();
     _searchWorker?.dispose();
 
     for (final controller in _tabScrollControllers.values) {
@@ -207,6 +213,101 @@ class JobsController extends GetxController {
     }
 
     refreshCurrentTab();
+  }
+
+  void _listenJobNotifications() {
+    _notificationSubscription?.cancel();
+
+    _notificationSubscription = FirebaseMessagingService.notificationStream.listen((
+      data,
+    ) async {
+      if (isBrand) return;
+
+      final rawType = data['type']?.toString().trim() ?? '';
+      if (rawType.isEmpty) return;
+      if (!rawType.toUpperCase().contains('INVITATION')) return;
+
+      dev.log(
+        'JobsController matched invitation notification. Reloading new offers.',
+        name: 'JobsController',
+        error: {'type': rawType, 'currentTabIndex': currentTabIndex.value},
+      );
+
+      await fetchNewOffers(reset: true);
+    });
+  }
+
+  DateTime? _tryParseJobDate(String? value) {
+    if (value == null || value.trim().isEmpty) return null;
+    return DateTime.tryParse(value.trim());
+  }
+
+  DateTime? _resolveFinalJobDate({
+    String? deadline,
+    String? startingDate,
+    int? duration,
+  }) {
+    final parsedDeadline = _tryParseJobDate(deadline);
+    if (parsedDeadline != null) return parsedDeadline;
+
+    final parsedStart = _tryParseJobDate(startingDate);
+    if (parsedStart != null && duration != null && duration > 0) {
+      return parsedStart.add(Duration(days: duration));
+    }
+
+    return null;
+  }
+
+  String _resolveJobDateLabel({
+    required bool useStartingDate,
+    String? startingDate,
+    String? deadline,
+    int? duration,
+    String? fallbackDate,
+  }) {
+    final DateTime? resolved = useStartingDate
+        ? _tryParseJobDate(startingDate)
+        : _resolveFinalJobDate(
+            deadline: deadline,
+            startingDate: startingDate,
+            duration: duration,
+          );
+
+    if (resolved != null) {
+      return _formatDateLabel(resolved.toIso8601String());
+    }
+
+    return _formatDateLabel(startingDate ?? deadline ?? fallbackDate);
+  }
+
+  String _resolveJobDueLabel({
+    String? deadline,
+    String? startingDate,
+    int? duration,
+  }) {
+    final resolved = _resolveFinalJobDate(
+      deadline: deadline,
+      startingDate: startingDate,
+      duration: duration,
+    );
+
+    if (resolved == null) return '';
+    return _buildDueLabel(resolved.toIso8601String()) ?? '';
+  }
+
+  bool _shouldUseStartDateForAgencyTab(String tab) {
+    final v = tab.trim().toLowerCase();
+    return v == 'new_offer' || v == 'quoted';
+  }
+
+  bool _shouldUseStartDateForInfluencerStatus(String status) {
+    final v = status.trim().toLowerCase();
+    return v == 'new_offer' || v == 'new';
+  }
+
+  bool _shouldUseStartDateForBrandStatus(String statusHint) {
+    final v = statusHint.trim().toLowerCase();
+    return v == 'quoting' || v == 'budget_pending' || v == 'quotation_received';
   }
 
   ScrollController scrollControllerForTab(int index) {
@@ -609,25 +710,35 @@ class JobsController extends GetxController {
       c.jumpTo(0);
     }
 
+    final hasSearch = searchQuery.value.trim().isNotEmpty;
+
     if (isBrand) {
       switch (index) {
         case 0:
-          if (brandActive.isEmpty) fetchBrandActive(reset: true);
+          if (hasSearch || brandActive.isEmpty) {
+            fetchBrandActive(reset: true);
+          }
           break;
         case 1:
           _applySelectedBrandBudgetList();
-          if (!_selectedBrandBudgetLoaded) {
+          if (hasSearch || !_selectedBrandBudgetLoaded) {
             fetchBrandBudgeting(reset: true);
           }
           break;
         case 2:
-          if (brandCompleted.isEmpty) fetchBrandCompleted(reset: true);
+          if (hasSearch || brandCompleted.isEmpty) {
+            fetchBrandCompleted(reset: true);
+          }
           break;
         case 3:
-          if (brandDrafts.isEmpty) fetchBrandDrafts(reset: true);
+          if (hasSearch || brandDrafts.isEmpty) {
+            fetchBrandDrafts(reset: true);
+          }
           break;
         case 4:
-          if (brandCanceled.isEmpty) fetchBrandCanceled(reset: true);
+          if (hasSearch || brandCanceled.isEmpty) {
+            fetchBrandCanceled(reset: true);
+          }
           break;
       }
       return;
@@ -636,43 +747,64 @@ class JobsController extends GetxController {
     if (isAdAgency) {
       switch (index) {
         case 0:
-          if (newOffers.isEmpty) fetchNewOffers(reset: true);
+          if (hasSearch || newOffers.isEmpty) {
+            fetchNewOffers(reset: true);
+          }
           break;
         case 1:
-          if (quotedJobs.isEmpty) fetchQuotedJobs(reset: true);
+          if (hasSearch || quotedJobs.isEmpty) {
+            fetchQuotedJobs(reset: true);
+          }
           break;
         case 2:
-          if (activeJobs.isEmpty) fetchActiveJobs(reset: true);
+          if (hasSearch || activeJobs.isEmpty) {
+            fetchActiveJobs(reset: true);
+          }
           break;
         case 3:
-          if (completedJobs.isEmpty) fetchCompletedJobs(reset: true);
+          if (hasSearch || completedJobs.isEmpty) {
+            fetchCompletedJobs(reset: true);
+          }
           break;
         case 4:
-          if (pendingPayments.isEmpty) fetchPendingPayments(reset: true);
+          if (hasSearch || pendingPayments.isEmpty) {
+            fetchPendingPayments(reset: true);
+          }
           break;
         case 5:
-          if (declinedJobs.isEmpty) fetchDeclinedJobs(reset: true);
+          if (hasSearch || declinedJobs.isEmpty) {
+            fetchDeclinedJobs(reset: true);
+          }
           break;
       }
       return;
     }
 
-    // influencer (existing 5 tabs)
     switch (index) {
       case 0:
-        if (newOffers.isEmpty) fetchNewOffers(reset: true);
+        if (hasSearch || newOffers.isEmpty) {
+          fetchNewOffers(reset: true);
+        }
         break;
       case 1:
-        if (activeJobs.isEmpty) fetchActiveJobs(reset: true);
+        if (hasSearch || activeJobs.isEmpty) {
+          fetchActiveJobs(reset: true);
+        }
         break;
       case 2:
-        if (completedJobs.isEmpty) fetchCompletedJobs(reset: true);
+        if (hasSearch || completedJobs.isEmpty) {
+          fetchCompletedJobs(reset: true);
+        }
         break;
       case 3:
-        if (pendingPayments.isEmpty) fetchPendingPayments(reset: true);
+        if (hasSearch || pendingPayments.isEmpty) {
+          fetchPendingPayments(reset: true);
+        }
         break;
       case 4:
-        if (declinedJobs.isEmpty) fetchDeclinedJobs(reset: true);
+        if (hasSearch || declinedJobs.isEmpty) {
+          fetchDeclinedJobs(reset: true);
+        }
         break;
     }
   }
@@ -1463,7 +1595,7 @@ class JobsController extends GetxController {
         ? data['data'] as Map<String, dynamic>
         : data;
 
-    final base = _mapInfluencerJobToJobItem(raw);
+    final base = _mapInfluencerJobToJobItem(raw, statusHint: '');
 
     final milestonesRaw = (raw['milestones'] as List?) ?? const [];
     final milestones = milestonesRaw
@@ -1500,7 +1632,12 @@ class JobsController extends GetxController {
     final list = (data['data'] as List?) ?? const [];
     final items = list
         .whereType<Map>()
-        .map((e) => _mapInfluencerJobToJobItem(e.cast<String, dynamic>()))
+        .map(
+          (e) => _mapInfluencerJobToJobItem(
+            e.cast<String, dynamic>(),
+            statusHint: status,
+          ),
+        )
         .toList();
 
     final meta = (data['pagination'] ?? data['meta']) as Map<String, dynamic>?;
@@ -1541,7 +1678,9 @@ class JobsController extends GetxController {
     final list = (data['data'] as List?) ?? const [];
     final items = list
         .whereType<Map>()
-        .map((e) => _mapAgencyCampaignToJob(e.cast<String, dynamic>()))
+        .map(
+          (e) => _mapAgencyCampaignToJob(e.cast<String, dynamic>(), tab: tab),
+        )
         .toList();
 
     final meta = data['meta'] as Map<String, dynamic>?;
@@ -1556,10 +1695,12 @@ class JobsController extends GetxController {
     );
   }
 
-  JobItem _mapAgencyCampaignToJob(Map<String, dynamic> json) {
+  JobItem _mapAgencyCampaignToJob(
+    Map<String, dynamic> json, {
+    required String tab,
+  }) {
     final campaignId = json['id']?.toString();
-    final campaignName = (json['campaignName'])?.trim();
-    final status = json['status']?.toString();
+    final campaignName = (json['campaignName'])?.toString().trim();
 
     final client = json['client'] as Map<String, dynamic>?;
     final clientName = client?['brandName']?.toString().trim();
@@ -1577,13 +1718,15 @@ class JobsController extends GetxController {
     final schedule = json['schedule'] as Map<String, dynamic>?;
     final startingDate = schedule?['startingDate']?.toString();
     final deadline = schedule?['deadline']?.toString();
+    final duration = _intFrom(schedule?['duration'] ?? json['duration']);
 
     final campaignTypeRaw = json['campaignType']?.toString();
 
     final budget = totalBudget > 0 ? totalBudget : availableBudget;
-
     final timeLeftToRequoteMinutes = _intFrom(json['timeLeftToRequoteMinutes']);
     final progress = _intFrom(json['progressPercent']);
+
+    final useStartingDate = _shouldUseStartDateForAgencyTab(tab);
 
     return JobItem(
       id: campaignId,
@@ -1592,10 +1735,19 @@ class JobsController extends GetxController {
           : 'Untitled Campaign',
       clientName: clientName?.isNotEmpty == true ? clientName! : '—',
       campaignType: _parseCampaignType(campaignTypeRaw),
-      dateLabel: _formatDateLabel(startingDate ?? deadline),
+      dateLabel: _resolveJobDateLabel(
+        useStartingDate: useStartingDate,
+        startingDate: startingDate,
+        deadline: deadline,
+        duration: duration,
+      ),
       budget: budget,
       sharePercent: serviceFee.round(),
-      dueLabel: _buildDueLabel(deadline),
+      dueLabel: _resolveJobDueLabel(
+        deadline: deadline,
+        startingDate: startingDate,
+        duration: duration,
+      ),
       progressPercent: progress,
       timeLeftToRequoteMinutes: timeLeftToRequoteMinutes,
     );
@@ -1700,12 +1852,15 @@ class JobsController extends GetxController {
     return null;
   }
 
-  JobItem _mapInfluencerJobToJobItem(Map<String, dynamic> json) {
+  JobItem _mapInfluencerJobToJobItem(
+    Map<String, dynamic> json, {
+    required String statusHint,
+  }) {
     final campaignId =
         json['id']?.toString() ?? json['assignmentId']?.toString();
-    final campaignName = (json['campaignName'])?.trim();
+    final campaignName = (json['campaignName'])?.toString().trim();
     final campaignTypeRaw = json['campaignType']?.toString();
-    final brandName = (json['brandName'])?.trim();
+    final brandName = (json['brandName'])?.toString().trim();
     final client = json['client'] as Map<String, dynamic>?;
     final clientName = client?['brandName']?.toString().trim();
 
@@ -1714,18 +1869,13 @@ class JobsController extends GetxController {
     final budget = offeredAmount > 0 ? offeredAmount : totalAmount;
 
     final startingDate = json['startingDate']?.toString();
+    final deadline = json['deadline']?.toString();
     final createdAt = json['createdAt']?.toString();
     final progress = json['progress'];
     final duration = _intFrom(json['duration']);
     final needSampleProduct = json['needSampleProduct'] == true;
 
-    DateTime? deadline;
-    final startDt = startingDate != null
-        ? DateTime.tryParse(startingDate)
-        : null;
-    if (startDt != null && duration != null && duration > 0) {
-      deadline = startDt.add(Duration(days: duration));
-    }
+    final useStartingDate = _shouldUseStartDateForInfluencerStatus(statusHint);
 
     return JobItem(
       id: campaignId,
@@ -1737,14 +1887,22 @@ class JobsController extends GetxController {
           ? clientName!
           : (brandName?.isNotEmpty == true ? brandName! : '—'),
       campaignType: _parseCampaignType(campaignTypeRaw),
-      dateLabel: _formatDateLabel(startingDate ?? createdAt),
+      dateLabel: _resolveJobDateLabel(
+        useStartingDate: useStartingDate,
+        startingDate: startingDate,
+        deadline: deadline,
+        duration: duration,
+        fallbackDate: createdAt,
+      ),
       budget: budget,
-      sharePercent: 0,
-      dueLabel: deadline == null
-          ? null
-          : _buildDueLabel(deadline.toIso8601String()),
+      dueLabel: _resolveJobDueLabel(
+        deadline: deadline,
+        startingDate: startingDate,
+        duration: duration,
+      ),
       progressPercent: _intFrom(progress),
       needToSendSample: needSampleProduct,
+      sharePercent: 0,
     );
   }
 

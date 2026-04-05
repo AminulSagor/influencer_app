@@ -127,15 +127,9 @@ class ProfileView extends GetView<ProfileController> {
                                     isExpanded:
                                         controller.serviceFeeExpanded.value,
                                     onToggle: controller.toggleServiceFee,
-                                    child:
-                                        controller.profileStatus.value ==
-                                            ProfileStatus.unverified
-                                        ? _ServiceFeeSection(
-                                            controller: controller,
-                                          )
-                                        : _VerifiedServiceFeeSection(
-                                            controller: controller,
-                                          ),
+                                    child: _ServiceFeeSection(
+                                      controller: controller,
+                                    ),
                                   ),
                                 ),
                                 SizedBox(height: 12.h),
@@ -508,6 +502,9 @@ class _SocialLinksSection extends StatelessWidget {
                   SizedBox(width: 8.w),
                   Expanded(
                     child: CustomTextFormField(
+                      key: ValueKey(
+                        '${account.platform}_${controller.socialHandleValue(account.platform, account.handle)}',
+                      ),
                       hintText: '@instragram',
                       initialValue: controller.socialHandleValue(
                         account.platform,
@@ -989,7 +986,7 @@ class _EmailVerificationStepState extends State<_EmailVerificationStep> {
   }
 
   Widget _buildOtpBox(int index) {
-    final isFilled = _controllers[index].text.isNotEmpty;
+    // final isFilled = _controllers[index].text.isNotEmpty;
 
     return SizedBox(
       width: 74.w,
@@ -1001,21 +998,19 @@ class _EmailVerificationStepState extends State<_EmailVerificationStep> {
         keyboardType: TextInputType.number,
         textAlign: TextAlign.center,
         style: TextStyle(
-          fontSize: 32.sp,
+          fontSize: 35.sp,
           fontWeight: FontWeight.w600,
-          color: AppPalette.primary,
+          color: AppPalette.secondary,
         ),
         decoration: InputDecoration(
-          contentPadding: EdgeInsets.zero,
-          filled: true,
-          fillColor: const Color(0xFFF9FAFB),
+          contentPadding: EdgeInsets.symmetric(vertical: 10.h),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16.r),
-            borderSide: BorderSide(color: const Color(0xFFCDD5DF), width: 2.w),
+            borderRadius: BorderRadius.circular(kBorderRadius.r),
+            borderSide: BorderSide(color: AppPalette.defaultStroke, width: 1.w),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16.r),
-            borderSide: BorderSide(color: AppPalette.primary, width: 2.w),
+            borderRadius: BorderRadius.circular(kBorderRadius.r),
+            borderSide: BorderSide(color: AppPalette.secondary, width: 2.w),
           ),
         ),
         inputFormatters: [
@@ -1040,7 +1035,7 @@ class _EmailVerificationStepState extends State<_EmailVerificationStep> {
             child: GestureDetector(
               onTap: widget.controller.showVerificationList,
               child: Icon(
-                Icons.arrow_back_ios_new_rounded,
+                Icons.arrow_back,
                 size: 20.sp,
                 color: AppPalette.primary,
               ),
@@ -1052,7 +1047,7 @@ class _EmailVerificationStepState extends State<_EmailVerificationStep> {
             style: TextStyle(
               fontSize: 32.sp,
               fontWeight: FontWeight.w500,
-              color: const Color(0xFF111827),
+              color: AppPalette.black,
               height: 1.2,
             ),
           ),
@@ -1062,8 +1057,9 @@ class _EmailVerificationStepState extends State<_EmailVerificationStep> {
               'We send a code to \n ${widget.controller.userEmail.value}',
               style: TextStyle(
                 fontSize: 16.sp,
-                color: const Color(0xFF6B7280),
-                height: 1.5,
+                color: AppPalette.black,
+                fontWeight: .w300,
+                height: 2,
               ),
             ),
           ),
@@ -1090,7 +1086,7 @@ class _EmailVerificationStepState extends State<_EmailVerificationStep> {
                   style: TextStyle(
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w500,
-                    color: const Color(0xFF6B7280),
+                    color: AppPalette.greyText,
                   ),
                 ),
               );

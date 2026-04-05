@@ -735,7 +735,9 @@ class ProfileController extends GetxController {
 
         if (accountTypeService.isAdAgency &&
             appUserSession.agencyProfileJson.value != null) {
-          _populateFromAgencyJson(appUserSession.agencyProfileJson.value!);
+          await _populateFromAgencyJson(
+            appUserSession.agencyProfileJson.value!,
+          );
           return;
         }
 
@@ -1207,7 +1209,21 @@ class ProfileController extends GetxController {
                           ),
                         )
                         .toList(growable: false),
-                    onChanged: (value) => newSocialPlatform.value = value,
+                    onChanged: (value) {
+                      final next = value?.trim();
+                      if (next == null || next.isEmpty) {
+                        newSocialPlatform.value = null;
+                        newSocialHandleController.clear();
+                        return;
+                      }
+
+                      final existing = socialAccounts.firstWhereOrNull(
+                        (e) => e.platform.toLowerCase() == next.toLowerCase(),
+                      );
+
+                      newSocialPlatform.value = next;
+                      newSocialHandleController.text = existing?.handle ?? '';
+                    },
                   ),
                 ),
               ),
@@ -1263,13 +1279,37 @@ class ProfileController extends GetxController {
                                 try {
                                   final agencyService =
                                       Get.find<AgencyProfileService>();
-                                  final payload = [
-                                    {'platform': platform, 'url': url},
-                                  ];
+                                  final currentPayload = socialAccounts
+                                      .map(
+                                        (e) => {
+                                          'platform': e.platform.toLowerCase(),
+                                          'url': e.handle,
+                                        },
+                                      )
+                                      .where(
+                                        (e) => (e['url'] as String).isNotEmpty,
+                                      )
+                                      .toList();
+
+                                  final index = currentPayload.indexWhere(
+                                    (e) => e['platform'] == platform,
+                                  );
+
+                                  if (index >= 0) {
+                                    currentPayload[index] = {
+                                      'platform': platform,
+                                      'url': url,
+                                    };
+                                  } else {
+                                    currentPayload.add({
+                                      'platform': platform,
+                                      'url': url,
+                                    });
+                                  }
 
                                   final result = await ApiErrorHandler.call(
                                     () => agencyService.updateSocials(
-                                      socialLinks: payload,
+                                      socialLinks: currentPayload,
                                     ),
                                   );
                                   if (!result.isSuccess) return;
@@ -1366,6 +1406,7 @@ class ProfileController extends GetxController {
       }
     } finally {
       isAddingSocial.value = false;
+      await _fetchInfluencerProfile();
     }
   }
 
@@ -1744,7 +1785,7 @@ class ProfileController extends GetxController {
     debugPrint('  Name: ${json['agencyName']}');
     debugPrint('  isOnboardingComplete: ${json['isOnboardingComplete']}');
 
-    _populateFromAgencyJson(json);
+    await _populateFromAgencyJson(json);
   }
 
   /// Fetches brand profile from API and populates UI fields
@@ -1770,7 +1811,7 @@ class ProfileController extends GetxController {
   }
 
   /// Populates controller fields from Agency profile JSON
-  void _populateFromAgencyJson(Map<String, dynamic> json) {
+  Future<void> _populateFromAgencyJson(Map<String, dynamic> json) async {
     final userModel = ProfileIdentityModel.fromAgencyJson(
       json,
       fallbackEmail: userEmail.value,
@@ -1781,6 +1822,13 @@ class ProfileController extends GetxController {
     final agencyName = json['agencyName'] ?? '';
     final firstName = json['firstName'] ?? '';
     final lastName = json['lastName'] ?? '';
+    final address = json['address'] is Map
+        ? Map<String, dynamic>.from(json['address'] as Map)
+        : <String, dynamic>{};
+
+    final fullAddress = (address['fullAddress'] ?? '').toString().trim();
+    final zillaName = (address['zilla'] ?? '').toString().trim();
+    final thanaName = (address['thana'] ?? '').toString().trim();
 
     _setBioText(json['agencyBio'] ?? '');
     _setServiceFeeText(json['serviceFee']?.toString() ?? '');
@@ -1910,25 +1958,6 @@ class ProfileController extends GetxController {
     } else {
       skills.clear();
       skillStatuses.clear();
-    }
-
-    // Locations/Addresses
-    final address = json['address'];
-
-    if (address != null) {
-      if (address is Map) {
-        final zilla = (address['zilla'] ?? '').toString().trim();
-
-        final locParts = <String>[if (zilla.isNotEmpty) zilla, 'Bangladesh'];
-
-        profileLocation.value = locParts.isEmpty
-            ? 'Dhaka, Bangladesh'
-            : locParts.join(', ');
-      } else {
-        profileLocation.value = 'Dhaka, Bangladesh';
-      }
-    } else {
-      locations.clear();
     }
 
     // Payout methods
@@ -2084,7 +2113,7 @@ class ProfileController extends GetxController {
       ProfileField(
         label: 'Full Address',
         hintText: 'Enter Full Address',
-        value: primaryLocation?.fullAddress ?? '',
+        value: fullAddress,
         isRequired: true,
       ),
       ProfileField(
@@ -2107,7 +2136,7 @@ class ProfileController extends GetxController {
         value: secondaryPhone,
       ),
     ]);
-    _hydrateAgencyAddressDropdowns(json);
+    await _hydrateAgencyAddressDropdowns(json);
     _hydrateVerificationInputsFromJson(json);
     _syncProfileFieldDefaults();
   }

@@ -15,6 +15,7 @@ import 'package:influencer_app/core/widgets/job_offer_card.dart';
 import 'package:influencer_app/core/widgets/search_field.dart';
 import 'package:influencer_app/routes/app_routes.dart';
 
+import 'campaign_how_to_view.dart';
 import 'jobs_controller.dart';
 import '../../../core/widgets/shimmer_utils.dart';
 
@@ -54,20 +55,25 @@ class JobsView extends GetView<JobsController> {
                       height: 42.h,
                     ),
                     10.w.horizontalSpace,
-                    Container(
-                      height: 30.w,
-                      width: 30.w,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(999.r),
-                        border: Border.all(
-                          color: AppPalette.secondary,
-                          width: 3.w,
+                    InkWell(
+                      onTap: () {
+                        Get.to(() => const CampaignHowToView(), id: 1);
+                      },
+                      child: Container(
+                        height: 30.w,
+                        width: 30.w,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(999.r),
+                          border: Border.all(
+                            color: AppPalette.secondary,
+                            width: 3.w,
+                          ),
                         ),
-                      ),
-                      child: Icon(
-                        Icons.question_mark_rounded,
-                        color: AppPalette.secondary,
-                        size: 20.sp,
+                        child: Icon(
+                          Icons.question_mark_rounded,
+                          color: AppPalette.secondary,
+                          size: 20.sp,
+                        ),
                       ),
                     ),
                   ],
@@ -149,6 +155,7 @@ class JobsView extends GetView<JobsController> {
                   }),
                 ),
               ),
+              12.h.verticalSpace,
             ],
           ),
         ),
@@ -903,29 +910,25 @@ class JobsView extends GetView<JobsController> {
                   ],
                 ),
               ),
-              if ((job.dueLabel ?? '').isNotEmpty)
-                Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 14.w,
-                    vertical: 6.h,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppPalette.complemetaryFill,
-                    borderRadius: BorderRadius.circular(kBorderRadiusSmall.r),
-                    border: Border.all(
-                      color: AppPalette.complemetary,
-                      width: kBorderWeight1,
-                    ),
-                  ),
-                  child: Text(
-                    localizeDueLabel(job.dueLabel),
-                    style: TextStyle(
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.w400,
-                      color: AppPalette.complemetary,
-                    ),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 6.h),
+                decoration: BoxDecoration(
+                  color: AppPalette.complemetaryFill,
+                  borderRadius: BorderRadius.circular(kBorderRadiusSmall.r),
+                  border: Border.all(
+                    color: AppPalette.complemetary,
+                    width: kBorderWeight1,
                   ),
                 ),
+                child: Text(
+                  localizeDueLabel(job.dueLabel),
+                  style: TextStyle(
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w400,
+                    color: AppPalette.complemetary,
+                  ),
+                ),
+              ),
             ],
           ),
           SizedBox(height: 10.h),

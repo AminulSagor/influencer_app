@@ -330,9 +330,7 @@ class _ProfileDrawer extends StatelessWidget {
                   icon: Icons.flag_rounded,
                   color: AppPalette.complemetary,
                   label: 'Report',
-                  onTap: () {
-                    Get.toNamed(AppRoutes.reportLog, id: 1);
-                  },
+                  routeName: AppRoutes.reportLog,
                 ),
                 SizedBox(height: 8.h),
 
@@ -340,7 +338,7 @@ class _ProfileDrawer extends StatelessWidget {
                   icon: Icons.headset_mic_rounded,
                   color: AppPalette.secondary,
                   label: 'Support',
-                  onTap: () => Get.toNamed(AppRoutes.support, id: 1),
+                  routeName: AppRoutes.support,
                 ),
                 SizedBox(height: 8.h),
 
@@ -350,7 +348,7 @@ class _ProfileDrawer extends StatelessWidget {
                     iconPath: 'assets/icons/language.png',
                     color: AppPalette.complemetary,
                     label: 'Language',
-                    onTap: () => Get.toNamed(AppRoutes.language, id: 1),
+                    routeName: AppRoutes.language,
                   ),
 
                 _DrawerActionItem(
@@ -597,6 +595,7 @@ class _DrawerActionItem extends StatelessWidget {
   final Color color;
   final String label;
   final VoidCallback? onTap;
+  final String? routeName;
 
   const _DrawerActionItem({
     this.icon,
@@ -604,14 +603,37 @@ class _DrawerActionItem extends StatelessWidget {
     required this.label,
     this.onTap,
     this.iconPath,
+    this.routeName,
   });
+
+  void _handleNavigation() {
+    final route = routeName?.trim();
+    if (route == null || route.isEmpty) return;
+
+    final nestedNavigator = Get.nestedKey(1)?.currentState;
+    final canPopNested = nestedNavigator?.canPop() ?? false;
+
+    if (canPopNested) {
+      Get.offNamed(route, id: 1);
+    } else {
+      Get.toNamed(route, id: 1);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       borderRadius: BorderRadius.circular(18.r),
-      onTap: () {
+      onTap: () async {
         Navigator.of(context).pop();
+
+        await Future.delayed(const Duration(milliseconds: 120));
+
+        if (routeName != null) {
+          _handleNavigation();
+          return;
+        }
+
         onTap?.call();
       },
       child: Padding(
@@ -619,11 +641,7 @@ class _DrawerActionItem extends StatelessWidget {
         child: Row(
           children: [
             if (iconPath != null)
-              Image.asset(
-                'assets/icons/language.png',
-                width: 30.w,
-                fit: .cover,
-              ),
+              Image.asset(iconPath!, width: 30.w, fit: BoxFit.cover),
             if (icon != null) Icon(icon, size: 30.sp, color: color),
             SizedBox(width: 18.w),
             Text(

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -16,6 +17,7 @@ import '../../routes/app_routes.dart';
 import '../models/location_models.dart';
 import '../services/auth_services.dart';
 import '../services/campaign_service.dart';
+import '../services/firebase_messaging_service.dart';
 import '../services/location_service.dart';
 
 class AppUserSessionController extends GetxService {
@@ -37,7 +39,10 @@ class AppUserSessionController extends GetxService {
   final newNotifications = <NotificationDto>[].obs;
   final earlierNotifications = <NotificationDto>[].obs;
 
-  int get unreadNotificationCount => newNotifications.length;
+  final unreadNotificationCountRx = 0.obs;
+  int get unreadNotificationCount => unreadNotificationCountRx.value;
+
+  StreamSubscription<Map<String, dynamic>>? _notificationSubscription;
 
   final TokenService _tokenService = Get.find<TokenService>();
   final AccountTypeService _accountTypeService = Get.find<AccountTypeService>();
@@ -57,11 +62,7 @@ class AppUserSessionController extends GetxService {
   final brandThanas = <ThanaModel>[].obs;
   final brandPlatforms = <String>[].obs;
 
-  String get _notificationBasePath => _accountTypeService.isBrand
-      ? '/client/notifications'
-      : _accountTypeService.isInfluencer
-      ? '/influencer/notifications'
-      : '/notifications';
+  String get _notificationBasePath => '/notifications';
 
   Future<bool> preloadUserData({bool forceRefresh = false}) async {
     if (isLoading.value) {
@@ -92,6 +93,7 @@ class AppUserSessionController extends GetxService {
       }
 
       await _loadNotifications();
+      _listenNotificationBadgeUpdates();
 
       isLoaded.value = true;
       return isUserVerified();
@@ -101,6 +103,72 @@ class AppUserSessionController extends GetxService {
     } finally {
       isLoading.value = false;
     }
+  }
+
+  void _listenNotificationBadgeUpdates() {
+    _notificationSubscription?.cancel();
+
+    _notificationSubscription = FirebaseMessagingService.notificationStream
+        .listen((_) async {
+          await refreshNotificationBadgeCount();
+        });
+  }
+
+  Future<void> refreshNotificationBadgeCount() async {
+    try {
+      final res = await _notificationService.fetchNotifications(
+        basePath: _notificationBasePath,
+        page: 1,
+        limit: 1,
+      );
+
+      unreadNotificationCountRx.value = _extractUnreadCount(res);
+      notificationsLoaded.value = true;
+    } catch (e) {
+      debugPrint('[AppUserSession] notification badge refresh failed: $e');
+    }
+  }
+
+  int _extractUnreadCount(dynamic response) {
+    try {
+      final meta = (response.meta as dynamic);
+      final unread = meta?.unreadCount;
+      if (unread is num) return unread.toInt();
+    } catch (_) {}
+
+    try {
+      final unread = response.unreadCount;
+      if (unread is num) return unread.toInt();
+    } catch (_) {}
+
+    return 0;
+  }
+
+  Future<void> _loadNotifications() async {
+    try {
+      final res = await _notificationService.fetchNotifications(
+        basePath: _notificationBasePath,
+        page: 1,
+        limit: 1,
+      );
+
+      unreadNotificationCountRx.value = _extractUnreadCount(res);
+
+      newNotifications.clear();
+      earlierNotifications.clear();
+      notificationsLoaded.value = true;
+    } catch (e) {
+      debugPrint('[AppUserSession] notifications load failed: $e');
+      unreadNotificationCountRx.value = 0;
+      newNotifications.clear();
+      earlierNotifications.clear();
+      notificationsLoaded.value = true;
+    }
+  }
+
+  void updateUnreadNotificationCount(int value) {
+    unreadNotificationCountRx.value = value < 0 ? 0 : value;
+    notificationsLoaded.value = true;
   }
 
   Future<void> _preloadBrandLookupsBeforeProfile() async {
@@ -276,40 +344,6 @@ class AppUserSessionController extends GetxService {
     if (phone != null) userPhone.value = phone;
   }
 
-  Future<void> _loadNotifications() async {
-    try {
-      final newRes = await _notificationService.fetchNotifications(
-        basePath: _notificationBasePath,
-        // filter: 'new',
-        page: 1,
-        limit: 50,
-      );
-
-      List<NotificationDto> earlier;
-      try {
-        final earlierRes = await _notificationService.fetchNotifications(
-          basePath: _notificationBasePath,
-          filter: 'earlier',
-          page: 1,
-          limit: 50,
-        );
-        earlier = earlierRes.data;
-      } catch (_) {
-        final allRes = await _notificationService.fetchNotifications(
-          basePath: _notificationBasePath,
-          page: 1,
-          limit: 100,
-        );
-        earlier = allRes.data.where((n) => n.isRead).toList(growable: false);
-      }
-
-      updateNotifications(newItems: newRes.data, earlierItems: earlier);
-    } catch (e) {
-      debugPrint('[AppUserSession] notifications load failed: $e');
-      updateNotifications(newItems: const [], earlierItems: const []);
-    }
-  }
-
   /// Extracts verification status from loaded profile data
   bool isUserVerified() {
     if (_accountTypeService.isInfluencer) {
@@ -363,6 +397,7 @@ class AppUserSessionController extends GetxService {
     agencyProfileJson.value = null;
     brandProfileJson.value = null;
 
+    unreadNotificationCountRx.value = 0;
     newNotifications.clear();
     earlierNotifications.clear();
   }
@@ -426,5 +461,11 @@ class AppUserSessionController extends GetxService {
     if (value == null) return null;
     final text = value.toString().trim();
     return text.isEmpty ? null : text;
+  }
+
+  @override
+  void onClose() {
+    _notificationSubscription?.cancel();
+    super.onClose();
   }
 }

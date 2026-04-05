@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:influencer_app/core/utils/constants.dart';
+import 'package:influencer_app/core/widgets/custom_text_form_field.dart';
 
+import '../../../../core/theme/app_palette.dart';
+import '../../../../core/widgets/custom_button.dart';
 import '../brand_campaign_details_controller.dart';
 
 typedef SubmitBrandAsset =
@@ -73,10 +77,6 @@ class _UploadAnotherBrandAssetDialogState
     }
   }
 
-  static const primary = Color(0xFF2F4F1F);
-  static const bg = Color(0xFFF6F7F7);
-  static const softBorder = Color(0xFFBFD7A5);
-
   @override
   Widget build(BuildContext context) {
     return Dialog(
@@ -86,7 +86,7 @@ class _UploadAnotherBrandAssetDialogState
         padding: EdgeInsets.all(16.w),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(18.r),
+          borderRadius: BorderRadius.circular(kBorderRadius.r),
           border: Border.all(color: Colors.black12),
         ),
         child: Column(
@@ -99,8 +99,8 @@ class _UploadAnotherBrandAssetDialogState
                     'brand_campaign_details_upload_another_brand_asset'.tr,
                     style: TextStyle(
                       fontSize: 16.sp,
-                      fontWeight: FontWeight.w800,
-                      color: primary,
+                      fontWeight: FontWeight.w600,
+                      color: AppPalette.primary,
                     ),
                   ),
                 ),
@@ -112,101 +112,49 @@ class _UploadAnotherBrandAssetDialogState
                     child: Icon(
                       Icons.close,
                       size: 20.sp,
-                      color: primary.withOpacity(.6),
+                      color: AppPalette.secondary,
                     ),
                   ),
                 ),
               ],
             ),
             14.h.verticalSpace,
-            TextField(
+            CustomTextFormField(
               controller: titleCtrl,
-              decoration: InputDecoration(
-                hintText: 'create_campaign_brand_asset_name_hint'.tr,
-                filled: true,
-                fillColor: bg,
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 14.w,
-                  vertical: 12.h,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12.r),
-                  borderSide: const BorderSide(color: Colors.black12),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12.r),
-                  borderSide: const BorderSide(color: Colors.black12),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12.r),
-                  borderSide: const BorderSide(color: softBorder, width: 1.4),
-                ),
+              hintText: 'create_campaign_brand_asset_name_hint'.tr,
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 14.w,
+                vertical: 12.h,
               ),
             ),
             10.h.verticalSpace,
-            TextField(
+            CustomTextFormField(
               controller: urlCtrl,
-              decoration: InputDecoration(
-                hintText: 'create_campaign_brand_asset_value_hint'.tr,
-                filled: true,
-                fillColor: bg,
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 14.w,
-                  vertical: 12.h,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12.r),
-                  borderSide: const BorderSide(color: Colors.black12),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12.r),
-                  borderSide: const BorderSide(color: Colors.black12),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12.r),
-                  borderSide: const BorderSide(color: softBorder, width: 1.4),
-                ),
+              hintText: 'create_campaign_brand_asset_value_hint'.tr,
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 14.w,
+                vertical: 12.h,
               ),
             ),
             14.h.verticalSpace,
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Get.back(),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: Size(double.infinity, 46.h),
-                      side: const BorderSide(color: Colors.black12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.r),
-                      ),
-                    ),
-                    child: Text('skills_cancel'.tr),
+                  child: CustomButton(
+                    onTap: Get.back,
+                    btnText: 'skills_cancel'.tr,
+                    btnColor: AppPalette.defaultFill,
                   ),
                 ),
                 12.w.horizontalSpace,
                 Expanded(
                   child: Obx(() {
-                    return ElevatedButton(
-                      onPressed: isSubmitting.value ? null : _submit,
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: Size(double.infinity, 46.h),
-                        backgroundColor: primary.withOpacity(.75),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12.r),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: isSubmitting.value
-                          ? SizedBox(
-                              width: 18.w,
-                              height: 18.w,
-                              child: const CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : Text('common_done'.tr),
+                    return CustomButton(
+                      onTap: isSubmitting.value ? null : _submit,
+                      btnText: 'common_done'.tr,
+                      btnColor: AppPalette.secondary,
+                      textColor: AppPalette.white,
+                      isLoading: isSubmitting.value,
                     );
                   }),
                 ),

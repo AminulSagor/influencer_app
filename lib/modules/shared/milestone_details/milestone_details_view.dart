@@ -109,10 +109,9 @@ class MilestoneDetailsView extends GetView<MilestoneDetailsController> {
                               return const SizedBox.shrink();
                             }
 
-                            final reported =
-                                controller.hasReportedToAdmin.value;
-                            final hasFetchedSubmissionReports =
+                            final hasSubmissionReports =
                                 controller.selectedSubmissionReports.isNotEmpty;
+                            final reported = hasSubmissionReports;
                             final againAt = controller.reportAgainAt.value;
                             final againText = againAt == null
                                 ? ''
@@ -196,7 +195,7 @@ class MilestoneDetailsView extends GetView<MilestoneDetailsController> {
                                 ],
 
                                 // ✅ show only if API has reports for selected submission
-                                if (hasFetchedSubmissionReports) ...[
+                                if (hasSubmissionReports) ...[
                                   SizedBox(height: 12.h),
                                   CustomButton(
                                     onTap: () => _showSubmittedReportsDialog(
@@ -375,7 +374,9 @@ class MilestoneDetailsView extends GetView<MilestoneDetailsController> {
 
                       if (!accountTypeService.isBrand) ...[
                         if (!accountTypeService.isInfluencer &&
-                            controller.shouldShowSubmitSection) ...[
+                            controller.shouldShowSubmitSection &&
+                            (!accountTypeService.isAdAgency ||
+                                controller.canAddAnotherSubmission)) ...[
                           SizedBox(height: 8.h),
                           Padding(
                             padding: EdgeInsets.symmetric(horizontal: 16.w),
@@ -1006,7 +1007,7 @@ void _showSubmittedReportsDialog({required BuildContext context}) {
                   separatorBuilder: (_, __) => SizedBox(height: 12.h),
                   itemBuilder: (_, i) {
                     final item = list[i];
-                    final idx = i + 1;
+                    final idx = list.length - i;
 
                     return Column(
                       children: [

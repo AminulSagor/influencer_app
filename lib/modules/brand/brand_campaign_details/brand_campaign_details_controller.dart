@@ -223,6 +223,8 @@ class BrandCampaignDetailsController extends GetxController {
 
   final ScrollController pageScrollController = ScrollController();
 
+  bool _isBlockingLoaderVisible = false;
+
   bool get areAllInfluencersAlreadyRated {
     if (rateInfluencerItems.isEmpty) return false;
     return rateInfluencerItems.every((e) => e.isAlreadyRated.value);
@@ -250,8 +252,10 @@ class BrandCampaignDetailsController extends GetxController {
     _listenCampaignNotifications();
   }
 
-  void _showBlockingLoader() async {
-    if (Get.isDialogOpen == true) return;
+  void _showBlockingLoader() {
+    if (_isBlockingLoaderVisible) return;
+
+    _isBlockingLoaderVisible = true;
 
     Get.dialog(
       const PopScope(
@@ -262,10 +266,15 @@ class BrandCampaignDetailsController extends GetxController {
     );
   }
 
-  void _hideBlockingLoader() {
+  Future<void> _hideBlockingLoader() async {
+    if (!_isBlockingLoaderVisible) return;
+
     if (Get.isDialogOpen == true) {
       Get.back();
+      await Future.delayed(const Duration(milliseconds: 120));
     }
+
+    _isBlockingLoaderVisible = false;
   }
 
   String _paymentMessageFromResponse(
@@ -342,6 +351,11 @@ class BrandCampaignDetailsController extends GetxController {
       isPayNowLoading.value = true;
       isOpeningPaymentFlow.value = true;
 
+      if (Get.isDialogOpen == true) {
+        Get.back();
+        await Future.delayed(const Duration(milliseconds: 120));
+      }
+
       _showBlockingLoader();
 
       final response = await _campaignService.payCampaignAmount(
@@ -349,7 +363,7 @@ class BrandCampaignDetailsController extends GetxController {
         amount: amount,
       );
 
-      _hideBlockingLoader();
+      await _hideBlockingLoader();
 
       final gatewayUrl = _extractGatewayUrl(response);
       final tranId = _extractTranId(response);
@@ -364,10 +378,6 @@ class BrandCampaignDetailsController extends GetxController {
         return;
       }
 
-      if (Get.isDialogOpen == true) {
-        Get.back();
-      }
-
       final message = _paymentMessageFromResponse(
         response,
         'Payment session created successfully.',
@@ -380,7 +390,7 @@ class BrandCampaignDetailsController extends GetxController {
         failMessage: 'Payment failed.',
       );
     } catch (e) {
-      _hideBlockingLoader();
+      await _hideBlockingLoader();
       Get.snackbar('Error', e.toString());
     } finally {
       isPayNowLoading.value = false;
@@ -1180,6 +1190,10 @@ class BrandCampaignDetailsController extends GetxController {
     if (campaignStatus.value.isNotEmpty) {
       dev.log('THE CAMP STATUS: ${campaignStatus.value}');
 
+      if (isPaidAd && (isPendingAgency || !isAgencyAccepet)) {
+        budgetStatusText.value =
+            'brand_campaign_details_agency_confirmation_pending'.tr;
+      }
       if (isPendingAgency) {
         budgetStatusText.value =
             'brand_campaign_details_agency_confirmation_pending'.tr;
@@ -1203,7 +1217,8 @@ class BrandCampaignDetailsController extends GetxController {
         progressStep.value = CampaignProgressStep.paid;
         return;
       }
-      if (campaignStatus.value.contains('negotiat')) {
+      if (campaignStatus.value.contains('negotiat') ||
+          campaignStatus.value.contains('pending_influencer')) {
         progressStep.value = CampaignProgressStep.quoted;
         return;
       }
@@ -1689,7 +1704,7 @@ class BrandCampaignDetailsController extends GetxController {
       _showBlockingLoader();
 
       if (isPaidAd) {
-        _hideBlockingLoader();
+        await _hideBlockingLoader();
         setPaidAdTab(0);
         _openConfirmBudgetDialog();
         return;
@@ -1697,13 +1712,13 @@ class BrandCampaignDetailsController extends GetxController {
 
       final ok = await _acceptQuoteRequest();
 
-      _hideBlockingLoader();
+      await _hideBlockingLoader();
 
       if (!ok) return;
 
       openFundCampaignDialog();
     } catch (e) {
-      _hideBlockingLoader();
+      await _hideBlockingLoader();
       Get.snackbar('Error', e.toString());
     } finally {
       isAcceptQuoteLoading.value = false;
@@ -1737,11 +1752,11 @@ class BrandCampaignDetailsController extends GetxController {
 
       await _loadFromApiIfPossible();
 
-      _hideBlockingLoader();
+      await _hideBlockingLoader();
 
       openFundCampaignDialog();
     } catch (e) {
-      _hideBlockingLoader();
+      await _hideBlockingLoader();
       Get.snackbar(trOr('common_error', 'Error'), _errorMessage(e));
     } finally {
       isAcceptQuoteLoading.value = false;
@@ -2076,6 +2091,10 @@ class BrandCampaignDetailsController extends GetxController {
   void openFundCampaignDialog() {
     final totalDue = dueAmount.value > 0 ? dueAmount.value : totalCost;
     final alreadyPaid = paidAmount.value;
+
+    if (Get.isDialogOpen == true) {
+      Get.back();
+    }
 
     FundCampaignDialog.show(
       campaignTitle: campaignTitle.value,

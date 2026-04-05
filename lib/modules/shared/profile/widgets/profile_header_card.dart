@@ -25,7 +25,7 @@ class ProfileHeaderCard extends StatelessWidget {
     if (p.contains('insta')) return 'assets/icons/instagram.png';
     if (p.contains('youtube')) return 'assets/icons/youTube.png';
     if (p.contains('tiktok')) return 'assets/icons/tikTok.png';
-    return 'assets/icons/tikTok.png';
+    return 'assets/icons/facebook.png';
   }
 
   @override
@@ -51,41 +51,41 @@ class ProfileHeaderCard extends StatelessWidget {
           children: [
             Expanded(
               flex: 2,
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    CircleAvatar(
-                      radius: 38.r,
-                      backgroundColor: Colors.white,
-                      backgroundImage: controller.profileImageFile.value != null
-                          ? FileImage(controller.profileImageFile.value!)
-                          : (controller.profileImageUrl.value.isNotEmpty
-                                    ? NetworkImage(
-                                        controller.profileImageUrl.value,
-                                      )
-                                    : null)
-                                as ImageProvider?,
-                      child:
-                          controller.profileImageFile.value == null &&
-                              controller.profileImageUrl.value.isEmpty
-                          ? Icon(
-                              Icons.person,
-                              size: 32.sp,
-                              color: Colors.grey[400],
-                            )
-                          : null,
-                    ),
-                    SizedBox(height: 6.h),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  CircleAvatar(
+                    radius: 38.r,
+                    backgroundColor: Colors.white,
+                    backgroundImage: controller.profileImageFile.value != null
+                        ? FileImage(controller.profileImageFile.value!)
+                        : (controller.profileImageUrl.value.isNotEmpty
+                                  ? NetworkImage(
+                                      controller.profileImageUrl.value,
+                                    )
+                                  : null)
+                              as ImageProvider?,
+                    child:
+                        controller.profileImageFile.value == null &&
+                            controller.profileImageUrl.value.isEmpty
+                        ? Icon(
+                            Icons.person,
+                            size: 32.sp,
+                            color: Colors.grey[400],
+                          )
+                        : null,
+                  ),
+                  SizedBox(height: 6.h),
 
-                    _StatusChip(
-                      label: controller.profileStatusLabel,
-                      onTap: onStatusTap,
-                    ),
-                    SizedBox(height: 10.h),
+                  _StatusChip(
+                    label: controller.profileStatusLabel,
+                    onTap: onStatusTap,
+                  ),
+                  SizedBox(height: 10.h),
 
-                    Row(
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
@@ -107,37 +107,41 @@ class ProfileHeaderCard extends StatelessWidget {
                         ],
                       ],
                     ),
-                    SizedBox(height: 4.h),
+                  ),
+                  SizedBox(height: 4.h),
 
-                    if (controller.accountTypeService.isBrand) ...[
-                      Text(
-                        controller.brandName.value,
-                        style: TextStyle(
-                          color: AppPalette.white,
-                          fontSize: 10.sp,
-                        ),
+                  if (controller.accountTypeService.isBrand) ...[
+                    Text(
+                      controller.brandName.value,
+                      style: TextStyle(
+                        color: AppPalette.white,
+                        fontSize: 10.sp,
                       ),
-                      10.h.verticalSpace,
-                      CustomButton(
-                        onTap: () => controller.logout(),
-                        btnText: 'Log Out',
-                        btnColor: AppPalette.thirdColor,
-                        textColor: AppPalette.black,
-                        height: 28.h,
-                        width: 164.w,
-                      ),
-                    ],
-                    // Location text
-                    if (!controller.accountTypeService.isBrand)
-                      Text(
-                        controller.profileLocation.value,
-                        style: TextStyle(
-                          color: AppPalette.secondary,
-                          fontSize: 10.sp,
-                        ),
-                      ),
+                    ),
+                    10.h.verticalSpace,
+                    CustomButton(
+                      onTap: () => controller.logout(),
+                      btnText: 'Log Out',
+                      btnColor: AppPalette.thirdColor,
+                      textColor: AppPalette.black,
+                      height: 28.h,
+                      width: 164.w,
+                    ),
                   ],
-                ),
+                  // Location text
+                  if (!controller.accountTypeService.isBrand)
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        controller.profileLocation.value,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: AppPalette.thirdColor.withAlpha(120),
+                          fontSize: 10.sp,
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
             if (!controller.accountTypeService.isBrand) ...[
@@ -173,6 +177,7 @@ class ProfileHeaderCard extends StatelessWidget {
                                       _iconForPlatform(social.platform),
                                       width: 20.w,
                                       height: 20.w,
+                                      color: AppPalette.thirdColor,
                                       errorBuilder:
                                           (context, error, stackTrace) => Icon(
                                             Icons.link,

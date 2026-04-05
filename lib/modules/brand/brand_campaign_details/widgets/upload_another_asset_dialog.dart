@@ -2,6 +2,10 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:influencer_app/core/theme/app_palette.dart';
+import 'package:influencer_app/core/utils/constants.dart';
+import 'package:influencer_app/core/widgets/custom_button.dart';
+import 'package:influencer_app/core/widgets/custom_text_form_field.dart';
 
 import '../../../../core/models/job_item.dart';
 
@@ -151,7 +155,7 @@ class _UploadAnotherAssetDialogState extends State<UploadAnotherAssetDialog> {
         padding: EdgeInsets.all(16.w),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(18.r),
+          borderRadius: BorderRadius.circular(kBorderRadius.r),
           border: Border.all(color: Colors.black12),
         ),
         child: Column(
@@ -164,7 +168,7 @@ class _UploadAnotherAssetDialogState extends State<UploadAnotherAssetDialog> {
                     'brand_campaign_details_upload_another_asset'.tr,
                     style: TextStyle(
                       fontSize: 16.sp,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                       color: primary,
                     ),
                   ),
@@ -184,57 +188,32 @@ class _UploadAnotherAssetDialogState extends State<UploadAnotherAssetDialog> {
               ],
             ),
             14.h.verticalSpace,
-            TextField(
+            CustomTextFormField(
               controller: _assetTitleCtrl,
-              decoration: InputDecoration(
-                hintText: 'create_campaign_asset_name_hint'.tr,
-                filled: true,
-                fillColor: bg,
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 14.w,
-                  vertical: 12.h,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12.r),
-                  borderSide: const BorderSide(color: Colors.black12),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12.r),
-                  borderSide: const BorderSide(color: Colors.black12),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12.r),
-                  borderSide: const BorderSide(color: softBorder, width: 1.4),
-                ),
+              hintText: 'create_campaign_asset_name_hint'.tr,
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 14.w,
+                vertical: 12.h,
               ),
             ),
             12.h.verticalSpace,
             Obx(() {
-              return SizedBox(
+              return CustomButton(
+                onTap: isPicking.value || isSubmitting.value ? null : pickFile,
+                btnText: isPicking.value
+                    ? 'create_campaign_picking_file'.tr
+                    : 'create_campaign_pick_file'.tr,
                 width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: isPicking.value || isSubmitting.value
-                      ? null
-                      : pickFile,
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: Size(double.infinity, 46.h),
-                    side: const BorderSide(color: softBorder),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12.r),
-                    ),
-                  ),
-                  icon: Icon(
-                    Icons.upload_outlined,
-                    color: primary.withOpacity(.7),
-                  ),
-                  label: Text(
-                    isPicking.value
-                        ? 'create_campaign_picking_file'.tr
-                        : 'create_campaign_pick_file'.tr,
-                    style: TextStyle(
-                      color: primary.withOpacity(.75),
-                      fontWeight: FontWeight.w700,
-                    ),
+                height: 46.h,
+                btnColor: AppPalette.defaultFill,
+                textColor: AppPalette.primary,
+                isLoading: isPicking.value,
+                leading: Transform.flip(
+                  flipY: true,
+                  child: Image.asset(
+                    'assets/icons/download.png',
+                    color: AppPalette.primary,
+                    width: 22.w,
                   ),
                 ),
               );
@@ -270,6 +249,13 @@ class _UploadAnotherAssetDialogState extends State<UploadAnotherAssetDialog> {
                   color: const Color(0xFFF7FAF3),
                   borderRadius: BorderRadius.circular(12.r),
                   border: Border.all(color: softBorder),
+                  gradient: LinearGradient(
+                    colors: [
+                      AppPalette.white,
+                      AppPalette.white,
+                      AppPalette.thirdColor,
+                    ],
+                  ),
                 ),
                 child: Row(
                   children: [
@@ -287,9 +273,9 @@ class _UploadAnotherAssetDialogState extends State<UploadAnotherAssetDialog> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 13.5.sp,
-                              fontWeight: FontWeight.w800,
-                              color: primary.withOpacity(.8),
+                              fontSize: 12.sp,
+                              fontWeight: FontWeight.w500,
+                              color: AppPalette.secondary,
                             ),
                           ),
                           2.h.verticalSpace,
@@ -297,8 +283,8 @@ class _UploadAnotherAssetDialogState extends State<UploadAnotherAssetDialog> {
                             '$ext • $sizeText',
                             style: TextStyle(
                               fontSize: 12.sp,
-                              fontWeight: FontWeight.w600,
-                              color: primary.withOpacity(.55),
+                              fontWeight: FontWeight.w300,
+                              color: AppPalette.secondary,
                             ),
                           ),
                         ],
@@ -312,16 +298,10 @@ class _UploadAnotherAssetDialogState extends State<UploadAnotherAssetDialog> {
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Get.back(),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: Size(double.infinity, 46.h),
-                      side: const BorderSide(color: Colors.black12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.r),
-                      ),
-                    ),
-                    child: Text('skills_cancel'.tr),
+                  child: CustomButton(
+                    onTap: Get.back,
+                    btnText: 'skills_cancel'.tr,
+                    btnColor: AppPalette.defaultFill,
                   ),
                 ),
                 12.w.horizontalSpace,
@@ -333,28 +313,12 @@ class _UploadAnotherAssetDialogState extends State<UploadAnotherAssetDialog> {
                         pickedPath.value != null &&
                         !isSubmitting.value;
 
-                    return ElevatedButton(
-                      onPressed: canSave ? _submit : null,
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: Size(double.infinity, 46.h),
-                        backgroundColor: primary.withOpacity(
-                          canSave ? .75 : .35,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12.r),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: isSubmitting.value
-                          ? SizedBox(
-                              width: 18.w,
-                              height: 18.w,
-                              child: const CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : Text('common_done'.tr),
+                    return CustomButton(
+                      onTap: canSave ? _submit : null,
+                      btnText: 'common_done'.tr,
+                      btnColor: AppPalette.secondary,
+                      textColor: AppPalette.white,
+                      isLoading: isSubmitting.value,
                     );
                   }),
                 ),

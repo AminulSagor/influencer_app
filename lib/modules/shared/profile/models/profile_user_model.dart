@@ -31,7 +31,6 @@ class ProfileIdentityModel {
     String fallbackPhone = '',
   }) {
     final locationParts = <String>[
-      profile.primaryAddress?.thana?.trim() ?? '',
       profile.primaryAddress?.zilla?.trim() ?? '',
       profile.primaryAddress?.country?.trim() ?? '',
     ].where((part) => part.isNotEmpty).toList(growable: false);
@@ -81,17 +80,19 @@ class ProfileIdentityModel {
     final address = json['address'];
     String location = 'Dhaka, Bangladesh';
     if (address is Map) {
-      final fullAddress = (address['fullAddress'] ?? '').toString().trim();
-      final thana = (address['thana'] ?? '').toString().trim();
       final zilla = (address['zilla'] ?? '').toString().trim();
-      final country = (address['country'] ?? '').toString().trim();
+      final country = (address['country'] ?? 'Bangladesh').toString().trim();
+
       final parts = <String>[
-        if (fullAddress.isNotEmpty) fullAddress,
-        if (thana.isNotEmpty) thana,
         if (zilla.isNotEmpty) zilla,
         if (country.isNotEmpty) country,
       ];
-      if (parts.isNotEmpty) location = parts.join(', ');
+
+      if (parts.isNotEmpty) {
+        location = parts.join(', ');
+      } else if (zilla.isNotEmpty) {
+        location = zilla;
+      }
     }
 
     return ProfileIdentityModel(

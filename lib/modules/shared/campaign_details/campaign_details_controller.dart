@@ -267,6 +267,32 @@ class CampaignDetailsController extends GetxController {
     _recalculateStatus();
   }
 
+  final deadlineDateText = ''.obs;
+
+  DateTime? _buildEndDate({
+    required String? startingDate,
+    required int durationDays,
+  }) {
+    final startDate = _safeParseDate(startingDate);
+    if (startDate == null || durationDays <= 0) return null;
+    return startDate.add(Duration(days: durationDays));
+  }
+
+  void _setDeadlineDateText({
+    required String? startingDate,
+    required int durationDays,
+    String? fallbackLabel,
+  }) {
+    final endDate = _buildEndDate(
+      startingDate: startingDate,
+      durationDays: durationDays,
+    );
+
+    deadlineDateText.value = endDate != null
+        ? _formatDateLabel(endDate)
+        : (fallbackLabel ?? job.dateLabel);
+  }
+
   Future<void> onDecline() async {
     final isInfluencer = accountTypeService.isInfluencer;
     final isAdAgency = accountTypeService.isAdAgency;
@@ -689,9 +715,16 @@ class CampaignDetailsController extends GetxController {
     final dueLabel = endDate != null
         ? _buildDueLabelFromDate(endDate)
         : job.dueLabel;
+
     final dateLabel = startDate != null
         ? _formatDateLabel(startDate)
         : job.dateLabel;
+
+    _setDeadlineDateText(
+      startingDate: startIso,
+      durationDays: durationDays,
+      fallbackLabel: dateLabel,
+    );
 
     // 4) Core fields mapping (IMPORTANT)
     final title =
@@ -892,6 +925,15 @@ class CampaignDetailsController extends GetxController {
           : null,
 
       milestones: mappedMilestones,
+    );
+
+    final startIso = raw['startingDate']?.toString().trim();
+    final durationDays = _toInt(raw['duration']) ?? 0;
+
+    _setDeadlineDateText(
+      startingDate: startIso,
+      durationDays: durationDays,
+      fallbackLabel: job.dateLabel,
     );
 
     // ✅ Create a JobItem with new optional fields filled

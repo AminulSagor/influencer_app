@@ -407,11 +407,13 @@ class _CampaignOverviewCard extends StatelessWidget {
                       color: AppPalette.thirdColor,
                     ),
                     SizedBox(width: 6.w),
-                    Text(
-                      job.dateLabel,
-                      style: TextStyle(
-                        color: AppPalette.thirdColor,
-                        fontSize: 12.sp,
+                    Obx(
+                      () => Text(
+                        controller.deadlineDateText.value,
+                        style: TextStyle(
+                          color: AppPalette.thirdColor,
+                          fontSize: 12.sp,
+                        ),
                       ),
                     ),
                   ],

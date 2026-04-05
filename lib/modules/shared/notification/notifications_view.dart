@@ -14,70 +14,102 @@ class NotificationsView extends GetView<NotificationsController> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 25.h),
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppPalette.white,
-                borderRadius: BorderRadius.circular(kBorderRadius),
-                border: Border.all(
-                  color: AppPalette.border1,
-                  width: kBorderWidth0_5,
+        child: Obx(() {
+          final newItems = controller.newItems;
+          final earlierItems = controller.earlierItems;
+          final isFirstLoad =
+              !controller.isInitialLoaded.value && controller.isLoading.value;
+
+          if (isFirstLoad) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          return RefreshIndicator(
+            onRefresh: controller.refreshNotifications,
+            child: ListView(
+              controller: controller.scrollController,
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
+              padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 25.h),
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppPalette.white,
+                    borderRadius: BorderRadius.circular(kBorderRadius),
+                    border: Border.all(
+                      color: AppPalette.border1,
+                      width: kBorderWidth0_5,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      12.h.verticalSpace,
+                      _TopBar(controller: controller),
+                      12.h.verticalSpace,
+
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16.w),
+                        child: Text(
+                          'notifications_new'.tr,
+                          style: TextStyle(
+                            fontSize: 12.sp,
+                            fontWeight: FontWeight.w500,
+                            color: AppPalette.primary,
+                          ),
+                        ),
+                      ),
+                      Divider(
+                        color: AppPalette.border1,
+                        thickness: kBorderWeight1,
+                      ),
+                      _NotificationGroupCard(
+                        controller: controller,
+                        items: newItems,
+                        showNewDot: true,
+                      ),
+
+                      SizedBox(height: 16.h),
+                      Divider(
+                        color: AppPalette.border1,
+                        thickness: kBorderWeight1,
+                      ),
+
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16.w),
+                        child: Text(
+                          'notifications_earlier'.tr,
+                          style: TextStyle(
+                            fontSize: 12.sp,
+                            fontWeight: FontWeight.w500,
+                            color: AppPalette.primary,
+                          ),
+                        ),
+                      ),
+                      Divider(
+                        color: AppPalette.border1,
+                        thickness: kBorderWeight1,
+                      ),
+                      _NotificationGroupCard(
+                        controller: controller,
+                        items: earlierItems,
+                        showNewDot: false,
+                      ),
+
+                      if (controller.isLoading.value) ...[
+                        SizedBox(height: 16.h),
+                        const Center(child: CircularProgressIndicator()),
+                      ],
+
+                      SizedBox(height: 16.h),
+                    ],
+                  ),
                 ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  12.h.verticalSpace,
-                  _TopBar(controller: controller),
-                  12.h.verticalSpace,
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16.w),
-                    child: Text(
-                      'notifications_new'.tr,
-                      style: TextStyle(
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.w500,
-                        color: AppPalette.primary,
-                      ),
-                    ),
-                  ),
-                  Divider(color: AppPalette.border1, thickness: kBorderWeight1),
-                  Obx(
-                    () => _NotificationGroupCard(
-                      controller: controller,
-                      items: controller.newItems.toList(),
-                      showNewDot: true,
-                    ),
-                  ),
-                  SizedBox(height: 16.h),
-                  Divider(color: AppPalette.border1, thickness: kBorderWeight1),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16.w),
-                    child: Text(
-                      'notifications_earlier'.tr,
-                      style: TextStyle(
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.w500,
-                        color: AppPalette.primary,
-                      ),
-                    ),
-                  ),
-                  Divider(color: AppPalette.border1, thickness: kBorderWeight1),
-                  Obx(
-                    () => _NotificationGroupCard(
-                      controller: controller,
-                      items: controller.earlierItems.toList(),
-                      showNewDot: false,
-                    ),
-                  ),
-                  SizedBox(height: 16.h),
-                ],
-              ),
+              ],
             ),
-          ),
-        ),
+          );
+        }),
       ),
     );
   }
@@ -117,15 +149,21 @@ class _TopBar extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: controller.markAllAsRead,
-            child: Text(
-              'notifications_mark_all_read'.tr,
-              style: TextStyle(
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w400,
-                color: AppPalette.black,
+          Obx(
+            () => GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: controller.isMarkingAllRead.value
+                  ? null
+                  : controller.markAllAsRead,
+              child: Text(
+                'notifications_mark_all_read'.tr,
+                style: TextStyle(
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w400,
+                  color: controller.isMarkingAllRead.value
+                      ? Colors.grey
+                      : AppPalette.black,
+                ),
               ),
             ),
           ),
@@ -135,7 +173,6 @@ class _TopBar extends StatelessWidget {
   }
 }
 
-/// Card that holds a group of notifications (e.g. "New" or "Earlier")
 class _NotificationGroupCard extends StatelessWidget {
   final NotificationsController controller;
   final List<NotificationItem> items;
@@ -170,7 +207,7 @@ class _NotificationGroupCard extends StatelessWidget {
         final item = items[index];
         return _NotificationRow(
           item: item,
-          showNewDot: showNewDot,
+          showNewDot: showNewDot && !item.isRead,
           onTap: () => controller.markSingleAsRead(item),
         );
       }),
@@ -178,7 +215,6 @@ class _NotificationGroupCard extends StatelessWidget {
   }
 }
 
-/// Single notification row
 class _NotificationRow extends StatelessWidget {
   final NotificationItem item;
   final bool showNewDot;
@@ -213,7 +249,6 @@ class _NotificationRow extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Leading icon circle
             Container(
               width: 36.w,
               height: 36.w,
@@ -243,8 +278,6 @@ class _NotificationRow extends StatelessWidget {
               ),
             ),
             SizedBox(width: 12.w),
-
-            // Texts
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -268,8 +301,6 @@ class _NotificationRow extends StatelessWidget {
                 ],
               ),
             ),
-
-            // New green dot + chevron
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [

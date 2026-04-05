@@ -1,7 +1,11 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:influencer_app/core/controllers/app_user_session_controller.dart';
 import 'package:influencer_app/core/services/account_type_service.dart';
 import 'package:influencer_app/core/services/api_error_handler.dart';
+import 'package:influencer_app/core/services/firebase_messaging_service.dart';
 import 'package:influencer_app/core/services/notification_service.dart';
 
 enum NotificationType { positive, negative, neutral }
@@ -12,6 +16,7 @@ class NotificationItem {
   final String timeLabel;
   final NotificationType type;
   final String iconPath;
+  final bool isRead;
 
   const NotificationItem({
     required this.id,
@@ -19,6 +24,7 @@ class NotificationItem {
     required this.timeLabel,
     required this.type,
     required this.iconPath,
+    required this.isRead,
   });
 }
 
@@ -32,153 +38,216 @@ class NotificationsController extends GetxController {
       Get.find<AppUserSessionController>();
 
   final isLoading = false.obs;
+  final isRefreshing = false.obs;
+  final isMarkingAllRead = false.obs;
+  final isInitialLoaded = false.obs;
 
-  final newItems = <NotificationItem>[].obs;
-  final earlierItems = <NotificationItem>[].obs;
+  final items = <NotificationItem>[].obs;
+  final unreadCount = 0.obs;
+
+  final scrollController = ScrollController();
+
+  static const int _pageSize = 20;
+  int _page = 1;
+  int _totalPages = 1;
+  bool _hasMore = true;
+
+  StreamSubscription<Map<String, dynamic>>? _notificationSubscription;
+
+  List<NotificationItem> get newItems =>
+      items.where((e) => !e.isRead).toList(growable: false);
+
+  List<NotificationItem> get earlierItems =>
+      items.where((e) => e.isRead).toList(growable: false);
 
   @override
   void onInit() {
     super.onInit();
-    if (_appUserSession.notificationsLoaded.value) {
-      _hydrateFromAppSession();
-    } else {
+    scrollController.addListener(_onScroll);
+    _listenRealtimeNotifications();
+    loadNotifications(reset: true);
+  }
+
+  @override
+  void onClose() {
+    _notificationSubscription?.cancel();
+    scrollController.dispose();
+    super.onClose();
+  }
+
+  String get _basePath => '/notifications';
+
+  void _listenRealtimeNotifications() {
+    _notificationSubscription?.cancel();
+
+    _notificationSubscription = FirebaseMessagingService.notificationStream
+        .listen((_) async {
+          await loadNotifications(reset: true);
+          await _appUserSession.refreshNotificationBadgeCount();
+        });
+  }
+
+  void _onScroll() {
+    if (!scrollController.hasClients || isLoading.value || !_hasMore) return;
+
+    final position = scrollController.position;
+    if (position.pixels >= position.maxScrollExtent - 160) {
       loadNotifications();
     }
   }
 
-  String get _basePath => _accountTypeService.isBrand
-      ? '/client/notifications'
-      : _accountTypeService.isInfluencer
-      ? '/influencer/notifications'
-      : '/notifications';
+  Future<void> refreshNotifications() async {
+    isRefreshing.value = true;
+    try {
+      await loadNotifications(reset: true);
+      await _appUserSession.refreshNotificationBadgeCount();
+    } finally {
+      isRefreshing.value = false;
+    }
+  }
 
-  Future<void> loadNotifications() async {
+  Future<void> loadNotifications({bool reset = false}) async {
+    if (isLoading.value) return;
+
+    if (reset) {
+      _page = 1;
+      _totalPages = 1;
+      _hasMore = true;
+    } else {
+      if (!_hasMore) return;
+      _page += 1;
+    }
+
     isLoading.value = true;
 
-    // 1) "New" from filter=new
-    final newRes = await ApiErrorHandler.call(
+    final result = await ApiErrorHandler.call(
       () => _service.fetchNotifications(
         basePath: _basePath,
-        filter: 'new',
-        page: 1,
-        limit: 50,
+        page: _page,
+        limit: _pageSize,
       ),
       errorTitle: 'notifications_title'.tr,
+      showError: reset,
     );
 
-    List<NotificationDto> apiNew = const [];
-    if (newRes.isSuccess && newRes.data != null) {
-      apiNew = newRes.data!.data;
-      newItems.assignAll(apiNew.map(_mapApiToUi).toList(growable: false));
-    } else {
-      // keep UI empty state if error
-      newItems.clear();
+    if (!result.isSuccess || result.data == null) {
+      if (!reset) {
+        _page = _page > 1 ? _page - 1 : 1;
+      }
+      isLoading.value = false;
+      isInitialLoaded.value = true;
+      return;
     }
 
-    // 2) Earlier (best-effort)
-    final earlier = await _fetchEarlierBestEffort();
-    earlierItems.assignAll(earlier.map(_mapApiToUi).toList(growable: false));
-    _appUserSession.updateNotifications(
-      newItems: apiNew,
-      earlierItems: earlier,
+    final res = result.data!;
+
+    final fetched = res.data.map(_mapApiToUi).toList(growable: false);
+
+    final nextUnreadCount = _extractUnreadCount(res);
+    unreadCount.value = nextUnreadCount;
+    _appUserSession.updateUnreadNotificationCount(nextUnreadCount);
+
+    final nextTotalPages = _extractTotalPages(
+      res,
+      fallbackLength: fetched.length,
     );
+    _totalPages = nextTotalPages;
+    _hasMore = _page < _totalPages;
+
+    if (reset) {
+      items.assignAll(fetched);
+    } else {
+      final existingIds = items.map((e) => e.id).toSet();
+      final merged = fetched.where((e) => !existingIds.contains(e.id)).toList();
+      items.addAll(merged);
+    }
 
     isLoading.value = false;
+    isInitialLoaded.value = true;
   }
 
-  Future<List<NotificationDto>> _fetchEarlierBestEffort() async {
-    // try filter=earlier (NOT confirmed in Postman, so we suppress errors)
+  int _extractUnreadCount(dynamic response) {
     try {
-      final res = await _service.fetchNotifications(
-        basePath: _basePath,
-        filter: 'earlier',
-        page: 1,
-        limit: 50,
-      );
-      return res.data;
-    } catch (_) {
-      // fallback: fetch "all" (no filter) and split by isRead=true
-      final allRes = await ApiErrorHandler.call(
-        () => _service.fetchNotifications(
-          basePath: _basePath,
-          page: 1,
-          limit: 100,
-        ),
-        showError: false,
-      );
+      final meta = (response.meta as dynamic);
+      final unread = meta?.unreadCount;
+      if (unread is num) return unread.toInt();
+    } catch (_) {}
 
-      if (!allRes.isSuccess || allRes.data == null) return const [];
-      return allRes.data!.data.where((e) => e.isRead).toList(growable: false);
-    }
+    try {
+      final unread = response.unreadCount;
+      if (unread is num) return unread.toInt();
+    } catch (_) {}
+
+    return items.where((e) => !e.isRead).length;
   }
 
-  void markAllAsRead() {
-    ApiErrorHandler.call(() => _service.markAllAsRead(), showError: false).then(
-      (_) {
-        earlierItems.addAll(newItems);
-        _appUserSession.updateNotifications(
-          newItems: const [],
-          earlierItems: [
-            ..._appUserSession.earlierNotifications,
-            ..._appUserSession.newNotifications,
-          ],
-        );
-        newItems.clear();
-      },
+  int _extractTotalPages(dynamic response, {required int fallbackLength}) {
+    try {
+      final meta = (response.meta as dynamic);
+      final total = meta?.total;
+      final limit = meta?.limit;
+
+      if (total is num && limit is num && limit.toInt() > 0) {
+        return (total.toInt() / limit.toInt()).ceil().clamp(1, 999999);
+      }
+
+      final totalPages = meta?.totalPages;
+      if (totalPages is num && totalPages.toInt() > 0) {
+        return totalPages.toInt();
+      }
+    } catch (_) {}
+
+    return fallbackLength < _pageSize ? _page : _page + 1;
+  }
+
+  Future<void> markAllAsRead() async {
+    if (isMarkingAllRead.value) return;
+
+    isMarkingAllRead.value = true;
+    final result = await ApiErrorHandler.call(
+      () => _service.markAllAsRead(),
+      showError: false,
     );
+
+    if (result.isSuccess) {
+      await loadNotifications(reset: true);
+      _appUserSession.updateUnreadNotificationCount(0);
+    }
+
+    isMarkingAllRead.value = false;
   }
 
-  void markSingleAsRead(NotificationItem item) {
-    if (item.id.trim().isEmpty) return;
+  Future<void> markSingleAsRead(NotificationItem item) async {
+    if (item.id.trim().isEmpty || item.isRead) return;
 
-    ApiErrorHandler.call(
+    final result = await ApiErrorHandler.call(
       () => _service.markSingleAsRead(id: item.id),
       showError: false,
-    ).then((_) {
-      newItems.removeWhere((e) => e.id == item.id);
-      if (!earlierItems.any((e) => e.id == item.id)) {
-        earlierItems.insert(0, item);
-      }
-      _appUserSession.updateNotifications(
-        newItems: _appUserSession.newNotifications
-            .where((e) => e.id != item.id)
-            .toList(growable: false),
-        earlierItems: _moveSessionNotificationToEarlier(item.id),
+    );
+
+    if (!result.isSuccess) return;
+
+    final index = items.indexWhere((e) => e.id == item.id);
+    if (index >= 0) {
+      final updated = NotificationItem(
+        id: items[index].id,
+        title: items[index].title,
+        timeLabel: items[index].timeLabel,
+        type: items[index].type,
+        iconPath: items[index].iconPath,
+        isRead: true,
       );
-    });
-  }
-
-  void _hydrateFromAppSession() {
-    newItems.assignAll(
-      _appUserSession.newNotifications.map(_mapApiToUi).toList(growable: false),
-    );
-    earlierItems.assignAll(
-      _appUserSession.earlierNotifications
-          .map(_mapApiToUi)
-          .toList(growable: false),
-    );
-  }
-
-  List<NotificationDto> _moveSessionNotificationToEarlier(String id) {
-    final currentEarlier = [..._appUserSession.earlierNotifications];
-    NotificationDto? moved;
-    for (final item in _appUserSession.newNotifications) {
-      if (item.id == id) {
-        moved = item;
-        break;
-      }
+      items[index] = updated;
+      items.refresh();
     }
-    if (moved != null && !currentEarlier.any((e) => e.id == moved?.id)) {
-      currentEarlier.insert(0, moved);
-    }
-    return currentEarlier;
-  }
 
-  // ---------------- mapping helpers ----------------
+    final nextUnread = unreadCount.value > 0 ? unreadCount.value - 1 : 0;
+    unreadCount.value = nextUnread;
+    _appUserSession.updateUnreadNotificationCount(nextUnread);
+  }
 
   NotificationItem _mapApiToUi(NotificationDto n) {
     final text = (n.title.trim().isNotEmpty ? n.title : n.message).trim();
-
     final type = _inferTypeFromText(text);
     final iconPath = _iconFor(type, text);
 
@@ -188,6 +257,7 @@ class NotificationsController extends GetxController {
       timeLabel: _timeAgo(n.createdAt),
       type: type,
       iconPath: iconPath,
+      isRead: n.isRead,
     );
   }
 
@@ -209,14 +279,12 @@ class NotificationsController extends GetxController {
   }
 
   String _iconFor(NotificationType type, String text) {
-    // match your existing assets used in mock controller
     switch (type) {
       case NotificationType.positive:
         return 'assets/icons/done.png';
       case NotificationType.negative:
         return 'assets/icons/cancel.png';
       case NotificationType.neutral:
-        // if it looks like money/payment, show taka
         final s = text.toLowerCase();
         if (s.contains('payment') ||
             s.contains('taka') ||
@@ -238,7 +306,6 @@ class NotificationsController extends GetxController {
     if (diff.inDays == 1) return 'Yesterday';
     if (diff.inDays < 7) return '${diff.inDays}d ago';
 
-    // fallback: simple date
     final y = dt.year.toString().padLeft(4, '0');
     final m = dt.month.toString().padLeft(2, '0');
     final d = dt.day.toString().padLeft(2, '0');
