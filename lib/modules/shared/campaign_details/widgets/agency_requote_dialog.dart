@@ -7,6 +7,8 @@ import 'package:influencer_app/core/utils/constants.dart';
 import 'package:influencer_app/core/utils/currency_formatter.dart';
 import 'package:influencer_app/core/widgets/custom_button.dart';
 
+import '../../../../core/utils/app_snackbar.dart';
+
 class AgencyRequoteInput {
   final int serviceFeePercent;
   final double dollarRate;
@@ -226,11 +228,17 @@ class _AgencyRequoteDialogState extends State<AgencyRequoteDialog> {
                     0;
 
                 if (fee <= 0 || fee > 100) {
-                  Get.snackbar('Error', 'Enter a valid percentage (1-100).');
+                  AppSnackbar.showErrorSnackbar(
+                    title: 'Error',
+                    message: 'Enter a valid percentage (1-100).',
+                  );
                   return;
                 }
                 if (dollar <= 0) {
-                  Get.snackbar('Error', 'Enter a valid dollar rate.');
+                  AppSnackbar.showErrorSnackbar(
+                    title: 'Error',
+                    message: 'Enter a valid dollar rate.',
+                  );
                   return;
                 }
 

@@ -14,7 +14,7 @@ import '../../../core/widgets/app_pagination_row.dart';
 import '../../../core/widgets/app_pill_tabs.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../../core/models/job_item.dart';
-import '../../../core/widgets/shimmer_utils.dart';
+import '../../../core/utils/shimmer_utils.dart';
 import '../../../core/widgets/sort_toggle_chip.dart';
 import 'brand_campaign_details_controller.dart';
 import 'widgets/provide_rating_dialog.dart';

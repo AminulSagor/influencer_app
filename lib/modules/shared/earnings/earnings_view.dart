@@ -14,7 +14,7 @@ import '../../../core/widgets/earnings_overview_card.dart';
 import '../../../core/widgets/search_field.dart';
 import '../../../core/widgets/transaction_card.dart';
 import 'earnings_controller.dart';
-import '../../../core/widgets/shimmer_utils.dart';
+import '../../../core/utils/shimmer_utils.dart';
 
 class EarningsView extends GetView<EarningsController> {
   const EarningsView({super.key});

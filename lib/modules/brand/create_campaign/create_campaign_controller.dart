@@ -18,6 +18,7 @@ import 'package:path/path.dart' as path;
 import '../../../core/models/job_item.dart';
 import '../../../core/services/api_error_handler.dart';
 import '../../../core/services/campaign_service.dart';
+import '../../../core/utils/app_snackbar.dart';
 import '../../../core/utils/metric_number_util.dart';
 import '../../ad_agency/services/upload_service.dart';
 
@@ -719,10 +720,9 @@ class CreateCampaignController extends GetxController {
         final t = brandTitleCtrl.text.trim();
         final v = brandValueCtrl.text.trim();
         if (t.isEmpty) {
-          Get.snackbar(
-            'create_campaign_error_title'.tr,
-            'create_campaign_brand_asset_error'.tr,
-            snackPosition: SnackPosition.BOTTOM,
+          AppSnackbar.showErrorSnackbar(
+            title: 'create_campaign_error_title'.tr,
+            message: 'create_campaign_brand_asset_error'.tr,
           );
           return;
         }
@@ -743,10 +743,9 @@ class CreateCampaignController extends GetxController {
         final t = brandTitleCtrl.text.trim();
         final v = brandValueCtrl.text.trim();
         if (t.isEmpty) {
-          Get.snackbar(
-            'create_campaign_error_title'.tr,
-            'create_campaign_brand_asset_error'.tr,
-            snackPosition: SnackPosition.BOTTOM,
+          AppSnackbar.showErrorSnackbar(
+            title: 'create_campaign_error_title'.tr,
+            message: 'create_campaign_brand_asset_error'.tr,
           );
           return;
         }
@@ -1036,10 +1035,9 @@ class CreateCampaignController extends GetxController {
         platform == null ||
         deliverable.isEmpty ||
         day == null) {
-      Get.snackbar(
-        'create_campaign_error_title'.tr,
-        'create_campaign_step4_milestone_error'.tr,
-        snackPosition: SnackPosition.BOTTOM,
+      AppSnackbar.showErrorSnackbar(
+        title: 'create_campaign_error_title'.tr,
+        message: 'create_campaign_step4_milestone_error'.tr,
       );
       return;
     }
@@ -1051,10 +1049,9 @@ class CreateCampaignController extends GetxController {
       );
 
       if (metricTitle.isEmpty || metricAmount == null || metricAmount <= 0) {
-        Get.snackbar(
-          'create_campaign_error_title'.tr,
-          'Please enter a valid promotion target title and amount.',
-          snackPosition: SnackPosition.BOTTOM,
+        AppSnackbar.showErrorSnackbar(
+          title: 'create_campaign_error_title'.tr,
+          message: 'Please enter a valid promotion target title and amount.',
         );
         return;
       }
@@ -1180,10 +1177,9 @@ class CreateCampaignController extends GetxController {
   }
 
   void saveAsDraft() {
-    Get.snackbar(
-      'create_campaign_draft_title'.tr,
-      'create_campaign_draft_msg'.tr,
-      snackPosition: SnackPosition.BOTTOM,
+    AppSnackbar.showSuccessSnackbar(
+      title: 'create_campaign_draft_title'.tr,
+      message: 'create_campaign_draft_msg'.tr,
     );
   }
 
@@ -1348,12 +1344,11 @@ class CreateCampaignController extends GetxController {
 
   Future<void> onNext() async {
     if (!canGoNext) {
-      Get.snackbar(
-        'create_campaign_error_title'.tr,
-        currentStep.value == 2
+      AppSnackbar.showErrorSnackbar(
+        title: 'create_campaign_error_title'.tr,
+        message: currentStep.value == 2
             ? 'create_campaign_error_step2_msg'.tr
             : 'create_campaign_error_msg'.tr,
-        snackPosition: SnackPosition.BOTTOM,
       );
       return;
     }

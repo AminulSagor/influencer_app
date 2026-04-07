@@ -7,6 +7,8 @@ import 'package:influencer_app/core/services/api_error_handler.dart';
 import '../../../core/enums/account_type.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 
+import '../../../core/utils/app_snackbar.dart';
+
 class VerificationController extends GetxController {
   final PageController progressController = PageController();
 
@@ -77,13 +79,19 @@ class VerificationController extends GetxController {
       () => _authService.resendOtp(phone: phoneNumber),
     );
     if (result.isSuccess && result.data!.message.isNotEmpty) {
-      Get.snackbar('info'.tr, result.data!.message);
+      AppSnackbar.showSuccessSnackbar(
+        title: 'info'.tr,
+        message: result.data!.message,
+      );
     }
   }
 
   Future<void> onContinue() async {
     if (!isCodeComplete.value) {
-      Get.snackbar('error'.tr, 'otp_incomplete_error'.tr);
+      AppSnackbar.showErrorSnackbar(
+        title: 'error'.tr,
+        message: 'otp_incomplete_error'.tr,
+      );
       return;
     }
 
@@ -124,7 +132,10 @@ class VerificationController extends GetxController {
           (payload['user'] is Map ? payload['user']['role'] : null);
 
       if (role == null) {
-        Get.snackbar('error'.tr, 'Role not found in token');
+        AppSnackbar.showErrorSnackbar(
+          title: 'error'.tr,
+          message: 'Role not found in token',
+        );
         return;
       }
 

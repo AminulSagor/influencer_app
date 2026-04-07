@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:influencer_app/core/services/auth_services.dart';
 import 'package:influencer_app/core/services/api_error_handler.dart';
+import 'package:influencer_app/core/utils/app_snackbar.dart';
 import '../../../routes/app_routes.dart';
 
 class ForgotPasswordController extends GetxController {
@@ -22,7 +23,10 @@ class ForgotPasswordController extends GetxController {
     contactValue.value = contactController.text.trim();
 
     if (contactValue.value.isEmpty) {
-      Get.snackbar('Error', 'Please enter email or phone');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Please enter email or phone',
+      );
       return;
     }
 
@@ -35,7 +39,10 @@ class ForgotPasswordController extends GetxController {
     isSending.value = false;
 
     if (result.isSuccess) {
-      Get.snackbar('Success', result.data!.message);
+      AppSnackbar.showSuccessSnackbar(
+        title: 'Success',
+        message: result.data!.message,
+      );
       Get.toNamed(
         AppRoutes.forgotPasswordOtp,
         arguments: {'contact': contactValue.value},
@@ -79,7 +86,10 @@ class ForgotPasswordController extends GetxController {
 
   Future<void> resendCode() async {
     if (contactValue.value.isEmpty) {
-      Get.snackbar('Error', 'Missing contact info');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Missing contact info',
+      );
       return;
     }
 
@@ -102,20 +112,29 @@ class ForgotPasswordController extends GetxController {
     isResending.value = false;
 
     if (result.isSuccess) {
-      Get.snackbar('Success', result.data!.message);
+      AppSnackbar.showSuccessSnackbar(
+        title: 'Success',
+        message: result.data!.message,
+      );
     }
   }
 
   Future<void> onVerifyOtp() async {
     if (!isOtpComplete.value) return;
     if (contactValue.value.isEmpty) {
-      Get.snackbar('Error', 'Missing contact info');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Missing contact info',
+      );
       return;
     }
 
     final code = otpCode;
     if (code.length != 4) {
-      Get.snackbar('Error', 'OTP must be 4 digits');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'OTP must be 4 digits',
+      );
       return;
     }
 
@@ -148,23 +167,38 @@ class ForgotPasswordController extends GetxController {
     final confirm = confirmPasswordController.text.trim();
 
     if (contactValue.value.isEmpty) {
-      Get.snackbar('Error', 'Missing contact info');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Missing contact info',
+      );
       return;
     }
     if (verifiedOtp.value.isEmpty) {
-      Get.snackbar('Error', 'OTP not verified');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'OTP not verified',
+      );
       return;
     }
     if (newPass.isEmpty || confirm.isEmpty) {
-      Get.snackbar('Error', 'Please enter password and confirm password');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Please enter password and confirm password',
+      );
       return;
     }
     if (newPass.length < 8) {
-      Get.snackbar('Error', 'Password must be at least 8 characters');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Password must be at least 8 characters',
+      );
       return;
     }
     if (newPass != confirm) {
-      Get.snackbar('Error', 'Passwords do not match');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Passwords do not match',
+      );
       return;
     }
 

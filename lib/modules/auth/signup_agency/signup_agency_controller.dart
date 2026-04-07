@@ -12,6 +12,7 @@ import '../../../core/services/campaign_service.dart';
 import '../../../core/services/firebase_messaging_service.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/services/token_service.dart';
+import '../../../core/utils/app_snackbar.dart';
 import '../../../core/utils/bd_phone_input_formatter.dart';
 import '../../../routes/app_routes.dart';
 import 'widgets/experienced_niche_dialog.dart';
@@ -258,7 +259,10 @@ class SignupAgencyController extends GetxController {
       await _loadNiches();
     }
     if (allNiches.isEmpty) {
-      Get.snackbar('Niches Unavailable', 'Please try again in a moment.');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Niches Unavailable',
+        message: 'Please try again in a moment.',
+      );
       return;
     }
     final result = await Get.dialog<List<String>>(
@@ -567,9 +571,9 @@ class SignupAgencyController extends GetxController {
     final niches = _collectUniqueNiches();
     if (niches.isEmpty) {
       isFinishing.value = false;
-      Get.snackbar(
-        'Expertise Required',
-        'Please select at least one niche before finishing.',
+      AppSnackbar.showErrorSnackbar(
+        title: 'Expertise Required',
+        message: 'Please select at least one niche before finishing.',
       );
       Get.toNamed(AppRoutes.signupAgencyExpertise);
       return;

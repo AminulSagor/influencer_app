@@ -3,6 +3,7 @@ import 'dart:developer' as dev;
 import 'package:dio/dio.dart';
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
+import 'package:influencer_app/core/utils/app_snackbar.dart';
 
 /// Centralized API error handler for consistent error management across the app.
 ///
@@ -124,12 +125,7 @@ class ApiErrorHandler {
       if (Get.isSnackbarOpen) {
         Get.closeCurrentSnackbar();
       }
-      Get.snackbar(
-        title,
-        message,
-        snackPosition: SnackPosition.TOP,
-        duration: const Duration(seconds: 3),
-      );
+      AppSnackbar.showErrorSnackbar(title: title, message: message);
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) => showSnackbar());

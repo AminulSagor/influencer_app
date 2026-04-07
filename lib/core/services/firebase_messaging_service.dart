@@ -53,6 +53,10 @@ class FirebaseMessagingService {
     return data;
   }
 
+  static void clearPendingTapData() {
+    _pendingTapData = null;
+  }
+
   static Future<String?> getCurrentFcmToken() async {
     final token = await _messaging.getToken();
     final normalized = token?.trim();
@@ -67,17 +71,20 @@ class FirebaseMessagingService {
   static Future<void> init() async {
     await Firebase.initializeApp();
 
+    // Always clear stale memory first.
+    clearPendingTapData();
+
     await LocalNotificationService.init(
       onNotificationTap: (payload) {
         if (payload == null || payload.trim().isEmpty) return;
 
         try {
           final decoded = jsonDecode(payload);
-          if (decoded is Map<String, dynamic>) {
-            _emitNotificationTap(decoded);
-          } else if (decoded is Map) {
-            _emitNotificationTap(Map<String, dynamic>.from(decoded));
-          }
+          final map = _asMap(decoded);
+          if (map == null) return;
+          if (!_isNavigablePayload(map)) return;
+
+          _emitNotificationTap(map);
         } catch (e) {
           dev.log(
             'Failed to parse local notification payload',
@@ -87,6 +94,28 @@ class FirebaseMessagingService {
         }
       },
     );
+
+    bool hasFreshLaunchTap = false;
+
+    final launchPayload = LocalNotificationService.consumeLaunchPayload();
+    if (launchPayload != null && launchPayload.trim().isNotEmpty) {
+      try {
+        final decoded = jsonDecode(launchPayload);
+        final map = _asMap(decoded);
+
+        if (map != null && _isNavigablePayload(map)) {
+          hasFreshLaunchTap = true;
+          _emitNotificationData(map);
+          _emitNotificationTap(map);
+        }
+      } catch (e) {
+        dev.log(
+          'Failed to parse launch payload from local notification',
+          name: 'FirebaseMessagingService',
+          error: e,
+        );
+      }
+    }
 
     await _requestPermission();
     await _setupForegroundPresentation();
@@ -98,7 +127,9 @@ class FirebaseMessagingService {
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
     final initialMessage = await _messaging.getInitialMessage();
-    if (initialMessage != null) {
+    if (initialMessage != null && _isNavigablePayload(initialMessage.data)) {
+      hasFreshLaunchTap = true;
+
       dev.log(
         'Notification opened from terminated state',
         name: 'FirebaseMessagingService',
@@ -113,6 +144,27 @@ class FirebaseMessagingService {
       _emitNotificationData(initialMessage.data);
       _emitNotificationTap(initialMessage.data);
     }
+
+    if (!hasFreshLaunchTap) {
+      clearPendingTapData();
+    }
+  }
+
+  static Map<String, dynamic>? _asMap(dynamic decoded) {
+    if (decoded is Map<String, dynamic>) return decoded;
+    if (decoded is Map) return Map<String, dynamic>.from(decoded);
+    return null;
+  }
+
+  static bool _isNavigablePayload(Map<String, dynamic> data) {
+    final type = data['type']?.toString().trim().toUpperCase() ?? '';
+    final campaignId = data['campaignId']?.toString().trim() ?? '';
+    final milestoneId = data['milestoneId']?.toString().trim() ?? '';
+
+    if (campaignId.isNotEmpty || milestoneId.isNotEmpty) return true;
+    if (type.contains('INVITATION')) return true;
+
+    return false;
   }
 
   static void _emitNotificationData(Map<String, dynamic> data) {
@@ -237,6 +289,8 @@ class FirebaseMessagingService {
           'data': message.data,
         },
       );
+
+      if (!_isNavigablePayload(message.data)) return;
 
       _emitNotificationData(message.data);
       _emitNotificationTap(message.data);

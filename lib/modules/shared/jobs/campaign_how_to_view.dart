@@ -43,19 +43,19 @@ class _CampaignHowToViewState extends State<CampaignHowToView> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
-                        width: 36.w,
-                        height: 36.w,
+                        width: 28.w,
+                        height: 28.w,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
                             color: const Color(0xFF8DAA63),
-                            width: 2.w,
+                            width: 3.w,
                           ),
                         ),
                         child: Icon(
                           Icons.question_mark_rounded,
                           color: const Color(0xFF8DAA63),
-                          size: 22.sp,
+                          size: 20.sp,
                         ),
                       ),
                       SizedBox(width: 14.w),
@@ -66,17 +66,17 @@ class _CampaignHowToViewState extends State<CampaignHowToView> {
                             Text(
                               'How To',
                               style: TextStyle(
-                                fontSize: 26.sp,
+                                fontSize: 18.sp,
                                 fontWeight: FontWeight.w500,
-                                color: const Color(0xFF7A9B4D),
+                                color: AppPalette.secondary,
                               ),
                             ),
                             SizedBox(height: 2.h),
                             Text(
                               'Learn how to create your first campaign',
                               style: TextStyle(
-                                fontSize: 15.sp,
-                                fontWeight: FontWeight.w400,
+                                fontSize: 14.sp,
+                                fontWeight: FontWeight.w300,
                                 color: AppPalette.black,
                               ),
                             ),
@@ -88,13 +88,13 @@ class _CampaignHowToViewState extends State<CampaignHowToView> {
                   SizedBox(height: 18.h),
                   Container(
                     width: double.infinity,
-                    padding: EdgeInsets.all(14.w),
+                    padding: EdgeInsets.all(18.w),
                     decoration: BoxDecoration(
                       color: AppPalette.white,
-                      borderRadius: BorderRadius.circular(18.r),
+                      borderRadius: BorderRadius.circular(kBorderRadius.r),
                       border: Border.all(
-                        color: const Color(0xFFD7D7D7),
-                        width: 1,
+                        color: AppPalette.border1,
+                        width: kBorderWidth0_5,
                       ),
                     ),
                     child: Column(
@@ -188,19 +188,16 @@ class _GuideAccordionCard extends StatelessWidget {
             child: Row(
               children: [
                 Container(
-                  width: 26.w,
-                  height: 26.w,
+                  width: 17.w,
+                  height: 17.w,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(
-                      color: const Color(0xFF8DAA63),
-                      width: 1.7,
-                    ),
+                    border: Border.all(color: AppPalette.secondary, width: 2),
                   ),
                   child: Icon(
                     Icons.question_mark_rounded,
-                    color: const Color(0xFF8DAA63),
-                    size: 16.sp,
+                    color: AppPalette.secondary,
+                    size: 12.sp,
                   ),
                 ),
                 SizedBox(width: 12.w),
@@ -208,7 +205,7 @@ class _GuideAccordionCard extends StatelessWidget {
                   child: Text(
                     title,
                     style: TextStyle(
-                      fontSize: 14.sp,
+                      fontSize: 12.sp,
                       fontWeight: FontWeight.w600,
                       color: AppPalette.primary,
                     ),
@@ -241,38 +238,27 @@ class _GuideAccordionCard extends StatelessWidget {
                         SizedBox(height: 12.h),
                         Padding(
                           padding: EdgeInsets.only(left: 24.w),
-                          child: Container(
-                            width: 250.w,
-                            padding: EdgeInsets.all(8.w),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF9FAF6),
-                              borderRadius: BorderRadius.circular(12.r),
-                              border: Border.all(
-                                color: const Color(0xFFC8D9AE),
-                                width: 1,
-                              ),
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(10.r),
-                              child: Image.asset(
-                                imageAssetPath,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) {
-                                  return Container(
-                                    height: 260.h,
-                                    alignment: Alignment.center,
-                                    color: const Color(0xFFF1F4EA),
-                                    child: Text(
-                                      'Image asset placeholder',
-                                      style: TextStyle(
-                                        fontSize: 12.sp,
-                                        color: AppPalette.primary,
-                                        fontWeight: FontWeight.w500,
-                                      ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(10.r),
+                            child: Image.asset(
+                              imageAssetPath,
+                              fit: BoxFit.cover,
+                              height: 250.h,
+                              errorBuilder: (_, __, ___) {
+                                return Container(
+                                  height: 250.h,
+                                  alignment: Alignment.center,
+                                  color: const Color(0xFFF1F4EA),
+                                  child: Text(
+                                    'Image asset placeholder',
+                                    style: TextStyle(
+                                      fontSize: 12.sp,
+                                      color: AppPalette.primary,
+                                      fontWeight: FontWeight.w500,
                                     ),
-                                  );
-                                },
-                              ),
+                                  ),
+                                );
+                              },
                             ),
                           ),
                         ),
@@ -286,8 +272,8 @@ class _GuideAccordionCard extends StatelessWidget {
                           TextSpan(
                             text: 'Note: ',
                             style: TextStyle(
-                              fontSize: 13.sp,
-                              fontWeight: FontWeight.w700,
+                              fontSize: 10.sp,
+                              fontWeight: FontWeight.w500,
                               color: AppPalette.black,
                             ),
                           ),
@@ -295,8 +281,8 @@ class _GuideAccordionCard extends StatelessWidget {
                             text:
                                 'You can save this campaign as draft at any steps if you want to continue it later.',
                             style: TextStyle(
-                              fontSize: 13.sp,
-                              fontWeight: FontWeight.w700,
+                              fontSize: 10.sp,
+                              fontWeight: FontWeight.w500,
                               color: AppPalette.black,
                             ),
                           ),
@@ -332,8 +318,8 @@ class _NumberedPoint extends StatelessWidget {
             child: Text(
               '$number.',
               style: TextStyle(
-                fontSize: 13.sp,
-                fontWeight: FontWeight.w400,
+                fontSize: 10.sp,
+                fontWeight: FontWeight.w300,
                 color: AppPalette.black,
                 height: 1.5,
               ),
@@ -343,8 +329,8 @@ class _NumberedPoint extends StatelessWidget {
             child: Text(
               text,
               style: TextStyle(
-                fontSize: 13.sp,
-                fontWeight: FontWeight.w400,
+                fontSize: 10.sp,
+                fontWeight: FontWeight.w300,
                 color: AppPalette.black,
                 height: 1.55,
               ),

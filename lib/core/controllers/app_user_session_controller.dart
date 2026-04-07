@@ -19,6 +19,7 @@ import '../services/auth_services.dart';
 import '../services/campaign_service.dart';
 import '../services/firebase_messaging_service.dart';
 import '../services/location_service.dart';
+import '../utils/app_snackbar.dart';
 
 class AppUserSessionController extends GetxService {
   final isLoading = false.obs;
@@ -419,7 +420,7 @@ class AppUserSessionController extends GetxService {
         }
       });
     } catch (e) {
-      Get.snackbar('Error', 'Logout failed');
+      AppSnackbar.showErrorSnackbar(title: 'Error', message: 'Logout failed');
     }
   }
 

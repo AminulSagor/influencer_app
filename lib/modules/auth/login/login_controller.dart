@@ -10,6 +10,7 @@ import 'package:influencer_app/core/services/account_type_service.dart';
 import 'package:influencer_app/core/services/auth_services.dart';
 import 'package:influencer_app/core/services/api_error_handler.dart';
 import 'package:influencer_app/core/services/onboarding_check_service.dart';
+import 'package:influencer_app/core/utils/app_snackbar.dart';
 import '../../../core/controllers/app_user_session_controller.dart';
 import '../../../core/utils/bd_phone_input_formatter.dart';
 import '../../../routes/app_routes.dart';
@@ -46,10 +47,9 @@ class LoginController extends GetxController {
     final password = passwordController.text.trim();
 
     if (phone.isEmpty || password.isEmpty) {
-      Get.snackbar(
-        'error'.tr,
-        'please_fill_all_fields'.tr,
-        snackPosition: SnackPosition.BOTTOM,
+      AppSnackbar.showErrorSnackbar(
+        title: 'error'.tr,
+        message: 'please_fill_all_fields'.tr,
       );
       return;
     }
@@ -108,7 +108,10 @@ class LoginController extends GetxController {
 
     if (role == null) {
       isLoading.value = false;
-      Get.snackbar('error'.tr, 'Role not found in token');
+      AppSnackbar.showErrorSnackbar(
+        title: 'error'.tr,
+        message: 'Role not found in token',
+      );
       return;
     }
 
@@ -134,7 +137,10 @@ class LoginController extends GetxController {
 
     isLoading.value = false;
 
-    Get.snackbar('Success', result.data?.message ?? 'Login Successful');
+    AppSnackbar.showSuccessSnackbar(
+      title: 'Success',
+      message: result.data?.message ?? 'Login Successful',
+    );
 
     Get.offAllNamed(
       AppRoutes.bottomNav,

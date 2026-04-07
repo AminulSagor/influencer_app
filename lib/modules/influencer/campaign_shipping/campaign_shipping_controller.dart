@@ -6,6 +6,7 @@ import 'package:influencer_app/core/models/location_models.dart';
 import 'package:influencer_app/core/services/api_error_handler.dart';
 import 'package:influencer_app/core/services/campaign_service.dart';
 import 'package:influencer_app/core/services/location_service.dart';
+import 'package:influencer_app/core/utils/app_snackbar.dart';
 import 'package:influencer_app/modules/influencer/models/influencer_profile_model.dart';
 import 'package:influencer_app/modules/influencer/services/influencer_profile_service.dart';
 
@@ -140,9 +141,9 @@ class CampaignShippingController extends GetxController {
       await _fetchAddresses();
       _syncSelectedIndex(preferredAddressName: savedAddressName);
 
-      Get.snackbar(
-        'shipping_success_title'.tr,
-        'shipping_address_added_success'.tr,
+      AppSnackbar.showSuccessSnackbar(
+        title: 'shipping_success_title'.tr,
+        message: 'shipping_address_added_success'.tr,
       );
     } finally {
       isAddressSaving.value = false;
@@ -164,9 +165,9 @@ class CampaignShippingController extends GetxController {
 
     final currentAddressName = initial.addressName?.trim();
     if (currentAddressName == null || currentAddressName.isEmpty) {
-      Get.snackbar(
-        'shipping_error_title'.tr,
-        'shipping_address_edit_name_missing'.tr,
+      AppSnackbar.showErrorSnackbar(
+        title: 'shipping_error_title'.tr,
+        message: 'shipping_address_edit_name_missing'.tr,
       );
       return;
     }
@@ -192,9 +193,9 @@ class CampaignShippingController extends GetxController {
       await _fetchAddresses();
       _syncSelectedIndex(preferredAddressName: updatedAddressName);
 
-      Get.snackbar(
-        'shipping_success_title'.tr,
-        'shipping_address_updated_success'.tr,
+      AppSnackbar.showSuccessSnackbar(
+        title: 'shipping_success_title'.tr,
+        message: 'shipping_address_updated_success'.tr,
       );
     } finally {
       isAddressSaving.value = false;
@@ -204,7 +205,10 @@ class CampaignShippingController extends GetxController {
   Future<void> onDeclinePressed() async {
     final jobId = job.id?.trim();
     if (jobId == null || jobId.isEmpty) {
-      Get.snackbar('shipping_error_title'.tr, 'campaign_missing_id'.tr);
+      AppSnackbar.showErrorSnackbar(
+        title: 'shipping_error_title'.tr,
+        message: 'campaign_missing_id'.tr,
+      );
       return;
     }
 
@@ -251,29 +255,35 @@ class CampaignShippingController extends GetxController {
 
   Future<void> onAcceptPressed() async {
     if (!hasReadTerms.value) {
-      Get.snackbar('shipping_error_title'.tr, 'shipping_confirm_read_terms'.tr);
+      AppSnackbar.showErrorSnackbar(
+        title: 'shipping_error_title'.tr,
+        message: 'shipping_confirm_read_terms'.tr,
+      );
       return;
     }
 
     if (!acceptsTerms.value) {
-      Get.snackbar(
-        'shipping_error_title'.tr,
-        'shipping_accept_license_terms'.tr,
+      AppSnackbar.showErrorSnackbar(
+        title: 'shipping_error_title'.tr,
+        message: 'shipping_accept_license_terms'.tr,
       );
       return;
     }
 
     if (selectedAddress == null) {
-      Get.snackbar(
-        'shipping_error_title'.tr,
-        'shipping_select_address_error'.tr,
+      AppSnackbar.showErrorSnackbar(
+        title: 'shipping_error_title'.tr,
+        message: 'shipping_select_address_error'.tr,
       );
       return;
     }
 
     final jobId = job.id?.trim();
     if (jobId == null || jobId.isEmpty) {
-      Get.snackbar('shipping_error_title'.tr, 'campaign_missing_id'.tr);
+      AppSnackbar.showErrorSnackbar(
+        title: 'shipping_error_title'.tr,
+        message: 'campaign_missing_id'.tr,
+      );
       return;
     }
 
@@ -453,26 +463,26 @@ class AddressFormController extends GetxController {
 
     if (selectedZillaKey.value == null ||
         selectedZillaKey.value!.trim().isEmpty) {
-      Get.snackbar(
-        'shipping_address_form_error_title'.tr,
-        'shipping_address_form_error_thana_zilla_required'.tr,
+      AppSnackbar.showErrorSnackbar(
+        title: 'shipping_address_form_error_title'.tr,
+        message: 'shipping_address_form_error_thana_zilla_required'.tr,
       );
       return;
     }
 
     if (selectedThanaKey.value == null ||
         selectedThanaKey.value!.trim().isEmpty) {
-      Get.snackbar(
-        'shipping_address_form_error_title'.tr,
-        'shipping_address_form_error_thana_zilla_required'.tr,
+      AppSnackbar.showErrorSnackbar(
+        title: 'shipping_address_form_error_title'.tr,
+        message: 'shipping_address_form_error_thana_zilla_required'.tr,
       );
       return;
     }
 
     if (fullAddress.isEmpty) {
-      Get.snackbar(
-        'shipping_address_form_error_title'.tr,
-        'shipping_address_form_error_full_required'.tr,
+      AppSnackbar.showErrorSnackbar(
+        title: 'shipping_address_form_error_title'.tr,
+        message: 'shipping_address_form_error_full_required'.tr,
       );
       return;
     }

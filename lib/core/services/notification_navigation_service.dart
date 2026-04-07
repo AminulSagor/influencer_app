@@ -49,6 +49,7 @@ class NotificationNavigationService extends GetxService {
   Future<void> _handleTap(Map<String, dynamic> data) async {
     final type = data['type']?.toString().trim() ?? '';
     final campaignId = data['campaignId']?.toString().trim() ?? '';
+    final milestoneId = data['milestoneId']?.toString().trim() ?? '';
     final assignmentId = data['assignmentId']?.toString().trim() ?? '';
 
     if (_isInvitationType(type)) {
@@ -60,56 +61,114 @@ class NotificationNavigationService extends GetxService {
         await jobsController.refreshInvitationJobs();
         return;
       }
+
       Get.find<BottomNavController>().onTabChanged(1);
-      // Get.offNamed(
-      //   AppRoutes.jobs,
-      //   id: 1,
-      //   arguments: {
-      //     'initialTabIndex': 0,
-      //     'campaignId': campaignId,
-      //     'assignmentId': assignmentId,
-      //     'fromNotification': true,
-      //   },
-      // );
       return;
     }
 
-    if (type == 'NEW_QUOTE') {
-      if (campaignId.isEmpty) return;
+    final hasCampaignId = campaignId.isNotEmpty;
+    final hasMilestoneId = milestoneId.isNotEmpty;
 
-      final isBrand = await _isBrandUser();
-      if (!isBrand) return;
+    if (!hasCampaignId && !hasMilestoneId) {
+      return;
+    }
 
-      await _waitForNestedNavigatorReady();
+    final isBrand = await _isBrandUser();
 
-      if (_isOnBrandCampaignDetailsPage() &&
-          Get.isRegistered<BrandCampaignDetailsController>()) {
-        final controller = Get.find<BrandCampaignDetailsController>();
+    await _goToBaseTab(isBrand: isBrand);
 
-        final currentCampaignId =
-            controller.job?.id?.trim() ??
-            controller.arguments?['campaignId']?.toString().trim() ??
-            '';
+    if (hasCampaignId && hasMilestoneId) {
+      await _openCampaignDetails(isBrand: isBrand, campaignId: campaignId);
 
-        if (currentCampaignId == campaignId) {
-          await controller.refreshCampaignDetails();
-          return;
-        }
+      await Future.delayed(const Duration(milliseconds: 180));
 
-        Get.offNamed(
-          AppRoutes.brandCampaignDetails,
-          id: 1,
-          arguments: {'campaignId': campaignId},
-        );
+      await _openMilestoneDetails(
+        milestoneId: milestoneId,
+        campaignId: campaignId,
+      );
+      return;
+    }
+
+    if (hasMilestoneId) {
+      await _openMilestoneDetails(
+        milestoneId: milestoneId,
+        campaignId: campaignId.isNotEmpty ? campaignId : null,
+      );
+      return;
+    }
+
+    if (hasCampaignId) {
+      await _openCampaignDetails(isBrand: isBrand, campaignId: campaignId);
+      return;
+    }
+
+    if (type == 'NEW_QUOTE' && campaignId.isNotEmpty) {
+      await _openCampaignDetails(isBrand: isBrand, campaignId: campaignId);
+      return;
+    }
+  }
+
+  Future<void> _goToBaseTab({required bool isBrand}) async {
+    await _waitForNestedNavigatorReady();
+
+    final bottomNavController = Get.find<BottomNavController>();
+    final targetIndex = 1;
+
+    bottomNavController.onTabChanged(targetIndex);
+
+    await Future.delayed(const Duration(milliseconds: 220));
+    await _waitForNestedNavigatorReady();
+  }
+
+  Future<void> _openCampaignDetails({
+    required bool isBrand,
+    required String campaignId,
+  }) async {
+    if (campaignId.trim().isEmpty) return;
+
+    final route = isBrand
+        ? AppRoutes.brandCampaignDetails
+        : AppRoutes.campaignDetails;
+
+    if (isBrand &&
+        _isOnBrandCampaignDetailsPage() &&
+        Get.isRegistered<BrandCampaignDetailsController>()) {
+      final controller = Get.find<BrandCampaignDetailsController>();
+
+      final currentCampaignId =
+          controller.job?.id?.trim() ??
+          controller.arguments?['campaignId']?.toString().trim() ??
+          '';
+
+      if (currentCampaignId == campaignId.trim()) {
+        await controller.refreshCampaignDetails();
         return;
       }
-
-      Get.offNamed(
-        AppRoutes.brandCampaignDetails,
-        id: 1,
-        arguments: {'campaignId': campaignId},
-      );
     }
+
+    Get.offNamed(
+      route,
+      id: 1,
+      arguments: {'campaignId': campaignId.trim(), 'fromNotification': true},
+    );
+  }
+
+  Future<void> _openMilestoneDetails({
+    required String milestoneId,
+    String? campaignId,
+  }) async {
+    if (milestoneId.trim().isEmpty) return;
+
+    Get.toNamed(
+      AppRoutes.milestoneDetails,
+      id: 1,
+      arguments: {
+        'milestoneId': milestoneId.trim(),
+        if ((campaignId ?? '').trim().isNotEmpty)
+          'campaignId': campaignId!.trim(),
+        'fromNotification': true,
+      },
+    );
   }
 
   bool _isInvitationType(String type) {

@@ -8,6 +8,8 @@ import 'package:influencer_app/core/widgets/custom_button.dart';
 import 'package:influencer_app/core/widgets/custom_drop_down_menu.dart';
 import 'package:influencer_app/core/widgets/custom_text_form_field.dart';
 
+import '../../../../core/utils/app_snackbar.dart';
+
 typedef TrOr = String Function(String key, String fallback);
 typedef FmtAmount = String Function(int amount);
 typedef ParseAmount = int Function(String input);
@@ -245,12 +247,10 @@ class FundCampaignDialog {
                           }
                         : () {
                             if (!loading) {
-                              Get.snackbar(
-                                trOr('common_error', 'Error'),
-                                trOr(
-                                  'brand_campaign_payment_invalid',
-                                  'Amount must be between minimum and total due.',
-                                ),
+                              AppSnackbar.showErrorSnackbar(
+                                title: 'Error',
+                                message:
+                                    'Amount must be between minimum and total due.',
                               );
                             }
                           },

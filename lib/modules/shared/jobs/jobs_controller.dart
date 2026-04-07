@@ -12,6 +12,7 @@ import '../../../core/models/job_item.dart';
 import '../../../core/services/api_client.dart';
 import '../../../core/services/api_error_handler.dart';
 import '../../../core/services/firebase_messaging_service.dart';
+import '../../../core/utils/app_snackbar.dart';
 import '../../../core/widgets/reason_bottom_sheet.dart';
 import '../../../routes/app_routes.dart';
 import 'widgets/delete_campaign_dialog.dart';
@@ -2058,7 +2059,10 @@ class JobsController extends GetxController {
     final currentCount = brandTabCounts[3] ?? brandDrafts.length;
     brandTabCounts[3] = currentCount > 0 ? currentCount - 1 : 0;
 
-    Get.snackbar('Success', 'Campaign deleted successfully.');
+    AppSnackbar.showSuccessSnackbar(
+      title: 'Success',
+      message: 'Campaign deleted successfully.',
+    );
 
     await fetchBrandDrafts(reset: true);
   }

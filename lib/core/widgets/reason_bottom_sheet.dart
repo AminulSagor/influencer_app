@@ -5,6 +5,8 @@ import 'package:influencer_app/core/theme/app_palette.dart';
 import 'package:influencer_app/core/widgets/custom_button.dart';
 import 'package:influencer_app/core/widgets/custom_text_form_field.dart';
 
+import '../utils/app_snackbar.dart';
+
 Future<String?> showReasonBottomSheet({
   required String title,
   required String hintText,
@@ -64,9 +66,9 @@ Future<String?> showReasonBottomSheet({
               onTap: () {
                 final reason = tc.text.trim();
                 if (reason.isEmpty) {
-                  Get.snackbar(
-                    'shipping_error_title'.tr,
-                    'jobs_decline_reason_required'.tr,
+                  AppSnackbar.showErrorSnackbar(
+                    title: 'shipping_error_title'.tr,
+                    message: 'jobs_decline_reason_required'.tr,
                   );
                   return;
                 }

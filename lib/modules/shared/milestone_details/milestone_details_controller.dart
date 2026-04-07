@@ -12,6 +12,7 @@ import 'package:path/path.dart' as path;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/services/firebase_messaging_service.dart';
+import '../../../core/utils/app_snackbar.dart';
 import '../../../core/utils/metric_number_util.dart';
 import '../../ad_agency/services/upload_service.dart';
 import '../../../core/models/job_item.dart';
@@ -306,9 +307,12 @@ class MilestoneDetailsController extends GetxController {
       await _loadBrandMilestoneDetails(
         isPaidAd: job.campaignType == CampaignType.paidAd,
       );
-      Get.snackbar('Success', successMessage);
+      AppSnackbar.showSuccessSnackbar(
+        title: 'Success',
+        message: successMessage,
+      );
     } else if (result == false) {
-      Get.snackbar('Error', failMessage);
+      AppSnackbar.showErrorSnackbar(title: 'Error', message: failMessage);
     }
   }
 
@@ -405,19 +409,60 @@ class MilestoneDetailsController extends GetxController {
     super.onInit();
 
     if (arguments is Map) {
-      final map = arguments as Map;
-      milestone = map['milestone'] as Milestone;
-      milestoneRx.value = milestone;
-      job = map['job'] as JobItem;
+      final map = Map<String, dynamic>.from(arguments as Map);
+
+      final argMilestone = map['milestone'];
+      final argJob = map['job'];
+
+      if (argMilestone is Milestone && argJob is JobItem) {
+        milestone = argMilestone;
+        milestoneRx.value = milestone;
+        job = argJob;
+      } else {
+        final milestoneId = map['milestoneId']?.toString().trim() ?? '';
+        final campaignId = map['campaignId']?.toString().trim() ?? '';
+
+        if (milestoneId.isEmpty) {
+          AppSnackbar.showErrorSnackbar(
+            title: 'ERROR',
+            message: 'Fail to get milestone details',
+          );
+          return;
+        }
+
+        milestone = Milestone(
+          id: milestoneId,
+          title: '',
+          stepLabel: '',
+          amountLabel: '',
+          status: MilestoneStatus.todo,
+        );
+        milestoneRx.value = milestone;
+
+        job = JobItem(
+          id: campaignId,
+          title: '',
+          subTitle: '',
+          clientName: '',
+          campaignType: CampaignType.influencerPromotion,
+          dateLabel: '',
+          budget: 0,
+          sharePercent: 0,
+          progressPercent: 0,
+          dueLabel: '',
+          milestones: const <Milestone>[],
+        );
+      }
     } else {
-      Get.snackbar('ERROR', 'Fail to get milestone details');
+      AppSnackbar.showErrorSnackbar(
+        title: 'ERROR',
+        message: 'Fail to get milestone details',
+      );
+      return;
     }
 
     _syncLocalStatusFromModel();
-
     _listenCampaignNotifications();
-
-    // ✅ ALWAYS FETCH FROM SERVER FOR ALL USERS
     _loadMilestoneDetailsByRole(showInitialLoader: true);
   }
 
@@ -671,13 +716,19 @@ class MilestoneDetailsController extends GetxController {
   Future<void> submitAdminReport(String reason) async {
     final r = reason.trim();
     if (r.isEmpty) {
-      Get.snackbar('Required', 'Please write your reason.');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Required',
+        message: 'Please write your reason.',
+      );
       return;
     }
 
     final milestoneId = milestone.id?.trim() ?? '';
     if (milestoneId.isEmpty) {
-      Get.snackbar('Missing data', 'Milestone id not found.');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Missing data',
+        message: 'Milestone id not found.',
+      );
       return;
     }
 
@@ -1367,7 +1418,10 @@ class MilestoneDetailsController extends GetxController {
     }).toList();
 
     if (drafts.isEmpty) {
-      Get.snackbar('Nothing to submit', 'No new draft submissions found.');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Nothing to submit',
+        message: 'No new draft submissions found.',
+      );
       return;
     }
 
@@ -1387,7 +1441,10 @@ class MilestoneDetailsController extends GetxController {
     final ui = submissions.first;
 
     if (ui.status.value == SubmissionStatus.approved) {
-      Get.snackbar('Nothing to submit', 'Submission already approved.');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Nothing to submit',
+        message: 'Submission already approved.',
+      );
       return;
     }
 
@@ -1417,15 +1474,18 @@ class MilestoneDetailsController extends GetxController {
     _markNeedsParentRefresh();
     await _loadInfluencerMilestoneDetails();
 
-    Get.snackbar('Submitted', 'Milestone sent for admin review');
+    AppSnackbar.showSuccessSnackbar(
+      title: 'Submitted',
+      message: 'Milestone sent for admin review',
+    );
   }
 
   /// Called from "Submit For Admin Review" button.
   void submitForReview() async {
     if (!confirmOwnership.value || !acceptLicense.value) {
-      Get.snackbar(
-        'Action required',
-        'Please confirm ownership and accept the terms.',
+      AppSnackbar.showErrorSnackbar(
+        title: 'Action required',
+        message: 'Please confirm ownership and accept the terms.',
       );
       return;
     }
@@ -1438,7 +1498,10 @@ class MilestoneDetailsController extends GetxController {
 
     final milestoneId = milestone.id?.trim() ?? '';
     if (milestoneId.isEmpty) {
-      Get.snackbar('Error', 'Missing milestone id.');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Missing milestone id.',
+      );
       return;
     }
 
@@ -1942,7 +2005,10 @@ class MilestoneDetailsController extends GetxController {
 
       final target = selectedBrandSubmission;
       if (target == null) {
-        Get.snackbar('No submission', 'Please select a submission first.');
+        AppSnackbar.showErrorSnackbar(
+          title: 'No submission',
+          message: 'Please select a submission first.',
+        );
         return;
       }
 
@@ -1963,7 +2029,10 @@ class MilestoneDetailsController extends GetxController {
   Future<void> declineSelectedBrandSubmission(String reason) async {
     final r = reason.trim();
     if (r.isEmpty) {
-      Get.snackbar('Required', 'Please write a reason.');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Required',
+        message: 'Please write a reason.',
+      );
       return;
     }
 
@@ -1989,7 +2058,10 @@ class MilestoneDetailsController extends GetxController {
 
       final target = selectedBrandSubmission;
       if (target == null) {
-        Get.snackbar('No submission', 'Please select a submission first.');
+        AppSnackbar.showErrorSnackbar(
+          title: 'No submission',
+          message: 'Please select a submission first.',
+        );
         return;
       }
 
@@ -2025,12 +2097,18 @@ class MilestoneDetailsController extends GetxController {
           .toList(growable: false);
 
       if (cleanMilestoneId.isEmpty) {
-        Get.snackbar('Missing data', 'Milestone id not found.');
+        AppSnackbar.showErrorSnackbar(
+          title: 'Missing data',
+          message: 'Milestone id not found.',
+        );
         return false;
       }
 
       if (cleanSubmissionIds.isEmpty) {
-        Get.snackbar('No submission', 'Please select at least one submission.');
+        AppSnackbar.showErrorSnackbar(
+          title: 'No submission',
+          message: 'Please select at least one submission.',
+        );
         return false;
       }
 
@@ -2048,7 +2126,10 @@ class MilestoneDetailsController extends GetxController {
 
     final cleanSubmissionId = submissionId?.trim() ?? '';
     if (cleanSubmissionId.isEmpty) {
-      Get.snackbar('Missing data', 'Submission id not found.');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Missing data',
+        message: 'Submission id not found.',
+      );
       return false;
     }
 
@@ -2079,13 +2160,19 @@ class MilestoneDetailsController extends GetxController {
     final amount = _parseAmount(rawAmount);
 
     if (amount <= 0) {
-      Get.snackbar('Required', 'Please enter a valid bonus amount.');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Required',
+        message: 'Please enter a valid bonus amount.',
+      );
       return;
     }
 
     final target = bonusTargetSubmission;
     if (target == null) {
-      Get.snackbar('Unavailable', 'No eligible submission found for bonus.');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Unavailable',
+        message: 'No eligible submission found for bonus.',
+      );
       return;
     }
 
@@ -2130,12 +2217,18 @@ class MilestoneDetailsController extends GetxController {
       final tranId = _extractBonusTranId(response);
 
       if (gatewayUrl == null) {
-        Get.snackbar('Error', 'Payment URL not found.');
+        AppSnackbar.showErrorSnackbar(
+          title: 'Error',
+          message: 'Payment URL not found.',
+        );
         return;
       }
 
       if (tranId == null) {
-        Get.snackbar('Error', 'Transaction id not found.');
+        AppSnackbar.showErrorSnackbar(
+          title: 'Error',
+          message: 'Transaction id not found.',
+        );
         return;
       }
 
@@ -2152,7 +2245,7 @@ class MilestoneDetailsController extends GetxController {
       );
     } catch (e) {
       await _hideBlockingLoader();
-      Get.snackbar('Error', e.toString());
+      AppSnackbar.showErrorSnackbar(title: 'Error', message: e.toString());
     } finally {
       isBonusPaymentLoading.value = false;
     }
@@ -2168,13 +2261,16 @@ class MilestoneDetailsController extends GetxController {
 
     final uri = Uri.tryParse(url);
     if (uri == null) {
-      Get.snackbar('Error', 'Invalid link');
+      AppSnackbar.showErrorSnackbar(title: 'Error', message: 'Invalid link');
       return;
     }
 
     final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!opened) {
-      Get.snackbar('Error', 'Could not open link');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Could not open link',
+      );
     }
   }
 
@@ -2183,6 +2279,9 @@ class MilestoneDetailsController extends GetxController {
     if (value.isEmpty) return;
 
     await Clipboard.setData(ClipboardData(text: value));
-    Get.snackbar('Copied', 'Link copied to clipboard');
+    AppSnackbar.showSuccessSnackbar(
+      title: 'Copied',
+      message: 'Link copied to clipboard',
+    );
   }
 }

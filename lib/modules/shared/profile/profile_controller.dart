@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:influencer_app/core/widgets/custom_drop_down_menu.dart';
 import 'package:path/path.dart' as path;
 import 'package:influencer_app/core/controllers/app_user_session_controller.dart';
 import 'package:influencer_app/core/services/account_type_service.dart';
@@ -26,7 +27,9 @@ import 'package:influencer_app/core/widgets/custom_text_form_field.dart';
 
 import '../../../core/models/location_models.dart';
 import '../../../core/services/location_service.dart';
+import '../../../core/utils/app_snackbar.dart';
 import '../../../core/widgets/logout_dialog.dart';
+import '../bottom_navbar/bottom_nav_controller.dart';
 import 'models/brand_asset.dart';
 import 'models/payout_method.dart';
 import 'models/profile_field.dart';
@@ -309,10 +312,16 @@ class ProfileController extends GetxController {
       final result = await service.updateBasicInfo(bio: bio);
 
       if (!result.isSuccess || result.data == null) {
-        Get.snackbar('Error', result.error ?? 'Failed to save bio');
+        AppSnackbar.showErrorSnackbar(
+          title: 'Error',
+          message: result.error ?? 'Failed to save bio',
+        );
         return;
       }
-      Get.snackbar('Success', 'Bio saved successfully');
+      AppSnackbar.showSuccessSnackbar(
+        title: 'Success',
+        message: 'Bio saved successfully',
+      );
 
       await _fetchProfileData();
       // influencerProfile.value = result.data!;
@@ -331,7 +340,10 @@ class ProfileController extends GetxController {
     final lastName = (profileFieldValues['Last Name'] ?? '').trim();
 
     if (firstName.isEmpty || lastName.isEmpty) {
-      Get.snackbar('Error', 'First name and last name are required.');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'First name and last name are required.',
+      );
       return;
     }
 
@@ -344,9 +356,9 @@ class ProfileController extends GetxController {
       );
 
       if (!result.isSuccess || result.data == null) {
-        Get.snackbar(
-          'Error',
-          result.error ?? 'Failed to update profile settings',
+        AppSnackbar.showErrorSnackbar(
+          title: 'Error',
+          message: result.error ?? 'Failed to update profile settings',
         );
         return;
       }
@@ -367,9 +379,9 @@ class ProfileController extends GetxController {
     final nidBack = nidBackUploadedUrl.value?.trim() ?? '';
 
     if (nidNumber.isEmpty || nidFront.isEmpty || nidBack.isEmpty) {
-      Get.snackbar(
-        'Error',
-        'NID number, front image and back image are required.',
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'NID number, front image and back image are required.',
       );
       return;
     }
@@ -384,9 +396,9 @@ class ProfileController extends GetxController {
       );
 
       if (!result.isSuccess || result.data == null) {
-        Get.snackbar(
-          'Error',
-          result.error ?? 'Failed to submit NID verification',
+        AppSnackbar.showErrorSnackbar(
+          title: 'Error',
+          message: result.error ?? 'Failed to submit NID verification',
         );
         return;
       }
@@ -415,10 +427,9 @@ class ProfileController extends GetxController {
       if (!result.isSuccess) return;
 
       await _fetchAgencyProfile();
-      Get.snackbar(
-        'success_title'.tr,
-        'profile_update_saved'.tr,
-        snackPosition: SnackPosition.BOTTOM,
+      AppSnackbar.showSuccessSnackbar(
+        title: 'success_title'.tr,
+        message: 'profile_update_saved'.tr,
       );
     } finally {
       isSavingAgencyBio.value = false;
@@ -441,15 +452,18 @@ class ProfileController extends GetxController {
     final fullAddress = (profileFieldValues['Full Address'] ?? '').trim();
 
     if (agencyName.isEmpty || firstName.isEmpty || lastName.isEmpty) {
-      Get.snackbar(
-        'Error',
-        'Agency name, first name and last name are required.',
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Agency name, first name and last name are required.',
       );
       return;
     }
 
     if (thana.isEmpty || zilla.isEmpty || fullAddress.isEmpty) {
-      Get.snackbar('Error', 'Thana, zilla and full address are required.');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Thana, zilla and full address are required.',
+      );
       return;
     }
 
@@ -477,10 +491,9 @@ class ProfileController extends GetxController {
       if (!addressResult.isSuccess) return;
 
       await _fetchAgencyProfile();
-      Get.snackbar(
-        'success_title'.tr,
-        'profile_update_saved'.tr,
-        snackPosition: SnackPosition.BOTTOM,
+      AppSnackbar.showSuccessSnackbar(
+        title: 'success_title'.tr,
+        message: 'profile_update_saved'.tr,
       );
     } finally {
       isSavingAgencySettings.value = false;
@@ -494,7 +507,10 @@ class ProfileController extends GetxController {
       return;
 
     if (isUploadingVerificationMedia) {
-      Get.snackbar('Error', 'Please wait for media upload to complete.');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Please wait for media upload to complete.',
+      );
       return;
     }
 
@@ -508,9 +524,10 @@ class ProfileController extends GetxController {
 
       if (nidNumber.isNotEmpty || nidFront.isNotEmpty || nidBack.isNotEmpty) {
         if (nidNumber.isEmpty || nidFront.isEmpty || nidBack.isEmpty) {
-          Get.snackbar(
-            'Error',
-            'NID number, front image and back image are required together.',
+          AppSnackbar.showErrorSnackbar(
+            title: 'Error',
+            message:
+                'NID number, front image and back image are required together.',
           );
           return;
         }
@@ -529,9 +546,9 @@ class ProfileController extends GetxController {
       final tradeImage = tradeLicenseUploadedUrl.value?.trim() ?? '';
       if (tradeNumber.isNotEmpty || tradeImage.isNotEmpty) {
         if (tradeNumber.isEmpty || tradeImage.isEmpty) {
-          Get.snackbar(
-            'Error',
-            'Trade license number and image are required together.',
+          AppSnackbar.showErrorSnackbar(
+            title: 'Error',
+            message: 'Trade license number and image are required together.',
           );
           return;
         }
@@ -549,7 +566,10 @@ class ProfileController extends GetxController {
       final tinImage = tinUploadedUrl.value?.trim() ?? '';
       if (tinNumber.isNotEmpty || tinImage.isNotEmpty) {
         if (tinNumber.isEmpty || tinImage.isEmpty) {
-          Get.snackbar('Error', 'TIN number and image are required together.');
+          AppSnackbar.showErrorSnackbar(
+            title: 'Error',
+            message: 'TIN number and image are required together.',
+          );
           return;
         }
 
@@ -569,10 +589,9 @@ class ProfileController extends GetxController {
       }
 
       await _fetchAgencyProfile();
-      Get.snackbar(
-        'success_title'.tr,
-        'profile_update_saved'.tr,
-        snackPosition: SnackPosition.BOTTOM,
+      AppSnackbar.showSuccessSnackbar(
+        title: 'success_title'.tr,
+        message: 'profile_update_saved'.tr,
       );
     } finally {
       isSavingAgencyVerification.value = false;
@@ -694,7 +713,7 @@ class ProfileController extends GetxController {
   Future<void> refreshProfilePage() async {
     isLoadingProfile.value = true;
     try {
-      await appUserSession.preloadUserData();
+      await appUserSession.preloadUserData(forceRefresh: true);
       await _loadUserFromToken();
 
       if (accountTypeService.isInfluencer) {
@@ -705,6 +724,12 @@ class ProfileController extends GetxController {
         await _fetchBrandProfile();
       } else {
         _applyEmptyProfileState();
+      }
+
+      if (Get.isRegistered<BottomNavController>()) {
+        await Get.find<BottomNavController>().syncVerificationFromSession(
+          forceRefresh: true,
+        );
       }
     } finally {
       isLoadingProfile.value = false;
@@ -1168,7 +1193,7 @@ class ProfileController extends GetxController {
           account == null ? 'Add Social Link' : 'Edit Social Link',
           style: TextStyle(
             color: AppPalette.primary,
-            fontSize: 18.sp,
+            fontSize: 16.sp,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -1176,56 +1201,26 @@ class ProfileController extends GetxController {
           mainAxisSize: MainAxisSize.min,
           children: [
             Obx(
-              () => Container(
-                padding: EdgeInsets.symmetric(horizontal: 12.w),
-                decoration: BoxDecoration(
-                  color: AppPalette.background,
-                  borderRadius: BorderRadius.circular(10.r),
-                  border: Border.all(color: AppPalette.border1),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    dropdownColor: AppPalette.white,
-                    value: newSocialPlatform.value,
-                    hint: Text(
-                      'Select platform',
-                      style: TextStyle(
-                        color: AppPalette.subtext,
-                        fontSize: 14.sp,
-                      ),
-                    ),
-                    isExpanded: true,
-                    items: socialPlatformOptions
-                        .map(
-                          (platform) => DropdownMenuItem<String>(
-                            value: platform,
-                            child: Text(
-                              platform,
-                              style: TextStyle(
-                                color: AppPalette.black,
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                          ),
-                        )
-                        .toList(growable: false),
-                    onChanged: (value) {
-                      final next = value?.trim();
-                      if (next == null || next.isEmpty) {
-                        newSocialPlatform.value = null;
-                        newSocialHandleController.clear();
-                        return;
-                      }
+              () => CustomDropDownMenu(
+                hintText: 'Select platform',
+                options: socialPlatformOptions,
+                value: newSocialPlatform.value,
+                onChanged: (value) {
+                  final next = value?.trim();
+                  if (next == null || next.isEmpty) {
+                    newSocialPlatform.value = null;
+                    newSocialHandleController.clear();
+                    return;
+                  }
 
-                      final existing = socialAccounts.firstWhereOrNull(
-                        (e) => e.platform.toLowerCase() == next.toLowerCase(),
-                      );
+                  newSocialPlatform.value = next;
 
-                      newSocialPlatform.value = next;
-                      newSocialHandleController.text = existing?.handle ?? '';
-                    },
-                  ),
-                ),
+                  if (account != null) {
+                    newSocialHandleController.text = account.handle;
+                  } else {
+                    newSocialHandleController.clear();
+                  }
+                },
               ),
             ),
             SizedBox(height: 16.h),
@@ -1250,7 +1245,6 @@ class ProfileController extends GetxController {
                     btnText: 'Cancel',
                     btnColor: AppPalette.defaultFill,
                     textColor: AppPalette.black,
-                    height: 45.h,
                   ),
                 ),
                 SizedBox(width: 10.w),
@@ -1268,9 +1262,9 @@ class ProfileController extends GetxController {
                                     .trim();
 
                                 if (platform.isEmpty || url.isEmpty) {
-                                  Get.snackbar(
-                                    'Error',
-                                    'Platform and link are required.',
+                                  AppSnackbar.showErrorSnackbar(
+                                    title: 'Error',
+                                    message: 'Platform and link are required.',
                                   );
                                   return;
                                 }
@@ -1279,11 +1273,12 @@ class ProfileController extends GetxController {
                                 try {
                                   final agencyService =
                                       Get.find<AgencyProfileService>();
+
                                   final currentPayload = socialAccounts
                                       .map(
                                         (e) => {
                                           'platform': e.platform.toLowerCase(),
-                                          'url': e.handle,
+                                          'url': e.handle.trim(),
                                         },
                                       )
                                       .where(
@@ -1291,15 +1286,30 @@ class ProfileController extends GetxController {
                                       )
                                       .toList();
 
-                                  final index = currentPayload.indexWhere(
-                                    (e) => e['platform'] == platform,
-                                  );
+                                  if (account != null) {
+                                    final oldPlatform = account.platform
+                                        .trim()
+                                        .toLowerCase();
+                                    final oldHandle = account.handle.trim();
 
-                                  if (index >= 0) {
-                                    currentPayload[index] = {
-                                      'platform': platform,
-                                      'url': url,
-                                    };
+                                    final existingIndex = currentPayload
+                                        .indexWhere(
+                                          (e) =>
+                                              e['platform'] == oldPlatform &&
+                                              e['url'] == oldHandle,
+                                        );
+
+                                    if (existingIndex >= 0) {
+                                      currentPayload[existingIndex] = {
+                                        'platform': platform,
+                                        'url': url,
+                                      };
+                                    } else {
+                                      currentPayload.add({
+                                        'platform': platform,
+                                        'url': url,
+                                      });
+                                    }
                                   } else {
                                     currentPayload.add({
                                       'platform': platform,
@@ -1328,7 +1338,11 @@ class ProfileController extends GetxController {
                               if (platform.isEmpty || handle.isEmpty) return;
 
                               if (accountTypeService.isInfluencer) {
-                                _saveSocialLinkDirectly(platform, handle);
+                                _saveSocialLinkDirectly(
+                                  platform,
+                                  handle,
+                                  account: account,
+                                );
                               } else {
                                 addOrUpdateSocialAccount(
                                   platform: platform,
@@ -1338,8 +1352,8 @@ class ProfileController extends GetxController {
                               }
                             },
                       btnText: account == null ? 'Add' : 'Save',
+                      textColor: AppPalette.white,
                       isLoading: isAddingSocial.value,
-                      height: 45.h,
                     ),
                   ),
                 ),
@@ -1352,26 +1366,44 @@ class ProfileController extends GetxController {
     );
   }
 
-  Future<void> _saveSocialLinkDirectly(String platform, String handle) async {
+  Future<void> _saveSocialLinkDirectly(
+    String platform,
+    String handle, {
+    SocialAccount? account,
+  }) async {
     isAddingSocial.value = true;
     try {
       final normalizedPlatform = platform.trim().toLowerCase();
       final normalizedHandle = handle.trim();
 
-      // Gather current social links
       final currentLinks = influencerProfile.value?.socialLinks ?? [];
       final List<InfluencerSocialLink> updatedList = List.from(currentLinks);
 
-      final index = updatedList.indexWhere(
-        (e) => e.platform.toLowerCase() == normalizedPlatform,
-      );
+      if (account != null) {
+        final oldPlatform = account.platform.trim().toLowerCase();
+        final oldHandle = account.handle.trim();
 
-      if (index >= 0) {
-        updatedList[index] = InfluencerSocialLink(
-          platform: normalizedPlatform,
-          url: normalizedHandle,
-          status: updatedList[index].status,
+        final existingIndex = updatedList.indexWhere(
+          (e) =>
+              e.platform.toLowerCase() == oldPlatform &&
+              e.url.trim() == oldHandle,
         );
+
+        if (existingIndex >= 0) {
+          updatedList[existingIndex] = InfluencerSocialLink(
+            platform: normalizedPlatform,
+            url: normalizedHandle,
+            status: updatedList[existingIndex].status,
+          );
+        } else {
+          updatedList.add(
+            InfluencerSocialLink(
+              platform: normalizedPlatform,
+              url: normalizedHandle,
+              status: 'unverified',
+            ),
+          );
+        }
       } else {
         updatedList.add(
           InfluencerSocialLink(
@@ -1390,23 +1422,18 @@ class ProfileController extends GetxController {
         appUserSession.influencerProfile.value = result.data;
         _populateFromInfluencerProfile(result.data!);
         Get.back();
-        Get.snackbar(
-          'Success',
-          'Social link updated successfully',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.green.withAlpha(200),
-          colorText: Colors.white,
+        AppSnackbar.showSuccessSnackbar(
+          title: 'Success',
+          message: 'Social link updated successfully',
         );
       } else {
-        Get.snackbar(
-          'Error',
-          result.error ?? 'Failed to update social link',
-          snackPosition: SnackPosition.BOTTOM,
+        AppSnackbar.showErrorSnackbar(
+          title: 'Error',
+          message: result.error ?? 'Failed to update social link',
         );
       }
     } finally {
       isAddingSocial.value = false;
-      await _fetchInfluencerProfile();
     }
   }
 
@@ -1449,10 +1476,9 @@ class ProfileController extends GetxController {
     await _ensureAllowedNichesLoaded();
 
     if (allowedNiches.isEmpty) {
-      Get.snackbar(
-        'Error',
-        'No niches available right now.',
-        snackPosition: SnackPosition.BOTTOM,
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'No niches available right now.',
       );
       return;
     }
@@ -1469,35 +1495,62 @@ class ProfileController extends GetxController {
           onConfirm: (selected) async {
             isSavingNiches.value = true;
             try {
-              if (accountTypeService.isAdAgency) {
-                isSavingNiches.value = true;
-                try {
-                  final agencyService = Get.find<AgencyProfileService>();
-                  final result = await ApiErrorHandler.call(
-                    () => agencyService.updateNiches(selected),
-                  );
-                  if (!result.isSuccess) return;
+              if (accountTypeService.isBrand) {
+                final result = await ApiErrorHandler.call(
+                  () => _campaignService.updateClientProfileNiches(
+                    niches: selected,
+                  ),
+                );
+                if (!result.isSuccess || result.data == null) return;
 
-                  Get.back();
-                  await _fetchAgencyProfile();
-                } finally {
-                  isSavingNiches.value = false;
+                final returnedStatuses = <String, String>{};
+                for (final item in result.data!) {
+                  final niche = item['niche']?.toString().trim() ?? '';
+                  final status =
+                      item['status']?.toString().trim() ?? 'unverified';
+
+                  if (niche.isNotEmpty) {
+                    returnedStatuses[niche.toLowerCase()] = status;
+                  }
                 }
+
+                niches.assignAll(
+                  selected
+                      .map((e) => e.trim())
+                      .where((e) => e.isNotEmpty)
+                      .toList(growable: false),
+                );
+                nicheStatuses.assignAll(returnedStatuses);
+
+                Get.back();
+                await _fetchBrandProfile();
                 return;
               }
+
+              if (accountTypeService.isAdAgency) {
+                final agencyService = Get.find<AgencyProfileService>();
+                final result = await ApiErrorHandler.call(
+                  () => agencyService.updateNiches(selected),
+                );
+                if (!result.isSuccess) return;
+
+                Get.back();
+                await _fetchAgencyProfile();
+                return;
+              }
+
               final service = Get.find<InfluencerProfileService>();
               final result = await service.updateNiches(selected);
 
               if (!result.isSuccess || result.data == null) {
-                Get.snackbar(
-                  'Error',
-                  result.error ?? 'Failed to update niches',
+                AppSnackbar.showErrorSnackbar(
+                  title: 'Error',
+                  message: result.error ?? 'Failed to update niches',
                 );
                 return;
               }
 
               await _fetchProfileData();
-              // _populateFromInfluencerProfile(result.data!);
               Get.back();
             } finally {
               isSavingNiches.value = false;
@@ -1876,12 +1929,20 @@ class ProfileController extends GetxController {
     if (socialLinks != null && socialLinks.isNotEmpty) {
       socialAccounts.assignAll(
         socialLinks.map((link) {
-          final linkMap = link as Map<String, dynamic>;
+          final linkMap = Map<String, dynamic>.from(link as Map);
+          final status = (linkMap['status'] ?? '')
+              .toString()
+              .trim()
+              .toLowerCase();
+
           return SocialAccount(
             platform: _capitalizeFirst(linkMap['platform'] ?? ''),
             iconPath: _getIconPathForPlatform(linkMap['platform'] ?? ''),
-            handle: linkMap['url'] ?? '',
-            isVerified: linkMap['status'] == 'verified',
+            handle:
+                (linkMap['profileUrl'] ?? linkMap['url'] ?? linkMap['link'])
+                    ?.toString() ??
+                '',
+            isVerified: status == 'verified' || status == 'approved',
           );
         }).toList(),
       );
@@ -2743,7 +2804,10 @@ class ProfileController extends GetxController {
     } catch (e) {
       assignUrl(null);
       debugPrint('Verification media upload failed: $e');
-      Get.snackbar('Error', 'Failed to upload selected file. Please retry.');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Failed to upload selected file. Please retry.',
+      );
     } finally {
       uploadingFlag.value = false;
     }
@@ -2854,9 +2918,9 @@ class ProfileController extends GetxController {
         final service = Get.find<InfluencerProfileService>();
         final result = await service.updateBasicInfo(profileImage: url);
         if (!result.isSuccess || result.data == null) {
-          Get.snackbar(
-            'Error',
-            result.error ?? 'Failed to update profile photo',
+          AppSnackbar.showErrorSnackbar(
+            title: 'Error',
+            message: result.error ?? 'Failed to update profile photo',
           );
           return;
         }
@@ -3001,7 +3065,10 @@ class ProfileController extends GetxController {
               accountNo.isEmpty ||
               branchName.isEmpty ||
               routing.isEmpty) {
-            Get.snackbar('Error', 'Please fill all bank payout fields');
+            AppSnackbar.showErrorSnackbar(
+              title: 'Error',
+              message: 'Please fill all bank payout fields',
+            );
             return;
           }
           final result = await service.addBankPayout(
@@ -3013,7 +3080,10 @@ class ProfileController extends GetxController {
           );
 
           if (!result.isSuccess) {
-            Get.snackbar('Error', result.error ?? 'Failed to add payout');
+            AppSnackbar.showErrorSnackbar(
+              title: 'Error',
+              message: result.error ?? 'Failed to add payout',
+            );
             return;
           }
         } else if (selectedAccountType.value == 'bKash') {
@@ -3022,7 +3092,10 @@ class ProfileController extends GetxController {
           final accountType = bKashAccountTypeController.text.trim();
 
           if (accountNo.isEmpty || holder.isEmpty) {
-            Get.snackbar('Error', 'Please fill all mobile payout fields');
+            AppSnackbar.showErrorSnackbar(
+              title: 'Error',
+              message: 'Please fill all mobile payout fields',
+            );
             return;
           }
 
@@ -3033,7 +3106,10 @@ class ProfileController extends GetxController {
           );
 
           if (!result.isSuccess) {
-            Get.snackbar('Error', result.error ?? 'Failed to add payout');
+            AppSnackbar.showErrorSnackbar(
+              title: 'Error',
+              message: result.error ?? 'Failed to add payout',
+            );
             return;
           }
         }
@@ -3053,7 +3129,10 @@ class ProfileController extends GetxController {
                 accountNo.isEmpty ||
                 branchName.isEmpty ||
                 routing.isEmpty) {
-              Get.snackbar('Error', 'Please fill all bank payout fields');
+              AppSnackbar.showErrorSnackbar(
+                title: 'Error',
+                message: 'Please fill all bank payout fields',
+              );
               return;
             }
 
@@ -3073,7 +3152,10 @@ class ProfileController extends GetxController {
             final accountType = bKashAccountTypeController.text.trim();
 
             if (accountNo.isEmpty || holder.isEmpty) {
-              Get.snackbar('Error', 'Please fill all mobile payout fields');
+              AppSnackbar.showErrorSnackbar(
+                title: 'Error',
+                message: 'Please fill all mobile payout fields',
+              );
               return;
             }
 
@@ -3124,7 +3206,10 @@ class ProfileController extends GetxController {
     }
 
     if (payoutAccountNo == null || payoutAccountNo.isEmpty) {
-      Get.snackbar('Error', 'Unable to remove payout: missing account number');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Unable to remove payout: missing account number',
+      );
       return;
     }
 
@@ -3146,7 +3231,10 @@ class ProfileController extends GetxController {
         );
         await _fetchProfileData();
       } else {
-        Get.snackbar('Error', result.error ?? 'Failed to remove payout');
+        AppSnackbar.showErrorSnackbar(
+          title: 'Error',
+          message: result.error ?? 'Failed to remove payout',
+        );
       }
     } finally {
       isSavingProfile.value = false;
@@ -3396,10 +3484,9 @@ class ProfileController extends GetxController {
 
       await _fetchProfileData();
 
-      Get.snackbar(
-        'success_title'.tr,
-        'brand_assets_saved'.tr,
-        snackPosition: SnackPosition.BOTTOM,
+      AppSnackbar.showSuccessSnackbar(
+        title: 'success_title'.tr,
+        message: 'brand_assets_saved'.tr,
       );
     } finally {
       isSavingBrandAssetsSection.value = false;
@@ -3417,12 +3504,18 @@ class ProfileController extends GetxController {
     final fullAddress = (profileFieldValues['Full Address'] ?? '').trim();
 
     if (companyName.isEmpty || firstName.isEmpty || lastName.isEmpty) {
-      Get.snackbar('Error', 'Company, first name and last name are required.');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Company, first name and last name are required.',
+      );
       return;
     }
 
     if (thana.isEmpty || zilla.isEmpty || fullAddress.isEmpty) {
-      Get.snackbar('Error', 'Thana, zilla and full address are required.');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Thana, zilla and full address are required.',
+      );
       return;
     }
 
@@ -3450,10 +3543,9 @@ class ProfileController extends GetxController {
 
       await _fetchProfileData();
 
-      Get.snackbar(
-        'success_title'.tr,
-        'profile_update_saved'.tr,
-        snackPosition: SnackPosition.BOTTOM,
+      AppSnackbar.showSuccessSnackbar(
+        title: 'success_title'.tr,
+        message: 'profile_update_saved'.tr,
       );
     } finally {
       isSavingProfileSettings.value = false;
@@ -3466,10 +3558,9 @@ class ProfileController extends GetxController {
     }
 
     if (isUploadingVerificationMedia) {
-      Get.snackbar(
-        'Error',
-        'Please wait for media upload to complete.',
-        snackPosition: SnackPosition.BOTTOM,
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Please wait for media upload to complete.',
       );
       return;
     }
@@ -3487,10 +3578,10 @@ class ProfileController extends GetxController {
           nidFrontUrl.isNotEmpty ||
           nidBackUrl.isNotEmpty) {
         if (nidNumber.isEmpty || nidFrontUrl.isEmpty || nidBackUrl.isEmpty) {
-          Get.snackbar(
-            'Error',
-            'NID number, front image and back image are required together.',
-            snackPosition: SnackPosition.BOTTOM,
+          AppSnackbar.showErrorSnackbar(
+            title: 'Error',
+            message:
+                'NID number, front image and back image are required together.',
           );
           return;
         }
@@ -3510,10 +3601,9 @@ class ProfileController extends GetxController {
       final tradeUrl = tradeLicenseUploadedUrl.value?.trim() ?? '';
       if (tradeNumber.isNotEmpty || tradeUrl.isNotEmpty) {
         if (tradeNumber.isEmpty || tradeUrl.isEmpty) {
-          Get.snackbar(
-            'Error',
-            'Trade license number and image are required together.',
-            snackPosition: SnackPosition.BOTTOM,
+          AppSnackbar.showErrorSnackbar(
+            title: 'Error',
+            message: 'Trade license number and image are required together.',
           );
           return;
         }
@@ -3532,10 +3622,9 @@ class ProfileController extends GetxController {
       final tinUrl = tinUploadedUrl.value?.trim() ?? '';
       if (tinNumber.isNotEmpty || tinUrl.isNotEmpty) {
         if (tinNumber.isEmpty || tinUrl.isEmpty) {
-          Get.snackbar(
-            'Error',
-            'TIN number and certificate image are required together.',
-            snackPosition: SnackPosition.BOTTOM,
+          AppSnackbar.showErrorSnackbar(
+            title: 'Error',
+            message: 'TIN number and certificate image are required together.',
           );
           return;
         }
@@ -3557,19 +3646,17 @@ class ProfileController extends GetxController {
       }
 
       if (!hasSubmittedAny) {
-        Get.snackbar(
-          'Info',
-          'No verification changes to submit.',
-          snackPosition: SnackPosition.BOTTOM,
+        AppSnackbar.showInformationSnackbar(
+          title: 'Info',
+          message: 'No verification changes to submit.',
         );
         return;
       }
 
       await _fetchProfileData();
-      Get.snackbar(
-        'success_title'.tr,
-        'profile_update_saved'.tr,
-        snackPosition: SnackPosition.BOTTOM,
+      AppSnackbar.showSuccessSnackbar(
+        title: 'success_title'.tr,
+        message: 'profile_update_saved'.tr,
       );
     } finally {
       isSavingVerificationSection.value = false;
@@ -3585,10 +3672,9 @@ class ProfileController extends GetxController {
     await _ensureAllowedSkillsLoaded();
 
     if (allowedSkills.isEmpty) {
-      Get.snackbar(
-        'Error',
-        'No skills available right now.',
-        snackPosition: SnackPosition.BOTTOM,
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'No skills available right now.',
       );
       return;
     }
@@ -3611,9 +3697,9 @@ class ProfileController extends GetxController {
                   final result = await service.updateSkills(selected);
 
                   if (!result.isSuccess || result.data == null) {
-                    Get.snackbar(
-                      'Error',
-                      result.error ?? 'Failed to update skills',
+                    AppSnackbar.showErrorSnackbar(
+                      title: 'Error',
+                      message: result.error ?? 'Failed to update skills',
                     );
                     return;
                   }
@@ -3829,10 +3915,9 @@ class ProfileController extends GetxController {
 
     if (name.isEmpty || thana.isEmpty || zilla.isEmpty || full.isEmpty) {
       // keep it simple ("required")
-      Get.snackbar(
-        'error'.tr,
-        'locations_required_error'.tr,
-        snackPosition: SnackPosition.BOTTOM,
+      AppSnackbar.showErrorSnackbar(
+        title: 'error'.tr,
+        message: 'locations_required_error'.tr,
       );
       return;
     }
@@ -3867,7 +3952,10 @@ class ProfileController extends GetxController {
           );
 
           if (!result.isSuccess) {
-            Get.snackbar('Error', result.error ?? 'Failed to update address');
+            AppSnackbar.showErrorSnackbar(
+              title: 'Error',
+              message: result.error ?? 'Failed to update address',
+            );
             return;
           }
         } else {
@@ -3880,7 +3968,10 @@ class ProfileController extends GetxController {
           );
 
           if (!result.isSuccess || result.data == null) {
-            Get.snackbar('Error', result.error ?? 'Failed to save location');
+            AppSnackbar.showErrorSnackbar(
+              title: 'Error',
+              message: result.error ?? 'Failed to save location',
+            );
             return;
           }
         }
@@ -3991,7 +4082,7 @@ class ProfileController extends GetxController {
 
     final email = userEmail.value.trim();
     if (email.isEmpty) {
-      Get.snackbar('Error', 'Email not found');
+      AppSnackbar.showErrorSnackbar(title: 'Error', message: 'Email not found');
       return;
     }
 
@@ -4002,7 +4093,10 @@ class ProfileController extends GetxController {
     isRequestingEmailOtp.value = false;
 
     if (result.isSuccess && result.data != null) {
-      Get.snackbar('Success', result.data!.message);
+      AppSnackbar.showSuccessSnackbar(
+        title: 'Success',
+        message: result.data!.message,
+      );
       showEmailVerification();
     }
   }
@@ -4012,7 +4106,7 @@ class ProfileController extends GetxController {
 
     final email = userEmail.value.trim();
     if (email.isEmpty) {
-      Get.snackbar('Error', 'Email not found');
+      AppSnackbar.showErrorSnackbar(title: 'Error', message: 'Email not found');
       return;
     }
 
@@ -4023,7 +4117,10 @@ class ProfileController extends GetxController {
     isResendingEmailOtp.value = false;
 
     if (result.isSuccess && result.data != null) {
-      Get.snackbar('Success', result.data!.message);
+      AppSnackbar.showSuccessSnackbar(
+        title: 'Success',
+        message: result.data!.message,
+      );
     }
   }
 
@@ -4032,13 +4129,16 @@ class ProfileController extends GetxController {
 
     final email = userEmail.value.trim();
     if (email.isEmpty) {
-      Get.snackbar('Error', 'Email not found');
+      AppSnackbar.showErrorSnackbar(title: 'Error', message: 'Email not found');
       return;
     }
 
     final otp = code.trim();
     if (otp.length != 4) {
-      Get.snackbar('Error', 'OTP must be 4 digits');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'OTP must be 4 digits',
+      );
       return;
     }
 
@@ -4053,7 +4153,10 @@ class ProfileController extends GetxController {
     isVerifyingEmailOtp.value = false;
 
     if (result.isSuccess && result.data != null) {
-      Get.snackbar('Success', result.data!.message);
+      AppSnackbar.showSuccessSnackbar(
+        title: 'Success',
+        message: result.data!.message,
+      );
       markEmailVerified();
       showEmailSuccess();
     }
@@ -4101,10 +4204,9 @@ class ProfileController extends GetxController {
 
     final value = serviceFeeText.value.trim();
     if (value.isEmpty) {
-      Get.snackbar(
-        'Error',
-        'Service fee is required.',
-        snackPosition: SnackPosition.BOTTOM,
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Service fee is required.',
       );
       return;
     }
@@ -4118,10 +4220,9 @@ class ProfileController extends GetxController {
       if (!result.isSuccess) return;
 
       await _fetchProfileData();
-      Get.snackbar(
-        'success_title'.tr,
-        'Service fee saved.',
-        snackPosition: SnackPosition.BOTTOM,
+      AppSnackbar.showSuccessSnackbar(
+        title: 'success_title'.tr,
+        message: 'Service fee saved.',
       );
     } finally {
       isSavingServiceFee.value = false;
@@ -4133,20 +4234,18 @@ class ProfileController extends GetxController {
 
     final raw = dollarRateText.value.trim();
     if (raw.isEmpty) {
-      Get.snackbar(
-        'Error',
-        'Dollar rate is required.',
-        snackPosition: SnackPosition.BOTTOM,
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Dollar rate is required.',
       );
       return;
     }
 
     final parsed = num.tryParse(raw);
     if (parsed == null || parsed <= 0) {
-      Get.snackbar(
-        'Error',
-        'Enter a valid dollar rate.',
-        snackPosition: SnackPosition.BOTTOM,
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Enter a valid dollar rate.',
       );
       return;
     }
@@ -4160,10 +4259,9 @@ class ProfileController extends GetxController {
       if (!result.isSuccess) return;
 
       await _fetchProfileData();
-      Get.snackbar(
-        'success_title'.tr,
-        'Dollar rate saved.',
-        snackPosition: SnackPosition.BOTTOM,
+      AppSnackbar.showSuccessSnackbar(
+        title: 'success_title'.tr,
+        message: 'Dollar rate saved.',
       );
     } finally {
       isSavingDollarRate.value = false;
@@ -4173,21 +4271,16 @@ class ProfileController extends GetxController {
   Future<void> onSaveVerificationMethods() async {
     if (isSavingProfile.value) return;
     if (isUploadingVerificationMedia) {
-      Get.snackbar(
-        'Error',
-        'Please wait for media upload to complete.',
-        snackPosition: SnackPosition.BOTTOM,
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Please wait for media upload to complete.',
       );
       return;
     }
 
     final validationMessage = _validateVerificationInputs();
     if (validationMessage != null) {
-      Get.snackbar(
-        'Error',
-        validationMessage,
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      AppSnackbar.showErrorSnackbar(title: 'Error', message: validationMessage);
       return;
     }
 
@@ -4549,10 +4642,9 @@ class ProfileController extends GetxController {
       }
 
       await _fetchProfileData();
-      Get.snackbar(
-        'success_title'.tr,
-        'profile_update_saved'.tr,
-        snackPosition: SnackPosition.BOTTOM,
+      AppSnackbar.showSuccessSnackbar(
+        title: 'success_title'.tr,
+        message: 'profile_update_saved'.tr,
       );
     } catch (e) {
       debugPrint('Save update failed: $e');

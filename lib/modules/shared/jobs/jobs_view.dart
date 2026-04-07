@@ -17,7 +17,7 @@ import 'package:influencer_app/routes/app_routes.dart';
 
 import 'campaign_how_to_view.dart';
 import 'jobs_controller.dart';
-import '../../../core/widgets/shimmer_utils.dart';
+import '../../../core/utils/shimmer_utils.dart';
 
 class JobsView extends GetView<JobsController> {
   const JobsView({super.key});

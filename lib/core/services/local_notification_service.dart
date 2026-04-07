@@ -21,6 +21,13 @@ class LocalNotificationService {
   );
 
   static bool _isInitialized = false;
+  static String? _launchPayload;
+
+  static String? consumeLaunchPayload() {
+    final payload = _launchPayload;
+    _launchPayload = null;
+    return payload;
+  }
 
   static Future<void> init({
     LocalNotificationTapCallback? onNotificationTap,
@@ -45,6 +52,11 @@ class LocalNotificationService {
       },
       onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
     );
+
+    final launchDetails = await _plugin.getNotificationAppLaunchDetails();
+    if (launchDetails?.didNotificationLaunchApp ?? false) {
+      _launchPayload = launchDetails?.notificationResponse?.payload;
+    }
 
     await _plugin
         .resolvePlatformSpecificImplementation<

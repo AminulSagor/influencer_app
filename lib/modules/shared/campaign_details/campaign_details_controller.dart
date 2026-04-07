@@ -13,6 +13,7 @@ import 'package:influencer_app/core/utils/currency_formatter.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../core/models/job_item.dart';
 import '../../../core/services/firebase_messaging_service.dart';
+import '../../../core/utils/app_snackbar.dart';
 import '../../../core/widgets/reason_bottom_sheet.dart';
 import '../../../routes/app_routes.dart';
 import '../../../core/utils/label_localizers.dart';
@@ -75,11 +76,37 @@ class CampaignDetailsController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    if (arguments is! JobItem) {
-      throw 'CampaignDetails requires JobItem in Get.arguments';
+
+    if (arguments is JobItem) {
+      _job = arguments as JobItem;
+    } else if (arguments is Map) {
+      final map = Map<String, dynamic>.from(arguments as Map);
+      final campaignId =
+          map['campaignId']?.toString().trim() ??
+          map['id']?.toString().trim() ??
+          '';
+
+      if (campaignId.isEmpty) {
+        throw 'CampaignDetails requires JobItem or campaignId in Get.arguments';
+      }
+
+      _job = JobItem(
+        id: campaignId,
+        title: '',
+        subTitle: '',
+        clientName: '',
+        campaignType: CampaignType.influencerPromotion,
+        dateLabel: '',
+        budget: 0,
+        sharePercent: 0,
+        progressPercent: 0,
+        dueLabel: '',
+        milestones: const <Milestone>[],
+      );
+    } else {
+      throw 'CampaignDetails requires JobItem or campaignId in Get.arguments';
     }
 
-    _job = arguments as JobItem;
     milestones.assignAll(job.milestones ?? const <Milestone>[]);
     _recalculateStatus();
     _listenCampaignNotifications();
@@ -237,9 +264,9 @@ class CampaignDetailsController extends GetxController {
     final isAdAgency = accountTypeService.isAdAgency;
 
     if (!agreeToTerms.value && !isInfluencer) {
-      Get.snackbar(
-        'campaign_agreement_required'.tr,
-        'campaign_agreement_required_desc'.tr,
+      AppSnackbar.showErrorSnackbar(
+        title: 'campaign_agreement_required'.tr,
+        message: 'campaign_agreement_required_desc'.tr,
       );
       return;
     }
@@ -387,7 +414,10 @@ class CampaignDetailsController extends GetxController {
 
   Future<void> requestRequote() async {
     if (isRequoteExpired.value) {
-      Get.snackbar('Error', 'Requote time expired.');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Requote time expired.',
+      );
       return;
     }
 
@@ -395,7 +425,10 @@ class CampaignDetailsController extends GetxController {
 
     final campaignId = job.id?.trim();
     if (campaignId == null || campaignId.isEmpty) {
-      Get.snackbar('Error', 'Missing campaign id.');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Missing campaign id.',
+      );
       return;
     }
 
@@ -443,9 +476,9 @@ class CampaignDetailsController extends GetxController {
     );
 
     if (result.isSuccess) {
-      Get.snackbar(
-        'campaign_request_requote'.tr,
-        'brand_campaign_requote_sent'.tr,
+      AppSnackbar.showSuccessSnackbar(
+        title: 'campaign_request_requote'.tr,
+        message: 'brand_campaign_requote_sent'.tr,
       );
       await _loadCampaignDetails();
     }
@@ -458,13 +491,19 @@ class CampaignDetailsController extends GetxController {
 
     final campaignId = influencerJobCampaignId.value?.trim();
     if (campaignId == null || campaignId.isEmpty) {
-      Get.snackbar('common_error'.tr, 'campaign_missing_id'.tr);
+      AppSnackbar.showErrorSnackbar(
+        title: 'common_error'.tr,
+        message: 'campaign_missing_id'.tr,
+      );
       return;
     }
 
     final amount = withdrawAvailableAmount.value;
     if (amount <= 0) {
-      Get.snackbar('common_error'.tr, 'campaign_no_withdrawable_amount'.tr);
+      AppSnackbar.showErrorSnackbar(
+        title: 'common_error'.tr,
+        message: 'campaign_no_withdrawable_amount'.tr,
+      );
       return;
     }
 

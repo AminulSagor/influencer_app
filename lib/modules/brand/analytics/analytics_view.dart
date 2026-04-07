@@ -18,60 +18,69 @@ class AnalyticsView extends GetView<AnalyticsController> {
   Widget build(BuildContext context) {
     return Container(
       color: AppPalette.background,
-      child: SingleChildScrollView(
-        padding: EdgeInsets.all(16.w),
-        child: Column(
-          children: [
-            TopSummaryCard(
-              topCampaign: controller.topCampaign,
-              topInfluencer: controller.topInfluencer,
-            ),
-            12.h.verticalSpace,
-            _SectionCard(
-              title: 'analytics_section_recent_transactions'.tr,
-              subtitle: 'analytics_showing_results'.trParams({
-                'count': '${controller.showingCount}',
-                'total': '${controller.totalResults}',
-              }),
-              child: Column(
-                children: [
-                  CustomTextFormField(
-                    hintText: 'analytics_search_campaign_client'.tr,
-                    controller: controller.searchCtrl,
-                    prefixIcon: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 10.w),
-                      child: Icon(
-                        Icons.search,
-                        size: 18.sp,
-                        color: AppPalette.subtext,
-                      ),
-                    ),
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 8.w,
-                      vertical: 10.h,
-                    ),
-                  ),
-                  10.h.verticalSpace,
-                  Obx(() {
-                    if (controller.isLoading.value) {
-                      return const _LoadingBlock();
-                    }
-                    return _TransactionList(items: controller.transactions);
-                  }),
-                  12.h.verticalSpace,
-                  AppPaginationRow(
-                    page: controller.page,
-                    totalPages: controller.totalPages,
-                    isLoading: controller.isLoading,
-                    onPrev: controller.prevPage,
-                    onNext: controller.nextPage,
-                    pageLabel: 'analytics_page'.tr,
-                    nextLabel: 'analytics_next'.tr,
-                  ),
-                ],
+      child: RefreshIndicator(
+        onRefresh: controller.refreshPage,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
+          ),
+          padding: EdgeInsets.all(16.w),
+          child: Column(
+            children: [
+              TopSummaryCard(
+                topCampaign: controller.topCampaign,
+                topInfluencer: controller.topInfluencer,
               ),
-            ),
-          ],
+              12.h.verticalSpace,
+              Obx(() {
+                return _SectionCard(
+                  title: 'analytics_section_recent_transactions'.tr,
+                  subtitle: 'analytics_showing_results'.trParams({
+                    'count': '${controller.showingCount}',
+                    'total': '${controller.totalResults}',
+                  }),
+                  child: Column(
+                    children: [
+                      CustomTextFormField(
+                        hintText: 'analytics_search_campaign_client'.tr,
+                        controller: controller.searchCtrl,
+                        prefixIcon: Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 10.w),
+                          child: Icon(
+                            Icons.search,
+                            size: 18.sp,
+                            color: AppPalette.subtext,
+                          ),
+                        ),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 8.w,
+                          vertical: 10.h,
+                        ),
+                      ),
+                      10.h.verticalSpace,
+                      Obx(() {
+                        if (controller.isLoading.value) {
+                          return const _LoadingBlock();
+                        }
+                        return _TransactionList(items: controller.transactions);
+                      }),
+                      12.h.verticalSpace,
+                      AppPaginationRow(
+                        page: controller.page,
+                        totalPages: controller.totalPages,
+                        isLoading: controller.isLoading,
+                        onPrev: controller.prevPage,
+                        onNext: controller.nextPage,
+                        pageLabel: 'analytics_page'.tr,
+                        nextLabel: 'analytics_next'.tr,
+                      ),
+                    ],
+                  ),
+                );
+              }),
+              SizedBox(height: 24.h),
+            ],
+          ),
         ),
       ),
     );
@@ -107,16 +116,19 @@ class _SectionCard extends GetView<AnalyticsController> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: AppPalette.primary,
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w600,
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: AppPalette.primary,
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
+              8.w.horizontalSpace,
               Obx(
                 () => SortToggleChip(
                   isLowToHigh: controller.isSortLowToHigh.value,
@@ -164,7 +176,7 @@ class _TransactionList extends StatelessWidget {
     }
 
     return ListView.separated(
-      itemCount: items.length.clamp(0, 5), // ✅ was 10
+      itemCount: items.length.clamp(0, 5),
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       separatorBuilder: (_, __) => 12.h.verticalSpace,

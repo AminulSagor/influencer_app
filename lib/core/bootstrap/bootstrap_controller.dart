@@ -44,7 +44,7 @@ class BootstrapController extends GetxController {
       isFirstTimeUser.value = firstTime;
 
       if (firstTime) {
-        debugPrint('[Bootstrap] routing -> onboarding');
+        FirebaseMessagingService.clearPendingTapData();
         Get.offAllNamed(AppRoutes.onboarding);
         return;
       }
@@ -90,11 +90,10 @@ class BootstrapController extends GetxController {
         }
       }
 
-      debugPrint('[Bootstrap] routing -> login');
+      FirebaseMessagingService.clearPendingTapData();
       Get.offAllNamed(AppRoutes.login);
-    } catch (e, stack) {
-      debugPrint('[Bootstrap] error: $e');
-      debugPrint(stack.toString());
+    } catch (_, _) {
+      FirebaseMessagingService.clearPendingTapData();
       Get.offAllNamed(AppRoutes.login);
     }
   }

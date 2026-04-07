@@ -14,6 +14,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/models/job_item.dart';
 import '../../../core/services/campaign_service.dart';
 import '../../../core/services/firebase_messaging_service.dart';
+import '../../../core/utils/app_snackbar.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../ad_agency/services/upload_service.dart';
 import '../create_campaign/create_campaign_controller.dart';
@@ -332,16 +333,22 @@ class BrandCampaignDetailsController extends GetxController {
 
     if (result == true) {
       await refreshCampaignDetails();
-      Get.snackbar('Success', successMessage);
+      AppSnackbar.showSuccessSnackbar(
+        title: 'Success',
+        message: successMessage,
+      );
     } else if (result == false) {
-      Get.snackbar('Error', failMessage);
+      AppSnackbar.showErrorSnackbar(title: 'Error', message: failMessage);
     }
   }
 
   Future<void> payCampaignNow({required int amount}) async {
     final campaignId = _extractCampaignId(arguments);
     if (campaignId == null || campaignId.trim().isEmpty) {
-      Get.snackbar('Error', 'Missing campaign id.');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Missing campaign id.',
+      );
       return;
     }
 
@@ -369,12 +376,18 @@ class BrandCampaignDetailsController extends GetxController {
       final tranId = _extractTranId(response);
 
       if (gatewayUrl == null) {
-        Get.snackbar('Error', 'Payment URL not found.');
+        AppSnackbar.showErrorSnackbar(
+          title: 'Error',
+          message: 'Payment URL not found.',
+        );
         return;
       }
 
       if (tranId == null) {
-        Get.snackbar('Error', 'Transaction id not found.');
+        AppSnackbar.showErrorSnackbar(
+          title: 'Error',
+          message: 'Transaction id not found.',
+        );
         return;
       }
 
@@ -391,7 +404,7 @@ class BrandCampaignDetailsController extends GetxController {
       );
     } catch (e) {
       await _hideBlockingLoader();
-      Get.snackbar('Error', e.toString());
+      AppSnackbar.showErrorSnackbar(title: 'Error', message: e.toString());
     } finally {
       isPayNowLoading.value = false;
       isOpeningPaymentFlow.value = false;
@@ -401,7 +414,10 @@ class BrandCampaignDetailsController extends GetxController {
   Future<void> payCampaignDueNow({required int amount}) async {
     final campaignId = _extractCampaignId(arguments);
     if (campaignId == null || campaignId.trim().isEmpty) {
-      Get.snackbar('Error', 'Missing campaign id.');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Missing campaign id.',
+      );
       return;
     }
 
@@ -424,12 +440,18 @@ class BrandCampaignDetailsController extends GetxController {
       final tranId = _extractTranId(response);
 
       if (gatewayUrl == null) {
-        Get.snackbar('Error', 'Payment URL not found.');
+        AppSnackbar.showErrorSnackbar(
+          title: 'Error',
+          message: 'Payment URL not found.',
+        );
         return;
       }
 
       if (tranId == null) {
-        Get.snackbar('Error', 'Transaction id not found.');
+        AppSnackbar.showErrorSnackbar(
+          title: 'Error',
+          message: 'Transaction id not found.',
+        );
         return;
       }
 
@@ -450,7 +472,7 @@ class BrandCampaignDetailsController extends GetxController {
       );
     } catch (e) {
       _hideBlockingLoader();
-      Get.snackbar('Error', e.toString());
+      AppSnackbar.showErrorSnackbar(title: 'Error', message: e.toString());
     } finally {
       isPayNowLoading.value = false;
       isOpeningPaymentFlow.value = false;
@@ -1588,18 +1610,18 @@ class BrandCampaignDetailsController extends GetxController {
   Future<void> submitAgencyRating() async {
     final campaignId = _extractCampaignId(arguments);
     if (campaignId == null || campaignId.trim().isEmpty) {
-      Get.snackbar(
-        trOr('common_error', 'Error'),
-        trOr('brand_campaign_missing_id', 'Missing campaign id.'),
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Missing campaign id.',
       );
       return;
     }
 
     final rate = agencyDialogRating.value;
     if (rate <= 0) {
-      Get.snackbar(
-        trOr('common_error', 'Error'),
-        trOr('brand_campaign_rating_required', 'Please provide a rating.'),
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Please provide a rating.',
       );
       return;
     }
@@ -1618,21 +1640,18 @@ class BrandCampaignDetailsController extends GetxController {
     rating.value = rate.toDouble();
     Get.back();
 
-    Get.snackbar(
-      trOr('brand_campaign_rating_success_title', 'Success'),
-      trOr(
-        'brand_campaign_rating_success_msg',
-        'Rating submitted successfully.',
-      ),
+    AppSnackbar.showSuccessSnackbar(
+      title: 'Success',
+      message: 'Rating submitted successfully.',
     );
   }
 
   Future<void> submitInfluencerRatings() async {
     final campaignId = _extractCampaignId(arguments);
     if (campaignId == null || campaignId.trim().isEmpty) {
-      Get.snackbar(
-        trOr('common_error', 'Error'),
-        trOr('brand_campaign_missing_id', 'Missing campaign id.'),
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Missing campaign id.',
       );
       return;
     }
@@ -1642,9 +1661,9 @@ class BrandCampaignDetailsController extends GetxController {
         .toList(growable: false);
 
     if (ratedItems.isEmpty) {
-      Get.snackbar(
-        trOr('common_error', 'Error'),
-        trOr(
+      AppSnackbar.showErrorSnackbar(
+        title: trOr('common_error', 'Error'),
+        message: trOr(
           'brand_campaign_rating_required',
           'Please provide at least one rating.',
         ),
@@ -1676,12 +1695,9 @@ class BrandCampaignDetailsController extends GetxController {
     isSubmittingRatings.value = false;
     Get.back();
 
-    Get.snackbar(
-      trOr('brand_campaign_rating_success_title', 'Success'),
-      trOr(
-        'brand_campaign_rating_success_msg',
-        'Ratings submitted successfully.',
-      ),
+    AppSnackbar.showSuccessSnackbar(
+      title: 'Success',
+      message: 'Ratings submitted successfully.',
     );
   }
 
@@ -1719,7 +1735,7 @@ class BrandCampaignDetailsController extends GetxController {
       openFundCampaignDialog();
     } catch (e) {
       await _hideBlockingLoader();
-      Get.snackbar('Error', e.toString());
+      AppSnackbar.showErrorSnackbar(title: 'Error', message: e.toString());
     } finally {
       isAcceptQuoteLoading.value = false;
     }
@@ -1730,9 +1746,9 @@ class BrandCampaignDetailsController extends GetxController {
 
     final campaignId = _extractCampaignId(arguments);
     if (campaignId == null || campaignId.trim().isEmpty) {
-      Get.snackbar(
-        trOr('common_error', 'Error'),
-        trOr('brand_campaign_missing_id', 'Missing campaign id.'),
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Missing campaign id.',
       );
       return;
     }
@@ -1757,7 +1773,7 @@ class BrandCampaignDetailsController extends GetxController {
       openFundCampaignDialog();
     } catch (e) {
       await _hideBlockingLoader();
-      Get.snackbar(trOr('common_error', 'Error'), _errorMessage(e));
+      AppSnackbar.showErrorSnackbar(title: 'Error', message: e.toString());
     } finally {
       isAcceptQuoteLoading.value = false;
       payingAgencyOfferId.value = null;
@@ -1765,9 +1781,9 @@ class BrandCampaignDetailsController extends GetxController {
   }
 
   void onDownloadAsset(int index) {
-    Get.snackbar(
-      'brand_campaign_details_assets'.tr,
-      'brand_campaign_details_download_msg'.tr,
+    AppSnackbar.showSuccessSnackbar(
+      title: 'Success',
+      message: 'Asset downloaded successfully.',
     );
   }
 
@@ -1805,9 +1821,9 @@ class BrandCampaignDetailsController extends GetxController {
   Future<bool> _acceptQuoteRequest() async {
     final campaignId = _extractCampaignId(arguments);
     if (campaignId == null || campaignId.trim().isEmpty) {
-      Get.snackbar(
-        trOr('common_error', 'Error'),
-        trOr('brand_campaign_missing_id', 'Missing campaign id.'),
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Missing campaign id.',
       );
       return false;
     }
@@ -1816,13 +1832,13 @@ class BrandCampaignDetailsController extends GetxController {
       isLoading.value = true;
       await _campaignService.acceptNegotiation(campaignId: campaignId);
       await _loadFromApiIfPossible();
-      Get.snackbar(
-        trOr('brand_campaign_details_accept_quote', 'Accept Quote'),
-        trOr('brand_campaign_details_accept_quote_msg', 'Quote accepted.'),
+      AppSnackbar.showSuccessSnackbar(
+        title: 'Success',
+        message: 'Quote accepted successfully.',
       );
       return true;
     } catch (e) {
-      Get.snackbar(trOr('common_error', 'Error'), _errorMessage(e));
+      AppSnackbar.showErrorSnackbar(title: 'Error', message: e.toString());
       return false;
     } finally {
       isLoading.value = false;
@@ -1835,18 +1851,18 @@ class BrandCampaignDetailsController extends GetxController {
     bool closeDialog = true,
   }) async {
     if (proposedBaseBudget <= 0) {
-      Get.snackbar(
-        trOr('common_error', 'Error'),
-        trOr('brand_campaign_requote_invalid', 'Please enter a valid budget.'),
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Please enter a valid budget.',
       );
       return;
     }
 
     final campaignId = _extractCampaignId(arguments);
     if (campaignId == null || campaignId.trim().isEmpty) {
-      Get.snackbar(
-        trOr('common_error', 'Error'),
-        trOr('brand_campaign_missing_id', 'Missing campaign id.'),
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Missing campaign id.',
       );
       return;
     }
@@ -1876,14 +1892,14 @@ class BrandCampaignDetailsController extends GetxController {
 
       if (closeDialog) Get.back();
 
-      Get.snackbar(
-        trOr('brand_campaign_details_quote', 'Quote'),
-        trOr('brand_campaign_requote_sent', 'Requote request sent to admin.'),
+      AppSnackbar.showSuccessSnackbar(
+        title: 'Success',
+        message: 'Requote request sent to admin.',
       );
 
       await _loadFromApiIfPossible();
     } catch (e) {
-      Get.snackbar(trOr('common_error', 'Error'), _errorMessage(e));
+      AppSnackbar.showErrorSnackbar(title: 'Error', message: e.toString());
     } finally {
       isLoading.value = false;
     }
@@ -2174,21 +2190,18 @@ class BrandCampaignDetailsController extends GetxController {
   Future<void> requestCancellation() async {
     final campaignId = _extractCampaignId(arguments);
     if (campaignId == null || campaignId.trim().isEmpty) {
-      Get.snackbar(
-        trOr('common_error', 'Error'),
-        trOr('brand_campaign_missing_id', 'Missing campaign id.'),
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Missing campaign id.',
       );
       return;
     }
 
     final reason = cancelReasonCtrl.text.trim();
     if (reason.isEmpty) {
-      Get.snackbar(
-        trOr('common_error', 'Error'),
-        trOr(
-          'brand_campaign_details_cancel_reason_required',
-          'Please write your cancellation reason.',
-        ),
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Please write your cancellation reason.',
       );
       return;
     }
@@ -2197,23 +2210,17 @@ class BrandCampaignDetailsController extends GetxController {
     final agencyOfferId = selectedAgencyOfferId.value?.trim() ?? '';
 
     if (!isPaidAd && assignmentId.isEmpty) {
-      Get.snackbar(
-        trOr('common_error', 'Error'),
-        trOr(
-          'brand_campaign_details_assignment_required',
-          'No influencer assignment selected.',
-        ),
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'No influencer assignment selected.',
       );
       return;
     }
 
     if (isPaidAd && agencyOfferId.isEmpty) {
-      Get.snackbar(
-        trOr('common_error', 'Error'),
-        trOr(
-          'brand_campaign_details_agency_offer_missing',
-          'No agency offer found for this campaign.',
-        ),
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'No agency offer found for this campaign.',
       );
       return;
     }
@@ -2232,17 +2239,14 @@ class BrandCampaignDetailsController extends GetxController {
       cancelReasonCtrl.clear();
       dangerZoneExpanded.value = false;
 
-      Get.snackbar(
-        trOr('brand_campaign_details_cancel_request_success_title', 'Success'),
-        trOr(
-          'brand_campaign_details_cancel_request_success_msg',
-          'Cancellation request submitted successfully.',
-        ),
+      AppSnackbar.showSuccessSnackbar(
+        title: 'Success',
+        message: 'Cancellation request submitted successfully.',
       );
 
       await _loadFromApiIfPossible();
     } catch (e) {
-      Get.snackbar(trOr('common_error', 'Error'), _errorMessage(e));
+      AppSnackbar.showErrorSnackbar(title: 'Error', message: e.toString());
     } finally {
       isSubmittingCancellation.value = false;
     }
@@ -2251,7 +2255,10 @@ class BrandCampaignDetailsController extends GetxController {
   Future<void> openAssetLink(String? rawUrl) async {
     String raw = rawUrl?.trim() ?? '';
     if (raw.isEmpty) {
-      Get.snackbar('Error', 'No asset url found.');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'No asset url found.',
+      );
       return;
     }
 
@@ -2261,7 +2268,10 @@ class BrandCampaignDetailsController extends GetxController {
 
     final uri = Uri.tryParse(raw);
     if (uri == null) {
-      Get.snackbar('Error', 'Invalid asset url.');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Invalid asset url.',
+      );
       return;
     }
 
@@ -2274,7 +2284,10 @@ class BrandCampaignDetailsController extends GetxController {
       );
 
       if (!fallback) {
-        Get.snackbar('Error', 'Could not open asset.');
+        AppSnackbar.showErrorSnackbar(
+          title: 'Error',
+          message: 'Could not open asset.',
+        );
       }
     }
   }
@@ -2339,13 +2352,19 @@ class BrandCampaignDetailsController extends GetxController {
   }) async {
     final campaignId = _extractCampaignId(arguments);
     if (campaignId == null || campaignId.trim().isEmpty) {
-      Get.snackbar('Error', 'Missing campaign id.');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Missing campaign id.',
+      );
       return;
     }
 
     final file = File(filePath);
     if (!await file.exists()) {
-      Get.snackbar('Error', 'Selected file not found.');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Selected file not found.',
+      );
       return;
     }
 
@@ -2390,9 +2409,12 @@ class BrandCampaignDetailsController extends GetxController {
         ),
       );
 
-      Get.snackbar('Success', 'Asset uploaded successfully.');
+      AppSnackbar.showSuccessSnackbar(
+        title: 'Success',
+        message: 'Asset uploaded successfully.',
+      );
     } catch (e) {
-      Get.snackbar('Error', _errorMessage(e));
+      AppSnackbar.showErrorSnackbar(title: 'Error', message: e.toString());
       rethrow;
     } finally {
       isLoading.value = false;
@@ -2405,7 +2427,10 @@ class BrandCampaignDetailsController extends GetxController {
   }) async {
     final campaignId = _extractCampaignId(arguments);
     if (campaignId == null || campaignId.trim().isEmpty) {
-      Get.snackbar('Error', 'Missing campaign id.');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Missing campaign id.',
+      );
       return;
     }
 
@@ -2453,9 +2478,12 @@ class BrandCampaignDetailsController extends GetxController {
         ),
       );
 
-      Get.snackbar('Success', 'Brand asset uploaded successfully.');
+      AppSnackbar.showSuccessSnackbar(
+        title: 'Success',
+        message: 'Brand asset uploaded successfully.',
+      );
     } catch (e) {
-      Get.snackbar('Error', _errorMessage(e));
+      AppSnackbar.showErrorSnackbar(title: 'Error', message: e.toString());
       rethrow;
     } finally {
       isLoading.value = false;

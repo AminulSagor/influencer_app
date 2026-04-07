@@ -65,13 +65,20 @@ class ExploreController extends GetxController {
     }
   }
 
+  Future<void> refreshPage() async {
+    _debounce?.cancel();
+    await loadFirstPage();
+  }
+
   Future<void> loadFirstPage() async {
-    if (isLoading.value) return;
+    if (isLoading.value || isLoadingMore.value) return;
+
     hasMore.value = true;
     currentPage.value = 1;
     items.clear();
     totalResults.value = 0;
     totalPages.value = 1;
+
     await _fetchPage(1, resetOnError: true);
   }
 
@@ -91,6 +98,7 @@ class ExploreController extends GetxController {
 
   Future<void> _fetchPage(int page, {bool resetOnError = false}) async {
     if (isLoading.value) return;
+
     isLoading.value = true;
     try {
       final res = await _api.fetch(
@@ -98,10 +106,12 @@ class ExploreController extends GetxController {
         query: searchQuery.value,
         page: page,
       );
+
       final normalizedTotal = res.totalPages < 1 ? 1 : res.totalPages;
       final normalizedPage = page < 1
           ? 1
           : (page > normalizedTotal ? normalizedTotal : page);
+
       items.assignAll(res.items);
       totalResults.value = res.totalResults;
       totalPages.value = normalizedTotal;
@@ -126,19 +136,26 @@ class ExploreController extends GetxController {
 
     isLoadingMore.value = true;
     final nextPage = currentPage.value + 1;
+
     try {
       final res = await _api.fetch(
         type: selectedType.value,
         query: searchQuery.value,
         page: nextPage,
       );
+
       if (res.items.isNotEmpty) {
         items.addAll(res.items);
       }
+
+      final normalizedTotal = res.totalPages < 1 ? 1 : res.totalPages;
+
       totalResults.value = res.totalResults;
-      totalPages.value = res.totalPages;
-      currentPage.value = nextPage.clamp(1, res.totalPages);
-      hasMore.value = currentPage.value < res.totalPages;
+      totalPages.value = normalizedTotal;
+      currentPage.value = nextPage < 1
+          ? 1
+          : (nextPage > normalizedTotal ? normalizedTotal : nextPage);
+      hasMore.value = currentPage.value < normalizedTotal;
     } catch (_) {
       hasMore.value = false;
     } finally {

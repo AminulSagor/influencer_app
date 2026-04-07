@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../../../core/models/job_item.dart';
 import '../../../core/services/api_client.dart';
 import '../../../core/services/api_error_handler.dart';
+import '../../../core/utils/app_snackbar.dart';
 
 class BrandMilestoneDetailsController extends GetxController {
   late final JobItem job;
@@ -83,13 +84,19 @@ class BrandMilestoneDetailsController extends GetxController {
   }
 
   void reportAdmin() {
-    Get.snackbar('Report', 'Reported to admin.');
+    AppSnackbar.showSuccessSnackbar(
+      title: 'Success',
+      message: 'Reported to admin.',
+    );
   }
 
   Future<void> approve() async {
     final submissionId = currentSubmission?.id?.trim();
     if (submissionId == null || submissionId.isEmpty) {
-      Get.snackbar('Missing data', 'Submission id not found.');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Submission id not found.',
+      );
       return;
     }
 
@@ -101,13 +108,19 @@ class BrandMilestoneDetailsController extends GetxController {
     if (!ok) return;
 
     submissionStatus.value = SubmissionStatus.approved;
-    Get.snackbar('Approved', 'Submission approved.');
+    AppSnackbar.showSuccessSnackbar(
+      title: 'Success',
+      message: 'Submission approved.',
+    );
   }
 
   Future<void> decline({String? reason}) async {
     final submissionId = currentSubmission?.id?.trim();
     if (submissionId == null || submissionId.isEmpty) {
-      Get.snackbar('Missing data', 'Submission id not found.');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Submission id not found.',
+      );
       return;
     }
 
@@ -120,7 +133,10 @@ class BrandMilestoneDetailsController extends GetxController {
     if (!ok) return;
 
     submissionStatus.value = SubmissionStatus.declined;
-    Get.snackbar('Declined', 'Submission declined.');
+    AppSnackbar.showSuccessSnackbar(
+      title: 'Success',
+      message: 'Submission declined.',
+    );
   }
 
   Future<bool> _reviewClientSubmission({

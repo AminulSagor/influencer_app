@@ -8,6 +8,7 @@ import 'package:influencer_app/core/widgets/custom_button.dart';
 import 'package:influencer_app/core/widgets/custom_text_form_field.dart';
 
 import '../../../../core/models/job_item.dart';
+import '../../../../core/utils/app_snackbar.dart';
 
 typedef GuessAssetKind = JobAssetKind Function(String filename);
 typedef IconForAsset = IconData Function(JobAssetKind kind);
@@ -115,7 +116,10 @@ class _UploadAnotherAssetDialogState extends State<UploadAnotherAssetDialog> {
     final filePath = pickedPath.value;
 
     if (name == null || bytes == null || filePath == null || filePath.isEmpty) {
-      Get.snackbar('Error', 'Please select a file.');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Please select a file.',
+      );
       return;
     }
 

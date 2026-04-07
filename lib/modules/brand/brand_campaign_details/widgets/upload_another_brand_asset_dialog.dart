@@ -5,6 +5,7 @@ import 'package:influencer_app/core/utils/constants.dart';
 import 'package:influencer_app/core/widgets/custom_text_form_field.dart';
 
 import '../../../../core/theme/app_palette.dart';
+import '../../../../core/utils/app_snackbar.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../brand_campaign_details_controller.dart';
 
@@ -57,12 +58,18 @@ class _UploadAnotherBrandAssetDialogState
     final u = urlCtrl.text.trim();
 
     if (t.isEmpty) {
-      Get.snackbar('Error', 'Please enter asset title.');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Please enter asset title.',
+      );
       return;
     }
 
     if (u.isEmpty) {
-      Get.snackbar('Error', 'Please enter asset url.');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Please enter asset url.',
+      );
       return;
     }
 

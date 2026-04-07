@@ -8,7 +8,7 @@ import 'package:influencer_app/core/utils/constants.dart';
 import 'package:influencer_app/core/widgets/custom_button.dart';
 
 import '../../../core/widgets/custom_text_form_field.dart';
-import '../../../core/widgets/shimmer_utils.dart';
+import '../../../core/utils/shimmer_utils.dart';
 import 'enums/profile_status.dart';
 import 'enums/verification_state.dart';
 import 'profile_controller.dart';
@@ -189,6 +189,18 @@ class ProfileView extends GetView<ProfileController> {
 
                               if (isBrand) ...[
                                 const BrandAssetsSection(),
+                                SizedBox(height: 12.h),
+                                // NICHE
+                                Obx(
+                                  () => ExpandableSectionCard(
+                                    title: 'Niche',
+                                    isExpanded: controller.nicheExpanded.value,
+                                    onToggle: controller.toggleNiche,
+                                    child: _NicheSection(
+                                      controller: controller,
+                                    ),
+                                  ),
+                                ),
                                 SizedBox(height: 12.h),
                               ],
 

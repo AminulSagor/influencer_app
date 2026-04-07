@@ -10,7 +10,7 @@ import '../../../core/utils/constants.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/number_formatter.dart';
 import '../../../core/widgets/earnings_overview_card.dart';
-import '../../../core/widgets/shimmer_utils.dart';
+import '../../../core/utils/shimmer_utils.dart';
 import '../../../core/widgets/job_offer_card.dart';
 import '../jobs/jobs_controller.dart';
 import 'home_controller.dart';

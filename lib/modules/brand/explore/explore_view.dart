@@ -41,7 +41,6 @@ class ExploreView extends GetView<ExploreController> {
               ),
             ),
             12.h.verticalSpace,
-
             Obx(
               () => AppPillTabs<ExploreType>(
                 selected: controller.selectedType.value,
@@ -59,7 +58,6 @@ class ExploreView extends GetView<ExploreController> {
               ),
             ),
             12.h.verticalSpace,
-
             Expanded(
               child: Container(
                 padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 20.h),
@@ -69,9 +67,8 @@ class ExploreView extends GetView<ExploreController> {
                   border: Border.all(color: AppPalette.border1),
                 ),
                 child: Column(
-                  crossAxisAlignment: .start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Search
                     CustomTextFormField(
                       prefixIcon: Icon(
                         Icons.search_rounded,
@@ -84,7 +81,6 @@ class ExploreView extends GetView<ExploreController> {
                       onChanged: controller.onSearchChanged,
                     ),
                     8.h.verticalSpace,
-
                     Obx(() {
                       final showing = controller.items.length;
                       final total = controller.totalResults.value;
@@ -100,47 +96,21 @@ class ExploreView extends GetView<ExploreController> {
                       );
                     }),
                     10.h.verticalSpace,
-
-                    // List inside a rounded card like screenshot
                     Expanded(
                       child: Obx(() {
                         final isInitialLoading =
                             controller.isLoading.value &&
                             controller.items.isEmpty;
+
                         if (isInitialLoading) {
                           return const Center(
                             child: CircularProgressIndicator(),
                           );
                         }
 
-                        if (controller.items.isEmpty) {
-                          return Center(
-                            child: Text(
-                              'explore_empty'.tr,
-                              style: TextStyle(
-                                fontSize: 12.sp,
-                                color: AppPalette.subtext,
-                              ),
-                            ),
-                          );
-                        }
-
-                        final items = controller.items;
-                        final showLoader = controller.isLoadingMore.value;
-                        final totalCount = items.length + (showLoader ? 1 : 0);
-
-                        return ListView.separated(
-                          controller: controller.scrollController,
-                          physics: const BouncingScrollPhysics(),
-                          itemCount: totalCount,
-                          separatorBuilder: (_, __) => 10.h.verticalSpace,
-                          itemBuilder: (_, index) {
-                            if (showLoader && index == items.length) {
-                              return _bottomLoader(isLoading: true);
-                            }
-                            final item = items[index];
-                            return ExploreListItem(item: item);
-                          },
+                        return RefreshIndicator(
+                          onRefresh: controller.refreshPage,
+                          child: _buildScrollableContent(),
                         );
                       }),
                     ),
@@ -151,6 +121,49 @@ class ExploreView extends GetView<ExploreController> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildScrollableContent() {
+    final items = controller.items;
+    final showLoader = controller.isLoadingMore.value;
+
+    if (items.isEmpty) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        children: [
+          SizedBox(
+            height: 260.h,
+            child: Center(
+              child: Text(
+                'explore_empty'.tr,
+                style: TextStyle(fontSize: 12.sp, color: AppPalette.subtext),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    final totalCount = items.length + (showLoader ? 1 : 0);
+
+    return ListView.separated(
+      controller: controller.scrollController,
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: BouncingScrollPhysics(),
+      ),
+      itemCount: totalCount,
+      separatorBuilder: (_, __) => 10.h.verticalSpace,
+      itemBuilder: (_, index) {
+        if (showLoader && index == items.length) {
+          return _bottomLoader(isLoading: true);
+        }
+
+        final item = items[index];
+        return ExploreListItem(item: item);
+      },
     );
   }
 

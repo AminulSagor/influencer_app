@@ -14,8 +14,9 @@ import 'package:influencer_app/core/widgets/custom_button.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/models/job_item.dart';
+import '../../../core/utils/app_snackbar.dart';
 import '../../../core/widgets/empty_details_message.dart';
-import '../../../core/widgets/shimmer_utils.dart';
+import '../../../core/utils/shimmer_utils.dart';
 import 'campaign_details_controller.dart';
 
 class CampaignDetailsView extends GetView<CampaignDetailsController> {
@@ -529,7 +530,7 @@ class _QuoteDetailsCard extends StatelessWidget {
                   '৳',
                   style: TextStyle(
                     fontSize: 18.sp,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                     color: const Color(0xFF5C7F2C),
                   ),
                 ),
@@ -1533,7 +1534,10 @@ class _AssetRow extends StatelessWidget {
   Future<void> _openAsset() async {
     String raw = url?.trim() ?? '';
     if (raw.isEmpty) {
-      Get.snackbar('Error', 'No asset url found.');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'No asset url found.',
+      );
       return;
     }
 
@@ -1543,7 +1547,10 @@ class _AssetRow extends StatelessWidget {
 
     final uri = Uri.tryParse(raw);
     if (uri == null) {
-      Get.snackbar('Error', 'Invalid asset url.');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Invalid asset url.',
+      );
       return;
     }
 
@@ -1556,7 +1563,10 @@ class _AssetRow extends StatelessWidget {
       );
 
       if (!fallback) {
-        Get.snackbar('Error', 'Could not open asset.');
+        AppSnackbar.showErrorSnackbar(
+          title: 'Error',
+          message: 'Could not open asset.',
+        );
       }
     }
   }

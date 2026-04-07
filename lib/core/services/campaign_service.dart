@@ -851,4 +851,27 @@ class CampaignService {
     final res = await _api.dio.get('/payments/$tranId/status');
     return _expectMap(res.data, 'payment status');
   }
+
+  Future<List<Map<String, dynamic>>> updateClientProfileNiches({
+    required List<String> niches,
+  }) async {
+    final cleaned = niches
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList(growable: false);
+
+    final res = await _api.dio.patch(
+      '/client/profile/niches',
+      data: {'niches': cleaned},
+    );
+
+    final data = _expectMap(res.data, 'update client profile niches');
+
+    final list = (data['data'] as List?) ?? const [];
+
+    return list
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList(growable: false);
+  }
 }

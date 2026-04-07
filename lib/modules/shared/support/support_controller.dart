@@ -1,5 +1,6 @@
 // lib/modules/ad_agency/support/support_controller.dart
 import 'package:get/get.dart';
+import 'package:influencer_app/core/utils/app_snackbar.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class SupportController extends GetxController {
@@ -29,10 +30,16 @@ class SupportController extends GetxController {
         mode: LaunchMode.externalApplication,
       );
       if (!launched) {
-        Get.snackbar('Support', 'Unable to open dialer right now.');
+        AppSnackbar.showErrorSnackbar(
+          title: 'Support',
+          message: 'Unable to open dialer right now.',
+        );
       }
     } catch (_) {
-      Get.snackbar('Support', 'Dialer is unavailable right now.');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Support',
+        message: 'Dialer is unavailable right now.',
+      );
     }
   }
 
@@ -47,10 +54,16 @@ class SupportController extends GetxController {
         mode: LaunchMode.externalApplication,
       );
       if (!launched) {
-        Get.snackbar('Support', 'Unable to open email app right now.');
+        AppSnackbar.showErrorSnackbar(
+          title: 'Support',
+          message: 'Unable to open email app right now.',
+        );
       }
     } catch (_) {
-      Get.snackbar('Support', 'Email app is unavailable right now.');
+      AppSnackbar.showErrorSnackbar(
+        title: 'Support',
+        message: 'Email app is unavailable right now.',
+      );
     }
   }
 }

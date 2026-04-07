@@ -18,7 +18,6 @@ import '../../../core/controllers/app_user_session_controller.dart';
 class BottomNavController extends GetxController {
   final currentIndex = 0.obs;
 
-  // Default false so locked view is safe until session resolves
   final isAccountVerified = false.obs;
 
   late final AccountTypeService _accountTypeService;
@@ -46,6 +45,7 @@ class BottomNavController extends GetxController {
     _session = Get.find<AppUserSessionController>();
 
     _hydrateVerificationState();
+    _ensureControllerForRoute(initialNestedRoute);
   }
 
   @override
@@ -54,15 +54,15 @@ class BottomNavController extends GetxController {
 
     Future.microtask(() async {
       await syncVerificationFromSession(forceRefresh: false);
-      Get.offAllNamed(
-        isAccountVerified.value ? AppRoutes.home : lockedRoute,
-        id: 1,
-      );
+
+      final route = isAccountVerified.value ? AppRoutes.home : lockedRoute;
+      _ensureControllerForRoute(route);
+
+      Get.offAllNamed(route, id: 1);
     });
   }
 
   void _hydrateVerificationState() {
-    // Only trust the verification state derived from getProfile -> isVerified
     isAccountVerified.value = _session.isUserVerified();
     currentIndex.value = 0;
 
@@ -81,16 +81,16 @@ class BottomNavController extends GetxController {
     isAccountVerified.value = _session.isUserVerified();
 
     if (!isAccountVerified.value) {
-      // Profile remains accessible even when unverified
       if (currentIndex.value != profileIndex) {
         currentIndex.value = 0;
+        _ensureControllerForRoute(lockedRoute);
         Get.offAllNamed(lockedRoute, id: 1);
       }
       return;
     }
 
-    // If verified, home tab should open the real home screen
     if (currentIndex.value == 0) {
+      _ensureControllerForRoute(AppRoutes.home);
       Get.offAllNamed(AppRoutes.home, id: 1);
     }
   }
@@ -101,66 +101,93 @@ class BottomNavController extends GetxController {
       return;
     }
 
-    // Profile is always allowed even when unverified
     if (!isAccountVerified.value && index != profileIndex) {
       currentIndex.value = 0;
+      _ensureControllerForRoute(lockedRoute);
       Get.offAllNamed(lockedRoute, id: 1);
       return;
     }
 
     currentIndex.value = index;
 
+    final route = _routeForIndex(index);
+    _ensureControllerForRoute(route);
+    Get.offAllNamed(route, id: 1);
+  }
+
+  String _routeForIndex(int index) {
     if (isBrand) {
       switch (index) {
         case 0:
-          Get.offAllNamed(
-            isAccountVerified.value ? AppRoutes.home : lockedRoute,
-            id: 1,
-          );
-          break;
+          return isAccountVerified.value ? AppRoutes.home : lockedRoute;
         case 1:
-          Get.offAllNamed(AppRoutes.jobs, id: 1);
-          break;
+          return AppRoutes.jobs;
         case 2:
-          Get.offAllNamed(AppRoutes.analytics, id: 1);
-          break;
+          return AppRoutes.analytics;
         case 3:
-          Get.offAllNamed(AppRoutes.explore, id: 1);
-          break;
+          return AppRoutes.explore;
         case 4:
-          Get.offAllNamed(AppRoutes.profile, id: 1);
-          break;
+          return AppRoutes.profile;
         default:
-          Get.offAllNamed(
-            isAccountVerified.value ? AppRoutes.home : lockedRoute,
-            id: 1,
-          );
+          return isAccountVerified.value ? AppRoutes.home : lockedRoute;
       }
-      return;
     }
 
     switch (index) {
       case 0:
-        Get.offAllNamed(
-          isAccountVerified.value ? AppRoutes.home : lockedRoute,
-          id: 1,
-        );
-        break;
+        return isAccountVerified.value ? AppRoutes.home : lockedRoute;
       case 1:
-        Get.offAllNamed(AppRoutes.jobs, id: 1);
-        break;
+        return AppRoutes.jobs;
       case 2:
-        Get.offAllNamed(AppRoutes.earnings, id: 1);
-        break;
+        return AppRoutes.earnings;
       case 3:
-        Get.offAllNamed(AppRoutes.profile, id: 1);
-        break;
+        return AppRoutes.profile;
       default:
-        Get.offAllNamed(
-          isAccountVerified.value ? AppRoutes.home : lockedRoute,
-          id: 1,
-        );
+        return isAccountVerified.value ? AppRoutes.home : lockedRoute;
     }
+  }
+
+  void _ensureControllerForRoute(String route) {
+    switch (route) {
+      case AppRoutes.home:
+        _putPermanentIfNeeded<HomeController>(() => HomeController());
+        break;
+      case AppRoutes.jobs:
+        _putPermanentIfNeeded<JobsController>(() => JobsController());
+        break;
+      case AppRoutes.earnings:
+        _putPermanentIfNeeded<EarningsController>(() => EarningsController());
+        break;
+      case AppRoutes.profile:
+        _putPermanentIfNeeded<ProfileController>(() => ProfileController());
+        break;
+      case AppRoutes.explore:
+        _putPermanentIfNeeded<ExploreController>(() => ExploreController());
+        break;
+      case AppRoutes.analytics:
+        _putPermanentIfNeeded<AnalyticsController>(() => AnalyticsController());
+        break;
+      case AppRoutes.agencyHomeLocked:
+        _putPermanentIfNeeded<AgencyHomeLockedController>(
+          () => AgencyHomeLockedController(),
+        );
+        break;
+      case AppRoutes.brandHomeLocked:
+        _putPermanentIfNeeded<BrandHomeLockedController>(
+          () => BrandHomeLockedController(),
+        );
+        break;
+      case AppRoutes.influencerHomeLocked:
+        _putPermanentIfNeeded<InfluencerHomeLockedController>(
+          () => InfluencerHomeLockedController(),
+        );
+        break;
+    }
+  }
+
+  void _putPermanentIfNeeded<T>(T Function() builder) {
+    if (Get.isRegistered<T>()) return;
+    Get.put<T>(builder(), permanent: true);
   }
 
   void openNotifications() {
@@ -175,26 +202,34 @@ class BottomNavBinding extends Bindings {
       Get.delete<BottomNavController>(force: true);
     }
 
+    if (Get.isRegistered<HomeController>()) {
+      Get.delete<HomeController>(force: true);
+    }
+    if (Get.isRegistered<JobsController>()) {
+      Get.delete<JobsController>(force: true);
+    }
+    if (Get.isRegistered<EarningsController>()) {
+      Get.delete<EarningsController>(force: true);
+    }
+    if (Get.isRegistered<ProfileController>()) {
+      Get.delete<ProfileController>(force: true);
+    }
+    if (Get.isRegistered<ExploreController>()) {
+      Get.delete<ExploreController>(force: true);
+    }
+    if (Get.isRegistered<AnalyticsController>()) {
+      Get.delete<AnalyticsController>(force: true);
+    }
+    if (Get.isRegistered<AgencyHomeLockedController>()) {
+      Get.delete<AgencyHomeLockedController>(force: true);
+    }
+    if (Get.isRegistered<BrandHomeLockedController>()) {
+      Get.delete<BrandHomeLockedController>(force: true);
+    }
+    if (Get.isRegistered<InfluencerHomeLockedController>()) {
+      Get.delete<InfluencerHomeLockedController>(force: true);
+    }
+
     Get.put(BottomNavController(), permanent: true);
-
-    Get.lazyPut<AgencyHomeLockedController>(
-      () => AgencyHomeLockedController(),
-      fenix: true,
-    );
-    Get.lazyPut<BrandHomeLockedController>(
-      () => BrandHomeLockedController(),
-      fenix: true,
-    );
-    Get.lazyPut<InfluencerHomeLockedController>(
-      () => InfluencerHomeLockedController(),
-      fenix: true,
-    );
-
-    Get.lazyPut<HomeController>(() => HomeController(), fenix: true);
-    Get.lazyPut<JobsController>(() => JobsController(), fenix: true);
-    Get.lazyPut<EarningsController>(() => EarningsController(), fenix: true);
-    Get.lazyPut<ProfileController>(() => ProfileController(), fenix: true);
-    Get.lazyPut<ExploreController>(() => ExploreController(), fenix: true);
-    Get.lazyPut<AnalyticsController>(() => AnalyticsController(), fenix: true);
   }
 }

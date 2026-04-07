@@ -57,6 +57,10 @@ class AnalyticsController extends GetxController {
     super.onClose();
   }
 
+  Future<void> refreshPage() async {
+    await _fetch();
+  }
+
   void nextPage() {
     if (page.value >= totalPages.value) return;
     page.value++;
@@ -76,6 +80,8 @@ class AnalyticsController extends GetxController {
   }
 
   Future<void> _fetch() async {
+    if (isLoading.value) return;
+
     isLoading.value = true;
     try {
       final query = searchCtrl.text.trim();
@@ -93,11 +99,13 @@ class AnalyticsController extends GetxController {
 
       if (res.isSuccess && res.data != null) {
         final result = res.data!;
+
         topCampaign.value =
             (result.topCampaignTitle != null &&
                 result.topCampaignTitle!.trim().isNotEmpty)
             ? result.topCampaignTitle!
             : '—';
+
         topInfluencer.value =
             (result.topInfluencer != null &&
                 result.topInfluencer!.trim().isNotEmpty)

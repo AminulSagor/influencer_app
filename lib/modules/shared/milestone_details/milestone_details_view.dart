@@ -15,7 +15,7 @@ import 'widgets/brand_submission_card.dart';
 import 'widgets/milestone_header_card.dart';
 import 'widgets/status_summary_card.dart';
 import 'widgets/submission_card.dart';
-import '../../../core/widgets/shimmer_utils.dart';
+import '../../../core/utils/shimmer_utils.dart';
 
 class MilestoneDetailsView extends GetView<MilestoneDetailsController> {
   const MilestoneDetailsView({super.key});
