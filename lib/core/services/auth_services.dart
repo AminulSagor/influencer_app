@@ -32,6 +32,16 @@ class OTPresponse {
   const OTPresponse({required this.message, this.error, this.statusCode});
 }
 
+class DeleteOwnAccountResponse {
+  final bool success;
+  final String message;
+
+  const DeleteOwnAccountResponse({
+    required this.success,
+    required this.message,
+  });
+}
+
 class AuthService {
   AuthService({
     required ApiClient apiClient,
@@ -60,6 +70,7 @@ class AuthService {
 
   static const String _saveDeviceFcmToken = '/notifications/device/fcm-token';
   static const String _deleteDeviceFcmTokenBase = '/notifications/device/fcm';
+  static const String _deleteOwnAccount = '/user/me';
 
   static String _emailRequestOtp(String role) =>
       '$_emailVerifyBase/$role/request-otp';
@@ -356,5 +367,28 @@ class AuthService {
     }
 
     await _tokenService.clearTokens();
+  }
+
+  Future<DeleteOwnAccountResponse> deleteOwnAccount() async {
+    final res = await _api.dio.delete(_deleteOwnAccount);
+
+    if (res.data is! Map) {
+      throw DioException(
+        requestOptions: res.requestOptions,
+        message: 'delete-own-account response is not a valid format',
+      );
+    }
+
+    final data = Map<String, dynamic>.from(res.data as Map);
+    final success = data['success'] == true;
+    final message = data['message']?.toString().trim().isNotEmpty == true
+        ? data['message'].toString().trim()
+        : 'Your account has been deleted successfully';
+
+    if (!success) {
+      throw DioException(requestOptions: res.requestOptions, message: message);
+    }
+
+    return DeleteOwnAccountResponse(success: success, message: message);
   }
 }

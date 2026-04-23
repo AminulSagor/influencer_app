@@ -237,6 +237,21 @@ class ProfileView extends GetView<ProfileController> {
                                     ),
                                   ),
                                 ),
+
+                              SizedBox(height: 12.h),
+
+                              Obx(
+                                () => ExpandableSectionCard(
+                                  title: 'Danger Zone',
+                                  titleColor: AppPalette.error,
+                                  isExpanded:
+                                      controller.dangerZoneExpanded.value,
+                                  onToggle: controller.toggleDangerZone,
+                                  child: _DangerZoneSection(
+                                    controller: controller,
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -1198,6 +1213,205 @@ class _EmailVerifiedSuccess extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DangerZoneSection extends StatelessWidget {
+  final ProfileController controller;
+
+  const _DangerZoneSection({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(12.w),
+      decoration: BoxDecoration(
+        color: AppPalette.redBg,
+        borderRadius: BorderRadius.circular(kBorderRadius.r),
+        border: Border.all(
+          color: AppPalette.color2stroke,
+          width: kBorderWidth0_5,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Deleting your account is permanent and cannot be undone.',
+            style: TextStyle(
+              fontSize: 12.sp,
+              height: 1.4,
+              color: AppPalette.color2text,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+          SizedBox(height: 10.h),
+          CustomButton(
+            onTap: () {
+              controller.deleteAccountNameController.clear();
+              showDialog(
+                context: context,
+                barrierDismissible: !controller.isDeletingAccount.value,
+                builder: (_) =>
+                    _DeleteAccountConfirmationDialog(controller: controller),
+              );
+            },
+            btnText: 'Delete Account',
+            btnColor: AppPalette.error,
+            borderColor: Colors.transparent,
+            showBorder: false,
+            textColor: AppPalette.white,
+            width: double.infinity,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DeleteAccountConfirmationDialog extends StatelessWidget {
+  final ProfileController controller;
+
+  const _DeleteAccountConfirmationDialog({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    final expectedName = controller.deleteAccountExpectedName;
+
+    return Dialog(
+      insetPadding: EdgeInsets.symmetric(horizontal: 20.w),
+      backgroundColor: Colors.transparent,
+      child: Container(
+        padding: EdgeInsets.all(18.w),
+        decoration: BoxDecoration(
+          color: AppPalette.white,
+          borderRadius: BorderRadius.circular(kBorderRadius.r),
+          border: Border.all(color: AppPalette.color2stroke, width: 1),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 38.w,
+                  height: 38.w,
+                  decoration: const BoxDecoration(
+                    color: AppPalette.error,
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(
+                    Icons.delete_forever_rounded,
+                    color: AppPalette.white,
+                    size: 22.sp,
+                  ),
+                ),
+                SizedBox(width: 10.w),
+                Expanded(
+                  child: Text(
+                    'Delete Account',
+                    style: TextStyle(
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.w700,
+                      color: AppPalette.error,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 12.h),
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.all(12.w),
+              decoration: BoxDecoration(
+                color: AppPalette.redBg,
+                borderRadius: BorderRadius.circular(kBorderRadius.r),
+                border: Border.all(
+                  color: AppPalette.color2stroke,
+                  width: kBorderWidth0_5,
+                ),
+              ),
+              child: Text(
+                'Type your full name exactly to confirm account deletion.',
+                style: TextStyle(
+                  fontSize: 12.sp,
+                  height: 1.4,
+                  color: AppPalette.color2text,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            SizedBox(height: 12.h),
+            CustomTextFormField(
+              title: 'Full Name',
+              titleTextStyle: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 12.sp,
+                color: AppPalette.error,
+              ),
+              controller: controller.deleteAccountNameController,
+              hintText: expectedName.isEmpty
+                  ? 'Type your full name'
+                  : expectedName,
+              fillColor: AppPalette.redBg,
+              borderColor: AppPalette.color2stroke,
+            ),
+            SizedBox(height: 16.h),
+            Row(
+              children: [
+                Expanded(
+                  child: Obx(
+                    () => CustomButton(
+                      onTap: controller.isDeletingAccount.value
+                          ? null
+                          : () => Navigator.of(context).pop(),
+                      btnText: 'Cancel',
+                      btnColor: AppPalette.white,
+                      borderColor: AppPalette.color2stroke,
+                      textColor: AppPalette.color2text,
+                      width: double.infinity,
+                      isDisabled: controller.isDeletingAccount.value,
+                    ),
+                  ),
+                ),
+                SizedBox(width: 10.w),
+                Expanded(
+                  child: ValueListenableBuilder<TextEditingValue>(
+                    valueListenable: controller.deleteAccountNameController,
+                    builder: (_, value, __) {
+                      return Obx(() {
+                        final isLoading = controller.isDeletingAccount.value;
+                        final canDelete =
+                            expectedName.isNotEmpty &&
+                            value.text.trim() == expectedName &&
+                            !isLoading;
+
+                        return CustomButton(
+                          onTap: canDelete
+                              ? controller.confirmDeleteOwnAccount
+                              : null,
+                          btnText: 'Confirm Delete',
+                          btnColor: AppPalette.error,
+                          borderColor: Colors.transparent,
+                          showBorder: false,
+                          textColor: AppPalette.white,
+                          width: double.infinity,
+                          isLoading: isLoading,
+                          isDisabled: !canDelete,
+                        );
+                      });
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

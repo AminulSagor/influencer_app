@@ -68,6 +68,7 @@ class AssignedInfluencerUi {
   final String name;
   final String? image;
   final String locationText;
+  final String shippingAddress;
   final String status;
   final double offeredAmount;
 
@@ -80,6 +81,7 @@ class AssignedInfluencerUi {
     required this.name,
     this.image,
     required this.locationText,
+    required this.shippingAddress,
     required this.status,
     required this.offeredAmount,
     required this.assignedWork,
@@ -229,6 +231,23 @@ class BrandCampaignDetailsController extends GetxController {
   bool get areAllInfluencersAlreadyRated {
     if (rateInfluencerItems.isEmpty) return false;
     return rateInfluencerItems.every((e) => e.isAlreadyRated.value);
+  }
+
+  AssignedInfluencerUi? get selectedAssignedInfluencer {
+    final selectedId = selectedAssignmentId.value?.trim();
+
+    if (selectedId != null && selectedId.isNotEmpty) {
+      for (final item in assignedInfluencers) {
+        if (item.assignmentId == selectedId) return item;
+      }
+    }
+
+    return assignedInfluencers.isNotEmpty ? assignedInfluencers.first : null;
+  }
+
+  String get selectedShippingAddress {
+    final address = selectedAssignedInfluencer?.shippingAddress.trim() ?? '';
+    return address.isEmpty ? '—' : address;
   }
 
   @override
@@ -936,6 +955,8 @@ class BrandCampaignDetailsController extends GetxController {
       final location = (item['location'] ?? '').toString().trim();
       final country = (item['country'] ?? '').toString().trim();
 
+      final shippingAddress = location.isEmpty ? '—' : location;
+
       final locationText = [
         if (location.isNotEmpty) location,
         if (country.isNotEmpty && country.toLowerCase() != 'n/a') country,
@@ -953,7 +974,8 @@ class BrandCampaignDetailsController extends GetxController {
           influencerId: influencerId,
           name: name.isEmpty ? 'Influencer' : name,
           image: (image != null && image.isNotEmpty) ? image : null,
-          locationText: locationText.isEmpty ? '—' : locationText,
+          locationText: locationText.isEmpty ? shippingAddress : locationText,
+          shippingAddress: shippingAddress,
           status: (item['status'] ?? '').toString().trim(),
           offeredAmount: _numToDouble(item['offeredAmount']),
           assignedWork: assignedWork,
@@ -965,10 +987,8 @@ class BrandCampaignDetailsController extends GetxController {
 
     assignedInfluencers.assignAll(mapped);
 
-    // keep old top card influencers chips (if you still use it)
     influencers.assignAll(chipNames);
 
-    // auto select first influencer for influencer campaign only
     if (!isPaidAd && mapped.isNotEmpty) {
       final alreadySelected = selectedAssignmentId.value;
       final stillExists = mapped.any((e) => e.assignmentId == alreadySelected);

@@ -193,6 +193,10 @@ class ProfileController extends GetxController {
   final isSavingNiches = false.obs;
   final isSavingLocation = false.obs;
 
+  final dangerZoneExpanded = false.obs;
+  final deleteAccountNameController = TextEditingController();
+  final isDeletingAccount = false.obs;
+
   @override
   void onInit() {
     super.onInit();
@@ -2680,6 +2684,7 @@ class ProfileController extends GetxController {
 
     serviceFeeController.dispose();
     dollarRateController.dispose();
+    deleteAccountNameController.dispose();
 
     super.onClose();
   }
@@ -4075,6 +4080,65 @@ class ProfileController extends GetxController {
     if (accountTypeService.isAdAgency) return 'agency';
     if (accountTypeService.isBrand) return 'client';
     return 'client';
+  }
+
+  void toggleDangerZone() => dangerZoneExpanded.toggle();
+
+  String get deleteAccountExpectedName {
+    final sessionName = appUserSession.displayName.value.trim();
+    if (sessionName.isNotEmpty) return sessionName;
+
+    final firstName = (profileFieldValues['First Name'] ?? '').trim();
+    final lastName = (profileFieldValues['Last Name'] ?? '').trim();
+    final fallback = '$firstName $lastName'.trim();
+
+    return fallback;
+  }
+
+  Future<void> confirmDeleteOwnAccount() async {
+    if (isDeletingAccount.value) return;
+
+    final expectedName = deleteAccountExpectedName;
+    final typedName = deleteAccountNameController.text.trim();
+
+    if (expectedName.isEmpty) {
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message:
+            'Full name was not found in session. Please refresh and try again.',
+      );
+      return;
+    }
+
+    if (typedName != expectedName) {
+      AppSnackbar.showErrorSnackbar(
+        title: 'Error',
+        message: 'Entered full name does not match.',
+      );
+      return;
+    }
+
+    isDeletingAccount.value = true;
+    try {
+      final result = await ApiErrorHandler.call<DeleteOwnAccountResponse>(
+        () => _authService.deleteOwnAccount(),
+      );
+
+      if (!result.isSuccess || result.data == null) return;
+
+      if (Get.isDialogOpen == true) {
+        Get.back();
+      }
+
+      AppSnackbar.showSuccessSnackbar(
+        title: 'Success',
+        message: result.data!.message,
+      );
+
+      await appUserSession.logout();
+    } finally {
+      isDeletingAccount.value = false;
+    }
   }
 
   Future<void> startEmailVerification() async {

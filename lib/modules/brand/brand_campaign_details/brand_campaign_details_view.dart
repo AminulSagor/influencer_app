@@ -71,8 +71,10 @@ class BrandCampaignDetailsView extends GetView<BrandCampaignDetailsController> {
                         children: [
                           _CampaignProgressCard(),
                           12.h.verticalSpace,
+                          _ShippingAddressCard(),
+                          12.h.verticalSpace,
                           _MilestonesCard(),
-                          14.h.verticalSpace,
+                          12.h.verticalSpace,
                           _RatingCard(),
                           12.h.verticalSpace,
                           _BriefCard(),
@@ -1064,6 +1066,91 @@ class _MilestonesCard extends GetView<BrandCampaignDetailsController> {
         ],
       ),
     );
+  }
+}
+
+class _ShippingAddressCard extends GetView<BrandCampaignDetailsController> {
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      if (controller.isPaidAd || controller.assignedInfluencers.isEmpty) {
+        return const SizedBox.shrink();
+      }
+
+      final selected = controller.selectedAssignedInfluencer;
+      final name = selected?.name ?? 'Influencer';
+      final avatar = selected?.image;
+      final address = controller.selectedShippingAddress;
+
+      return _CardShell(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.location_on_outlined,
+                  size: 22.sp,
+                  color: AppPalette.primary,
+                ),
+                10.w.horizontalSpace,
+                Expanded(
+                  child: Text(
+                    'Shipping Address',
+                    style: TextStyle(
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w600,
+                      color: AppPalette.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            12.h.verticalSpace,
+            _DropdownPill(
+              text: name,
+              avatarUrl: avatar,
+              onTap: controller.openInfluencerMilestonePickerSheet,
+            ),
+            12.h.verticalSpace,
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.all(12.w),
+              decoration: BoxDecoration(
+                color: AppPalette.white,
+                borderRadius: BorderRadius.circular(kBorderRadius.r),
+                border: Border.all(color: AppPalette.border1, width: 1),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: EdgeInsets.only(top: 2.h),
+                    child: Icon(
+                      Icons.place_outlined,
+                      size: 18.sp,
+                      color: AppPalette.secondary,
+                    ),
+                  ),
+                  8.w.horizontalSpace,
+                  Expanded(
+                    child: Text(
+                      address,
+                      style: TextStyle(
+                        fontSize: 12.sp,
+                        height: 1.4,
+                        fontWeight: FontWeight.w400,
+                        color: AppPalette.greyText,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    });
   }
 }
 
