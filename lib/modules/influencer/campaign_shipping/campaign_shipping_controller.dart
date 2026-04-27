@@ -301,7 +301,10 @@ class CampaignShippingController extends GetxController {
       );
 
       if (result.isSuccess) {
-        Get.back(id: 1, result: true);
+        Get.back(
+          id: 1,
+          result: {'accepted': true, 'refresh': true, 'jobId': jobId},
+        );
       }
     } finally {
       isAcceptLoading.value = false;

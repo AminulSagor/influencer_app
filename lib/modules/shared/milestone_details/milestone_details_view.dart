@@ -230,7 +230,7 @@ class MilestoneDetailsView extends GetView<MilestoneDetailsController> {
                             statusBgColor: controller.statusBgColor,
                             statusChipTextColor: controller.statusChipTextColor,
                             statusTextColor: controller.statusTextColor,
-                            dateLabel: controller.job.dateLabel,
+                            dateLabel: controller.statusSummaryDateLabel.value,
                           ),
                         ),
                       ),

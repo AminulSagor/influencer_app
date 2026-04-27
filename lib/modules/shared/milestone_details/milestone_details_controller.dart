@@ -220,6 +220,8 @@ class MilestoneDetailsController extends GetxController {
 
   bool _isBlockingLoaderVisible = false;
 
+  final RxString statusSummaryDateLabel = ''.obs;
+
   void _showBlockingLoader() {
     if (_isBlockingLoaderVisible) return;
 
@@ -316,67 +318,8 @@ class MilestoneDetailsController extends GetxController {
     }
   }
 
-  double get combinedPaidAdCompletedPercent {
-    if (job.campaignType != CampaignType.paidAd) return 0;
-
-    return brandSubmissions
-        .where((s) => s.status.value == BrandSubmissionStatus.completed)
-        .fold<double>(0, (sum, s) => sum + s.avgPercent);
-  }
-
   bool get canShowBonusSection {
-    if (!_accountTypeService.isBrand) return false;
-    // if (currentMilestone.status != MilestoneStatus.approved) return false;
-
-    // ✅ Paid ad: multiple completed submissions can together exceed 100%
-
-    if (job.campaignType == CampaignType.paidAd) {
-      return combinedPaidAdCompletedPercent > 100;
-    }
-
-    // ✅ Influencer promotion / single-submission style: keep old metric-based logic
-    int totalReach = 0;
-    int totalViews = 0;
-    int totalLikes = 0;
-    int totalComments = 0;
-
-    int expectedReach = 0;
-    int expectedViews = 0;
-    int expectedLikes = 0;
-    int expectedComments = 0;
-
-    for (final submission in brandSubmissions) {
-      if (submission.status.value != BrandSubmissionStatus.completed) continue;
-
-      for (final metric in submission.metrics) {
-        switch (metric.labelKey) {
-          case 'brand_metric_reach':
-            totalReach += metric.achievedValue;
-            expectedReach = metric.expectedValue;
-            break;
-          case 'brand_metric_views':
-            totalViews += metric.achievedValue;
-            expectedViews = metric.expectedValue;
-            break;
-          case 'brand_metric_likes':
-            totalLikes += metric.achievedValue;
-            expectedLikes = metric.expectedValue;
-            break;
-          case 'brand_metric_comments':
-            totalComments += metric.achievedValue;
-            expectedComments = metric.expectedValue;
-            break;
-        }
-      }
-    }
-
-    final reachExceeded = expectedReach > 0 && totalReach > expectedReach;
-    final viewsExceeded = expectedViews > 0 && totalViews > expectedViews;
-    final likesExceeded = expectedLikes > 0 && totalLikes > expectedLikes;
-    final commentsExceeded =
-        expectedComments > 0 && totalComments > expectedComments;
-
-    return reachExceeded || viewsExceeded || likesExceeded || commentsExceeded;
+    return _accountTypeService.isBrand && currentMilestone.isMetrixOverflowed;
   }
 
   BrandSubmissionUiModel? get bonusTargetSubmission {
@@ -460,6 +403,8 @@ class MilestoneDetailsController extends GetxController {
       );
       return;
     }
+
+    statusSummaryDateLabel.value = job.dateLabel;
 
     _syncLocalStatusFromModel();
     _listenCampaignNotifications();
@@ -807,6 +752,51 @@ class MilestoneDetailsController extends GetxController {
     }
   }
 
+  void _syncStatusSummaryDateLabelFromSubmissions(
+    List<dynamic> rawSubmissions,
+  ) {
+    if (rawSubmissions.isEmpty) {
+      statusSummaryDateLabel.value = job.dateLabel;
+      return;
+    }
+
+    final dates = rawSubmissions
+        .whereType<Map>()
+        .map((e) => e['updatedAt']?.toString().trim() ?? '')
+        .where((e) => e.isNotEmpty)
+        .map(DateTime.tryParse)
+        .whereType<DateTime>()
+        .map((e) => e.toLocal())
+        .toList();
+
+    if (dates.isEmpty) {
+      statusSummaryDateLabel.value = job.dateLabel;
+      return;
+    }
+
+    dates.sort((a, b) => b.compareTo(a));
+    statusSummaryDateLabel.value = _formatStatusSummaryDate(dates.first);
+  }
+
+  String _formatStatusSummaryDate(DateTime date) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+
+    return '${months[date.month - 1]} ${date.day}, ${date.year}';
+  }
+
   Future<void> _loadBrandMilestoneDetails({required bool isPaidAd}) async {
     isBrandSubmissionsLoading.value = true;
     brandSubmissions.clear();
@@ -847,12 +837,15 @@ class MilestoneDetailsController extends GetxController {
           comments: _intFrom(raw['expectedComments']),
         ),
         status: _parseMilestoneStatus(raw['status']?.toString()),
+        isMetrixOverflowed: _boolFrom(raw['isMetrixOverflowed']),
       ),
     );
 
     milestoneStatus.value = _localStatusFromMilestone(currentMilestone.status);
 
     final submissionsRaw = (raw['submissions'] as List?) ?? const [];
+
+    _syncStatusSummaryDateLabelFromSubmissions(submissionsRaw);
 
     if (_accountTypeService.isBrand) {
       // ✅ Brand uses BrandSubmissionUiModel
@@ -1448,15 +1441,20 @@ class MilestoneDetailsController extends GetxController {
       return;
     }
 
-    final proofUrls = await _uploadProofAttachments(ui.proofs);
-
-    final payload = _buildInfluencerSubmitPayload(ui: ui, proofUrls: proofUrls);
-
     final hasServerId = (ui.serverId ?? '').trim().isNotEmpty;
     final shouldResubmit =
         hasServerId &&
         (ui.status.value == SubmissionStatus.inReview ||
             ui.status.value == SubmissionStatus.declined);
+
+    final uploadedProofUrls = await _uploadProofAttachments(ui.proofs);
+    final proofUrls = _proofUrlsForSubmit(
+      ui: ui,
+      uploadedProofUrls: uploadedProofUrls,
+      includeExistingServerProofs: shouldResubmit,
+    );
+
+    final payload = _buildInfluencerSubmitPayload(ui: ui, proofUrls: proofUrls);
 
     final Future<dynamic> Function() apiCall = shouldResubmit
         ? () => _apiClient.dio.patch(
@@ -1591,6 +1589,8 @@ class MilestoneDetailsController extends GetxController {
 
     final List submissionsList = (data['submissions'] as List?) ?? const [];
 
+    _syncStatusSummaryDateLabelFromSubmissions(submissionsList);
+
     final Map<String, dynamic>? firstFromList =
         submissionsList.isNotEmpty &&
             submissionsList.first is Map<String, dynamic>
@@ -1684,19 +1684,24 @@ class MilestoneDetailsController extends GetxController {
     SubmissionUiModel ui,
     String milestoneId,
   ) async {
-    final proofUrls = await _uploadProofAttachments(ui.proofs);
+    final hasServerId = (ui.serverId ?? '').trim().isNotEmpty;
+    final shouldResubmit =
+        hasServerId &&
+        (ui.status.value == SubmissionStatus.inReview ||
+            ui.status.value == SubmissionStatus.declined);
+
+    final uploadedProofUrls = await _uploadProofAttachments(ui.proofs);
+    final proofUrls = _proofUrlsForSubmit(
+      ui: ui,
+      uploadedProofUrls: uploadedProofUrls,
+      includeExistingServerProofs: shouldResubmit,
+    );
 
     // 1) ✅ submit/resubmit WITHOUT metrics (but with requestPaymentAmount)
     final agencyPayload = _buildAgencySubmitPayload(
       ui: ui,
       proofUrls: proofUrls,
     );
-
-    final hasServerId = (ui.serverId ?? '').trim().isNotEmpty;
-    final shouldResubmit =
-        hasServerId &&
-        (ui.status.value == SubmissionStatus.inReview ||
-            ui.status.value == SubmissionStatus.declined);
 
     final result = await ApiErrorHandler.call(() async {
       final Map<String, dynamic> apiRes = shouldResubmit
@@ -1735,6 +1740,32 @@ class MilestoneDetailsController extends GetxController {
         showError: false,
       );
     }
+  }
+
+  List<String> _proofUrlsForSubmit({
+    required SubmissionUiModel ui,
+    required List<String> uploadedProofUrls,
+    required bool includeExistingServerProofs,
+  }) {
+    final urls = <String>[];
+
+    void addUrl(String? value) {
+      final url = value?.trim() ?? '';
+      if (url.isEmpty || urls.contains(url)) return;
+      urls.add(url);
+    }
+
+    if (includeExistingServerProofs) {
+      for (final url in ui.serverProofUrls) {
+        addUrl(url);
+      }
+    }
+
+    for (final url in uploadedProofUrls) {
+      addUrl(url);
+    }
+
+    return urls;
   }
 
   Future<List<String>> _uploadProofAttachments(
@@ -1845,6 +1876,16 @@ class MilestoneDetailsController extends GetxController {
       default:
         return MilestoneLocalStatus.toDo;
     }
+  }
+
+  bool _boolFrom(dynamic value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      return normalized == 'true' || normalized == '1' || normalized == 'yes';
+    }
+    return false;
   }
 
   int? _intFrom(dynamic value) {

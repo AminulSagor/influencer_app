@@ -276,6 +276,8 @@ class Milestone {
   final MilestoneStatus status;
   final List<Submission> submissions;
 
+  final bool isMetrixOverflowed;
+
   const Milestone({
     this.id,
     required this.stepLabel,
@@ -297,6 +299,7 @@ class Milestone {
 
     this.status = MilestoneStatus.todo,
     this.submissions = const [],
+    this.isMetrixOverflowed = false,
   });
 
   bool get isPaid =>
@@ -338,6 +341,8 @@ class Milestone {
 
     MilestoneStatus? status,
     List<Submission>? submissions,
+
+    bool? isMetrixOverflowed,
   }) {
     return Milestone(
       id: id ?? this.id,
@@ -355,6 +360,7 @@ class Milestone {
       influencerName: influencerName ?? this.influencerName,
       status: status ?? this.status,
       submissions: submissions ?? this.submissions,
+      isMetrixOverflowed: isMetrixOverflowed ?? this.isMetrixOverflowed,
     );
   }
 }

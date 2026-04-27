@@ -1018,6 +1018,16 @@ class BrandCampaignDetailsController extends GetxController {
     }
   }
 
+  bool _boolFrom(dynamic value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      final v = value.trim().toLowerCase();
+      return v == 'true' || v == '1' || v == 'yes';
+    }
+    return false;
+  }
+
   void _applyInfluencerAssignedWorkToMilestones(
     AssignedInfluencerUi influencer,
   ) {
@@ -1031,7 +1041,7 @@ class BrandCampaignDetailsController extends GetxController {
           .map((entry) {
             final w = entry.value;
             return Milestone(
-              id: w['id']?.toString() ?? w['id']?.toString(),
+              id: w['id']?.toString(),
               stepLabel: '${entry.key + 1}',
               title: (w['contentTitle'] ?? 'Milestone').toString(),
               subtitle: w['contentQuantity']?.toString(),
@@ -1045,6 +1055,7 @@ class BrandCampaignDetailsController extends GetxController {
               platform: w['platform']?.toString(),
               deliverable: w['contentQuantity']?.toString(),
               status: _parseMilestoneStatus(w['status']?.toString()),
+              isMetrixOverflowed: _boolFrom(w['isMetrixOverflowed']),
               submissions: const [],
             );
           })
@@ -1101,6 +1112,7 @@ class BrandCampaignDetailsController extends GetxController {
           deliverable: w['contentQuantity']?.toString() ?? base.deliverable,
           targets: base.targets,
           status: _parseMilestoneStatus(w['status']?.toString()),
+          isMetrixOverflowed: w['isMetrixOverflowed'] == true,
           submissions: const [],
         ),
       );

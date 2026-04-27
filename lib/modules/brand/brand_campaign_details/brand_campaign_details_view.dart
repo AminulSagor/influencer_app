@@ -1221,7 +1221,14 @@ class _MilestoneCard extends StatelessWidget {
 
   const _MilestoneCard({required this.milestone});
 
+  bool get _isCompletedPlus {
+    return milestone.status == MilestoneStatus.approved &&
+        milestone.isMetrixOverflowed;
+  }
+
   Color get _cardBg {
+    if (_isCompletedPlus) return AppPalette.secondary;
+
     switch (milestone.status) {
       case MilestoneStatus.paid:
         return AppPalette.thirdColor;
@@ -1239,6 +1246,8 @@ class _MilestoneCard extends StatelessWidget {
   }
 
   String get _statusLabel {
+    if (_isCompletedPlus) return 'Completed++';
+
     switch (milestone.status) {
       case MilestoneStatus.todo:
         return 'brand_campaign_details_pending'.tr;
@@ -1254,6 +1263,8 @@ class _MilestoneCard extends StatelessWidget {
   }
 
   Color get _statusBg {
+    if (_isCompletedPlus) return AppPalette.thirdColor;
+
     switch (milestone.status) {
       case MilestoneStatus.paid:
         return AppPalette.secondary;
@@ -1271,6 +1282,8 @@ class _MilestoneCard extends StatelessWidget {
   }
 
   Color get _statusTextColor {
+    if (_isCompletedPlus) return AppPalette.secondary;
+
     switch (milestone.status) {
       case MilestoneStatus.inReview:
         return AppPalette.complemetary;
@@ -1282,6 +1295,12 @@ class _MilestoneCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final campaignController = Get.find<BrandCampaignDetailsController>();
+    dev.log(
+      'milestone=${milestone.title}, '
+      'status=${milestone.status.name}, '
+      'isMetrixOverflowed=${milestone.isMetrixOverflowed}, '
+      'isCompletedPlus=$_isCompletedPlus',
+    );
     return InkWell(
       onTap: () async {
         final result = await Get.toNamed(
@@ -1301,7 +1320,10 @@ class _MilestoneCard extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.bottomLeft,
             end: Alignment.topRight,
-            colors: [AppPalette.white, _cardBg],
+            colors: [
+              _isCompletedPlus ? AppPalette.gradient1 : AppPalette.white,
+              _cardBg,
+            ],
           ),
           borderRadius: BorderRadius.circular(kBorderRadius.r),
           border: Border.all(color: _statusBg, width: kBorderWidth0_5),
@@ -1319,6 +1341,8 @@ class _MilestoneCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: milestone.status == MilestoneStatus.inReview
                         ? AppPalette.complemetary
+                        : _isCompletedPlus
+                        ? AppPalette.secondary
                         : _statusBg,
                     shape: BoxShape.circle,
                   ),
@@ -1339,7 +1363,9 @@ class _MilestoneCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 14.sp,
                       fontWeight: FontWeight.w500,
-                      color: AppPalette.primary,
+                      color: _isCompletedPlus
+                          ? AppPalette.white
+                          : AppPalette.primary,
                     ),
                   ),
                 ),
@@ -1370,7 +1396,9 @@ class _MilestoneCard extends StatelessWidget {
                       milestone.subtitle!,
                       style: TextStyle(
                         fontSize: 10.sp,
-                        color: AppPalette.greyText,
+                        color: _isCompletedPlus
+                            ? AppPalette.white
+                            : AppPalette.greyText,
                       ),
                     ),
                   ),
@@ -1379,7 +1407,9 @@ class _MilestoneCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 10.sp,
                       fontWeight: FontWeight.w400,
-                      color: AppPalette.greyText,
+                      color: _isCompletedPlus
+                          ? AppPalette.white
+                          : AppPalette.greyText,
                     ),
                   ),
                 ],

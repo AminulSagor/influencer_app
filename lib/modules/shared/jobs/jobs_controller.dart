@@ -1914,7 +1914,19 @@ class JobsController extends GetxController {
     if (jobId == null || jobId.isEmpty) return;
 
     if (job.needToSendSample == true) {
-      await Get.toNamed(AppRoutes.campaignShipping, id: 1, arguments: job);
+      final result = await Get.toNamed(
+        AppRoutes.campaignShipping,
+        id: 1,
+        arguments: job,
+      );
+
+      if (result is Map && result['refresh'] == true) {
+        newOffers.removeWhere((e) => e.id == jobId);
+        await fetchActiveJobs(reset: true);
+        await fetchPendingPayments(reset: true);
+        await fetchInfluencerCounts();
+      }
+
       return;
     }
 

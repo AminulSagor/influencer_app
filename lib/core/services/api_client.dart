@@ -8,6 +8,7 @@ class ApiClient {
 
   static const String _baseUrl =
       'https://influencerbackend-production.up.railway.app';
+  // static const String _baseUrl = 'http://10.0.2.2:7000';
 
   ApiClient(this._tokenService) {
     _dio = Dio(
